@@ -9,3 +9,4 @@ Other programs
     cp2k
     orca
     mopac
+    vasp
