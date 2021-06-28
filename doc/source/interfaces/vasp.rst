@@ -8,3 +8,4 @@ API
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: VASPJob()
+.. autoclass:: VASPResults()
