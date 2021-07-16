@@ -418,13 +418,13 @@ class AMSResults(Results):
 
             Returns a dictionary, with the following keys:
             
-            'UnraveledScanCoords': a list of str with the names of the scan coordinates: ['sc_1_1','sc_1_2','sc_2_1','sc_2_2',...]
+            'RaveledScanCoords': a list of str with the names of the scan coordinates: ['sc_1_1','sc_1_2','sc_2_1','sc_2_2',...]
 
-            'nUnraveledScanCoords': the length of the previous list
+            'nRaveledScanCoords': the length of the previous list
 
-            'UnraveledUnits': a list of str with the units: ['bohr', 'bohr', 'radian', 'bohr', ...]
+            'RaveledUnits': a list of str with the units: ['bohr', 'bohr', 'radian', 'bohr', ...]
 
-            'UnraveledPESCoords': a nested list with the values of the scan coordinates: [[val_1_1_1,val_1_1_2,...],[val_1_2_1,val_1_2_2,...],[val_2_1_1,val_2_1_2,...],[val_2_2_1,val_2_2_2]]
+            'RaveledPESCoords': a nested list with the values of the scan coordinates: [[val_1_1_1,val_1_1_2,...],[val_1_2_1,val_1_2_2,...],[val_2_1_1,val_2_1_2,...],[val_2_2_1,val_2_2_2]]
 
             'ScanCoords': a nested list: [['sc_1_1','sc_1_2'],['sc_2_1','sc_2_2'],...]
 
@@ -480,16 +480,16 @@ class AMSResults(Results):
 
         ret = {}
 
-        unraveled_scancoords = [x[i] for x in scancoords for i in range(len(x))] # 1d list
-        unraveled_units = [x[i] for x in units for i in range(len(x))] # 1d list
-        ret['UnraveledScanCoords'] = unraveled_scancoords
-        ret['nUnraveledScanCoords'] = len(unraveled_scancoords)
+        raveled_scancoords = [x[i] for x in scancoords for i in range(len(x))] # 1d list
+        raveled_units = [x[i] for x in units for i in range(len(x))] # 1d list
+        ret['RaveledScanCoords'] = raveled_scancoords
+        ret['nRaveledScanCoords'] = len(raveled_scancoords)
         ret['ScanCoords'] = scancoords
         ret['nScanCoords'] = len(scancoords)
         ret['OrigScanCoords'] = origscancoords #newline delimiter for joint scan coordinates
-        ret['UnraveledPESCoords'] = pescoords.tolist()
+        ret['RaveledPESCoords'] = pescoords.tolist()
         ret['Units'] = units
-        ret['UnraveledUnits'] = unraveled_units
+        ret['RaveledUnits'] = raveled_units
         ret['Converged'] = converged
         ret['PES'] = pes
         ret['nPESPoints'] = len(pes)
