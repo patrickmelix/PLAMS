@@ -39,7 +39,7 @@ def init(path=None, folder=None, config_settings:Dict=None):
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
 
-    if config.init == True:
+    if config.init:
         return
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
@@ -83,7 +83,7 @@ def finish(otherJM=None):
 
     If you used some other job managers than just the default one, they need to be passed as *otherJM* list.
     """
-    if config.init == False:
+    if not config.init:
         return
 
     for thread in threading.enumerate():

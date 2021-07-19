@@ -143,7 +143,7 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
 
     # Mapping of PLAMS bond orders to RDKit bond types:
     def plams_to_rd_bonds(bo):
-        if bo > 1.4 and bo < 1.6:
+        if 1.4 < bo < 1.6:
             return 12 # bond type for aromatic bond
         else:
             return int(bo)

@@ -60,7 +60,7 @@ class VibrationsJob(MultiJob):
         self.vibClass = aseVib
 
         self.get_grad = getattr(self.jobType._result_type, get_gradients)
-        if reorder != None:
+        if reorder is not None:
             self.reorder = getattr(self.jobType._result_type, reorder)
         else:
             self.reorder = lambda x: x

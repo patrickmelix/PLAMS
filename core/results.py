@@ -274,7 +274,7 @@ class Results(metaclass=_MetaResults):
         """
         current_match = 0
         ret = []
-        switch = (begin == None)
+        switch = (begin is None)
 
         append = lambda x: ret.append(x.rstrip('\n')) if (match in [0,current_match]) else None
 

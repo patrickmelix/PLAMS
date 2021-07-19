@@ -109,15 +109,15 @@ class CrystalJob(SingleJob):
                 ret += '{}\n'.format(value.upper())
 
             elif isinstance(value, list):
-                if not key is '':
+                if key != '':
                     ret += '{}\n'.format(key)
                 for el in value:
                     ret += '{}\n'.format(str(el).upper())
 
-            elif key is '':
+            elif key == '':
                 ret += '{}\n'.format(str(value).upper())
 
-            elif value is '' or value is True:
+            elif value == '' or value is True:
                 ret += '{}\n'.format(key)
 
             elif value is False:

@@ -622,7 +622,7 @@ class Molecule:
             at._metalbondcounter = len([x for x in at.bonds if x.other_end(at).is_metallic])
             at._electronegativebondcounter = len([x for x in at.bonds if x.other_end(at).is_electronegative])
             if at._electronegativebondcounter >= 3 or \
-                    (at._electronegativebondcounter >= 2 and at._metalbondcounter <= 2) or \
+                    (at._electronegativebondcounter >= 2 >= at._metalbondcounter) or \
                     (at._electronegativebondcounter >= 1 and at._metalbondcounter <= 0):
                 bonds_to_delete = [b for b in at.bonds if b.other_end(at).is_metallic or b.other_end(at).atnum == 1]
                 for b in bonds_to_delete:

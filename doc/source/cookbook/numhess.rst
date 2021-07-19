@@ -33,3 +33,4 @@ An example usage::
                    gradient = lambda x: x.get_gradients().reshape(-1))
     r = j.run(jobrunner=JobRunner(parallel=True, maxjobs=8))
     print(r.get_hessian(mass_weighted=True))
+
