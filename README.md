@@ -34,25 +34,30 @@ Most important features of PLAMS:
 
 
 Simple example
-----------------------------
+--------------
 
 To provide some real life example, here is a simple PLAMS script performing the following work-flow:
 
-- generate xyz geometries from SMILES strings
-- optimize the structures using the fast semi-empirical method GFN1-xTB
-- compute the bonding energy for the optimized structures using the DFT engine ADF
+- optimize the structures of a molecule (water) using the fast semi-empirical method GFN1-xTB
+- compute the bonding energy for the optimized structure using the DFT engine ADF
 
 ```python
-# A dictionary with molecule names and smiles strings:
-mol_smiles = {'Methane'  : 'C',
-              'Ethane'   : 'C-C',
-              'Ethylene' : 'C=C',
-              'Acetylene': 'C#C'}
+mol = Molecule()
+mol.add_atom(Atom(symbol='O', coords=(0.0, 0.0, 0.0)))
+mol.add_atom(Atom(symbol='H', coords=(1.0, 0.0, 0.0)))
+mol.add_atom(Atom(symbol='H', coords=(0.0, 1.0, 0.0)))
+
 
 # Settings for the semi-empirical GFN1-xTB geometry optimization:
 go_xtb_settings = Settings()
 go_xtb_settings.input.ams.Task = 'GeometryOptimization'
 go_xtb_settings.input.dftb.Model = 'GFN1-xTB'
+
+# Run the geometry optimization with GFN1-xTB:
+go_job = AMSJob(molecule=mol, settings=go_xtb_settings, name='geometry_optimization')
+go_job.run()
+optimized_mol = go_job.results.get_main_molecule()
+
 
 # Settings for the single point DFT calculation with ADF:
 sp_adf_settings = Settings()
@@ -60,22 +65,13 @@ sp_adf_settings.input.ams.Task = 'SinglePoint'
 sp_adf_settings.input.adf.basis.type = 'DZP'
 sp_adf_settings.input.adf.XC.GGA = 'PBE'
 
-for name, smiles in mol_smiles.items():
-    # Generate an xyz structure from the smiles string:
-    mol = from_smiles(smiles)
+# Run the single point energy calcualtion with DFT (ADF:
+sp_job = AMSJob(molecule=optimized_mol, settings=sp_adf_settings, name='single_point')
+sp_job.run()
+bonding_energy = sp_job.results.get_energy(unit='kcal/mol')
 
-    # Run the geometry optimization with GFN1-xTB:
-    go_job = AMSJob(molecule=mol, settings=go_xtb_settings, name=f'go_{name}')
-    go_job.run()
-    optimized_mol = go_job.results.get_main_molecule()
 
-    # Run the single point energy calcualtion with DFT (ADF:
-    sp_job = AMSJob(molecule=optimized_mol, settings=sp_adf_settings, name=f'sp_{name}')
-    sp_job.run()
-    bonding_energy = sp_job.results.get_energy(unit='kcal/mol')
-
-    # Print the results:
-    print(f"Energy for {name}: {bonding_energy} [kcal/mol]")
+print(f"Energy : {bonding_energy} [kcal/mol]")
 ```
 
 When executed, the above script creates uniquely named working folder, then runs a series of calculations, each in a separate subfolder of the working folder. All files created by each run are saved in the corresponding subfolder for future reference. 
