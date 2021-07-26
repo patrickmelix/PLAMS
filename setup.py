@@ -7,7 +7,7 @@ description = "PLAMS is a library providing powerful, flexible and easily extend
 
 setup(
     name             = 'plams',
-    version          = '1.4',
+    version          = '1.5',
     author           = 'Michał Handzlik',
     author_email     = 'handzlik@scm.com',
     url              = 'https://www.scm.com/doc/plams/',
