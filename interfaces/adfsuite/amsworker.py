@@ -12,6 +12,7 @@ import functools
 import numpy as np
 import collections
 from typing import *
+from ..molecule.ase import toASE
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -114,13 +115,8 @@ class AMSWorkerResults:
         self._input_molecule = molecule
         self.error           = error
         self._results        = results
-        if self._results is not None and 'xyzAtoms' in self._results:
-            self._main_molecule = self._input_molecule.copy()
-            self._main_molecule.from_array(self._results.pop('xyzAtoms') * Units.conversion_ratio('au', 'Angstrom'))
-            if 'latticeVectors' in self._results:
-                self._main_molecule.lattice = [ tuple(v) for v in self._results.pop('latticeVectors') * Units.conversion_ratio('au', 'Angstrom') ]
-        else:
-            self._main_molecule = self._input_molecule
+        self._main_molecule  = None
+        self._main_ase_atoms = None
 
     @property
     def name(self):
@@ -212,8 +208,42 @@ class AMSWorkerResults:
     def get_main_molecule(self):
         """Return a |Molecule| instance with the final coordinates.
         """
+        if self._main_molecule is None:
+            if self._results is not None and 'xyzAtoms' in self._results:
+                self._main_molecule = self._input_molecule.copy()
+                self._main_molecule.from_array(self._results.get('xyzAtoms') * Units.conversion_ratio('au', 'Angstrom'))
+                if 'latticeVectors' in self._results:
+                    self._main_molecule.lattice = [ tuple(v) for v in self._results.get('latticeVectors') * Units.conversion_ratio('au', 'Angstrom') ]
+            else:
+                self._main_molecule = self._input_molecule
+
         return self._main_molecule
 
+    @_restrict
+    def get_main_ase_atoms(self):
+        """Return an ASE Atoms instance with the final coordinates.
+        """
+        from ase import Atoms
+        if self._main_ase_atoms is None:
+            if self._results is not None and 'xyzAtoms' in self._results:
+                bohr2angstrom = 0.529177210903
+                lattice = self._results.get('latticeVectors', None)
+                pbc = False
+                cell = None
+                if lattice is not None:
+                    nLatticeVectors = len(lattice)
+                    if nLatticeVectors > 0:
+                        pbc = [True] * nLatticeVectors + [False] * (3 - nLatticeVectors)
+                        cell = np.zeros((3, 3))
+                        lattice = np.array(lattice).reshape(-1, 3)
+                        cell[:lattice.shape[0], :lattice.shape[1]] = lattice * bohr2angstrom
+                atomsymbols = [at.symbol for at in self._input_molecule]
+                positions = np.array(self._results['xyzAtoms']).reshape(-1,3) * bohr2angstrom
+                self._main_ase_atoms = Atoms(symbols=atomsymbols, positions=positions, pbc=pbc, cell=cell)
+            else:
+                self._main_ase_atoms = toASE(self.get_main_molecule())
+
+        return self._main_ase_atoms
 
 
 class AMSWorkerError(PlamsError):
@@ -732,7 +762,7 @@ class AMSWorker:
         - *elastictensor*: Calculate the elastic tensor. This should only be requested for periodic systems.
         - *charges*: Calculate atomic charges.
         - *dipolemoment*: Calculate the electric dipole moment. This should only be requested for non-periodic systems.
-        - *dipolemoment*: Calculate the nuclear gradients of the electric dipole moment. This should only be requested for non-periodic systems.
+        - *dipolegradients*: Calculate the nuclear gradients of the electric dipole moment. This should only be requested for non-periodic systems.
 
         Users can pass an instance of a previously obtained |AMSWorkerResults| as the *prev_results* keyword argument. This can trigger a restart from previous results in the worker process, the details of which depend on the used computational engine: For example, a DFT based engine might restart from the electronic density obtained in an earlier calculation on a similar geometry. This is often useful to speed up series of sequentially dependent calculations:
 

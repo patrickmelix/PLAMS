@@ -236,3 +236,15 @@ class Units:
         if isinstance(value, (int, float, np.generic)):
             return value * cls.conversion_ratio(inp,out)
         return value
+
+
+    @classmethod
+    def ascii2unicode(cls, string):
+        """
+        Converts '^2' to '²' etc., for prettier printing of units.
+        """
+        if string is None:
+            return ''
+        ret = string.replace('^-1', '⁻¹').replace('angstrom', 'Å').replace('^2','²').replace('^3','³').replace('degree', '°').replace('deg.', '°')
+        return ret
+

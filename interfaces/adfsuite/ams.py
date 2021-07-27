@@ -18,6 +18,7 @@ from ...tools.converters import vasp_output_to_ams
 import subprocess
 
 
+
 __all__ = ['AMSJob', 'AMSResults']
 
 
@@ -139,6 +140,22 @@ class AMSResults(Results):
         if sectiondict:
             return Molecule._mol_from_rkf_section(sectiondict)
 
+    def get_ase_atoms(self, section, file='ams'):
+        from ase import Atoms
+        sectiondict = self.read_rkf_section(section, file)
+        bohr2angstrom = 0.529177210903
+        nLatticeVectors = sectiondict.get('nLatticeVectors', 0)
+        pbc = [True] * nLatticeVectors + [False] * (3 - nLatticeVectors)
+        if nLatticeVectors > 0:
+            cell = np.zeros((3, 3))
+            lattice = np.array(sectiondict.get('LatticeVectors')).reshape(-1, 3)
+            cell[:lattice.shape[0], :lattice.shape[1]] = lattice * bohr2angstrom
+        else:
+            cell = None
+        atomsymbols = sectiondict['AtomSymbols'].split()
+        positions = np.array(sectiondict['Coords']).reshape(-1,3) * bohr2angstrom
+        return Atoms(symbols=atomsymbols, positions=positions, pbc=pbc, cell=cell)
+
 
     def get_input_molecule(self):
         """Return a |Molecule| instance with the initial coordinates.
@@ -154,6 +171,15 @@ class AMSResults(Results):
         All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
         """
         return self.get_molecule('Molecule', 'ams')
+
+    def get_main_ase_atoms(self):
+        """Return an ase.Atoms instance with the final coordinates.
+
+        An alternative is to call toASE(results.get_main_molecule()) to convert a Molecule to ASE Atoms.
+
+        All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+        """
+        return self.get_ase_atoms('Molecule', 'ams')
 
 
     def get_history_molecule(self, step):
