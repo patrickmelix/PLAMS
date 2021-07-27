@@ -2,9 +2,11 @@ from .units import Units
 from ..trajectories.rkffile import RKFTrajectoryFile
 from ..core.private import saferun
 from .kftools import KFFile
+import re
 import os
+import tempfile
 
-__all__ = ['traj_to_rkf', 'vasp_output_to_ams']
+__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams']
 
 def traj_to_rkf(trajfile,  rkftrajectoryfile):
     """
@@ -91,6 +93,76 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
 
     return coords, cell
 
+def file_to_traj(outfile, trajfile):
+    """
+    outfile : str
+        path to existing file (OUTCAR, qe.out, etc.)
+    trajfile : str
+        will be created
+    """
+    if os.path.exists(trajfile):
+        os.remove(trajfile)
+    cmd = ['sh', os.path.join(os.environ.get('AMSBIN'), 'amspython'), '-m', 'ase', 'convert', outfile, trajfile]
+    saferun(cmd)
+    if not os.path.exists(trajfile):
+        raise RuntimeError("Couldn't write {}".format(trajfile))
+
+    return trajfile
+
+def _remove_or_raise(file, overwrite):
+    if os.path.exists(file):
+        if overwrite:
+            os.remove(file)
+        else:
+            raise RuntimeError("{} already exists, specify overwrite=True to overwrite".format(file))
+
+def _write_engine_rkf(kffile, enginefile):
+    kf = KFFile(kffile)
+    enginerkf = KFFile(enginefile)
+    # write engine.rkf
+    # copy General, Molecule, InputMolecule from ams.rkf
+    for sec in ['General','Molecule','InputMolecule']:
+        secdict = kf.read_section(sec)
+        for k, v in secdict.items():
+            enginerkf[sec+'%'+k] = v
+    nEntries = kf['History%nEntries']
+    suffix='({})'.format(nEntries)
+    if ('History', 'Energy'+suffix) in kf: enginerkf['AMSResults%Energy'] = kf['History%Energy'+suffix]
+    if ('History', 'Gradients'+suffix) in kf: enginerkf['AMSResults%Gradients'] = kf['History%Gradients'+suffix]
+    if ('History', 'StressTensor'+suffix) in kf: enginerkf['AMSResults%StressTensor'] = kf['History%StressTensor'+suffix]
+
+
+def _postprocess_vasp_amsrkf(kffile, outcar):
+    # add extra info to the kffile
+    kf = KFFile(kffile, autosave=False)
+    try:
+        kf['EngineResults%nEntries'] = 1
+        kf['EngineResults%Title(1)'] = 'vasp'
+        kf['EngineResults%Description(1)'] = 'Standalone VASP run. Data from {}'.format(os.path.abspath(outcar))
+        kf['EngineResults%Files(1)'] = 'vasp.rkf'
+        kf['General%user input'] = '!VASP'
+
+        # read the INCAR
+        incarfile = os.path.join(os.path.dirname(outcar), 'INCAR')
+        userinput = ['!VASP','Engine External', '  Input', '  !INCAR']
+        if os.path.exists(incarfile):
+            with open(incarfile) as incar:
+                for line in incar:
+                    line = line.split('!')[0]
+                    line = line.split('#')[0]
+                    line = line.strip()
+                    if line.lower().startswith('end'): # "End" is reserved to end the block
+                        line = '!'+line
+                    if len(line) > 0:
+                        userinput.append('    '+line)
+            userinput.append('  !EndINCAR')
+        userinput.append('  EndInput') #end of the Free block
+        userinput.append('EndEngine')
+        kf['General%user input'] = '\xFF'.join(userinput)
+
+    finally:
+        kf.save()
+
 def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf=True):
     """ 
         Converts VASP output (OUTCAR, ...) to AMS output (ams.rkf, vasp.rkf)
@@ -127,77 +199,112 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
         return wdir
 
     # convert OUTCAR to a .traj file inside wdir
-    trajfile = os.path.join(wdir,'outcar.traj')
-    if os.path.exists(trajfile):
-        os.remove(trajfile)
-    cmd = [os.path.join(os.environ.get('AMSBIN'),'amspython'),'-m','ase','convert',outcar,trajfile]
-    saferun(cmd)
-    if not os.path.exists(os.path.join(wdir,'outcar.traj')):
-        raise RuntimeError("Couldn't write outcar.traj in {}".format(wdir))
+    trajfile = file_to_traj(outcar, os.path.join(wdir, 'outcar.traj'))
 
     # remove the target files first if overwrite
     kffile = os.path.join(wdir, 'ams.rkf')
     enginefile = os.path.join(wdir, 'vasp.rkf')
-    if os.path.exists(kffile): 
-        if overwrite:
-            os.remove(kffile)
-        else:
-            raise RuntimeError("{} already exists, specify overwrite=True to overwrite".format(kffile))
-    if os.path.exists(enginefile): 
-        if overwrite:
-            os.remove(enginefile)
-        else:
-            raise RuntimeError("{} already exists, specify overwrite=True to overwrite".format(enginefile))
+    _remove_or_raise(kffile, overwrite)
+    _remove_or_raise(enginefile, overwrite)
 
     # convert the .traj file to ams.rkf
-    coords, cell = traj_to_rkf(trajfile, kffile)
+    traj_to_rkf(trajfile, kffile)
 
+    _postprocess_vasp_amsrkf(kffile, outcar)
+    if write_engine_rkf:
+        _write_engine_rkf(kffile, enginefile)
+
+    if os.path.exists(trajfile):
+        os.remove(trajfile)
+
+    return wdir
+
+def _postprocess_qe_amsrkf(kffile, qe_outfile):
     # add extra info to the kffile
     kf = KFFile(kffile, autosave=False)
-    if write_engine_rkf:
-        enginerkf = KFFile(enginefile, autosave=False)
     try:
         kf['EngineResults%nEntries'] = 1
-        kf['EngineResults%Title(1)'] = 'vasp'
-        kf['EngineResults%Description(1)'] = 'Standalone VASP run. Data from {}'.format(os.path.abspath(outcar))
-        kf['EngineResults%Files(1)'] = 'vasp.rkf'
-        kf['General%user input'] = '!VASP'
+        kf['EngineResults%Title(1)'] = 'qe'
+        kf['EngineResults%Description(1)'] = 'Standalone Quantum ESPRESSO run. Data from {}'.format(os.path.abspath(qe_outfile))
+        kf['EngineResults%Files(1)'] = 'qe.rkf'
 
-        # read the INCAR
-        incarfile = os.path.join(vasp_folder, 'INCAR')
-        userinput = ['!VASP','Engine External', '  Free', '  !INCAR']
-        if os.path.exists(incarfile):
-            with open(incarfile) as incar:
-                for line in incar:
-                    line = line.split('!')[0]
-                    line = line.split('#')[0]
-                    line = line.strip()
-                    if line.lower().startswith('end'): # "End" is reserved to end the block
-                        line = '!'+line
-                    if len(line) > 0:
-                        userinput.append('    '+line)
-            userinput.append('  !EndINCAR')
-        userinput.append('  End') #end of the Free block
-        userinput.append('EndEngine')
+        userinput = ['!QuantumESPRESSO',
+                     'Engine External',
+                     '  Input',
+                     '    Unknown Quantum ESPRESSO input',
+                     '  EndInput',
+                     'EndEngine']
         kf['General%user input'] = '\xFF'.join(userinput)
-
-        # write engine.rkf
-        # copy General, Molecule, InputMolecule from ams.rkf
-        if write_engine_rkf:
-            for sec in ['General','Molecule','InputMolecule']:
-                secdict = kf.read_section(sec)
-                for k, v in secdict.items():
-                    enginerkf[sec+'%'+k] = v
-            nEntries = kf['History%nEntries']
-            suffix='({})'.format(nEntries)
-            if ('History', 'Energy'+suffix) in kf: enginerkf['AMSResults%Energy'] = kf['History%Energy'+suffix]
-            if ('History', 'Gradients'+suffix) in kf: enginerkf['AMSResults%Gradients'] = kf['History%Gradients'+suffix]
-            if ('History', 'StressTensor'+suffix) in kf: enginerkf['AMSResults%StressTensor'] = kf['History%StressTensor'+suffix]
 
     finally:
         kf.save()
-        if write_engine_rkf:
-            enginerkf.save()
+
+def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=True):
+    """
+    Converts a qe .out file to ams.rkf and qe.rkf.
+
+    Returns: a string containing the directory where ams.rkf was written
+
+    If the filename ends in .out, check if a .results directory exists. In that case, place
+    the AMSJob subdirectory in the .results directory.
+
+    Otherwise, create a new directory called filename.AMSJob
+
+    qe_outfile : str
+        path to the qe output file
+
+    """
+
+    if not os.path.exists(qe_outfile) or os.path.isdir(qe_outfile):
+        raise FileNotFoundError(qe_outfile)
+
+    basename = os.path.basename(qe_outfile)
+    basename_no_suffix = basename
+    if basename.endswith('.out'):
+        basename_no_suffix = re.sub('.out$', '', basename)
+    dirname = os.path.abspath(os.path.dirname(qe_outfile))
+
+    if wdir is None:
+        if os.path.isdir(os.path.join(dirname, basename_no_suffix+'.results')):
+            wdir = os.path.join(dirname, basename_no_suffix+'.results', 'AMSJob')
+        else:
+            wdir = os.path.join(dirname, basename_no_suffix+'.AMSJob')
+
+    os.makedirs(wdir, exist_ok=True)
+
+    if os.path.exists(os.path.join(wdir, 'ams.rkf')) and not overwrite:
+        return wdir
+
+    # convert to a .traj file inside wdir
+    # first trim the qe_outfile to the first occurrence of "JOB DONE". This is needed because
+    # running standalone QE via the AMS GUI will print multiple jobs into the same output file
+    # i.e. both the geo opt and band structure calculation into the same file, which causes
+    # the ASE qe.out parser to crash
+    with tempfile.NamedTemporaryFile() as tf:
+        with open(qe_outfile, 'r') as instream:
+            for line in instream:
+                tf.write(line.encode())
+                if 'JOB DONE' in line:
+                    break
+        tf.flush()
+        trajfile = file_to_traj(tf.name, os.path.join(wdir, 'out.traj'))
+
+    # remove the target files first if overwrite
+    kffile = os.path.join(wdir, 'ams.rkf')
+    enginefile = os.path.join(wdir, 'qe.rkf')
+    _remove_or_raise(kffile, overwrite)
+    _remove_or_raise(enginefile, overwrite)
+
+    # convert the .traj file to ams.rkf
+    traj_to_rkf(trajfile, kffile)
+
+    _postprocess_qe_amsrkf(kffile, qe_outfile)
+    if write_engine_rkf:
+        # here one could also run $AMSBIN/tokf to get things like the DOS
+        # $AMSBIN/tokf qe qe_outfile enginefile
+        # But that would need to reread the entire trajectory
+        # and one would need to postprocess it with the AMSResults section
+        _write_engine_rkf(kffile, enginefile)
 
     if os.path.exists(trajfile):
         os.remove(trajfile)

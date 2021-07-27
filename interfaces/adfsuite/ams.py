@@ -14,7 +14,7 @@ from ...mol.atom import Atom
 from ...tools.kftools import KFFile
 from ...tools.units import Units
 from ...trajectories.rkffile import RKFTrajectoryFile
-from ...tools.converters import vasp_output_to_ams
+from ...tools.converters import vasp_output_to_ams, qe_output_to_ams
 import subprocess
 
 
@@ -1044,6 +1044,16 @@ class AMSJob(SingleJob):
         elif os.path.exists(path) and os.path.basename(path) == 'OUTCAR':
             preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
+        elif os.path.exists(path):
+            # check if path is a Quantum ESPRESSO .out file
+            # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
+            # they do not exist)
+            try:
+                path = qe_output_to_ams(path, overwrite=False)
+            except:
+                # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
+                # assume that any exception means that the file was not a QE output file
+                pass
 
         if not os.path.isdir(path):
             if os.path.exists(path):
