@@ -790,7 +790,7 @@ class AMSWorker:
 
 
     def GeometryOptimization(self, name, molecule, prev_results=None, quiet=True,
-                             gradients=False, stresstensor=False, hessian=False, elastictensor=False,
+                             gradients=True, stresstensor=False, hessian=False, elastictensor=False,
                              charges=False, dipolemoment=False, dipolegradients=False,
                              method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
                              maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
@@ -811,6 +811,9 @@ class AMSWorker:
         - *convstep*: Convergence criterion for displacements (in Bohr).
         - *convstressenergyperatom*: Convergence criterion for the stress energy per atom (in Hartree).
         """
+        gradients = True
+        if optimizelattice:
+            stresstensor = True
         args = locals()
         del args['self']
         del args['name']
