@@ -2,6 +2,7 @@
 
 import numpy
 from ..mol.molecule import Molecule
+from ..core.errors import TrajectoryError
 from ..tools.geometry import cell_shape
 from ..tools.geometry import cellvectors_from_shape
 from .trajectoryfile import TrajectoryFile
@@ -168,6 +169,10 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 cell = None
                 for i in range(2) :
                         line = self.file_object.readline()
+                        if i==0 and len(line.split()) > 1 :
+                                raise TrajectoryError('Number of atoms changes. Try XYZHistoryFile')
+                        elif i==0 and int(line.split()[0]) != self.ntap :
+                                raise TrajectoryError('Number of atoms changes. Try XYZHistoryFile')
                         if len(line) == 0 :
                                 return None, None           # End of file is reached
                 # Handle the comment line

@@ -1,4 +1,4 @@
-__all__ = ['PlamsError', 'FileError', 'ResultsError', 'JobError', 'PTError', 'UnitsError', 'MoleculeError']
+__all__ = ['PlamsError', 'FileError', 'ResultsError', 'JobError', 'PTError', 'UnitsError', 'MoleculeError', 'TrajectoryError']
 
 class PlamsError(Exception):
     """General PLAMS error."""
@@ -26,4 +26,8 @@ class UnitsError(PlamsError):
 
 class MoleculeError(PlamsError):
     """|Molecule| related error."""
+    pass
+
+class TrajectoryError(PlamsError):
+    """:class:`Trajectory<scm.plams.trajectories.TrajectoryFile>` error."""
     pass
