@@ -21,6 +21,8 @@ from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_arr
 from ..tools.units import Units
 from ..tools.kftools import KFFile
 
+input_parser_available = 'AMSBIN' in os.environ
+
 __all__ = ['Molecule']
 
 
@@ -2194,6 +2196,7 @@ class Molecule:
         pdb.add_record(PDBRecord('END'))
         pdb.write(f)
 
+
     @staticmethod
     def _mol_from_rkf_section(sectiondict):
         """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
@@ -2247,6 +2250,31 @@ class Molecule:
         kf = KFFile(filename)
         sectiondict = kf.read_section(section)
         self.__dict__.update(Molecule._mol_from_rkf_section(sectiondict).__dict__)
+        for at in self.atoms: at.mol = self
+        for bo in self.bonds: bo.mol = self
+
+
+    def readin(self, f, **other):
+        """Read a file containing a System block used in AMS driver input files."""
+        if not input_parser_available:
+            raise NotImplementedError('Reading from System blocks from AMS input files requires the AMS input parser to be available.')
+        from scm.input_parser import InputParser
+        from ..interfaces.adfsuite.ams import AMSJob
+        sett = Settings()
+        with InputParser() as parser:
+            sett.input.AMS = Settings(parser._run('ams', f.read()))
+        if 'System' not in sett.input.AMS: raise ValueError('No System block found in file.')
+        sysname = other.get('sysname', '')
+        mols = AMSJob.settings_to_mol(sett)
+        if sysname not in mols: raise KeyError(f'No System block with id "{sysname}" found in file.')
+        self.__dict__.update(mols[sysname].__dict__)
+        for at in self.atoms: at.mol = self
+        for bo in self.bonds: bo.mol = self
+
+    def writein(self, f, **other):
+        """Write the Molecule instance to a file as a System block from the AMS driver input files."""
+        from ..interfaces.adfsuite.ams import AMSJob
+        f.write(AMSJob(molecule={other.get('sysname',''):self}).get_input())
 
 
     def read(self, filename, inputformat=None, **other):
@@ -2293,9 +2321,12 @@ class Molecule:
         else:
             raise MoleculeError(f"write: Unsupported file format '{outputformat}'")
 
-    #Support for the ASE engine is added if available by interfaces.molecules.ase
+    # Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb, 'rkf':readrkf}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
+    if input_parser_available:
+        _readformat['in'] = readin
+        _writeformat['in'] = writein
 
 
     def add_hatoms(self) -> 'Molecule':
