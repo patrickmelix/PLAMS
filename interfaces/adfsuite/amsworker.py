@@ -664,6 +664,10 @@ class AMSWorker:
 
     def _solve_from_settings(self, name, molecule, settings):
         args = AMSWorker._settings_to_args(settings)
+        if args['task'].lower() == 'geometryoptimization':
+            args['gradients'] = True # need to explicitly set gradients to True to get them in the AMSWorkerReults
+            if args.get('optimizelattice', False):
+                args['stresstensor'] = True
         return self._solve(name, molecule, **args)
 
 
