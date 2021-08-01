@@ -1048,12 +1048,13 @@ class AMSJob(SingleJob):
             # check if path is a Quantum ESPRESSO .out file
             # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
             # they do not exist)
-            try:
-                path = qe_output_to_ams(path, overwrite=False)
-            except:
-                # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
-                # assume that any exception means that the file was not a QE output file
-                pass
+            if not path.endswith('rkf'):
+                try:
+                    path = qe_output_to_ams(path, overwrite=False)
+                except:
+                    # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
+                    # assume that any exception means that the file was not a QE output file
+                    pass
 
         if not os.path.isdir(path):
             if os.path.exists(path):

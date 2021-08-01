@@ -270,10 +270,11 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
         else:
             wdir = os.path.join(dirname, basename_no_suffix+'.AMSJob')
 
-    os.makedirs(wdir, exist_ok=True)
 
     if os.path.exists(os.path.join(wdir, 'ams.rkf')) and not overwrite:
         return wdir
+
+    os.makedirs(wdir, exist_ok=True)
 
     # convert to a .traj file inside wdir
     # first trim the qe_outfile to the first occurrence of "JOB DONE". This is needed because
