@@ -1073,6 +1073,41 @@ class Molecule:
             mol_copy.from_array(xyz_round)
             return mol_copy
 
+    def get_connection_table (self) :
+        """
+        Get a connection table with atom indices (starting at 0)
+        """
+        table = []
+        for iat,at in enumerate(self.atoms) :
+            indices = [self.index(n)-1 for n in self.neighbors(at)]
+            table.append(indices)
+        return table
+
+    def get_molecules (self) :
+        """
+        Use the bond information to identify submolecules
+
+        Returns a list of lists of indices (e.g. for two methane molecules: [[0,1,2,3,4],[5,6,7,8,9]])
+        """
+        conect = self.get_connection_table()
+        atlist = [i for i in range(len(self))]
+
+        molecules = []
+        while(1) :
+            atoms = [atlist[0]]
+            # Continue to add to the atoms list below, as the loop progresses
+            for i,iat in enumerate(atoms) :
+                conlist = conect[iat]
+                atoms += [ind for ind in conlist if not ind in atoms]
+            # Remove the molecule from atlist
+            atlist = [i for i in atlist if not i in atoms]
+            molecules.append(atoms)
+
+            if len(atlist) == 0 :
+                    break
+
+        return molecules
+
 
 #===========================================================================
 #==== Geometry operations ==================================================
