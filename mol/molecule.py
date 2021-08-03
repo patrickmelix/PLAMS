@@ -1083,7 +1083,7 @@ class Molecule:
             table.append(indices)
         return table
 
-    def get_molecules (self) :
+    def get_molecule_indices (self) :
         """
         Use the bond information to identify submolecules
 
@@ -1101,12 +1101,46 @@ class Molecule:
                 atoms += [ind for ind in conlist if not ind in atoms]
             # Remove the molecule from atlist
             atlist = [i for i in atlist if not i in atoms]
-            molecules.append(atoms)
+            molecules.append(sorted(atoms))
 
             if len(atlist) == 0 :
                     break
 
         return molecules
+
+    def get_fragment (self, indices) :
+        """
+        Return a submolecule from self
+        """
+        ret = Molecule()
+        ret.lattice = self.lattice.copy()
+
+        # First the atoms
+        bro = {}
+        for iat in indices :
+            at = self.atoms[iat]
+            at_copy = smart_copy(at, owncopy=['properties'], without=['mol','bonds'])
+            ret.add_atom(at_copy)
+            bro[at] = at_copy
+    
+        # Then the bonds
+        for bo in self.bonds:
+            if (bo.atom1 in bro) and (bo.atom2 in bro):
+                bo_copy = smart_copy(bo, owncopy=['properties'], without=['atom1', 'atom2', 'mol'])
+                bo_copy.atom1 = bro[bo.atom1]
+                bo_copy.atom2 = bro[bo.atom2]
+                ret.add_bond(bo_copy)
+
+        return ret
+
+    def get_molecules (self) :
+        """
+        Return a list of submolecules, using the bonding information
+        """
+        fragments = self.get_molecule_indices()
+        molecules = [self.get_fragment(indices) for indices in fragments]
+        return molecules
+
 
 
 #===========================================================================
