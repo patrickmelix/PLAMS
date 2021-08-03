@@ -280,7 +280,7 @@ class KFFile:
     """
     _types = {int : (1, 8, lambda x:'%10i'%x),
             float : (2, 3, lambda x:'%26.16e'%x),
-              str : (3, 80, lambda x: x),
+              str : (3, 80, lambda x: x.replace(chr(10),chr(255))), # in the ascii representation of a kf, '\n' (ascii #10) is concoded as 'ÿ' (ascii #255)
              bool : (4, 80, lambda x: 'T' if x else 'F')}
 
 
