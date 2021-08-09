@@ -1079,7 +1079,7 @@ class Molecule:
         """
         table = []
         for iat,at in enumerate(self.atoms) :
-            indices = [self.index(n)-1 for n in self.neighbors(at)]
+            indices = sorted([self.index(n)-1 for n in self.neighbors(at)])
             table.append(indices)
         return table
 
@@ -1140,6 +1140,124 @@ class Molecule:
         fragments = self.get_molecule_indices()
         molecules = [self.get_fragment(indices) for indices in fragments]
         return molecules
+
+    def locate_rings (self) :
+        """
+        Find the rings in the structure
+        """
+        def shortest_path_dijkstra (conect, source, target) :
+            """
+            Find the shortest paths (can be more than 1) 
+            between a source atom and a target
+            atom in a molecule
+            """
+            huge = 100000.
+    
+            dist = {}
+            previous = {}
+            for v in range(len(conect)) :
+                dist[v] = huge
+                previous[v] = []
+            dist[source] = 0
+
+            Q = [source]
+            for iat in range(len(conect)) :
+                if iat != source :
+                    Q.append(iat)
+
+            while len(Q) > 0 :
+                # vertex in Q with smallest distance in dist
+                u = Q[0]
+                if dist[u] == huge :
+                    return []
+                u = Q.pop(0)
+                if u == target :
+                    break
+
+                # Select the neighbors of u, and loop over them
+                neighbors = conect[u]
+                for v in neighbors :
+                    if not v in Q :
+                        continue
+                    alt = dist[u] + 1.
+                    if alt == dist[v] :
+                        previous[v].append(u)
+                    if alt < dist[v] :
+                        previous[v] = [u]
+                        dist[v] = alt
+                        # Reorder Q
+                        for i,vertex in enumerate(Q) :
+                            if vertex == v :
+                                ind = i
+                                break
+                        Q.pop(ind)
+                        for i,vertex in enumerate(Q) :
+                            if dist[v] < dist[vertex] :
+                                ind = i
+                                break
+                        Q.insert(ind,v)
+
+            bridgelist = [[u]]
+            d = dist[u]
+            for i in range(int(d)) :
+                paths = []
+                for j,path in enumerate(bridgelist) :
+                    prevats = previous[path[-1]]
+                    for at in prevats :
+                        newpath = path+[at]
+                        paths.append(newpath)
+                bridgelist = paths
+
+            return bridgelist
+
+        def bond_from_indices (ret, iat1, iat2) :
+            """
+            Return a bond object from the atom indices
+            """
+            bond = None
+            for bond in ret.bonds :
+                indices = [i-1 for i in ret.index(bond)]
+                if iat1 in indices and iat2 in indices :
+                    break 
+            if bond is None : raise Exception('This bond should exist (%i %i), but does not!'%(iat1,iat2))
+            return bond
+
+        # For each atom find the list of neighbors,
+        # break the corresponding bond, and then find out if they are still
+        # connected. If so, find the shortest bridge, using Dijkstra's algorithm
+        conect = self.get_connection_table()
+        atoms = [i for i,at in enumerate(self)]
+        ret = self.copy()
+        allrings = []
+        oldneighbors = []
+        for iat in atoms :
+            neighbors = conect[iat]
+            for iatn in neighbors :
+                if iatn in oldneighbors :
+                    continue
+                bond = bond_from_indices(ret, iat, iatn)
+                # Delete the bond
+                ret.delete_bond(bond)
+                mollist = ret.get_molecule_indices()
+                for m in mollist :
+                    connection = False
+                    if iatn in m :
+                        if iat in m :
+                            connection = True
+                        break
+
+                if connection :
+                    retconect = ret.get_connection_table()
+                    rings = shortest_path_dijkstra(retconect,iat,iatn)
+                    for ring in rings :
+                        ring.sort()
+                        if not ring in allrings :
+                            allrings.append(ring)
+                    # Put the bond back
+                    ret.add_bond(bond)
+            oldneighbors.append(iat)
+
+        return allrings
 
 
 
