@@ -305,21 +305,30 @@ class KFFile:
         return ret
 
 
-    def write(self, section, variable, value):
+    def write(self, section, variable, value, value_type=None):
         """Write a *variable* with a *value* in a *section* . If such a variable already exists in this section, the old value is overwritten."""
         if not isinstance(value, (int,bool,float,str,list)):
             raise ValueError('Trying to store improper value in KFFile')
+        trick_value=None
         if isinstance(value, list):
-            if len(value) == 0:
-                raise ValueError('Cannot store empty lists in KFFile')
-            if any(not isinstance(i, type(value[0])) for i in value):
-                raise ValueError('Lists stored in KFFile must have all elements of the same type')
-            if not isinstance(value[0], (int,bool,float,str)):
-                raise ValueError('Only lists of int, float, str or bool can be stored in KFFile')
+            if len(value) == 0 and value_type==None:
+                raise ValueError('Cannot store empty lists in KFFile without a type')
+            if len(value) == 0 and  value_type !=None:
+                trick_value={}
+                trick_value['empty_list_type']=value_type
+            else:
+                if any(not isinstance(i, type(value[0])) for i in value):
+                    raise ValueError('Lists stored in KFFile must have all elements of the same type')
+                if not isinstance(value[0], (int,bool,float,str)):
+                    raise ValueError('Only lists of int, float, str or bool can be stored in KFFile')
 
         if section not in self.tmpdata:
             self.tmpdata[section] = OrderedDict()
-        self.tmpdata[section][variable] = value
+            
+        if trick_value:
+            self.tmpdata[section][variable] = trick_value
+        else:
+            self.tmpdata[section][variable] = value
 
         if self.autosave:
             self.save()
@@ -453,9 +462,19 @@ class KFFile:
     @staticmethod
     def _str(val):
         """Return a string representation of *val* in the form that can be understood by ``udmpkf``."""
-        if isinstance(val, (int,bool,float)):
-            val = [val]
-        valtype = type(val[0])
+
+        if isinstance(val,dict):
+            valtype = val['empty_list_type']
+            val=[]
+        else:
+            if isinstance(val, (int,bool,float)):
+                val = [val]
+            if isinstance (val,str):
+                if len(val)==0:
+                    valtype=type('')
+            if len(val)>0:
+                valtype = type(val[0])
+
         t,step,f = KFFile._types[valtype]
         l = len(val)
         if (valtype == str and isinstance(val, list)):
@@ -469,6 +488,8 @@ class KFFile:
         for i,el in enumerate(val):
             if i%step == 0: ret += '\n'
             ret += f(el)
+        if len(val) == 0:
+            ret+='\n'
         return ret
 
 
