@@ -529,6 +529,56 @@ class AMSResults(Results):
         
         return ret
 
+    def get_neb_results(self, molecules=True, unit='au'):
+        """
+        Returns a dictionary with results from a NEB calculation.
+
+        molecules : bool
+            Whether to include the 'Molecules' key in the return result
+
+        unit : str
+            Energy unit for the Energies, LeftBarrier, RightBarrier, and ReactionEnergy
+
+        Returns: dict
+            'nImages': number of images (excluding end points) |br|
+            'nIterations': number of iterations |br|
+            'Energies': list of energies (including end points) |br|
+            'Climbing': bool, whether climbing image NEB was used |br|
+            'LeftBarrier': float, left reaction barrier |br|
+            'RightBarrier': float, right reaction barrier |br|
+            'ReactionEnergy': float, reaction energy |br|
+            'HistoryIndices': list of int, same length as 'Energies', contains indices in the History section
+            'Molecules': list of Molecule (including end points)
+
+        """
+        def tolist(x):
+            if isinstance(x, list):
+                return x
+            else:
+                return [x]
+        ret = {}
+        conversion_ratio = Units.conversion_ratio('au', unit)
+        ret['nImages'] = self.readrkf('NEB', 'nebImages')
+        ret['nIterations'] = self.readrkf('NEB', 'nebIterations')
+        ret['Energies'] = [x*conversion_ratio for x in tolist(self.readrkf('NEB', 'energy'))]
+        ret['Climbing'] = bool(self.readrkf('NEB', 'climbing'))
+        ret['LeftBarrier'] = self.readrkf('NEB', 'LeftBarrier') * conversion_ratio
+        ret['RightBarrier'] = self.readrkf('NEB', 'RightBarrier') * conversion_ratio
+        ret['ReactionEnergy'] = self.readrkf('NEB', 'ReactionEnergy') * conversion_ratio
+        history_indices = tolist(self.readrkf('NEB', 'historyIndex'))
+        min_index = len(history_indices) - ret['nImages'] - 2
+        ret['HistoryIndices'] = history_indices[min_index:]
+        if molecules:
+            mols = []
+            for ind in history_indices[min_index:]:
+                mols.append(self.get_history_molecule(ind))
+            ret['Molecules'] = mols
+
+        return ret
+
+
+
+
  
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
@@ -1058,7 +1108,7 @@ class AMSJob(SingleJob):
 
         if not os.path.isdir(path):
             if os.path.exists(path):
-                path = os.path.dirname(path)
+                path = os.path.dirname(os.path.abspath(path))
             elif os.path.isdir(path+'.results'):
                 path=path+'.results'
             elif os.path.isdir(path+'results'):
