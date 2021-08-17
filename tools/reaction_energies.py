@@ -31,7 +31,7 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
 
     return d
 
-def balance_equation(reactants, products, normalization='r0'):
+def balance_equation(reactants, products, normalization='r0', normalization_value=1.0):
     """
     Calculate stoichiometric coefficients 
     This only works if 
@@ -48,7 +48,10 @@ def balance_equation(reactants, products, normalization='r0'):
 
     normalization: 'r0' for the first reactant, 'r1' for the second reactant, etc.
         'p0' for the first product, 'p1' for the second product, etc.
-        This normalizes the chemical equation such that the coefficient in front of the specified species is 1
+        This normalizes the chemical equation such that the coefficient in front of the specified species is normalization_value
+
+    normalization_value : float
+        The coefficient to normalize to
 
     EXAMPLE:
 
@@ -147,6 +150,7 @@ def balance_equation(reactants, products, normalization='r0'):
 
     normalization_index = get_normalization_index(normalization)
     coeffs /= coeffs[normalization_index]
+    coeffs *= normalization_value
 
     # double-check that the equation is balanced
     if abs(np.sum(mat @ coeffs.reshape(-1,1))) > 1e-10:
