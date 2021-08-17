@@ -560,19 +560,22 @@ class AMSResults(Results):
         conversion_ratio = Units.conversion_ratio('au', unit)
         ret['nImages'] = self.readrkf('NEB', 'nebImages')
         ret['nIterations'] = self.readrkf('NEB', 'nebIterations')
-        ret['Energies'] = [x*conversion_ratio for x in tolist(self.readrkf('NEB', 'energy'))]
         ret['Climbing'] = bool(self.readrkf('NEB', 'climbing'))
+        ret['HighestIndex'] = self.readrkf('NEB', 'highestIndex')
         ret['LeftBarrier'] = self.readrkf('NEB', 'LeftBarrier') * conversion_ratio
         ret['RightBarrier'] = self.readrkf('NEB', 'RightBarrier') * conversion_ratio
         ret['ReactionEnergy'] = self.readrkf('NEB', 'ReactionEnergy') * conversion_ratio
-        history_indices = tolist(self.readrkf('NEB', 'historyIndex'))
-        min_index = len(history_indices) - ret['nImages'] - 2
-        ret['HistoryIndices'] = history_indices[min_index:]
+        history_dim = tolist(self.readrkf('NEB', 'historyIndex@dim')) # nimages, randombign
+        history_dim.reverse() # randombign, nimages
+        history_indices_matrix = tolist(self.readrkf('NEB', 'historyIndex'))  # this matrix is padded with -1 values
+        history_indices_matrix = np.array(history_indices_matrix).reshape(history_dim)
+        history_indices = np.max(history_indices_matrix, axis=0, keepdims=False).tolist()
+        if any(x == -1 for x in history_indices):
+            raise ValueError("Found -1 in the 'converged' part of historyIndex. This should not happen!")
+        ret['HistoryIndices'] = history_indices
+        ret['Energies'] = [self.get_property_at_step(ind, 'Energy')*conversion_ratio for ind in ret['HistoryIndices']]
         if molecules:
-            mols = []
-            for ind in history_indices[min_index:]:
-                mols.append(self.get_history_molecule(ind))
-            ret['Molecules'] = mols
+            ret['Molecules'] = [self.get_history_molecule(ind) for ind in ret['HistoryIndices']]
 
         return ret
 
