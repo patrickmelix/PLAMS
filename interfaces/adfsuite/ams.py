@@ -189,25 +189,12 @@ class AMSResults(Results):
         """
         if 'ams' in self.rkfs:
             main = self.rkfs['ams']
-            if 'History' not in main:
-                raise KeyError("'History' section not present in {}".format(main.path))
-            n = main.read('History', 'nEntries')
-            if step > n:
-                raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
+            if not self.is_valid_stepnumber(main,step) :
+                return
             coords = main.read('History', f'Coords({step})')
             coords = [coords[i:i+3] for i in range(0,len(coords),3)]
             if ('History', f'SystemVersion({step})') in main:
-                version = main.read('History', f'SystemVersion({step})')
-                if 'SystemVersionHistory' in main:
-                    if ('SystemVersionHistory', 'blockSize') in main:
-                        blockSize = main.read('SystemVersionHistory', 'blockSize')
-                    else:
-                        blockSize = 1
-                    block = (version - 1) // blockSize + 1
-                    offset = (version - 1) % blockSize
-                    system = main.read('SystemVersionHistory', f'SectionNum({block})', return_as_list=True)[offset]
-                else:
-                    system = version
+                system = self.get_system_version(main, step)
                 mol = self.get_molecule(f'ChemicalSystem({system})')
                 molsrc = f'ChemicalSystem({system})'
             else:
@@ -234,6 +221,35 @@ class AMSResults(Results):
                     for j in range(index[i], index[i+1]):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
             return mol
+
+    def is_valid_stepnumber (self, main, step) :
+        """
+        Check if the requested step number is in the results file
+        """
+        if 'History' not in main:
+            raise KeyError("'History' section not present in {}".format(main.path))
+        n = main.read('History', 'nEntries')
+        if step > n:
+            raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
+        return True
+
+    def get_system_version (self, main, step) :
+        """
+        Determine which Molecule version is requested
+        """
+        if ('History', f'SystemVersion({step})') in main:
+            version = main.read('History', f'SystemVersion({step})')
+            if 'SystemVersionHistory' in main:
+                if ('SystemVersionHistory', 'blockSize') in main:
+                    blockSize = main.read('SystemVersionHistory', 'blockSize')
+                else:
+                    blockSize = 1
+                block = (version - 1) // blockSize + 1
+                offset = (version - 1) % blockSize
+                system = main.read('SystemVersionHistory', f'SectionNum({block})', return_as_list=True)[offset]
+            else:
+                system = version
+        return system
 
     def get_history_variables(self, history_section='History') :
         """ Return a set of keynames stored in the specified history section of the ``ams.rkf`` file.
@@ -286,6 +302,34 @@ class AMSResults(Results):
             if not f"{varname}({nentries})" in keylist :
                 as_block = True
         return as_block
+
+    def get_atomic_temperatures_at_step(self, step, history_section='MDHistory') :
+        """
+        Get all the atomic temperatures for step `step`
+
+        Note: Numbering of steps starts at 1
+        """
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        if not self.is_valid_stepnumber(main, step) : return
+
+        # Read the masses
+        molname = 'Molecule'
+        if ('History', f'SystemVersion({step})') in main:
+            system = self.get_system_version(main, step)
+            molname = 'ChemicalSystem(%i)'%(system)
+        masses = np.array(main.read(molname,'AtomMasses'))
+        nats = len(masses)
+
+        # Read the velocities
+        velocities = np.array(self.get_property_at_step(step,'Velocities',history_section)).reshape((nats,3))
+
+        # Convert to SI units and compute temperatures
+        m = masses * 1.e-3 / Units.constants['NA']
+        vels = velocities * Units.conversion_ratio('Bohr','Angstrom') * 1.e5 
+        temperatures = (m.reshape((nats,1)) * vels**2).sum(axis=1)
+        temperatures /= 3 * Units.constants['k_B']
+        return temperatures
 
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
