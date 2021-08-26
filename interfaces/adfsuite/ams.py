@@ -911,7 +911,7 @@ class AMSJob(SingleJob):
             # If the AMS driver stopped with a known error (called StopIt in the Fortran code), the error will be in there.
             try:
                 msg = self.results.readrkf('General','termination status')
-                if msg == 'NORMAL TERMINATION with errors':
+                if msg == 'NORMAL TERMINATION with errors' or msg is None:
                     # Apparently this wasn't a hard stop in the middle of the job.
                     # Let's look for the last error in the logfile ...
                     msg = self.results.grep_file('ams.log', 'ERROR: ')[-1].partition('ERROR: ')[2]
