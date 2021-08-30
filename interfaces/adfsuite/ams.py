@@ -873,6 +873,7 @@ class AMSJob(SingleJob):
         ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS.
         """
         ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
+        ret += 'unset SCM_LOGFILE\n'
         if 'preamble_lines' in self.settings.runscript:
             for line in self.settings.runscript.preamble_lines:
                 ret += f'{line}\n'
