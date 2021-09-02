@@ -358,7 +358,7 @@ class Molecule:
     def separate(self):
         """Separate the molecule into connected components.
 
-        Returned is a list of new |Molecule| objects (all atoms and bonds are disjoint with the original molecule). Each element of this list is identical to one connected component of the base molecule. A connected component is a subset of atoms such that there exists a path (along one or more bonds) between any two atoms.
+        Returned is a list of new |Molecule| objects (all atoms and bonds are disjoint with the original molecule). Each element of this list is identical to one connected component of the base molecule. A connected component is a subset of atoms such that there exists a path (along one or more bonds) between any two atoms. Usually these connected components are molecules.
 
         Example::
 
@@ -1133,14 +1133,6 @@ class Molecule:
 
         return ret
 
-    def get_molecules (self) :
-        """
-        Return a list of submolecules, using the bonding information
-        """
-        fragments = self.get_molecule_indices()
-        molecules = [self.get_fragment(indices) for indices in fragments]
-        return molecules
-
     def locate_rings (self) :
         """
         Find the rings in the structure
@@ -1257,9 +1249,23 @@ class Molecule:
                     ret.add_bond(bond)
             oldneighbors.append(iat)
 
+        allrings = [self.order_ring(ring) for ring in allrings]
         return allrings
 
-
+    def order_ring (self, ring_indices) :
+        """
+        Order the ring indices so that they are sequential along the ring
+        """
+        conect = self.get_connection_table()
+        new_ring = [ring_indices[0]]
+        for iat in new_ring :
+            neighbors = [jat for jat in conect[iat] if jat in ring_indices]
+            neighbors = [jat for jat in neighbors if not jat in new_ring]
+            if len(neighbors) == 0 :
+                break
+            else :
+                new_ring.append(neighbors[0])
+        return new_ring
 
 #===========================================================================
 #==== Geometry operations ==================================================

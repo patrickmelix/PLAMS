@@ -252,7 +252,10 @@ class XYZTrajectoryFile (TrajectoryFile) :
                         name = self.name
                         if 'Name' in historydata :
                                 name = historydata['Name']
-                        block = create_xyz_string(self.elements,coords,energy,box,step,name)
+                        line = None
+                        if 'Line' in historydata :
+                                line = historydata['Line']
+                        block = create_xyz_string(self.elements,coords,energy,box,step,name,line)
                 else :
                         block = create_xyz_string(self.elements, coords)
                 self.file_object.write(block)
@@ -275,12 +278,14 @@ class XYZTrajectoryFile (TrajectoryFile) :
                         self.read_next(read=False)
 
 
-def create_xyz_string (elements, coords, energy=None, box=None, step=None, name='PlamsMol') :
+def create_xyz_string (elements, coords, energy=None, box=None, step=None, name='PlamsMol',line=None) :
         """
         Write an XYZ file based on the elements and the coordinates of the atoms
         """
-        block = '%8i\n'%(len(elements))
-        if step is not None :
+        block = '%i\n'%(len(elements))
+        if line is not None :
+                block += '%s'%(line)
+        elif step is not None :
                 if energy is None : energy = 0.
                 comment = '%-40s%6i %16.6f'%(name, step, energy)
                 if box is not None :
