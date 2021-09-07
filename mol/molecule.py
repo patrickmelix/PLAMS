@@ -1816,6 +1816,17 @@ class Molecule:
 #===========================================================================
 
 
+    def __repr__(self):
+        # get_formula(), but with C,H first and counts of 1 not present in the string
+        syms = sorted([at.symbol for at in self])
+        for at in 'HC':
+            syms = syms.count(at)*[at] + [i for i in syms if i != at]
+        uniq = list(dict.fromkeys(syms)) # preserves order
+        cnts = [syms.count(i) for i in uniq]
+        cnts = [str(i) if i > 1 else '' for i in cnts]
+        s = ''.join(f"{at}{cnt}" for at,cnt in zip(uniq, cnts))
+        return f"{self.__class__.__name__}('{s}' at {hex(id(self))})"
+
 
     def __len__(self):
         """The length of the molecule is the number of atoms."""
