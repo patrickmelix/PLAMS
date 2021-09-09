@@ -1109,7 +1109,7 @@ class AMSJob(SingleJob):
 
 
     @classmethod
-    def load_external(cls, path, settings=None, molecule=None, finalize=False):
+    def load_external(cls, path, settings=None, molecule=None, finalize=False, fmt='ams'):
         """Load an external job from *path*.
 
         In this context an "external job" is an execution of some external binary that was not managed by PLAMS, and hence does not have a ``.dill`` file. It can also be used in situations where the execution was started with PLAMS, but the Python process was terminated before the execution finished, resulting in steps 9-12 of :ref:`job-life-cycle` not happening.
@@ -1126,27 +1126,43 @@ class AMSJob(SingleJob):
 
         You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (|cleaning|), |postrun| and pickling (|pickling|). If *finalize* is ``False``, the status of the returned job is *copied*.
 
+        fmt : str
+            One of 'ams', 'qe', 'vasp', or 'any'.
+
+            'ams': load a finished AMS job
+
+            'qe': convert a Quantum ESPRESSO .out file to ams.rkf and qe.rkf and load from those files
+
+            'vasp': convert a VASP OUTCAR file to ams.rkf and vasp.rkf and load from those files (see more below)
+
+            'any': auto-detect the format.
+
         This method can also be used to convert a finished VASP job to an AMSJob. If you supply the path to a folder containing OUTCAR, then a subdirectory will be created in this folder called AMSJob. In the AMSJob subdirectory, two files will be created: ams.rkf and vasp.rkf, that contain some of the results from the VASP calculation. If the AMSJob subdirectory already exists, the existing ams.rkf and vasp.rkf files will be reused. NOTE: the purpose of loading VASP data this way is to let you call for example job.results.get_energy() etc., not to run new VASP calculations!
         """
         if isinstance(path, cls):
             return path
 
         preferred_name = None
+
+        fmt = fmt.lower()
+
         # first check if path is a VASP output
         # in which case call cls._vasp_to_ams, which will return a NEW path 
         # containing ams.rkf and vasp.rkf (the .rkf files will be created if they do not exist)
         if os.path.isdir(path):
             preferred_name = os.path.basename(os.path.abspath(path))
-            if not os.path.exists(os.path.join(path,'ams.rkf')) and os.path.exists(os.path.join(path,'OUTCAR')):
+            if not os.path.exists(os.path.join(path,'ams.rkf')) \
+                    and os.path.exists(os.path.join(path,'OUTCAR')) \
+                    and (fmt == 'vasp' or fmt == 'any'):
                 path = vasp_output_to_ams(path, overwrite=False)
-        elif os.path.exists(path) and os.path.basename(path) == 'OUTCAR':
+        elif os.path.exists(path) and os.path.basename(path) == 'OUTCAR' and (fmt == 'vasp' or fmt == 'any'):
             preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
         elif os.path.exists(path):
             # check if path is a Quantum ESPRESSO .out file
             # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
             # they do not exist)
-            if not path.endswith('rkf'):
+            if fmt =='qe' or (fmt == 'any' and not path.endswith('rkf')):
                 try:
                     path = qe_output_to_ams(path, overwrite=False)
                 except:

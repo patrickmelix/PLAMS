@@ -21,6 +21,8 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
             The final coordinates and cell in angstrom
     """
     from ase.io import read, Trajectory
+    import warnings
+    warnings.filterwarnings('ignore', 'Creating an ndarray from ragged nested sequences')
     traj = Trajectory(trajfile)
     rkfout = RKFTrajectoryFile(rkftrajectoryfile, mode='wb')
     rkfout.store_historydata()
