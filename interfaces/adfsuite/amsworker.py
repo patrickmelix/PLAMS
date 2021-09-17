@@ -180,6 +180,26 @@ class AMSWorkerResults:
         """
         return self._results["elasticTensor"]
 
+    def get_youngmodulus(self, unit='au'):
+        bm = self.get_bulkmodulus()
+        sm = self.get_shearmodulus()
+        ym = (9*bm*sm) / (3*bm+sm)
+        return ym * Units.conversion_ratio('au', unit)
+
+    def get_shearmodulus(self, unit='au'):
+        et = self.get_elastictensor()
+        if et.shape != (6,6):
+            raise ResultsError('Elastic moduli can only be calculated for bulk systems.')
+        sm = ((et[0,0] + et[1,1] + et[2,2]) - (et[0,1] + et[0,2] + et[1,2]) + 3 * (et[3,3] + et[4,4] + et[5,5])) / 15
+        return sm * Units.conversion_ratio('au', unit)
+
+    def get_bulkmodulus(self, unit='au'):
+        et = self.get_elastictensor()
+        if et.shape != (6,6):
+            raise ResultsError('Elastic moduli can only be calculated for bulk systems.')
+        bm = np.sum(et[0:3,0:3])/9
+        return bm * Units.conversion_ratio('au', unit)
+
     @_restrict
     def get_charges(self):
         """Return the atomic charges, expressed in atomic units.

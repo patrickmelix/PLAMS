@@ -266,9 +266,9 @@ class AMSResults(Results):
         if not 'ams' in self.rkfs: return
         main = self.rkfs['ams']
         if (history_section,'nScanCoord') in main: # PESScan
-            nentries = main.read(history_section,'nScanCoord') 
+            nentries = main.read(history_section,'nScanCoord')
             as_block = False
-        elif (history_section,'nEntries') in main: 
+        elif (history_section,'nEntries') in main:
             nentries = main.read(history_section,'nEntries')
             as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
@@ -326,7 +326,7 @@ class AMSResults(Results):
 
         # Convert to SI units and compute temperatures
         m = masses * 1.e-3 / Units.constants['NA']
-        vels = velocities * Units.conversion_ratio('Bohr','Angstrom') * 1.e5 
+        vels = velocities * Units.conversion_ratio('Bohr','Angstrom') * 1.e5
         temperatures = (m.reshape((nats,1)) * vels**2).sum(axis=1)
         temperatures /= 3 * Units.constants['k_B']
         return temperatures
@@ -350,7 +350,7 @@ class AMSResults(Results):
                 return {}
             # There are two *kinds* of "Properties" sections:
             # - ADF simply has a set of variables in the properties section
-            # - DFTB and some other engines have a *scheme* for storing "Properties". See the fortran 'RKFileModule' (RKFile.f90) 
+            # - DFTB and some other engines have a *scheme* for storing "Properties". See the fortran 'RKFileModule' (RKFile.f90)
             #   for more details on this.
             ret = {}
             if ('Properties', 'nEntries') in kf:
@@ -487,7 +487,7 @@ class AMSResults(Results):
                 Whether to return a Molecule at each PES point.
 
             Returns a dictionary, with the following keys:
-            
+
             'RaveledScanCoords': a list of str with the names of the scan coordinates: ['sc_1_1','sc_1_2','sc_2_1','sc_2_2',...]
 
             'nRaveledScanCoords': the length of the previous list
@@ -570,7 +570,7 @@ class AMSResults(Results):
             for ind in historyindices:
                 mols.append(self.get_history_molecule(ind))
             ret['Molecules'] = mols
-        
+
         return ret
 
     def get_neb_results(self, molecules=True, unit='au'):
@@ -626,7 +626,7 @@ class AMSResults(Results):
 
 
 
- 
+
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
@@ -715,7 +715,7 @@ class AMSResults(Results):
         def __init__(self, results):
             sec = results.read_rkf_section("EnergyLandscape")
 
-            # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats'). 
+            # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats').
             # For convenience here we make sure that the following variables are always 'lists':
             for var in ['energies', 'counts', 'isTS', 'reactants', 'products']:
                 if not isinstance(sec[var], list):
@@ -1147,7 +1147,7 @@ class AMSJob(SingleJob):
         fmt = fmt.lower()
 
         # first check if path is a VASP output
-        # in which case call cls._vasp_to_ams, which will return a NEW path 
+        # in which case call cls._vasp_to_ams, which will return a NEW path
         # containing ams.rkf and vasp.rkf (the .rkf files will be created if they do not exist)
         if os.path.isdir(path):
             preferred_name = os.path.basename(os.path.abspath(path))
