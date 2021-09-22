@@ -584,14 +584,22 @@ class AMSResults(Results):
             Energy unit for the Energies, LeftBarrier, RightBarrier, and ReactionEnergy
 
         Returns: dict
-            'nImages': number of images (excluding end points) |br|
-            'nIterations': number of iterations |br|
-            'Energies': list of energies (including end points) |br|
-            'Climbing': bool, whether climbing image NEB was used |br|
-            'LeftBarrier': float, left reaction barrier |br|
-            'RightBarrier': float, right reaction barrier |br|
-            'ReactionEnergy': float, reaction energy |br|
+            'nImages': number of images (excluding end points) 
+
+            'nIterations': number of iterations 
+
+            'Energies': list of energies (including end points) 
+
+            'Climbing': bool, whether climbing image NEB was used 
+
+            'LeftBarrier': float, left reaction barrier 
+
+            'RightBarrier': float, right reaction barrier 
+
+            'ReactionEnergy': float, reaction energy 
+
             'HistoryIndices': list of int, same length as 'Energies', contains indices in the History section
+
             'Molecules': list of Molecule (including end points)
 
         """
