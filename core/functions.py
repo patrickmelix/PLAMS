@@ -235,6 +235,9 @@ def log(message, level=0):
             if level <= config.log.file and 'default_jobmanager' in config:
                 with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
                     f.write(message + '\n')
+    else:
+        # log() is called before plams.init() was called ...
+        with _stdlock: print(message)
 
 
 #===========================================================================
