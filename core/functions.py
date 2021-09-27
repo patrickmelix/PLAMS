@@ -189,7 +189,7 @@ def read_molecules(folder, formats=None):
 
 def read_all_molecules_in_xyz_file(filename):
     """The .xyz format allows to store multiple geometries on a single file (such file is essentially a concatenated series of xyz files)
-    
+
     This function returns a *list* of all molecules found in the file *filename*
 
     *filename*: path (absolute or relative to the current working directory) to the xyz file.
@@ -235,7 +235,7 @@ def log(message, level=0):
             if level <= config.log.file and 'default_jobmanager' in config:
                 with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
                     f.write(message + '\n')
-    else:
+    elif level <= 3:
         # log() is called before plams.init() was called ...
         with _stdlock: print(message)
 
