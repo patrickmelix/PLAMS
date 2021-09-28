@@ -1,4 +1,5 @@
 import os
+import subprocess
 import numpy as np
 
 from os.path import join as opj
@@ -15,7 +16,39 @@ from ...tools.kftools import KFFile
 from ...tools.units import Units
 from ...trajectories.rkffile import RKFTrajectoryFile
 from ...tools.converters import vasp_output_to_ams, qe_output_to_ams
-import subprocess
+
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import PatternMatchingEventHandler, FileClosedEvent
+    _has_watchdog = True
+
+    class AMSJobLogTailHandler(PatternMatchingEventHandler):
+
+        def __init__(self, job, jobmanager):
+            super().__init__(patterns=[os.path.join(jobmanager.workdir, f"{job.name}*", "ams.log")],
+                             ignore_patterns=["*.rkf", "*.out"],
+                             ignore_directories=True,
+                             case_sensitive=True)
+            self._job = job
+            self._seekto = 0
+
+        def on_any_event(self, event):
+            if self._job.path is not None \
+            and event.src_path == os.path.join(self._job.path, "ams.log") \
+            and isinstance(event, FileClosedEvent):
+                try:
+                    with open(event.src_path, 'r') as f:
+                        f.seek(self._seekto)
+                        while True:
+                            line = f.readline()
+                            if not line: break
+                            log(f"{self._job.name}: "+line[25:-1])
+                        self._seekto = f.tell()
+                except FileNotFoundError:
+                    self._seekto = 0
+
+except ImportError:
+    _has_watchdog = False
 
 
 
@@ -851,6 +884,40 @@ class AMSJob(SingleJob):
     """
     _result_type = AMSResults
     _command = 'ams'
+
+
+    def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs):
+        """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
+
+        If *watch* is set to ``True``, the contents of the AMS driver logfile will be forwarded line by line to the PLAMS logfile (and stdout), allowing for an easier monitoring of the running job. Not that the forwarding of the AMS driver logfile will cause make the call to this method block until the job's execution has finished, even when using a parallel |JobRunner|.
+
+        Other keyword arguments (*\*\*kwargs*) are stored in ``run`` branch of job's settings.
+
+        Returned value is the |AMSResults| instance associated with this job.
+        """
+
+        if _has_watchdog and watch:
+            if 'default_jobmanager' in config:
+                jobmanager = config.default_jobmanager
+            else:
+                raise PlamsError('No default jobmanager found. This probably means that PLAMS init() was not called.')
+
+            observer = Observer()
+            event_handler = AMSJobLogTailHandler(self, jobmanager)
+            observer.schedule(event_handler, jobmanager.workdir, recursive=True)
+            observer.start()
+
+            try:
+                results = super().run(jobrunner=jobrunner, jobmanager=jobmanager, **kwargs)
+                results.wait()
+            finally:
+                observer.stop()
+                observer.join()
+
+        else:
+            results = super().run(jobrunner=jobrunner, jobmanager=jobmanager, **kwargs)
+
+        return results
 
 
     def get_input(self):
