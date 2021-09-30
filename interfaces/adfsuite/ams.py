@@ -19,7 +19,7 @@ from ...tools.converters import vasp_output_to_ams, qe_output_to_ams
 
 try:
     from watchdog.observers import Observer
-    from watchdog.events import PatternMatchingEventHandler, FileClosedEvent
+    from watchdog.events import PatternMatchingEventHandler, FileModifiedEvent
     _has_watchdog = True
 
     class AMSJobLogTailHandler(PatternMatchingEventHandler):
@@ -35,7 +35,7 @@ try:
         def on_any_event(self, event):
             if self._job.path is not None \
             and event.src_path == os.path.join(self._job.path, "ams.log") \
-            and isinstance(event, FileClosedEvent):
+            and isinstance(event, FileModifiedEvent):
                 try:
                     with open(event.src_path, 'r') as f:
                         f.seek(self._seekto)
