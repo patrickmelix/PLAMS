@@ -1338,7 +1338,7 @@ class AMSJob(SingleJob):
 
             # Add bonds
             for bond in settings_block.bondorders._1:
-                _at1, _at2, _order = bond.split()
+                _at1, _at2, _order, *_ = bond.split()
                 at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
                 mol.add_bond(at1, at2, order)
 
