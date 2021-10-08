@@ -991,6 +991,16 @@ class AMSJob(SingleJob):
                     # Apparently this wasn't a hard stop in the middle of the job.
                     # Let's look for the last error in the logfile ...
                     msg = self.results.grep_file('ams.log', 'ERROR: ')[-1].partition('ERROR: ')[2]
+                elif msg == 'IN PROGRESS' and '$JN.err' in self.results:
+                    # If the status is still "IN PROGRESS", that probably means AMS was shut down hard from the outside.
+                    # E.g. it got SIGKILL from the scheduler for exceeding some resource limit.
+                    # In this case useful information may be found on stderr.
+                    with open(self.results['$JN.err'], 'r') as err:
+                        errlines = err.read().splitlines()
+                    for el in reversed(errlines):
+                        if el != '' and not el.isspace():
+                            msg = "Killed while IN PROGRESS: " + el
+                            break
             except:
                 msg = 'Could not determine error message. Please check the output manually.'
             return msg

@@ -412,6 +412,11 @@ class Results(metaclass=_MetaResults):
             raise FileError('File {} not present in {}'.format(name, self.job.path))
 
 
+    def __contains__(self, name):
+        """Magic method to enable the Python ``in`` operator notation for checking if a filename with a particular name is present."""
+        name = name.replace('$JN', self.job.name)
+        return name in self.files
+
 
     def _process_file(self, filename, command):
         """_process_file(filename, command)
@@ -426,5 +431,4 @@ class Results(metaclass=_MetaResults):
             return ret
         else:
             raise FileError('File {} not present in {}'.format(filename, self.job.path))
-
 
