@@ -296,8 +296,10 @@ class AMSResults(Results):
 
     def get_history_property(self, varname, history_section='History') :
         """ Return the values of *varname* in the history section *history_section*."""
-        if not 'ams' in self.rkfs: return
+        if not 'ams' in self.rkfs:return
         main = self.rkfs['ams']
+        if history_section not in main:
+            raise KeyError(f"The requested section '{history_section}' does not exist in {main.path}")
         if (history_section,'nScanCoord') in main: # PESScan
             nentries = main.read(history_section,'nScanCoord')
             as_block = False
@@ -617,19 +619,19 @@ class AMSResults(Results):
             Energy unit for the Energies, LeftBarrier, RightBarrier, and ReactionEnergy
 
         Returns: dict
-            'nImages': number of images (excluding end points) 
+            'nImages': number of images (excluding end points)
 
-            'nIterations': number of iterations 
+            'nIterations': number of iterations
 
-            'Energies': list of energies (including end points) 
+            'Energies': list of energies (including end points)
 
-            'Climbing': bool, whether climbing image NEB was used 
+            'Climbing': bool, whether climbing image NEB was used
 
-            'LeftBarrier': float, left reaction barrier 
+            'LeftBarrier': float, left reaction barrier
 
-            'RightBarrier': float, right reaction barrier 
+            'RightBarrier': float, right reaction barrier
 
-            'ReactionEnergy': float, reaction energy 
+            'ReactionEnergy': float, reaction energy
 
             'HistoryIndices': list of int, same length as 'Energies', contains indices in the History section
 
@@ -1400,4 +1402,3 @@ class AMSJob(SingleJob):
             if slurmenv:
                 return f'export SCM_MPIOPTIONS="{slurmenv}"\n'
         return ''
-
