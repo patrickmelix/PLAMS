@@ -397,6 +397,10 @@ class KFFile:
         return ret
 
 
+    def keys(self) -> set:
+        """ Returns all sections in the current instance """
+        return set([sec for sec,var in self])
+
     def get_skeleton(self):
         """Return a dictionary reflecting the structure of this KF file. Each key in that dictionary corresponds to a section name of the KF file with the value being a set of variable names."""
         ret = {}
