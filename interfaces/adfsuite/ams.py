@@ -1,6 +1,7 @@
 import os
 import subprocess
 import numpy as np
+import re
 
 from os.path import join as opj
 
@@ -887,6 +888,50 @@ class AMSJob(SingleJob):
     _result_type = AMSResults
     _command = 'ams'
 
+
+    @classmethod
+    def from_input(cls, text_input):
+        """
+        Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError). 
+
+        text_input : a multi-line string
+
+        Returns: An AMSJob instance
+
+        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the ``text_input``, then it will be read into the returned job's settings.
+
+        Example::
+
+           text = '''
+           Task GeometryOptimization
+           Engine DFTB
+               Model GFN1-xTB
+           EndEngine
+           '''
+
+           job = AMSJob.from_input(text)
+        """
+        from scm.input_parser import InputParser
+        sett = Settings()
+        with InputParser() as parser:
+            sett.input = parser.to_settings('ams', text_input)
+        return cls(settings=sett)
+
+    @classmethod
+    def from_runfile(cls, path):
+        """
+        path : path to an AMS .run or .in file. Note: for AMS jobs generated with PLAMS, you should pass the path to the .in file to this function.
+
+        Returns an AMSJob based on the text input in the .run or .in file.
+
+        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the run file, then it will be read into the returned job's settings.
+        """
+        with open(path) as f:
+            run = f.read()
+        if '<<' in run:
+            delimiter = re.findall(r"<<.*?(\w+)", run)[0]
+            run = ''.join(re.findall(rf"(?s)(?:{delimiter})(.*)(?:[\r\n]{delimiter})", run))
+        return cls.from_input(run)
 
     def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs):
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).

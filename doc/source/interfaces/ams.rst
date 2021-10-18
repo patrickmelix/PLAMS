@@ -172,9 +172,7 @@ The contents of each branch of ``myjob.settings.input`` are translated to a stri
           file = /home/user/plams_workdir/oldjob/ams.rkf
         end
 
-* Convert AMS text-style input to a settings object with the InputParser (requires that the SCM python package is installed)::
-
-        from scm.input_parser import InputParser
+* Convert AMS text-style input to a Settings object (this requires that the SCM python package is installed)::
 
         text = '''
         Task GeometryOptimization
@@ -183,7 +181,7 @@ The contents of each branch of ``myjob.settings.input`` are translated to a stri
         EndEngine
         '''
 
-        sett = Settings.from_ams_input(text)
+        sett = AMSJob.from_input(text).settings
         print(sett)
 
         # output:

@@ -48,45 +48,6 @@ class Settings(dict):
             if isinstance(v, list):
                 self[k] = [cls(i) if (isinstance(i, dict) and type(i) is not cls) else i for i in v]
 
-
-    @classmethod
-    def from_ams_input(cls, ams_input : str):
-        """
-        Convert AMS-style text input to a Settings object. This function requires that the SCM Python package is installed (if not, it will raise an ImportError).
-
-        ams_input : a multi-line string
-
-        Example:
-        text = '''
-        Task GeometryOptimization
-        Engine DFTB
-            Model GFN1-xTB
-        EndEngine
-        '''
-
-        sett = Settings.from_ams_input(text)
-        """
-        from scm.input_parser import InputParser
-        sett = Settings()
-        with InputParser() as parser:
-            sett.input = parser.to_settings('ams', ams_input)
-        return sett
-
-    @classmethod
-    def from_ams_runfile(cls, path):
-        """
-        path : path to an AMS .run or .in file. Note: for AMS jobs generated with PLAMS, you should pass the path to the .in file to this function.
-
-        Returns a Settings object based on the text input in the .run or .in file.
-        """
-        with open(path) as f:
-            run = f.read()
-        if '<<' in run:
-            delimiter = re.findall(r"<<.*?(\w+)", run)[0]
-            run = ''.join(re.findall(rf"(?s)(?:{delimiter})(.*)(?:[\r\n]{delimiter})", run))
-        return cls.from_ams_input(run)
-
-
     def copy(self):
         """Return a new instance that is a copy of this one. Nested |Settings| instances are copied recursively, not linked.
 
