@@ -613,7 +613,13 @@ class MultiJob(Job):
 
             for child in it:
                 child.parent = self
-                child.run(jobrunner=jr, jobmanager=self.jobmanager, **self.settings.run)
+
+            # Run jobs without dependencies first ...
+            for child in it:
+                if not child.depend: child.run(jobrunner=jr, jobmanager=self.jobmanager, **self.settings.run)
+            # ... then all the jobs with explicit dependencies.
+            for child in it:
+                if     child.depend: child.run(jobrunner=jr, jobmanager=self.jobmanager, **self.settings.run)
 
             new = self.new_children()
 
