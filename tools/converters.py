@@ -77,6 +77,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
             historydata = {}
             if gradients is not None :
                 historydata['Gradients'] = gradients
+                historydata['EngineGradients'] = gradients
             if stresstensor is not None :
                 historydata['StressTensor'] = stresstensor
             if len(historydata) == 0 :
