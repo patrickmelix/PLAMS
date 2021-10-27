@@ -38,14 +38,16 @@ class AMSAnalysisPlot:
         Read the xy data for a section from the kf file
         """
         # Read all the x-values. There can be multiple axes for ND plots (n=3,4,....)
-        xkeys = [k for k in kf.reader._sections[sec] if 'x(' in k and ')-axis' in k]
+        sections = kf.get_skeleton()
+        xkeys = [k for k in sections[sec] if 'x(' in k and ')-axis' in k]
         xnums = sorted([int(k.split('(')[1].split(')')[0]) for k in xkeys])
+        xnums = sorted([xnum for xnum in set(xnums)])
         for i in xnums :
-                xkey = 'x(%i)-axis'%(i)
-        self.x.append(kf.read(sec, xkey))
-        x_name = kf.read(sec, '%s(label)'%(xkey))
-        self.x_names.append(convert_to_unicode(x_name))
-        self.x_units.append(convert_to_unicode(kf.read(sec, '%s(units)'%(xkey))))
+            xkey = 'x(%i)-axis'%(i)
+            self.x.append(kf.read(sec, xkey))
+            x_name = kf.read(sec, '%s(label)'%(xkey))
+            self.x_names.append(convert_to_unicode(x_name))
+            self.x_units.append(convert_to_unicode(kf.read(sec, '%s(units)'%(xkey))))
 
         # Read the y-values
         ykey = 'y-axis'
@@ -58,6 +60,7 @@ class AMSAnalysisPlot:
 
         self.read_properties(kf, sec)
         self.section = sec.split('(')[0] + '_' + sec.split('(')[1].split(')')[0]
+        self.name = self.section
 
     def read_properties (self, kf, sec) :
         """
@@ -80,6 +83,12 @@ class AMSAnalysisPlot:
         if 'Legend' in properties :
             self.name = properties['Legend']
 
+    def get_dimensions (self) :
+        """
+        Get the dimensonality of the plot
+        """ 
+        return len(self.x)
+
     def write (self, outfilename=None) :
         """
         Print this plot to a text file
@@ -97,13 +106,19 @@ class AMSAnalysisPlot:
         y_name = '%s(%s)'%(self.y_name,self.y_units)
         parts.append('%s %30s %30s\n'%(x_name,y_name,'sigma'))
 
+        # Determine the number of values per axis
+        ndims = len(self.x)
+        axis_length = int(len(self.x[0])**(1./ndims))
+
         # Place the values
         value_lists = self.x + [self.y] + [self.y_sigma]
-        for values in zip(*value_lists) :
+        for i,values in enumerate(zip(*value_lists)) :
             v_str = ''
             for v in values :
                 v_str += '%30.10e '%(v)
             v_str += '\n'
+            if (i+1)%axis_length==0 :
+                v_str += '\n'
             parts.append(v_str)
         block = ''.join(parts)
 
