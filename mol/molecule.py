@@ -2606,3 +2606,13 @@ class Molecule:
             nums2 = np.array([i.atnum for i in mol2])
             assert (nums1 == nums2).all(), f"\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
         return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
+
+    @property
+    def numbers(self):
+        """ Return an array of all atom numbers in Molecule """
+        return np.array([i.atnum for i in self])
+
+    @property
+    def symbols(self):
+        """ Return an array of all atom symbols in Molecule """
+        return np.array([i.symbol for i in self])
