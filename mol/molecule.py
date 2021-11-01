@@ -2167,7 +2167,7 @@ class Molecule:
             raise FileError(f'readxyz: cannot read frame from {f.name}')
 
 
-    def writexyz(self, f, **other):
+    def writexyz(self, f, space=16, decimal=8):
         f.write(str(len(self)) + '\n')
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -2175,10 +2175,13 @@ class Molecule:
                 comment = comment[0]
             f.write(comment)
         f.write('\n')
+
         for at in self.atoms:
-            f.write(str(at) + '\n')
+            f.write(at.str(space=space, decimal=decimal) + '\n')
+
         for i,vec in enumerate(self.lattice, 1):
-            f.write('VEC'+str(i) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
+            f.write(f"VEC{i} " + ' '.join([f"{v:>{space}.{decimal}f}" for v in vec]) + '\n')
+
 
 
     def readmol(self, f, **other):

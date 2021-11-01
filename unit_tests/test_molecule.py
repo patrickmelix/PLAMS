@@ -176,7 +176,7 @@ def test_write_multiple_molecules_to_xyz():
         for mol, mol_ref in zip(mols, mols_ref):
             for at, at_ref in zip(mol.atoms, mol_ref.atoms):
                 assert at.symbol == at_ref.symbol
-                np.testing.assert_allclose(at.coords, at_ref.coords, atol=1e-06)
+                np.testing.assert_allclose(at.coords, at_ref.coords, atol=1e-08)
 
     finally:
         if os.path.isfile(new_xyz_file):
