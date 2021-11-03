@@ -8,6 +8,7 @@ from ..core.settings import Settings
 from ..core.errors import PlamsError
 from .rkffile import RKFTrajectoryFile
 from .rkffile import bohr_to_angstrom
+from .rkffile import write_general_section
 
 __all__ = ['RKFHistoryFile']
 
@@ -259,7 +260,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                self._write_general_section()
+                write_general_section(self.file_object)
                 
                 # Then write the input molecule
                 self._update_celldata(cell)

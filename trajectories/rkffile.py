@@ -10,7 +10,7 @@ from ..tools.units import Units
 from ..core.errors import PlamsError
 from .trajectoryfile import TrajectoryFile
 
-__all__ = ['RKFTrajectoryFile']
+__all__ = ['RKFTrajectoryFile','write_general_section','write_molecule_section']
 
 bohr_to_angstrom = Units.conversion_ratio('bohr','angstrom')
 
@@ -264,7 +264,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                self._write_general_section()
+                write_general_section(self.file_object)
 
                 # Then write the input molecule
                 self._update_celldata(cell)
@@ -276,15 +276,6 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Now make sure that it is possible to read from the file as well
                 self._read_header()
-
-        def _write_general_section (self) :
-                """
-                Write the General section of the RKF file
-                """ 
-                self.file_object.write('General','file-ident','RKF')
-                self.file_object.write('General','termination status','NORMAL TERMINATION')
-                self.file_object.write('General','program','ams')
-                self.file_object.write('General','user input',' ')
 
         def _update_celldata (self, cell) :
                 """
@@ -299,33 +290,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Write the molecule section
                 """
-                # Then write the input molecule
-                charge = 0.
-                element_numbers = [PeriodicTable.get_atomic_number(el) for el in self.elements]
-
-                self.file_object.write(section,'nAtoms',len(self.elements))
-                self.file_object.write(section,'AtomicNumbers',element_numbers)
-                self.file_object.write(section,'AtomSymbols',self.elements)
-                crd = [Units.convert(float(c),'angstrom','bohr') for coord in coords for c in coord]
-                self.file_object.write(section,'Coords',crd)
-                self.file_object.write(section,'Charge',charge)
-                if cell is not None :
-                        self.file_object.write(section,'nLatticeVectors',self.nvecs)
-                        vecs = [Units.convert(float(v),'angstrom','bohr') for vec in cell for v in vec]
-                        self.file_object.write(section,'LatticeVectors',vecs)
-                # Should it write bonds?
-                # Write atom properties
-                if molecule is not None :
-                        suffixes = []
-                        present = False
-                        for at in molecule :
-                                if 'suffix' in at.properties :
-                                        present = True
-                                        suffixes.append(at.properties.suffix)
-                                else :
-                                        suffixes.append('')
-                        if present :
-                                self.file_object.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                write_molecule_section(self.file_object,coords,cell,self.elements,section,molecule)
 
         def _set_mdunits (self, mdunits) :
                 """
@@ -803,3 +768,57 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 nsteps = self.get_length()
                 crd,cell = self.read_frame(nsteps-1, molecule)
                 return crd, cell
+
+def write_general_section (rkf) :
+        """
+        Write the General section of the RKF file
+        """
+        rkf.write('General','file-ident','RKF')
+        rkf.write('General','termination status','NORMAL TERMINATION')
+        rkf.write('General','program','ams')
+        rkf.write('General','user input',' ')
+
+def write_molecule_section (rkf, coords=None, cell=None, elements=None, section='Molecule', molecule=None) :
+        """
+        Write the molecule section
+
+        Note: Currently does not write bonds
+        """
+        if coords is None :
+                coords = molecule.as_array()
+        if cell is None :
+                cell = molecule.lattice
+        if elements is None :
+                elements = [at.symbol for at in molecule.atoms]
+
+        # Then write the input molecule
+        charge = 0.
+        if molecule is not None :
+                if 'charge' in molecule.properties :
+                        charge = molecule.properties.charge
+        element_numbers = [PeriodicTable.get_atomic_number(el) for el in elements]
+
+        rkf.write(section,'nAtoms',len(elements))
+        rkf.write(section,'AtomicNumbers',element_numbers)
+        rkf.write(section,'AtomSymbols',elements)
+        crd = [Units.convert(float(c),'angstrom','bohr') for coord in coords for c in coord]
+        rkf.write(section,'Coords',crd)
+        rkf.write(section,'Charge',charge)
+        if cell is not None :
+                rkf.write(section,'nLatticeVectors',len(cell))
+                vecs = [Units.convert(float(v),'angstrom','bohr') for vec in cell for v in vec]
+                rkf.write(section,'LatticeVectors',vecs)
+        # Should it write bonds?
+        # Write atom properties
+        if molecule is not None :
+                suffixes = []
+                present = False
+                for at in molecule :
+                        if 'suffix' in at.properties :
+                                present = True
+                                suffixes.append(at.properties.suffix)
+                        else :
+                                suffixes.append('')
+                if present :
+                        rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+
