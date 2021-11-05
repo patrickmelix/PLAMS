@@ -784,12 +784,13 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
 
         Note: Currently does not write bonds
         """
-        if coords is None :
-                coords = molecule.as_array()
-        if cell is None :
-                cell = molecule.lattice
-        if elements is None :
-                elements = [at.symbol for at in molecule.atoms]
+        if molecule is not None :
+                if coords is None :
+                        coords = molecule.as_array()
+                if cell is None and len(molecule.lattice)>0 :
+                        cell = molecule.lattice
+                if elements is None :
+                        elements = [at.symbol for at in molecule.atoms]
 
         # Then write the input molecule
         charge = 0.
