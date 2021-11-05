@@ -18,7 +18,6 @@ Simple examples
    BasisSetBenchmark
    ExcitationsWorkflow
    ChargeTransferIntegralsADF
-   LoadingOldJobs
 
 Advanced examples
 -----------------
@@ -39,6 +38,8 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
 
 .. toctree::
 
+    LoadingOldJobs
+    ExtractingResults
     ams_crs
     adffragment
     ReorganizationEnergy
