@@ -10,5 +10,6 @@ Python Library for Automating Molecular Simulations
     started
     components/components
     interfaces/interfaces
+    examples/examples
     cookbook/cookbook
     citations
