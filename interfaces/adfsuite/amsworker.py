@@ -847,9 +847,15 @@ class AMSWorker:
         return self._solve_from_settings(name, molecule, s)
 
 
-    def ParseInput(self, program_name, text_input):
+    def ParseInput(self, program_name, text_input, string_leafs):
+        """Parse the text input and return a Python dictionary representing the the JSONified input.
+
+        - *program_name*: the name of the program. This will be used for loading the appropriate json input definitions. e.g. if program_name='adf', the input definition file 'adf.json' will be used.
+        - *text_input*: a string containing the text input to be parsed.
+        - *string_leafs*: if *True* the values in the parsed json input will always be string. e.g. if in the input you have 'SomeFloat 1.2', the json leaf node for 'SomeFloat' will be the string '1.2' (and not the float number 1.2). If False the leaf values in the json input will be of the 'appropriate' type, i.e. float will be floats, strings will be strings, booleans will be boleans etc...
+        """
         try:
-            reply = self._call("ParseInput", {"programName": program_name, "textInput": text_input})
+            reply = self._call("ParseInput", {"programName": program_name, "textInput": text_input, "stringLeafs": string_leafs})
             json_input = reply[0]['parsedInput']['jsonInput']
             return json_input
         except AMSWorkerError as exc:
