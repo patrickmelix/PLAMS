@@ -88,7 +88,7 @@ You can use the following snippets to retrieve results after running the require
 Directly from Functions
 -----------------------
 
-Results can be either red from previous calculations (see `How to load old jobs <LoadOldJobs.html>`_) or from an AMSResults instance of a computation just executed within the same workflow.
+Results can be either red from previous calculations (see :ref:`accessing_old_jobs`) or from an AMSResults instance of a computation just executed within the same workflow.
 In either case an AMSResults object should be present at runtime::
 
    myAMSJob.run()
@@ -213,6 +213,7 @@ KFBrowser is a GUI module used to inspect rkf files.
 
    whereas `<engine>` corresponds to the file `<engine>.rkf` present in the calculation directory.
 
+.. _accessing_old_jobs:
 
 Accessing Old Jobs
 ******************
