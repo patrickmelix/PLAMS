@@ -237,7 +237,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.stepsize += 3 * self.ntap * self.floatsize
                 self.stepsize += 5 * self.intsize
 
-                self.elements = ['H']*self.ntap
+                if len(self.elements) != self.ntap :
+                        self.elements = ['H']*self.ntap
 
         def read_next (self,molecule=None,read=True) :
                 """
@@ -496,6 +497,10 @@ class DCDTrajectoryFile (TrajectoryFile) :
                         cell = numpy.zeros((3,3))[numpy.tril_indices(3)]
                 elif len(cell)==3 and isinstance(cell[0],float) or isinstance(cell[0],numpy.float64) :
                         cell = [cell[0],0.,cell[1],0.,0.,cell[2]]
+                elif len(cell) < 3 :
+                        newcell = numpy.zeros((3,3))
+                        newcell[:len(cell)] = cell
+                        cell = newcell[numpy.tril_indices(3)]
                 else :
                         cell = numpy.array(cell)
                         cell = cell[numpy.tril_indices(3)]

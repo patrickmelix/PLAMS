@@ -29,6 +29,24 @@ def _in_thread(func):
     return wrapper
 
 
+def _in_limited_thread(func):
+    """More careful version of the ``in_thread`` decorator: a new job thread will only be launched if the currently active number of threads is below the ``maxthreads`` limit set in :meth:`~scm.plams.core.jobrunner.JobRunner.__init__`."""
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.parallel:
+            t = threading.Thread(name='plamsthread', target=func, args=(self,)+args, kwargs=kwargs)
+            t.daemon = config.daemon_threads
+            if self._jobthread_limit: self._jobthread_limit.acquire()
+            try:
+                t.start()
+            except Exception as e:
+                if self._jobthread_limit: self._jobthread_limit.release()
+                raise e
+        else:
+            func(self, *args, **kwargs)
+    return wrapper
+
+
 def _limit(func):
     """Decorator for an instance method. If ``semaphore`` attribute of given instance is not ``None``, use this attribute to wrap decorated method via :ref:`with<with-locks>` statement."""
     @functools.wraps(func)
@@ -66,13 +84,16 @@ class JobRunner(metaclass=_MetaRunner):
 
     For a job runner with parallel execution enabled the number of simultaneously running jobs can be limited using the *maxjobs* parameter. If *maxjobs* is 0, no limit is enforced. If *parallel* is ``False``, *maxjobs* is ignored. If *parallel* is ``True`` and *maxjobs* is a positive integer, a :class:`BoundedSemaphore<threading.BoundedSemaphore>` of that size is used to limit the number of simultaneously running :meth:`call` methods.
 
+    For a parallel |JobRunner| the maximum amount of threads started is limited by the *maxthreads* argument. As each job is running in a separate thread, this number necessarily acts as an upper limit for the number of jobs that can run in parallel. If the limit is exhausted, running further jobs with this |JobRunner| instance will block execution until another already running job thread terminates. The ``maxthreads`` limit should be set as large as possible, but not so large as to exceed any limits imposed by the operating system.
+
     A |JobRunner| instance can be passed to |run| with a keyword argument ``jobrunner``. If this argument is omitted, the instance stored in ``config.default_jobrunner`` is used.
     """
 
-    def __init__ (self, parallel=False, maxjobs=0):
+    def __init__ (self, parallel=False, maxjobs=0, maxthreads=256):
         self.parallel = parallel
         self.maxjobs  = maxjobs
         self.semaphore = threading.BoundedSemaphore(maxjobs) if maxjobs else None
+        self._jobthread_limit = threading.BoundedSemaphore(maxthreads) if maxthreads else None
 
 
     def call(self, runscript, workdir, out, err, runflags):
@@ -102,16 +123,21 @@ class JobRunner(metaclass=_MetaRunner):
         return process.returncode
 
 
-    @_in_thread
+    @_in_limited_thread
     def _run_job(self, job, jobmanager):
         """_run_job(job, jobmanager)
-        This method aggregates the parts of :ref:`job-life-cycle` that are supposed to be run in a separate thread in case of parallel job execution. It is wrapped with :func:`_in_thread` decorator.
+        This method aggregates the parts of :ref:`job-life-cycle` that are supposed to be run in a separate thread in case of parallel job execution. It is wrapped with :func:`_in_limited_thread` decorator.
 
         This method should not be overridden.
         """
-        if job._prepare(jobmanager):
-            job._execute(self)
-            job._finalize()
+        try:
+            if job._prepare(jobmanager):
+                job._execute(self)
+                job._finalize()
+        finally:
+            if self.parallel and self._jobthread_limit:
+                self._jobthread_limit.release()
+
 
 
 

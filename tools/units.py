@@ -55,6 +55,30 @@ class Units:
         -   ``Cm``
         -   ``Debye``, ``D``
 
+    *   forces:
+
+        -   All energy units divided by angstrom or bohr, for example 
+        -   ``eV/angstrom``
+        -   ``hartree/bohr``
+
+    *   hessian:
+
+        -   All energy units divided by angstrom^2 or bohr^2, for example 
+        -   ``eV/angstrom^2``
+        -   ``hartree/bohr^2``
+
+    *   pressure:
+
+        -   All energy units divided by angstrom^3 or bohr^3, for example 
+        -   ``eV/angstrom^3``
+        -   ``hartree/bohr^3``
+        -   And some more:
+        -   ``Pa``
+        -   ``GPa``
+        -   ``bar``
+        -   ``atm``
+
+
     Example::
 
         >>> print(Units.constants['speed_of_light'])
@@ -212,3 +236,15 @@ class Units:
         if isinstance(value, (int, float, np.generic)):
             return value * cls.conversion_ratio(inp,out)
         return value
+
+
+    @classmethod
+    def ascii2unicode(cls, string):
+        """
+        Converts '^2' to '²' etc., for prettier printing of units.
+        """
+        if string is None:
+            return ''
+        ret = string.replace('^-1', '⁻¹').replace('angstrom', 'Å').replace('^2','²').replace('^3','³').replace('degree', '°').replace('deg.', '°')
+        return ret
+
