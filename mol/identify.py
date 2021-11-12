@@ -265,27 +265,41 @@ def label(self, level=1, keep_labels=False, flags=None):
         clear(self)
     return ret
 
-
-def find_permutation(molecule1, molecule2):
-    """
-
-
-    """
-    if molecule1.label(0) != molecule2.label(0):
-        return None
-
-
-
-
-
 @add_to_class(Molecule)
-def reorder(self, other):
-    """Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
+def set_local_labels(self, niter=2, flags=None) :
     """
+    Set atomic labels (IDnames) that are unique for local structures of a molecule
 
-    perm = find_permutation(self, other)
-    if perm:
-        self.atoms = [self.atoms[i] for i in perm]
-        return perm
-    return None
+    * ``niter`` -- The number of iterations in the atom labeling scheme
 
+    The idea of this method is that the number of iterations can be specified.
+    If kept low (default niter), local structures over different molecules will have the same label.
+    """
+    if flags is None :
+        flags = {i:False for i in possible_flags}
+    initialize(self)
+    for i in range(niter) :
+        iterate(self,flags)
+
+
+# TODO: Implement methods below ...
+#
+#def find_permutation(molecule1, molecule2):
+#    """
+#
+#
+#    """
+#    if molecule1.label(0) != molecule2.label(0):
+#        return None
+#
+#
+#@add_to_class(Molecule)
+#def reorder(self, other):
+#    """Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
+#    """
+#
+#    perm = find_permutation(self, other)
+#    if perm:
+#        self.atoms = [self.atoms[i] for i in perm]
+#        return perm
+#    return None

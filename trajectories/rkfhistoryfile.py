@@ -8,6 +8,7 @@ from ..core.settings import Settings
 from ..core.errors import PlamsError
 from .rkffile import RKFTrajectoryFile
 from .rkffile import bohr_to_angstrom
+from .rkffile import write_general_section
 
 __all__ = ['RKFHistoryFile']
 
@@ -150,6 +151,14 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 plamsmol = Molecule._mol_from_rkf_section(section_dict)
                 return plamsmol
 
+        def _rewrite_molecule (self) :
+                """
+                Overwrite the molecule section with the latest frame (called in close())
+                """
+                mol = self.get_plamsmol()
+                crd,cell = self.read_last_frame(molecule=mol)
+                self._write_molecule_section(crd,cell,molecule=mol)
+
         def _read_header (self) :
                 """
                 Read the start molecule data from the InputMolecule section (not the Molecule section)
@@ -251,7 +260,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                self._write_general_section()
+                write_general_section(self.file_object)
                 
                 # Then write the input molecule
                 self._update_celldata(cell)
@@ -262,6 +271,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 if self.include_mddata :
                         # Start setting up the MDHistory section as well
                         self.file_object.write('MDHistory','blockSize',100)
+
+                self.added_atoms = {}
+                self.removed_atoms = {}
 
         def _read_coordinates (self, i, molecule, cell, bonds) :
                 """
@@ -274,6 +286,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 if elements != self.elements :
                         update_molecule = True
                 if isinstance(molecule,Molecule) :
+                        _, _, mol_elements, _, props = self._read_plamsmol(molecule)
+                        if mol_elements != self.elements or props != self.props : # This molecule has nothing to do with the previously read one
+                                update_molecule = True
                         prev_frames = [iframe for iframe in self.chemical_systems.keys() if iframe<=i]
                         ifr = 0
                         if len(prev_frames) > 0 :
@@ -293,6 +308,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         coords = self.coords.reshape((len(elements)*3))
                         # Rebuild the molecule (bonds will disappear for now)
                         if isinstance(molecule,Molecule) :
+                                self.props = props
                                 secname = 'ChemicalSystem(%i)'%(self.chemical_systems[ifr])
                                 section_dict = self.file_object.read_section(secname)
                                 new_mol = Molecule._mol_from_rkf_section(section_dict)
@@ -318,7 +334,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
 
                 # Assign the data to the molecule object
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds)
+                        cell_reduced = None
+                        if cell is not None :
+                                cell_reduced = cell[:self.nvecs]
+                        self._set_plamsmol(self.coords,cell_reduced,molecule,bonds)
 
         def _read_elements_for_frame (self, frame) :
                 """
@@ -334,7 +353,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                         elements.insert(iat-1,el)
                 return elements
 
-        def write_next (self, coords=None, molecule=None, elements=None, cell=[0.,0.,0.], conect=None, mddata=None) :
+        def write_next (self, coords=None, molecule=None, elements=None, cell=[0.,0.,0.], conect=None, historydata=None, mddata=None) :
                 """
                 Write frame to next position in trajectory file
 
@@ -343,11 +362,17 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 * ``elements`` -- The element symbols of the atoms in the system
                 * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system)
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
+                * ``historydata`` -- A dictionary containing additional variables to be written to the History section
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
 
                 The ``mddata`` dictionary can contain the following keys:
                 ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
                 'Charges', 'ConservedEnergy', 'Time', 'Temperature')
+
+                The ``historydata`` dictionary can contain for example:
+                ('Energy','Gradients','StressTensor')
+                All values must be in atomic units
+                Numpy arrays or lists of lists will be flattened before they are written to the file
 
                 .. note::
 
@@ -378,15 +403,17 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 # Define some local variables
                 counter = 1
                 step = self.position
-                energy = 0.
                 if mddata is not None :
                         if 'Step' in mddata :
                                 step = mddata['Step']
-                        if 'PotentialEnergy' in mddata :
-                                energy = mddata['PotentialEnergy']
+                # Energy should be read from mddata first, otherwise from historydata, otherwise set to zero
+                energy = self._set_energy(mddata, historydata)
+                if not self.include_historydata :
+                        historydata = {}
+                historydata['Energy'] = energy
 
                 # Write the history section
-                counter = self._write_history_entry(step, coords, cell, conect, energy)
+                counter = self._write_history_entry(step, coords, cell, conect, historydata)
 
                 if self.include_mddata and mddata is not None :
                         self._write_mdhistory_entry(mddata)
@@ -431,7 +458,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         chemsysversion = len(self.system_version_elements)
 
                 # Now add an entry to SystemVersionHistory
-                added_atoms, removed_atoms = self._find_system_change(elements)
+                added_atoms, removed_atoms = self._find_system_change(elements, props)
                 self.file_object.write('SystemVersionHistory','nEntries',version)
                 self.file_object.write('SystemVersionHistory','currentEntryOpen',False)
                 if 'SectionNum' not in self.version_history_items :
@@ -461,7 +488,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 counter += 1
                 return counter
 
-        def _find_system_change (self, elements) :
+        def _find_system_change (self, elements, props) :
                 """
                 Find out which atoms were added and/or deleted
                 """
@@ -472,7 +499,17 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         if position == len(elements) : 
                                 removed_atoms += [j for j in range(i,len(self.elements))]
                                 break
-                        if el == elements[position] :
+                        # Get the props, if relevant
+                        if self.props is None : 
+                                op = None
+                        else :
+                                op = self.props[i]
+                        if props is None : 
+                                p = None
+                        else :
+                                p = props[position]
+                        # Find the changes
+                        if el == elements[position] and op==p :
                                 position += 1
                         else :
                                 removed_atoms.append(i)
@@ -481,10 +518,14 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 added_atoms = [i for i in range(position,len(elements))]
                 
                 # Now store them (this is actually not really necessary)
-                #for iat in removed_atoms :
-                #        self.removed_atoms[self.position][iat] = self.elements[iat]
-                #for iat in added_atoms :
-                #        self.added_atoms[self.position][iat] = elements[iat]
+                if len(removed_atoms) > 0 :
+                        self.removed_atoms[self.position] = {}
+                if len(added_atoms) > 0 :
+                        self.added_atoms[self.position] = {}
+                for iat in removed_atoms :
+                        self.removed_atoms[self.position][iat+1] = self.elements[iat]
+                for iat in added_atoms :
+                        self.added_atoms[self.position][iat+1] = elements[iat]
                 return added_atoms, removed_atoms
 
         def _check_for_chemical_system (self, elements, compare_elements=True, props=None) :
