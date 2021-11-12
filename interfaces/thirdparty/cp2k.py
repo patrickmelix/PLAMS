@@ -247,10 +247,10 @@ class Cp2kResults(Results):
         spin = []
         for ch in chunk:
             charges.append([float(line.strip().split()[selectCharge])
-                            for line in ch])
+                            for line in ch if line])
             if return_spin:
                 spin.append([float(line.strip().split()[selectSpin])
-                             for line in ch])
+                             for line in ch if line])
         if return_spin:
             if match == 0:
                 return charges, spin
