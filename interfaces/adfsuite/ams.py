@@ -412,6 +412,13 @@ class AMSResults(Results):
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
+        # try:
+        #     return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
+        # except FileError as original_error:
+        #     try:
+        #         return min(self.readrkf('PESScan', 'PES')) * Units.conversion_ratio('au', unit)
+        #     except:
+        #         raise original_error
 
 
     def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
@@ -575,8 +582,12 @@ class AMSResults(Results):
         for i in range(nScanCoord):
             units.append([])
             for j in range(len(scancoords[i])):
-                if 'Distance' in scancoords[i][j]:
+                if scancoords[i][j] in ['a', 'b', 'c'] or 'Dist' in scancoords[i][j]:
                     units[-1].append('bohr')
+                elif 'Volume' in scancoords[i][j]:
+                    units[-1].append('bohr^3')
+                elif 'Area' in scancoords[i][j]:
+                    units[-1].append('bohr^2')
                 else:
                     units[-1].append('radian')
 
@@ -890,7 +901,7 @@ class AMSJob(SingleJob):
 
 
     @classmethod
-    def from_input(cls, text_input):
+    def from_input(cls, text_input, name=None, molecule=None):
         """
         Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError). 
 
@@ -915,10 +926,10 @@ class AMSJob(SingleJob):
         sett = Settings()
         with InputParser() as parser:
             sett.input = parser.to_settings('ams', text_input)
-        return cls(settings=sett)
+        return cls(settings=sett, name=name, molecule=molecule)
 
     @classmethod
-    def from_runfile(cls, path):
+    def from_runfile(cls, path, name=None, molecule=None):
         """
         path : path to an AMS .run or .in file. Note: for AMS jobs generated with PLAMS, you should pass the path to the .in file to this function.
 
@@ -931,7 +942,7 @@ class AMSJob(SingleJob):
         if '<<' in run:
             delimiter = re.findall(r"<<.*?(\w+)", run)[0]
             run = ''.join(re.findall(rf"(?s)(?:{delimiter})(.*)(?:[\r\n]{delimiter})", run))
-        return cls.from_input(run)
+        return cls.from_input(run, name, molecule)
 
     def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs):
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
