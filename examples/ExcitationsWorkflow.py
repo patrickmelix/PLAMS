@@ -22,7 +22,7 @@ def has_good_excitations(results, min_energy, max_energy, oscillator_str_thresho
        in the energy range [min_energy, max_energy]. Unit for min_energy and max energy: eV. """
     exci_energies, oscillator_str = results.get_excitations()
     for e,o in zip(exci_energies, oscillator_str):
-        if e > min_energy and e < max_energy and o > oscillator_str_threshold:
+        if min_energy < e < max_energy and o > oscillator_str_threshold:
             return True
     return False
 
