@@ -193,7 +193,7 @@ class PDBHandler:
             self.add_record(newmodel)
             self.add_record(endmdl)
 
-        if self.records['MODEL '] != []: #there were 1+ models present before
+        if self.records['MODEL ']: #there were 1+ models present before
             newmodel = PDBRecord('MODEL     %4i' % (1+len(self.records['MODEL '])))
             newmodel.model = model
             if newmodel.model[-1].name != 'ENDMDL':

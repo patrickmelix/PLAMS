@@ -31,20 +31,23 @@ class AMSAnalysisPlot:
 
         self.properties = None
         self.name = None
+        self.section = None
 
     def read_data (self, kf, sec) :
         """
         Read the xy data for a section from the kf file
         """
         # Read all the x-values. There can be multiple axes for ND plots (n=3,4,....)
-        xkeys = [k for k in kf.reader._sections[sec] if 'x(' in k and ')-axis' in k]
+        sections = kf.get_skeleton()
+        xkeys = [k for k in sections[sec] if 'x(' in k and ')-axis' in k]
         xnums = sorted([int(k.split('(')[1].split(')')[0]) for k in xkeys])
+        xnums = sorted([xnum for xnum in set(xnums)])
         for i in xnums :
-                xkey = 'x(%i)-axis'%(i)
-        self.x.append(kf.read(sec, xkey))
-        x_name = kf.read(sec, '%s(label)'%(xkey))
-        self.x_names.append(convert_to_unicode(x_name))
-        self.x_units.append(convert_to_unicode(kf.read(sec, '%s(units)'%(xkey))))
+            xkey = 'x(%i)-axis'%(i)
+            self.x.append(kf.read(sec, xkey))
+            x_name = kf.read(sec, '%s(label)'%(xkey))
+            self.x_names.append(convert_to_unicode(x_name))
+            self.x_units.append(convert_to_unicode(kf.read(sec, '%s(units)'%(xkey))))
 
         # Read the y-values
         ykey = 'y-axis'
@@ -56,6 +59,8 @@ class AMSAnalysisPlot:
         self.y_sigma = kf.read(sec, 'sigma')
 
         self.read_properties(kf, sec)
+        self.section = sec.split('(')[0] + '_' + sec.split('(')[1].split(')')[0]
+        self.name = self.section
 
     def read_properties (self, kf, sec) :
         """
@@ -78,6 +83,12 @@ class AMSAnalysisPlot:
         if 'Legend' in properties :
             self.name = properties['Legend']
 
+    def get_dimensions (self) :
+        """
+        Get the dimensonality of the plot
+        """ 
+        return len(self.x)
+
     def write (self, outfilename=None) :
         """
         Print this plot to a text file
@@ -90,18 +101,24 @@ class AMSAnalysisPlot:
         # Place the string with the column names
         x_name = ''
         for xname,xunit in zip(self.x_names,self.x_units) :
-            x_str = '%s(%s)'%(xname,self.xunit)
+            x_str = '%s(%s)'%(xname,xunit)
             x_name += '%30s '%(x_str)
         y_name = '%s(%s)'%(self.y_name,self.y_units)
         parts.append('%s %30s %30s\n'%(x_name,y_name,'sigma'))
 
+        # Determine the number of values per axis
+        ndims = len(self.x)
+        axis_length = int(len(self.x[0])**(1./ndims))
+
         # Place the values
         value_lists = self.x + [self.y] + [self.y_sigma]
-        for values in zip(*value_lists) :
+        for i,values in enumerate(zip(*value_lists)) :
             v_str = ''
             for v in values :
                 v_str += '%30.10e '%(v)
             v_str += '\n'
+            if (i+1)%axis_length==0 :
+                v_str += '\n'
             parts.append(v_str)
         block = ''.join(parts)
 
@@ -111,7 +128,22 @@ class AMSAnalysisPlot:
             outfile.close()
 
         return block
-        
+
+    @classmethod
+    def from_kf(cls, kf, section, i=1):
+        xy = cls()
+
+        # Find the correct section in the KF file
+        sections= kf.sections()
+        matches = [s for s in sections if s.lower()==section.lower()+'(%i)'%(i)]
+        if len(matches) == 0 :
+                print ('Sections: ',list(sections))
+                raise PlamsError('AMSAnalysisResults.get_xy(section,i): section must be one of the above. You specified "{}"'.format(section))
+        sec = matches[0]
+
+        # Get the data
+        xy.read_data(kf,sec)
+        return xy
 
 class AMSAnalysisResults(SCMResults):
     _kfext = '.kf'
@@ -132,23 +164,16 @@ class AMSAnalysisResults(SCMResults):
         return sections
 
     def get_xy(self, section='', i=1):
-        xy = AMSAnalysisPlot()
-
+        """
+        Get the AMSAnalysitPlot object for a specific section of the plot KFFile
+        """
         task = self.job.settings.input.Task
         if section == '' :
             section = task
 
-        # Find the correct section in the KF file
-        sections = self.get_sections()
-        matches = [s for s in sections if s.lower()==section.lower()+'(%i)'%(i)]
-        if len(matches) == 0 :
-                print ('Sections: ',list(sections))
-                raise PlamsError('AMSAnalysisResults.get_xy(section,i): section must be one of the above. You specified "{}"'.format(section))
-        sec = matches[0] 
-
-        # Get the data
-        xy.read_data(self._kf,sec)
-
+        if not self._kfpresent():
+            raise FileError('File {} not present in {}'.format(self.job.name+self.__class__._kfext, self.job.path))
+        xy = AMSAnalysisPlot.from_kf(self._kf,section,i)
         return xy
 
     def get_all_plots (self) :
@@ -171,7 +196,7 @@ class AMSAnalysisResults(SCMResults):
         """
         plots = self.get_all_plots()
         for xy in plots :
-            xy.write('%s'%(outfilename))
+            xy.write('%s'%(xy.section+'.dat'))
 
     def get_D(self, i=1):
         """ returns a 2-tuple (D, D_units) from the AutoCorrelation(i) section on the .kf file. """

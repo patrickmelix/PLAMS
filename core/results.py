@@ -118,7 +118,7 @@ def _restrict(func):
 
 class _MetaResults(type):
     """Metaclass for |Results|. During new |Results| instance creation it wraps all methods with :func:`_restrict` decorator ensuring proper synchronization and thread safety. Methods listed in ``_dont_restrict`` as well as "magic methods" are not wrapped."""
-    _dont_restrict = ['refresh', 'collect', '_clean']
+    _dont_restrict = ['refresh', 'collect', '_clean', 'get_errormsg']
     def __new__(meta, name, bases, dct):
         for attr in dct:
             if not (attr.endswith('__') and attr.startswith('__')) and callable(dct[attr]) and (attr not in _MetaResults._dont_restrict):
@@ -274,7 +274,7 @@ class Results(metaclass=_MetaResults):
         """
         current_match = 0
         ret = []
-        switch = (begin == None)
+        switch = (begin is None)
 
         append = lambda x: ret.append(x.rstrip('\n')) if (match in [0,current_match]) else None
 
@@ -412,6 +412,11 @@ class Results(metaclass=_MetaResults):
             raise FileError('File {} not present in {}'.format(name, self.job.path))
 
 
+    def __contains__(self, name):
+        """Magic method to enable the Python ``in`` operator notation for checking if a filename with a particular name is present."""
+        name = name.replace('$JN', self.job.name)
+        return name in self.files
+
 
     def _process_file(self, filename, command):
         """_process_file(filename, command)
@@ -426,5 +431,4 @@ class Results(metaclass=_MetaResults):
             return ret
         else:
             raise FileError('File {} not present in {}'.format(filename, self.job.path))
-
 

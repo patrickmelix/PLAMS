@@ -210,7 +210,7 @@ class Cp2kResults(Results):
             return 0
         elif isinstance(idx, slice):
             raise TypeError("Passing a slice here is not supported!")
-        elif idx >= 0 and idx < nTotal:
+        elif 0 <= idx < nTotal:
             return idx + 1
         elif idx < -nTotal or idx >= nTotal:
             raise ResultsError("Trying to select a non-existing index.")
@@ -247,10 +247,10 @@ class Cp2kResults(Results):
         spin = []
         for ch in chunk:
             charges.append([float(line.strip().split()[selectCharge])
-                            for line in ch])
+                            for line in ch if line])
             if return_spin:
                 spin.append([float(line.strip().split()[selectSpin])
-                             for line in ch])
+                             for line in ch if line])
         if return_spin:
             if match == 0:
                 return charges, spin
@@ -476,7 +476,7 @@ class Cp2kJob(SingleJob):
                 for el in value:
                     ret += parse(key, el, indent)
 
-            elif value is '' or value is True:
+            elif value == '' or value is True:
                 ret += '{}{}\n'.format(indent, key)
             else:
                 ret += '{}{}  {}\n'.format(indent, key, str(value))
@@ -486,7 +486,7 @@ class Cp2kJob(SingleJob):
 
         if self.molecule:
             use_molecule = ('ignore_molecule' not in self.settings) or (
-                self.settings.ignore_molecule == False)
+                self.settings.ignore_molecule is False)
             if use_molecule:
                 self._parsemol()
 

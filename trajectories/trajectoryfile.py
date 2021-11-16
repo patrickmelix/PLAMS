@@ -217,8 +217,10 @@ class TrajectoryFile (object) :
                 """
                 plamsmol.from_array(coords)
                 if cell is not None :
-                        if cell[0,0] > 0. :
-                                plamsmol.lattice = cell.tolist()
+                        if cell[0][0]**2 + cell[0][1]**2 + cell[0][2]**2 > 0. :
+                                plamsmol.lattice = cell
+                                if isinstance(cell,numpy.ndarray) :
+                                        plamsmol.lattice = cell.tolist()
                 if bonds is not None :
                         plamsmol.delete_all_bonds()
                         for bond in bonds :
@@ -241,17 +243,21 @@ class TrajectoryFile (object) :
                 """
                 if cell is None :
                         return cell
+                # The cell can be passed as a list of three values (assumed orthorhombic)
                 if len(cell)==3 and isinstance(cell[0],float) or isinstance(cell[0],numpy.float64) :
                         cell = numpy.diag(cell)
                 else :
                         cell = numpy.array(cell)
-                if cell[0,0] == 0. :
+                # For non-periodic systems there will be three cell vectors of length 0.
+                if cell[0][0]**2 + cell[0][1]**2 + cell[0][2]**2 == 0. :
                         cell = None
                 return cell
 
         def _read_plamsmol (self, plamsmol) :
                 """
                 Read the coordinates and cell vectors from the molecule objects, if provided
+
+                Note: For non-periodic systems the cell will be read as [0.,0.,0.]
                 """
                 coords = plamsmol.as_array()
                 cell = [0.,0.,0.]
@@ -264,7 +270,10 @@ class TrajectoryFile (object) :
                         neighbors = plamsmol.neighbors(atom)
                         if len(neighbors) > 0 :
                                 conect[iat+1] = [neighbor.id for neighbor in neighbors]
-                return coords, cell, elements, conect
+                # Get the properties
+                props = [at.properties.suffix if 'suffix' in at.properties else '' for at in plamsmol.atoms]
+                if sum([len(s) for s in props]) == 0 : props = None
+                return coords, cell, elements, conect, props
 
         def rewind (self,nframes=None) :
                 """ 

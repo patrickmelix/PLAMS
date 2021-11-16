@@ -6,11 +6,11 @@ from ..mol.molecule import Molecule, Bond
 from ..tools.periodic_table import PeriodicTable
 from ..tools.kftools import KFFile
 from ..tools.units import Units
-from ..interfaces.adfsuite.ams import AMSResults
+#from ..interfaces.adfsuite.ams import AMSResults
 from ..core.errors import PlamsError
 from .trajectoryfile import TrajectoryFile
 
-__all__ = ['RKFTrajectoryFile']
+__all__ = ['RKFTrajectoryFile','write_general_section','write_molecule_section']
 
 bohr_to_angstrom = Units.conversion_ratio('bohr','angstrom')
 
@@ -155,6 +155,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.include_mddata = False
                 self.mddata = None
                 self.mdunits = None
+                self.include_historydata = False       # Any additional data along the history section will be stored
+                self.historydata = None
                 self.saving_freq = None                # By default the 'wb' file is only written upon closing
                                                        # Saving more often is much slower.
                 # Skip to the trajectory part of the file (only if in read mode, because coords are required in header)
@@ -181,6 +183,12 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 self.timestep = rkf.timestep
                                 self._set_mdunits(rkf.mdunits)
 
+        def store_historydata (self) :
+                """
+                Read/write non-standard entries in the History section
+                """
+                self.include_historydata = True
+
         def close (self) :
                 """
                 Execute all prior commands and cleanly close and garbage collect the RKF file
@@ -195,28 +203,42 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Write to file
                 if self.mode == 'wb' :
+                        # First write the last frame into the Molecule section  
+                        self._rewrite_molecule()
+                        # Then write to file
                         self.file_object.save()
                 del(self)
+
+        def _rewrite_molecule (self) :
+                """
+                Overwrite the molecule section with the latest frame
+                """
+                crd,cell = self.read_last_frame()
+                self._write_molecule_section(crd,cell)
 
         def _read_header (self, molecule_section='Molecule') :
                 """
                 Set up info required for reading frames
                 """
-                self.elements = self.file_object.read(molecule_section,'AtomSymbols').split()
+                self.elements = self.file_object.read(molecule_section,'AtomSymbols')
+                # If read from memory and not from file (write mode), it is already a list
+                if isinstance(self.elements,str) :
+                        self.elements = self.elements.split()
                 self.elements = [el.split('.')[0] for el in self.elements]
-                if 'MDHistory' in self.file_object.reader._sections :
-                        times = self.file_object.read('MDHistory','Time(1)')
-                        if isinstance(times,list) :
-                                self.timestep = times[1]
+                if self.file_object.reader is not None :
+                        if ('MDHistory','Time(1)') in self.file_object :
+                                times = self.file_object.read('MDHistory','Time(1)')
+                                if isinstance(times,list) :
+                                        self.timestep = times[1]
                 self.ntap = len(self.elements)
                 self.coords = numpy.zeros((self.ntap,3))
                 try :
                         self.latticevecs = numpy.array(self.file_object.read(molecule_section,'LatticeVectors'))
                         #self.nvecs = int(len(self.cell)/3)
                         # New code 27-05-2020
-                        self.nvecs = int(len(self.latticevecs)/3)
+                        self.nvecs = int(len(self.latticevecs)/3) # Why did I remove this line locally?!
                         self.latticevecs = self.latticevecs.reshape((self.nvecs,3))
-                except KeyError :
+                except (KeyError,AttributeError) :
                         pass
 
         def _set_mddata_units (self) :
@@ -242,23 +264,18 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                self._write_general_section()
+                write_general_section(self.file_object)
 
                 # Then write the input molecule
                 self._update_celldata(cell)
                 self._write_molecule_section(coords, cell, molecule=molecule)
+                self._write_molecule_section(coords, cell, section='InputMolecule', molecule=molecule)
                 if self.include_mddata :
-                        self._write_molecule_section(coords, cell, section='InputMolecule', molecule=molecule)
                         # Start setting up the MDHistory section as well
                         self.file_object.write('MDHistory','blockSize',100)
 
-        def _write_general_section (self) :
-                """
-                Write the General section of the RKF file
-                """ 
-                self.file_object.write('General','file-ident','RKF')
-                self.file_object.write('General','termination status','NORMAL TERMINATION')
-                self.file_object.write('General','program','ams')
+                # Now make sure that it is possible to read from the file as well
+                self._read_header()
 
         def _update_celldata (self, cell) :
                 """
@@ -273,33 +290,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Write the molecule section
                 """
-                # Then write the input molecule
-                charge = 0.
-                element_numbers = [PeriodicTable.get_atomic_number(el) for el in self.elements]
-
-                self.file_object.write(section,'nAtoms',len(self.elements))
-                self.file_object.write(section,'AtomicNumbers',element_numbers)
-                self.file_object.write(section,'AtomSymbols',self.elements)
-                crd = [Units.convert(float(c),'angstrom','bohr') for coord in coords for c in coord]
-                self.file_object.write(section,'Coords',crd)
-                self.file_object.write(section,'Charge',charge)
-                if cell is not None :
-                        self.file_object.write(section,'nLatticeVectors',self.nvecs)
-                        vecs = [Units.convert(float(v),'angstrom','bohr') for vec in cell for v in vec]
-                        self.file_object.write(section,'LatticeVectors',vecs)
-                # Should it write bonds?
-                # Write atom properties
-                if molecule is not None :
-                        suffixes = []
-                        present = False
-                        for at in molecule :
-                                if 'suffix' in at.properties :
-                                        present = True
-                                        suffixes.append(at.properties.suffix)
-                                else :
-                                        suffixes.append('')
-                        if present :
-                                self.file_object.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                write_molecule_section(self.file_object,coords,cell,self.elements,section,molecule)
 
         def _set_mdunits (self, mdunits) :
                 """
@@ -330,7 +321,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.read_lattice :
                         try :
                                 cell = self._read_cell_data (i)
-                        except KeyError :
+                        except (KeyError,AttributeError) :
                                 pass
 
                 # Read the bond data
@@ -344,9 +335,12 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 try :
                         self._read_coordinates(i, molecule, cell, bonds)
                         # This has changed self.coords behind the scenes
-                except KeyError :
+                except (KeyError,AttributeError) :
                         return None, None
 
+                # Read and store any additional data in the history section
+                if self.include_historydata :
+                        self._store_historydata_for_step(i)
                 # Read and store all MDData for this frame
                 if self.include_mddata :
                         self._store_mddata_for_step(i)
@@ -370,7 +364,10 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Create the molecule
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds)
+                        cell_reduced = None
+                        if cell is not None :
+                                cell_reduced = cell[:self.nvecs]
+                        self._set_plamsmol(self.coords,cell_reduced,molecule,bonds)
 
         def _read_cell_data (self, i) :
                 """
@@ -395,6 +392,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         step_txt = ''
                         if step is not None :
                                 step_txt = '(%i)'%(step+1)
+                        #if ('History','Bonds.Index%s'%(step_txt)) in self.file_object :
                         indices = self.file_object.read(section,'Bonds.Index%s'%(step_txt))
                         connection_table = self.file_object.read(section,'Bonds.Atoms%s'%(step_txt))
                         if isinstance(connection_table,int) :
@@ -421,7 +419,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                         if not i in conect_sym[j] :
                                                 conect_sym[j].append(i)
                         conect = conect_sym     
-                except KeyError :
+                except (KeyError, AttributeError) :
                         pass
                 return conect, bonds
 
@@ -429,7 +427,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Store the data from the MDHistory section
                 """
-                if self.mddata == None : self.mddata = {}
+                if self.mddata is None: self.mddata = {}
                 section = 'MDHistory'
 
                 # First get the block info
@@ -443,10 +441,10 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Get the data for each item
                 for item in items :
-                        # First read the units
-                        units = ''
-                        if '%s(units)'%(item) in self.file_object.reader._sections[section] :
-                                units = self.file_object.read(section,'%s(units)'%(item))
+                        # First read the units (not needed?)
+                        #units = ''
+                        #if '%s(units)'%(item) in self.file_object.reader._sections[section] :
+                        #        units = self.file_object.read(section,'%s(units)'%(item))
 
                         dim = self.file_object.read(section,'%s(dim)'%(item))
                         if dim == 1 and not self.file_object.read(section,'%s(perAtom)'%(item)):
@@ -458,6 +456,25 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 self.mddata[item] = values[pos]
                         else :  
                                 self.mddata[item] = self.file_object.read(section,'%s(%i)'%(item,istep+1))
+
+        def _store_historydata_for_step (self, istep) :
+                """
+                Store the extra data from the History section
+                """
+                if self.historydata is None: self.historydata = {}
+                section = 'History'
+
+                # Look for the items
+                sections = self.file_object.get_skeleton()
+                item_keys = [kn for kn in sections[section] if 'ItemName' in kn]
+                items = [self.file_object.read(section,kn) for kn in item_keys]
+                standard_items = ['Coords','nLatticeVectors','LatticeVectors','Bonds.Index','Bonds.Atoms','Bonds.Orders']
+                items = [item for item in items if not item in standard_items]
+
+                # Get the data for each item
+                for item in items :
+                        # Never stored in block format
+                        self.historydata[item] = self.file_object.read(section,'%s(%i)'%(item,istep+1))
 
         def _is_endoffile (self) :
                 """
@@ -482,19 +499,26 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.position += 1
                 return crd, vecs 
 
-        def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], conect=None, mddata=None) :
+        def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], conect=None, historydata=None, mddata=None) :
                 """
                 Write frame to next position in trajectory file
 
-                * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates
+                * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates in angstrom
                 * ``molecule`` -- A molecule object to read the molecular data from
-                * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system)
+                * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system) in angstrom
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
+                * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
+                * ``historydata`` -- A dictionary containing additional variables to be written to the History section
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
 
                 The ``mddata`` dictionary can contain the following keys:
                 ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
                 'Charges', 'ConservedEnergy', 'Time', 'Temperature')
+
+                The ``historydata`` dictionary can contain for example:
+                ('Energy','Gradients','StressTensor')
+                All values must be in atomic units
+                Numpy arrays or lists of lists will be flattened before they are written to the file
 
                 .. note::
 
@@ -506,7 +530,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 raise PlamsError('The PLAMS molecule needs to be passed as the second argument (molecule)')
 
                 if isinstance(molecule,Molecule) :
-                        coords, cell, elements, conect = self._read_plamsmol(molecule)
+                        coords, cell, elements, conect, props = self._read_plamsmol(molecule)
                         if self.position == 0 : self.elements = elements
                 # Make sure that the cell consists of vectors
                 cell = self._convert_cell(cell)
@@ -524,16 +548,18 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Define some local variables
                 step = self.position
-                energy = 0.
                 if mddata is not None :
                         if 'Step' in mddata :
                                 step = mddata['Step']
-                        if 'PotentialEnergy' in mddata :
-                                energy = mddata['PotentialEnergy']
+                # Energy should be read from mddata first, otherwise from historydata, otherwise set to zero
+                energy = self._set_energy(mddata, historydata)
+                if not self.include_historydata :
+                        historydata = {}
+                historydata['Energy'] = energy
 
                 # Write the history section
                 counter = 1
-                counter = self._write_history_entry(step, coords, cell, conect, energy, counter)
+                counter = self._write_history_entry(step, coords, cell, conect, historydata, counter)
 
                 if self.include_mddata and mddata is not None :
                         self._write_mdhistory_entry(mddata)
@@ -543,7 +569,23 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.saving_freq is not None :
                         if self.position%self.saving_freq == 0 : self.file_object.save()
 
-        def _write_history_entry (self, step, coords, cell, conect, energy, counter=1) :
+        def _set_energy (self, mddata, historydata) :
+                """
+                Looks if an energy is passed as input, and it not, sets to zero
+                """
+                energy = None
+                if mddata is not None :
+                        if 'PotentialEnergy' in mddata :
+                                energy = mddata['PotentialEnergy']
+                if energy is None :
+                        if historydata is not None :
+                                if 'Energy' in historydata :
+                                        energy = historydata['Energy']
+                if energy is None :     
+                        energy = 0.
+                return energy
+
+        def _write_history_entry (self, step, coords, cell, conect, historydata=None, counter=1) :
                 """
                 Write the full entry into the History section
                 """
@@ -554,8 +596,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 crd = [float(c)/bohr_to_angstrom for coord in coords for c in coord]
                 self._write_keydata_in_history('Coords', counter, True, 3, self.position+1, crd)
                 counter += 1
-                self._write_keydata_in_history('Energy', counter, False, 1, self.position+1, energy)
-                counter += 1
+                #self._write_keydata_in_history('Energy', counter, False, 1, self.position+1, energy)
+                #counter += 1
                 if cell is not None :
                         self._write_keydata_in_history('nLatticeVectors', counter, False, 1, self.position+1, self.nvecs)
                         counter += 1
@@ -563,6 +605,16 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         # I should probably rethink the dimension of the lattice vectors (generalize it)
                         self._write_keydata_in_history('LatticeVectors', counter, False, [3,3], self.position+1, vecs)
                         counter += 1
+
+                if historydata is not None :
+                         counter = self._write_dictionary_to_history(historydata,'History',counter)
+                #if gradients is not None :
+                #        grd = [float(g) for grad in gradients for g in grad]
+                #        self._write_keydata_in_history('Gradients', counter, True, 3, self.position+1, grd)
+
+                #if stresstensor is not None :
+                #        stre = [float(s) for stress in stresstensor for s in stress]
+                #        self._write_keydata_in_history('StressTensor', counter, False, [3,3], self.position+1, stre)
 
                 # Write the bond info
                 if conect is not None :
@@ -601,16 +653,51 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Write the entry in the MDHistory section
                 """
                 counter = 1
-                self.file_object.write('MDHistory','nEntries',self.position+1)
-                self.file_object.write('MDHistory','currentEntryOpen',False)
-                for key, var in mddata.items() :
+                counter = self._write_dictionary_to_history(mddata,'MDHistory',counter)
+
+        def _write_dictionary_to_history (self, data, section, counter=1) :
+                """
+                Add the entries of a dictionary to a History section 
+                """
+                self.file_object.write(section,'nEntries',self.position+1)
+                self.file_object.write(section,'currentEntryOpen',False)
+                for key, var in data.items() :
+                        # Make sure that the entry is either a scalar or a 1D list
+                        var = self._flatten_variable(var)
                         peratom = False
                         dim = 1
                         if isinstance(var,list) :
-                                peratom = True
-                                dim = int(len(var) / len(self.elements))
-                        self._write_keydata_in_history(key, counter, peratom, dim, self.position+1, var, 'MDHistory')
+                                if len(var) % len(self.elements) == 0 :
+                                        dim = int(len(var) / len(self.elements))
+                                        peratom = True
+                                else :
+                                        dim = len(var)
+                        self._write_keydata_in_history(key, counter, peratom, dim, self.position+1, var, section)
                         counter += 1
+                return counter
+
+        def _flatten_variable (self, var) :
+                """
+                Make sure that the variable is a Python 1D list (not numpy)
+                """
+                while(1) :
+                        if isinstance(var,list) or isinstance(var,numpy.ndarray) :
+                                if len(var) == 0 : break
+                                if isinstance(var[0],list) or isinstance(var[0],numpy.ndarray) :
+                                        var = [v for varitem in var for v in varitem]
+                                else :
+                                        if isinstance(var[0],numpy.int64) :
+                                                var = [int(v) for v in var]
+                                        elif isinstance(var[0],numpy.float64) :
+                                                var = [float(v) for v in var]
+                                        break
+                        else :
+                                if isinstance(var,numpy.int64) : 
+                                        var = int(var)
+                                elif isinstance(var,numpy.float64) :
+                                        var = float(var)
+                                break
+                return var
 
         def _write_keydata_in_history(self, key, i, perAtom, dim, step, values, section='History') :
                 """
@@ -681,3 +768,58 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 nsteps = self.get_length()
                 crd,cell = self.read_frame(nsteps-1, molecule)
                 return crd, cell
+
+def write_general_section (rkf) :
+        """
+        Write the General section of the RKF file
+        """
+        rkf.write('General','file-ident','RKF')
+        rkf.write('General','termination status','NORMAL TERMINATION')
+        rkf.write('General','program','ams')
+        rkf.write('General','user input',' ')
+
+def write_molecule_section (rkf, coords=None, cell=None, elements=None, section='Molecule', molecule=None) :
+        """
+        Write the molecule section
+
+        Note: Currently does not write bonds
+        """
+        if molecule is not None :
+                if coords is None :
+                        coords = molecule.as_array()
+                if cell is None and len(molecule.lattice)>0 :
+                        cell = molecule.lattice
+                if elements is None :
+                        elements = [at.symbol for at in molecule.atoms]
+
+        # Then write the input molecule
+        charge = 0.
+        if molecule is not None :
+                if 'charge' in molecule.properties :
+                        charge = molecule.properties.charge
+        element_numbers = [PeriodicTable.get_atomic_number(el) for el in elements]
+
+        rkf.write(section,'nAtoms',len(elements))
+        rkf.write(section,'AtomicNumbers',element_numbers)
+        rkf.write(section,'AtomSymbols',elements)
+        crd = [Units.convert(float(c),'angstrom','bohr') for coord in coords for c in coord]
+        rkf.write(section,'Coords',crd)
+        rkf.write(section,'Charge',charge)
+        if cell is not None :
+                rkf.write(section,'nLatticeVectors',len(cell))
+                vecs = [Units.convert(float(v),'angstrom','bohr') for vec in cell for v in vec]
+                rkf.write(section,'LatticeVectors',vecs)
+        # Should it write bonds?
+        # Write atom properties
+        if molecule is not None :
+                suffixes = []
+                present = False
+                for at in molecule :
+                        if 'suffix' in at.properties :
+                                present = True
+                                suffixes.append(at.properties.suffix)
+                        else :
+                                suffixes.append('')
+                if present :
+                        rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+

@@ -49,7 +49,11 @@ class JobManager:
         self.hashes = {}
 
         if path is None:
-            self.path = os.getcwd()
+            ams_resultsdir = os.getenv("AMS_RESULTSDIR")
+            if not ams_resultsdir is None and os.path.isdir(ams_resultsdir):
+                self.path = ams_resultsdir
+            else:
+                self.path = os.getcwd()
         elif os.path.isdir(path):
             self.path = os.path.abspath(path)
         else:
@@ -63,7 +67,11 @@ class JobManager:
             n += 1
 
         self.workdir = opj(self.path, self.foldername)
-        self.logfile = opj(self.workdir, 'logfile')
+        scm_logfile = os.getenv("SCM_LOGFILE")
+        if not scm_logfile is None and os.path.isfile(scm_logfile):
+            self.logfile = scm_logfile
+        else:
+            self.logfile = opj(self.workdir, 'logfile')
         self.input = opj(self.workdir, 'input')
         os.mkdir(self.workdir)
 

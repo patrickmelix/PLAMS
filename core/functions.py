@@ -11,10 +11,10 @@ from typing import Callable, Dict, NoReturn
 from os.path import join as opj
 from os.path import isfile, isdir, expandvars, dirname
 
-from .errors import PlamsError
+from .errors import PlamsError, FileError
 from .settings import Settings
 
-__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules']
+__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules', 'read_all_molecules_in_xyz_file']
 
 config = Settings()
 config.init = False
@@ -39,7 +39,7 @@ def init(path=None, folder=None, config_settings:Dict=None):
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
 
-    if config.init == True:
+    if config.init:
         return
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
@@ -83,7 +83,7 @@ def finish(otherJM=None):
 
     If you used some other job managers than just the default one, they need to be passed as *otherJM* list.
     """
-    if config.init == False:
+    if not config.init:
         return
 
     for thread in threading.enumerate():
@@ -187,6 +187,29 @@ def read_molecules(folder, formats=None):
 #===========================================================================
 
 
+def read_all_molecules_in_xyz_file(filename):
+    """The .xyz format allows to store multiple geometries on a single file (such file is essentially a concatenated series of xyz files)
+
+    This function returns a *list* of all molecules found in the file *filename*
+
+    *filename*: path (absolute or relative to the current working directory) to the xyz file.
+    """
+    from ..mol.molecule import Molecule
+    mols = []
+    with open(filename, 'r') as f:
+        while True:
+            try:
+                mol = Molecule()
+                mol.readxyz(f)
+                mols.append(mol)
+            except FileError:
+                break
+    return mols
+
+
+#===========================================================================
+
+
 _stdlock = threading.Lock()
 _filelock = threading.Lock()
 
@@ -212,6 +235,9 @@ def log(message, level=0):
             if level <= config.log.file and 'default_jobmanager' in config:
                 with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
                     f.write(message + '\n')
+    elif level <= 3:
+        # log() is called before plams.init() was called ...
+        with _stdlock: print(message)
 
 
 #===========================================================================
