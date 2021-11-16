@@ -427,7 +427,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Store the data from the MDHistory section
                 """
-                if self.mddata == None : self.mddata = {}
+                if self.mddata is None: self.mddata = {}
                 section = 'MDHistory'
 
                 # First get the block info
@@ -461,7 +461,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Store the extra data from the History section
                 """
-                if self.historydata == None : self.historydata = {}
+                if self.historydata is None: self.historydata = {}
                 section = 'History'
 
                 # Look for the items
