@@ -48,12 +48,37 @@ class Units:
         -   ``kcal/mol``
         -   ``kJ/mol``
         -   ``cm^-1``, ``cm-1``
+        -   ``K``, ``Kelvin``
 
     *   dipole moment:
 
         -   ``au``, ``a.u.``
         -   ``Cm``
         -   ``Debye``, ``D``
+
+    *   forces:
+
+        -   All energy units divided by angstrom or bohr, for example 
+        -   ``eV/angstrom``
+        -   ``hartree/bohr``
+
+    *   hessian:
+
+        -   All energy units divided by angstrom^2 or bohr^2, for example 
+        -   ``eV/angstrom^2``
+        -   ``hartree/bohr^2``
+
+    *   pressure:
+
+        -   All energy units divided by angstrom^3 or bohr^3, for example 
+        -   ``eV/angstrom^3``
+        -   ``hartree/bohr^3``
+        -   And some more:
+        -   ``Pa``
+        -   ``GPa``
+        -   ``bar``
+        -   ``atm``
+
 
     Example::
 
@@ -151,6 +176,16 @@ class Units:
     dicts['stress'] = stress
 
 
+    # Precompute a dict mapping lowercased unit names to quantityName:conversionFactor pairs
+    quantities_for_unit = {}
+    for quantity in dicts:
+        for unit, factor in dicts[quantity].items():
+            unit = unit.lower()
+            if unit not in quantities_for_unit:
+                quantities_for_unit[unit] = {}
+            quantities_for_unit[unit][quantity] = factor
+
+
     def __init__(self):
         raise UnitsError('Instances of Units cannot be created')
 
@@ -158,25 +193,26 @@ class Units:
     @classmethod
     def find_unit(cls, unit):
         ret = {}
-        for quantity in cls.dicts:
+        u = unit.lower()
+        quantities = cls.quantities_for_unit.get(u, {})
+        for quantity in quantities:
             for k in cls.dicts[quantity]:
-                if k.lower() == unit.lower():
+                if k.lower() == u:
                     ret[quantity] = k
+                    break
         return ret
 
 
     @classmethod
     def conversion_ratio(cls, inp, out):
         """Return conversion ratio from unit *inp* to *out*."""
-        if inp == out:
-            return 1.
-        inps = cls.find_unit(inp)
-        outs = cls.find_unit(out)
+        if inp == out: return 1.0
+        inps = cls.quantities_for_unit.get(inp.lower(), {})
+        outs = cls.quantities_for_unit.get(out.lower(), {})
         common = set(inps.keys()) & set(outs.keys())
         if len(common) > 0:
             quantity = common.pop()
-            d = cls.dicts[quantity]
-            return d[outs[quantity]]/d[inps[quantity]]
+            return outs[quantity]/inps[quantity]
         else:
             if len(inps) == 0 and len(outs) == 0:
                 raise UnitsError("Unsupported units: '{}' and '{}'".format(inp, out))
@@ -199,9 +235,7 @@ class Units:
 
         *value* can be a single number or a container (list, tuple, numpy.array etc.). In the latter case a container of the same type and length is returned. Conversion happens recursively, so this method can be used to convert, for example, a list of lists of numbers, or any other hierarchical container structure. Conversion is applied on all levels, to all values that are numbers (also numpy number types). All other values (strings, bools etc.) remain unchanged.
         """
-        if inp == out:
-            return value
-        if value is None or isinstance(value, (bool, str)):
+        if value is None or isinstance(value, (bool, str)) or inp == out:
             return value
         if isinstance(value, collections.abc.Iterable):
             t = type(value)
@@ -212,3 +246,15 @@ class Units:
         if isinstance(value, (int, float, np.generic)):
             return value * cls.conversion_ratio(inp,out)
         return value
+
+
+    @classmethod
+    def ascii2unicode(cls, string):
+        """
+        Converts '^2' to '²' etc., for prettier printing of units.
+        """
+        if string is None:
+            return ''
+        ret = string.replace('^-1', '⁻¹').replace('angstrom', 'Å').replace('^2','²').replace('^3','³').replace('degree', '°').replace('deg.', '°')
+        return ret
+

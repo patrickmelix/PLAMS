@@ -1,5 +1,7 @@
 import os
+import subprocess
 import numpy as np
+import re
 
 from os.path import join as opj
 
@@ -13,6 +15,42 @@ from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...tools.kftools import KFFile
 from ...tools.units import Units
+from ...trajectories.rkffile import RKFTrajectoryFile
+from ...tools.converters import vasp_output_to_ams, qe_output_to_ams
+
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import PatternMatchingEventHandler, FileModifiedEvent
+    _has_watchdog = True
+
+    class AMSJobLogTailHandler(PatternMatchingEventHandler):
+
+        def __init__(self, job, jobmanager):
+            super().__init__(patterns=[os.path.join(jobmanager.workdir, f"{job.name}*", "ams.log")],
+                             ignore_patterns=["*.rkf", "*.out"],
+                             ignore_directories=True,
+                             case_sensitive=True)
+            self._job = job
+            self._seekto = 0
+
+        def on_any_event(self, event):
+            if self._job.path is not None \
+            and event.src_path == os.path.join(self._job.path, "ams.log") \
+            and isinstance(event, FileModifiedEvent):
+                try:
+                    with open(event.src_path, 'r') as f:
+                        f.seek(self._seekto)
+                        while True:
+                            line = f.readline()
+                            if not line: break
+                            log(f"{self._job.name}: "+line[25:-1])
+                        self._seekto = f.tell()
+                except FileNotFoundError:
+                    self._seekto = 0
+
+except ImportError:
+    _has_watchdog = False
+
 
 
 __all__ = ['AMSJob', 'AMSResults']
@@ -136,6 +174,22 @@ class AMSResults(Results):
         if sectiondict:
             return Molecule._mol_from_rkf_section(sectiondict)
 
+    def get_ase_atoms(self, section, file='ams'):
+        from ase import Atoms
+        sectiondict = self.read_rkf_section(section, file)
+        bohr2angstrom = 0.529177210903
+        nLatticeVectors = sectiondict.get('nLatticeVectors', 0)
+        pbc = [True] * nLatticeVectors + [False] * (3 - nLatticeVectors)
+        if nLatticeVectors > 0:
+            cell = np.zeros((3, 3))
+            lattice = np.array(sectiondict.get('LatticeVectors')).reshape(-1, 3)
+            cell[:lattice.shape[0], :lattice.shape[1]] = lattice * bohr2angstrom
+        else:
+            cell = None
+        atomsymbols = sectiondict['AtomSymbols'].split()
+        positions = np.array(sectiondict['Coords']).reshape(-1,3) * bohr2angstrom
+        return Atoms(symbols=atomsymbols, positions=positions, pbc=pbc, cell=cell)
+
 
     def get_input_molecule(self):
         """Return a |Molecule| instance with the initial coordinates.
@@ -152,6 +206,15 @@ class AMSResults(Results):
         """
         return self.get_molecule('Molecule', 'ams')
 
+    def get_main_ase_atoms(self):
+        """Return an ase.Atoms instance with the final coordinates.
+
+        An alternative is to call toASE(results.get_main_molecule()) to convert a Molecule to ASE Atoms.
+
+        All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+        """
+        return self.get_ase_atoms('Molecule', 'ams')
+
 
     def get_history_molecule(self, step):
         """Return a |Molecule| instance with coordinates taken from a particular *step* in the ``History`` section of ``ams.rkf`` file.
@@ -160,25 +223,12 @@ class AMSResults(Results):
         """
         if 'ams' in self.rkfs:
             main = self.rkfs['ams']
-            if 'History' not in main:
-                raise KeyError("'History' section not present in {}".format(main.path))
-            n = main.read('History', 'nEntries')
-            if step > n:
-                raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
+            if not self.is_valid_stepnumber(main,step) :
+                return
             coords = main.read('History', f'Coords({step})')
             coords = [coords[i:i+3] for i in range(0,len(coords),3)]
             if ('History', f'SystemVersion({step})') in main:
-                version = main.read('History', f'SystemVersion({step})')
-                if 'SystemVersionHistory' in main:
-                    if ('SystemVersionHistory', 'blockSize') in main:
-                        blockSize = main.read('SystemVersionHistory', 'blockSize')
-                    else:
-                        blockSize = 1
-                    block = (version - 1) // blockSize + 1
-                    offset = (version - 1) % blockSize
-                    system = main.read('SystemVersionHistory', f'SectionNum({block})', return_as_list=True)[offset]
-                else:
-                    system = version
+                system = self.get_system_version(main, step)
                 mol = self.get_molecule(f'ChemicalSystem({system})')
                 molsrc = f'ChemicalSystem({system})'
             else:
@@ -206,6 +256,35 @@ class AMSResults(Results):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
             return mol
 
+    def is_valid_stepnumber (self, main, step) :
+        """
+        Check if the requested step number is in the results file
+        """
+        if 'History' not in main:
+            raise KeyError("'History' section not present in {}".format(main.path))
+        n = main.read('History', 'nEntries')
+        if step > n:
+            raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
+        return True
+
+    def get_system_version (self, main, step) :
+        """
+        Determine which Molecule version is requested
+        """
+        if ('History', f'SystemVersion({step})') in main:
+            version = main.read('History', f'SystemVersion({step})')
+            if 'SystemVersionHistory' in main:
+                if ('SystemVersionHistory', 'blockSize') in main:
+                    blockSize = main.read('SystemVersionHistory', 'blockSize')
+                else:
+                    blockSize = 1
+                block = (version - 1) // blockSize + 1
+                offset = (version - 1) % blockSize
+                system = main.read('SystemVersionHistory', f'SectionNum({block})', return_as_list=True)[offset]
+            else:
+                system = version
+        return system
+
     def get_history_variables(self, history_section='History') :
         """ Return a set of keynames stored in the specified history section of the ``ams.rkf`` file.
 
@@ -218,12 +297,14 @@ class AMSResults(Results):
 
     def get_history_property(self, varname, history_section='History') :
         """ Return the values of *varname* in the history section *history_section*."""
-        if not 'ams' in self.rkfs: return
+        if not 'ams' in self.rkfs:return
         main = self.rkfs['ams']
+        if history_section not in main:
+            raise KeyError(f"The requested section '{history_section}' does not exist in {main.path}")
         if (history_section,'nScanCoord') in main: # PESScan
-            nentries = main.read(history_section,'nScanCoord') 
+            nentries = main.read(history_section,'nScanCoord')
             as_block = False
-        elif (history_section,'nEntries') in main: 
+        elif (history_section,'nEntries') in main:
             nentries = main.read(history_section,'nEntries')
             as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
@@ -258,6 +339,34 @@ class AMSResults(Results):
                 as_block = True
         return as_block
 
+    def get_atomic_temperatures_at_step(self, step, history_section='MDHistory') :
+        """
+        Get all the atomic temperatures for step `step`
+
+        Note: Numbering of steps starts at 1
+        """
+        if not 'ams' in self.rkfs: return
+        main = self.rkfs['ams']
+        if not self.is_valid_stepnumber(main, step) : return
+
+        # Read the masses
+        molname = 'Molecule'
+        if ('History', f'SystemVersion({step})') in main:
+            system = self.get_system_version(main, step)
+            molname = 'ChemicalSystem(%i)'%(system)
+        masses = np.array(main.read(molname,'AtomMasses'))
+        nats = len(masses)
+
+        # Read the velocities
+        velocities = np.array(self.get_property_at_step(step,'Velocities',history_section)).reshape((nats,3))
+
+        # Convert to SI units and compute temperatures
+        m = masses * 1.e-3 / Units.constants['NA']
+        vels = velocities * Units.conversion_ratio('Bohr','Angstrom') * 1.e5
+        temperatures = (m.reshape((nats,1)) * vels**2).sum(axis=1)
+        temperatures /= 3 * Units.constants['k_B']
+        return temperatures
+
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
 
@@ -277,7 +386,7 @@ class AMSResults(Results):
                 return {}
             # There are two *kinds* of "Properties" sections:
             # - ADF simply has a set of variables in the properties section
-            # - DFTB and some other engines have a *scheme* for storing "Properties". See the fortran 'RKFileModule' (RKFile.f90) 
+            # - DFTB and some other engines have a *scheme* for storing "Properties". See the fortran 'RKFileModule' (RKFile.f90)
             #   for more details on this.
             ret = {}
             if ('Properties', 'nEntries') in kf:
@@ -303,6 +412,13 @@ class AMSResults(Results):
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
+        # try:
+        #     return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
+        # except FileError as original_error:
+        #     try:
+        #         return min(self.readrkf('PESScan', 'PES')) * Units.conversion_ratio('au', unit)
+        #     except:
+        #         raise original_error
 
 
     def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
@@ -377,16 +493,193 @@ class AMSResults(Results):
 
 
     def get_timings(self):
-        """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds (Jim Boelrijk).
+        """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds.
         """
         ret = {}
-        cpu = self.grep_output('Total cpu time:')
-        system = self.grep_output('Total system time:')
-        elapsed = self.grep_output('Total elapsed time:')
-        ret['elapsed'] = float(elapsed[0].split()[-1])
-        ret['system'] = float(system[0].split()[-1])
-        ret['cpu'] = float(cpu[0].split()[-1])
+        try:
+            # new AMS versions store timings on ams.rkf
+            ret['elapsed'] = self.readrkf('General', 'ElapsedTime')
+            ret['system'] = self.readrkf('General', 'SysTime')
+            ret['cpu'] = self.readrkf('General', 'CPUTime')
+        except:
+            # fall back to reading output, was needed for old AMS versions
+            cpu = self.grep_output('Total cpu time:')
+            system = self.grep_output('Total system time:')
+            elapsed = self.grep_output('Total elapsed time:')
+            ret['elapsed'] = float(elapsed[0].split()[-1])
+            ret['system'] = float(system[0].split()[-1])
+            ret['cpu'] = float(cpu[0].split()[-1])
+
         return ret
+
+
+    def get_youngmodulus(self, unit='au', engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'YoungModulus'), engine) * Units.conversion_ratio('au', unit)
+
+    def get_shearmodulus(self, unit='au', engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'ShearModulus'), engine) * Units.conversion_ratio('au', unit)
+
+    def get_bulkmodulus(self, unit='au', engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'BulkModulus'), engine) * Units.conversion_ratio('au', unit)
+
+    def get_pesscan_results(self, molecules=True):
+        """
+            For PESScan jobs, this functions extracts information about the scan coordinates and energies.
+
+            molecules : bool
+                Whether to return a Molecule at each PES point.
+
+            Returns a dictionary, with the following keys:
+
+            'RaveledScanCoords': a list of str with the names of the scan coordinates: ['sc_1_1','sc_1_2','sc_2_1','sc_2_2',...]
+
+            'nRaveledScanCoords': the length of the previous list
+
+            'RaveledUnits': a list of str with the units: ['bohr', 'bohr', 'radian', 'bohr', ...]
+
+            'RaveledPESCoords': a nested list with the values of the scan coordinates: [[val_1_1_1,val_1_1_2,...],[val_1_2_1,val_1_2_2,...],[val_2_1_1,val_2_1_2,...],[val_2_2_1,val_2_2_2]]
+
+            'ScanCoords': a nested list: [['sc_1_1','sc_1_2'],['sc_2_1','sc_2_2'],...]
+
+            'nScanCoords': length of the previous list
+
+            'Units': a nested list with the units: [['bohr', 'bohr'],['radian', 'bohr'], ...]
+
+            'OrigScanCoords': a list of str in the newline-separated format stored on the .rkf file: ['sc_1_1\\nsc_1_2','sc_2_1\\nsc_2_2',...]
+
+            'nPESPoints': int, number of PES points
+
+            'PES': list of float, the energies at each PES point
+
+            'Converged': list of bool, whether the geometry optimization at each PES point converged
+
+            'Molecules': list of Molecule, the structure at each PES point. Only if the property molecules == True
+
+            'HistoryInidices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
+
+        """
+        def tolist(x):
+            if isinstance(x, list):
+                return x
+            else:
+                return [x]
+
+        nScanCoord = self.readrkf('PESScan', 'nScanCoord')
+        nPoints = tolist(self.get_history_property('nPoints', 'PESScan'))
+
+        pes = tolist(self.readrkf('PESScan', 'PES'))
+
+        origscancoords = tolist(self.get_history_property('ScanCoord', history_section='PESScan'))
+        # one scan coordinate may have several variables
+        scancoords = [x.split('\n') for x in origscancoords]
+        units = []
+        pescoords = tolist(self.readrkf('PESScan', 'PESCoords'))
+        pescoords = np.array(pescoords).reshape(-1,sum(len(x) for x in scancoords))
+        pescoords = np.transpose(pescoords)
+        w = []
+        units = []
+        count = 0
+        for i in range(nScanCoord):
+            units.append([])
+            for j in range(len(scancoords[i])):
+                if scancoords[i][j] in ['a', 'b', 'c'] or 'Dist' in scancoords[i][j]:
+                    units[-1].append('bohr')
+                elif 'Volume' in scancoords[i][j]:
+                    units[-1].append('bohr^3')
+                elif 'Area' in scancoords[i][j]:
+                    units[-1].append('bohr^2')
+                else:
+                    units[-1].append('radian')
+
+        converged = tolist(self.readrkf('PESScan', 'GOConverged'))
+        converged = [bool(x) for x in converged]
+        historyindices = tolist(self.readrkf('PESScan', 'HistoryIndices'))
+
+        ret = {}
+
+        raveled_scancoords = [x[i] for x in scancoords for i in range(len(x))] # 1d list
+        raveled_units = [x[i] for x in units for i in range(len(x))] # 1d list
+        ret['RaveledScanCoords'] = raveled_scancoords
+        ret['nRaveledScanCoords'] = len(raveled_scancoords)
+        ret['ScanCoords'] = scancoords
+        ret['nScanCoords'] = len(scancoords)
+        ret['OrigScanCoords'] = origscancoords #newline delimiter for joint scan coordinates
+        ret['RaveledPESCoords'] = pescoords.tolist()
+        ret['Units'] = units
+        ret['RaveledUnits'] = raveled_units
+        ret['Converged'] = converged
+        ret['PES'] = pes
+        ret['nPESPoints'] = len(pes)
+        ret['HistoryIndices'] = historyindices
+
+        if molecules:
+            mols = []
+            for ind in historyindices:
+                mols.append(self.get_history_molecule(ind))
+            ret['Molecules'] = mols
+
+        return ret
+
+    def get_neb_results(self, molecules=True, unit='au'):
+        """
+        Returns a dictionary with results from a NEB calculation.
+
+        molecules : bool
+            Whether to include the 'Molecules' key in the return result
+
+        unit : str
+            Energy unit for the Energies, LeftBarrier, RightBarrier, and ReactionEnergy
+
+        Returns: dict
+            'nImages': number of images (excluding end points)
+
+            'nIterations': number of iterations
+
+            'Energies': list of energies (including end points)
+
+            'Climbing': bool, whether climbing image NEB was used
+
+            'LeftBarrier': float, left reaction barrier
+
+            'RightBarrier': float, right reaction barrier
+
+            'ReactionEnergy': float, reaction energy
+
+            'HistoryIndices': list of int, same length as 'Energies', contains indices in the History section
+
+            'Molecules': list of Molecule (including end points)
+
+        """
+        def tolist(x):
+            if isinstance(x, list):
+                return x
+            else:
+                return [x]
+        ret = {}
+        conversion_ratio = Units.conversion_ratio('au', unit)
+        ret['nImages'] = self.readrkf('NEB', 'nebImages')
+        ret['nIterations'] = self.readrkf('NEB', 'nebIterations')
+        ret['Climbing'] = bool(self.readrkf('NEB', 'climbing'))
+        ret['HighestIndex'] = self.readrkf('NEB', 'highestIndex')
+        ret['LeftBarrier'] = self.readrkf('NEB', 'LeftBarrier') * conversion_ratio
+        ret['RightBarrier'] = self.readrkf('NEB', 'RightBarrier') * conversion_ratio
+        ret['ReactionEnergy'] = self.readrkf('NEB', 'ReactionEnergy') * conversion_ratio
+        history_dim = tolist(self.readrkf('NEB', 'historyIndex@dim')) # nimages, randombign
+        history_dim.reverse() # randombign, nimages
+        history_indices_matrix = tolist(self.readrkf('NEB', 'historyIndex'))  # this matrix is padded with -1 values
+        history_indices_matrix = np.array(history_indices_matrix).reshape(history_dim)
+        history_indices = np.max(history_indices_matrix, axis=0, keepdims=False).tolist()
+        if any(x == -1 for x in history_indices):
+            raise ValueError("Found -1 in the 'converged' part of historyIndex. This should not happen!")
+        ret['HistoryIndices'] = history_indices
+        ret['Energies'] = [self.get_property_at_step(ind, 'Energy')*conversion_ratio for ind in ret['HistoryIndices']]
+        if molecules:
+            ret['Molecules'] = [self.get_history_molecule(ind) for ind in ret['HistoryIndices']]
+
+        return ret
+
+
+
 
 
     def recreate_molecule(self):
@@ -455,21 +748,21 @@ class AMSResults(Results):
 
             @property
             def id(self):
-                return self._landscape.states.index(self)
+                return self._landscape._states.index(self)+1
 
             @property
             def reactants(self):
-                return self._landscape.states[self.reactantsID]
+                return self._landscape._states[self.reactantsID-1]
 
             @property
             def products(self):
-                return self._landscape.states[self.productsID]
+                return self._landscape._states[self.productsID-1]
 
             def __str__(self):
                 if self.isTS:
                     lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
-                    if self.reactantsID != None: lines += [f"|- Reactants: {self.reactants}"]
-                    if self.productsID != None:  lines += [f"+- Products:  {self.products}"]
+                    if self.reactantsID is not None: lines += [f"|- Reactants: {self.reactants}"]
+                    if self.productsID is not None: lines += [f"+- Products:  {self.products}"]
                 else:
                     lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
                 return "\n".join(lines)
@@ -477,39 +770,48 @@ class AMSResults(Results):
         def __init__(self, results):
             sec = results.read_rkf_section("EnergyLandscape")
 
-            # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats'). 
+            # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats').
             # For convenience here we make sure that the following variables are always 'lists':
             for var in ['energies', 'counts', 'isTS', 'reactants', 'products']:
                 if not isinstance(sec[var], list):
                     sec[var] = [sec[var]]
 
             nStates = sec['nStates']
-            self.states = []
+            self._states = []
 
             for iState in range(nStates):
                 energy  = sec['energies'][iState]
-                resfile = os.path.splitext(sec['fileNames'][160*iState:160*(iState+1)].strip())[0]
+                resfile = os.path.splitext(sec['fileNames'].split('\0')[iState])[0]
                 mol = results.get_molecule('Molecule',file=resfile)
                 count = sec['counts'][iState]
                 if not sec['isTS'][iState]:
-                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, False))
+                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, False))
                 else:
-                    reactantsID = sec['reactants'][iState]-1 if sec['reactants'][iState] > 0 else None
-                    productsID  = sec['products'][iState]-1 if sec['products'][iState] > 0 else None
-                    self.states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
+                    reactantsID = sec['reactants'][iState] if sec['reactants'][iState] > 0 else None
+                    productsID  = sec['products'][iState] if sec['products'][iState] > 0 else None
+                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
 
         @property
         def minima(self):
-            return [s for s in self.states if not s.isTS ]
+            return [s for s in self._states if not s.isTS ]
 
         @property
         def transition_states(self):
-            return [s for s in self.states if s.isTS]
+            return [s for s in self._states if s.isTS]
 
         def __str__(self):
             return 'All stationary points:\n'+\
                    '======================\n'+\
-                   '\n'.join(str(s) for s in self.states)
+                   '\n'.join(str(s) for s in self._states)
+
+        def __getitem__(self, i):
+            return self._states[i-1]
+
+        def __iter__(self):
+            return iter(self._states)
+
+        def __len__(self):
+            return len(self._states)
 
 
     def get_energy_landscape(self):
@@ -520,6 +822,7 @@ class AMSResults(Results):
         .. code-block:: python
 
             el = results.get_energy_landscape()
+            print(el)
 
             for state in el:
                 print(f"Energy = {state.energy}")
@@ -597,6 +900,84 @@ class AMSJob(SingleJob):
     _command = 'ams'
 
 
+    @classmethod
+    def from_input(cls, text_input, name=None, molecule=None):
+        """
+        Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError). 
+
+        text_input : a multi-line string
+
+        Returns: An AMSJob instance
+
+        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the ``text_input``, then it will be read into the returned job's settings.
+
+        Example::
+
+           text = '''
+           Task GeometryOptimization
+           Engine DFTB
+               Model GFN1-xTB
+           EndEngine
+           '''
+
+           job = AMSJob.from_input(text)
+        """
+        from scm.input_parser import InputParser
+        sett = Settings()
+        with InputParser() as parser:
+            sett.input = parser.to_settings('ams', text_input)
+        return cls(settings=sett, name=name, molecule=molecule)
+
+    @classmethod
+    def from_runfile(cls, path, name=None, molecule=None):
+        """
+        path : path to an AMS .run or .in file. Note: for AMS jobs generated with PLAMS, you should pass the path to the .in file to this function.
+
+        Returns an AMSJob based on the text input in the .run or .in file.
+
+        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the run file, then it will be read into the returned job's settings.
+        """
+        with open(path) as f:
+            run = f.read()
+        if '<<' in run:
+            delimiter = re.findall(r"<<.*?(\w+)", run)[0]
+            run = ''.join(re.findall(rf"(?s)(?:{delimiter})(.*)(?:[\r\n]{delimiter})", run))
+        return cls.from_input(run, name, molecule)
+
+    def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs):
+        """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
+
+        If *watch* is set to ``True``, the contents of the AMS driver logfile will be forwarded line by line to the PLAMS logfile (and stdout), allowing for an easier monitoring of the running job. Not that the forwarding of the AMS driver logfile will cause make the call to this method block until the job's execution has finished, even when using a parallel |JobRunner|.
+
+        Other keyword arguments (*\*\*kwargs*) are stored in ``run`` branch of job's settings.
+
+        Returned value is the |AMSResults| instance associated with this job.
+        """
+
+        if _has_watchdog and watch:
+            if 'default_jobmanager' in config:
+                jobmanager = config.default_jobmanager
+            else:
+                raise PlamsError('No default jobmanager found. This probably means that PLAMS init() was not called.')
+
+            observer = Observer()
+            event_handler = AMSJobLogTailHandler(self, jobmanager)
+            observer.schedule(event_handler, jobmanager.workdir, recursive=True)
+            observer.start()
+
+            try:
+                results = super().run(jobrunner=jobrunner, jobmanager=jobmanager, **kwargs)
+                results.wait()
+            finally:
+                observer.stop()
+                observer.join()
+
+        else:
+            results = super().run(jobrunner=jobrunner, jobmanager=jobmanager, **kwargs)
+
+        return results
+
+
     def get_input(self):
         """Generate the input file. This method is just a wrapper around :meth:`_serialize_input`.
 
@@ -625,6 +1006,7 @@ class AMSJob(SingleJob):
         ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS.
         """
         ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
+        ret += 'unset SCM_LOGFILE\n'
         if 'preamble_lines' in self.settings.runscript:
             for line in self.settings.runscript.preamble_lines:
                 ret += f'{line}\n'
@@ -655,7 +1037,7 @@ class AMSJob(SingleJob):
 
 
     def get_errormsg(self):
-        """Tries to get an an error message for a failed job. This method returns ``None`` for successful jobs."""
+        """Tries to get an error message for a failed job. This method returns ``None`` for successful jobs."""
         if self.ok():
             return None
         else:
@@ -663,10 +1045,20 @@ class AMSJob(SingleJob):
             # If the AMS driver stopped with a known error (called StopIt in the Fortran code), the error will be in there.
             try:
                 msg = self.results.readrkf('General','termination status')
-                if msg == 'NORMAL TERMINATION with errors':
+                if msg == 'NORMAL TERMINATION with errors' or msg is None:
                     # Apparently this wasn't a hard stop in the middle of the job.
                     # Let's look for the last error in the logfile ...
                     msg = self.results.grep_file('ams.log', 'ERROR: ')[-1].partition('ERROR: ')[2]
+                elif msg == 'IN PROGRESS' and '$JN.err' in self.results:
+                    # If the status is still "IN PROGRESS", that probably means AMS was shut down hard from the outside.
+                    # E.g. it got SIGKILL from the scheduler for exceeding some resource limit.
+                    # In this case useful information may be found on stderr.
+                    with open(self.results['$JN.err'], 'r') as err:
+                        errlines = err.read().splitlines()
+                    for el in reversed(errlines):
+                        if el != '' and not el.isspace():
+                            msg = "Killed while IN PROGRESS: " + el
+                            break
             except:
                 msg = 'Could not determine error message. Please check the output manually.'
             return msg
@@ -830,6 +1222,12 @@ class AMSJob(SingleJob):
 
     #=========================================================================
 
+    def get_task(self):
+        """ Returns the AMS Task from the job's settings. If it does not exist, returns None. """
+        if isinstance(self.settings, Settings) and 'input' in self.settings and 'ams' in self.settings.input and 'task' in self.settings.input.ams:
+            return self.settings.input.ams.task
+        return None
+
 
     @staticmethod
     def _atom_symbol(atom):
@@ -851,6 +1249,89 @@ class AMSJob(SingleJob):
             if isinstance(arg[0], AMSResults):
                 return arg[0].rkfpath(arg[1])
         return str(arg)
+
+
+    @classmethod
+    def load_external(cls, path, settings=None, molecule=None, finalize=False, fmt='ams'):
+        """Load an external job from *path*.
+
+        In this context an "external job" is an execution of some external binary that was not managed by PLAMS, and hence does not have a ``.dill`` file. It can also be used in situations where the execution was started with PLAMS, but the Python process was terminated before the execution finished, resulting in steps 9-12 of :ref:`job-life-cycle` not happening.
+
+        All the files produced by your computation should be placed in one folder and *path* should be the path to this folder or a file in this folder. The name of the folder is used as a job name. Input, output, error and runscript files, if present, should have names defined in ``_filenames`` class attribute (usually ``[jobname].in``, ``[jobname].out``, ``[jobname].err`` and ``[jobname].run``). It is not required to supply all these files, but in most cases one would like to use at least the output file, in order to use methods like :meth:`~scm.plams.core.results.Results.grep_output` or :meth:`~scm.plams.core.results.Results.get_output_chunk`. If *path* is an instance of an AMSJob, that instance is returned.
+
+        This method is a class method, so it is called via class object and it returns an instance of that class::
+
+            >>> a = AMSJob.load_external(path='some/path/jobname')
+            >>> type(a)
+            scm.plams.interfaces.adfsuite.ams.AMSJob
+
+        You can supply |Settings| and |Molecule| instances as *settings* and *molecule* parameters, they will end up attached to the returned job instance. If you don't do this, PLAMS will try to recreate them automatically using methods :meth:`~scm.plams.core.results.Results.recreate_settings` and :meth:`~scm.plams.core.results.Results.recreate_molecule` of the corresponding |Results| subclass. If no |Settings| instance is obtained in either way, the defaults from ``config.job`` are copied.
+
+        You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (|cleaning|), |postrun| and pickling (|pickling|). If *finalize* is ``False``, the status of the returned job is *copied*.
+
+        fmt : str
+            One of 'ams', 'qe', 'vasp', or 'any'.
+
+            'ams': load a finished AMS job
+
+            'qe': convert a Quantum ESPRESSO .out file to ams.rkf and qe.rkf and load from those files
+
+            'vasp': convert a VASP OUTCAR file to ams.rkf and vasp.rkf and load from those files (see more below)
+
+            'any': auto-detect the format.
+
+        This method can also be used to convert a finished VASP job to an AMSJob. If you supply the path to a folder containing OUTCAR, then a subdirectory will be created in this folder called AMSJob. In the AMSJob subdirectory, two files will be created: ams.rkf and vasp.rkf, that contain some of the results from the VASP calculation. If the AMSJob subdirectory already exists, the existing ams.rkf and vasp.rkf files will be reused. NOTE: the purpose of loading VASP data this way is to let you call for example job.results.get_energy() etc., not to run new VASP calculations!
+        """
+        if isinstance(path, cls):
+            return path
+
+        preferred_name = None
+
+        fmt = fmt.lower()
+
+        # first check if path is a VASP output
+        # in which case call cls._vasp_to_ams, which will return a NEW path
+        # containing ams.rkf and vasp.rkf (the .rkf files will be created if they do not exist)
+        if os.path.isdir(path):
+            preferred_name = os.path.basename(os.path.abspath(path))
+            if not os.path.exists(os.path.join(path,'ams.rkf')) \
+                    and os.path.exists(os.path.join(path,'OUTCAR')) \
+                    and (fmt == 'vasp' or fmt == 'any'):
+                path = vasp_output_to_ams(path, overwrite=False)
+        elif os.path.exists(path) and os.path.basename(path) == 'OUTCAR' and (fmt == 'vasp' or fmt == 'any'):
+            preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
+            path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
+        elif os.path.exists(path):
+            # check if path is a Quantum ESPRESSO .out file
+            # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
+            # they do not exist)
+            if fmt =='qe' or (fmt == 'any' and not path.endswith('rkf')):
+                try:
+                    path = qe_output_to_ams(path, overwrite=False)
+                except:
+                    # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
+                    # assume that any exception means that the file was not a QE output file
+                    pass
+
+        if not os.path.isdir(path):
+            if os.path.exists(path):
+                path = os.path.dirname(os.path.abspath(path))
+            elif os.path.isdir(path+'.results'):
+                path=path+'.results'
+            elif os.path.isdir(path+'results'):
+                path=path+'results'
+            else:
+                raise FileError('Path {} does not exist, cannot load from it.'.format(path))
+
+        job = super(AMSJob, cls).load_external( path, settings, molecule, finalize)
+
+        if preferred_name is not None:
+            job.name = preferred_name
+
+        if job.name.endswith('.results') and len(job.name) > 8:
+            job.name = job.name[:-8]
+
+        return job
 
 
     @classmethod
@@ -898,33 +1379,36 @@ class AMSJob(SingleJob):
         """
         def read_mol(settings_block: Settings) -> Molecule:
             """Retrieve single molecule from a single `s.input.ams.system` block."""
-            mol = Molecule()
-            for atom in settings_block.atoms._1:
-                # Extract arguments for Atom()
-                symbol, x, y, z, *comment = atom.split(maxsplit=4)
-                kwargs = {} if not comment else {'suffix': comment[0]}
-                coords = float(x), float(y), float(z)
+            if 'geometryfile' in settings_block:
+                mol = Molecule(settings_block.geometryfile)
+            else:
+                mol = Molecule()
+                for atom in settings_block.atoms._1:
+                    # Extract arguments for Atom()
+                    symbol, x, y, z, *comment = atom.split(maxsplit=4)
+                    kwargs = {} if not comment else {'suffix': comment[0]}
+                    coords = float(x), float(y), float(z)
 
-                try:
-                    at = Atom(symbol=symbol, coords=coords, **kwargs)
-                except PTError:  # It's either a ghost atom and/or an atom with a custom name
-                    if symbol.startswith('Gh.'):  # Ghost atom
-                        kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
-                    if '.' in symbol:  # Atom with a custom name
-                        symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
-                    at = Atom(symbol=symbol, coords=coords, **kwargs)
+                    try:
+                        at = Atom(symbol=symbol, coords=coords, **kwargs)
+                    except PTError:  # It's either a ghost atom and/or an atom with a custom name
+                        if symbol.startswith('Gh.'):  # Ghost atom
+                            kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
+                        if '.' in symbol:  # Atom with a custom name
+                            symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
+                        at = Atom(symbol=symbol, coords=coords, **kwargs)
 
-                mol.add_atom(at)
+                    mol.add_atom(at)
+
+                # Set the lattice vector if applicable
+                if settings_block.lattice._1:
+                    mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
 
             # Add bonds
             for bond in settings_block.bondorders._1:
-                _at1, _at2, _order = bond.split()
+                _at1, _at2, _order, *_ = bond.split()
                 at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
                 mol.add_bond(at1, at2, order)
-
-            # Set the lattice vector if applicable
-            if settings_block.lattice._1:
-                mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
 
             # Set the molecular charge
             if settings_block.charge:
@@ -974,4 +1458,3 @@ class AMSJob(SingleJob):
             if slurmenv:
                 return f'export SCM_MPIOPTIONS="{slurmenv}"\n'
         return ''
-

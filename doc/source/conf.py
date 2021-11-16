@@ -36,6 +36,7 @@ if tags.has('scm_theme'):
 
     from global_conf import *
     project, htmlhelp_basename, latex_documents = set_project_specific_var ('PLAMS')
+    html_logo = '_static/plams_logo.png'
 
 else:
 
@@ -301,6 +302,9 @@ rst_epilog = """
 
 .. |ORCAJob| replace:: :class:`ORCAJob<scm.plams.interfaces.thirdparty.orca.ORCAJob>`
 .. |ORCAResults| replace:: :class:`ORCAResults<scm.plams.interfaces.thirdparty.orca.ORCAResults>`
+
+.. |RaspaJob| replace:: :class:`RaspaJob<scm.plams.interfaces.thirdparty.raspa.RaspaJob>`
+.. |RaspaResults| replace:: :class:`RaspaResults<scm.plams.interfaces.thirdparty.raspa.RaspaResults>`
 
 .. |DFTBPlusJob| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusJob`
 .. |DFTBPlusResults| replace:: :class:`~scm.plams.interfaces.thirdparty.dftbplus.DFTBPlusResults`

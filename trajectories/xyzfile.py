@@ -2,7 +2,9 @@
 
 import numpy
 from ..mol.molecule import Molecule
+from ..core.errors import TrajectoryError
 from ..tools.geometry import cell_shape
+from ..tools.geometry import cellvectors_from_shape
 from .trajectoryfile import TrajectoryFile
 
 __all__ = ['XYZTrajectoryFile','create_xyz_string']
@@ -100,6 +102,16 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 if self.mode == 'r' :
                         self._read_header()
 
+                # Specific XYZ stuff
+                self.include_historydata = False
+                self.historydata = None
+
+        def store_historydata (self) :
+                """
+                Additional data should be read from/written to file
+                """
+                self.include_historydata = True
+
         def set_name (self, name) :
                 """
                 Sets the name of the system, in case an extensive write is requested
@@ -139,7 +151,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
 
                 cell = None
                 # Read the coordinates
-                crd = self._read_coordinates(molecule)
+                crd, cell = self._read_coordinates(molecule)
                 if crd is None :
                         return None, None       # End of file is reached
 
@@ -157,8 +169,21 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 cell = None
                 for i in range(2) :
                         line = self.file_object.readline()
+                        if i==0 and len(line.split()) > 1 :
+                                raise TrajectoryError('Number of atoms changes. Try XYZHistoryFile')
+                        elif i==0 and int(line.split()[0]) != self.ntap :
+                                raise TrajectoryError('Number of atoms changes. Try XYZHistoryFile')
                         if len(line) == 0 :
-                                return None           # End of file is reached
+                                return None, None           # End of file is reached
+                # Handle the comment line
+                historydata = data_from_xyzcomment(line)
+                if 'Lattice' in historydata :
+                        cell = historydata['Lattice']
+                        del historydata['Lattice']
+                if self.include_historydata :
+                        self.historydata = historydata
+
+                # Write coordinates
                 for i in range(self.ntap) :
                         line = self.file_object.readline()
                         self.coords[i,:] = [float(w) for w in line.split()[1:4]]
@@ -166,7 +191,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 if isinstance(molecule,Molecule) :
                         self._set_plamsmol(self.coords, cell, molecule)
 
-                return self.coords
+                return self.coords, cell
 
         def _is_endoffile (self) :
                 """
@@ -180,16 +205,18 @@ class XYZTrajectoryFile (TrajectoryFile) :
                                 break
                 return end
 
-        def write_next (self,coords=None,molecule=None,cell=[0.,0.,0.],energy=None,step=None,conect=None) :
+        def write_next (self,coords=None,molecule=None,cell=[0.,0.,0.],conect=None,historydata=None) :
                 """
                 Write frame to next position in trajectory file
 
                 * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates
                 * ``molecule`` -- A molecule object to read the molecular data from
                 * ``cell``     -- A set of lattice vectors or cell diameters
-                * ``energy``   -- An energy value to be written to the remark line
-                * ``step``     -- A frame number for the current frame
                 * ``conect``   -- A dictionary containing connectivity info (not used)
+                * ``historydata`` -- A dictionary containing additional variables to be written to the comment line
+
+                The ``historydata`` dictionary can contain for example:
+                ('Step','Energy'), the frame number and the energy respectively
 
                 .. note::
 
@@ -201,24 +228,34 @@ class XYZTrajectoryFile (TrajectoryFile) :
                                 self.elements = elements
                 cell = self._convert_cell(cell)
 
-                self._write_moldata(coords, cell, energy, step)
+                self._write_moldata(coords, cell, historydata)
 
                 self.position += 1
 
-        def _write_moldata (self, coords, cell, energy, step) :
+        def _write_moldata (self, coords, cell, historydata) :
                 """
                 Write all molecular info to file
                 """
-                if step is not None or energy is not None :
-                        if step is None :
-                                step = self.position
-                        if energy is None :
-                                energy = 0.
+                if historydata is None :
+                        historydata = {}
+                if self.include_historydata and len(historydata) > 0 :
+                        step = self.position
+                        if 'Step' in historydata :
+                                step = historydata['Step']
+                        energy = 0.
+                        if 'Energy' in historydata :
+                                energy = historydata['Energy']
                         box = None
                         if cell is not None :
                                 #box = PDBMolecule().box_from_vectors(cell)
                                 box = cell_shape(cell)
-                        block = create_xyz_string(self.elements,coords,energy,box,step,self.name)
+                        name = self.name
+                        if 'Name' in historydata :
+                                name = historydata['Name']
+                        line = None
+                        if 'Line' in historydata :
+                                line = historydata['Line']
+                        block = create_xyz_string(self.elements,coords,energy,box,step,name,line)
                 else :
                         block = create_xyz_string(self.elements, coords)
                 self.file_object.write(block)
@@ -241,12 +278,14 @@ class XYZTrajectoryFile (TrajectoryFile) :
                         self.read_next(read=False)
 
 
-def create_xyz_string (elements, coords, energy=None, box=None, step=None, name='PlamsMol') :
+def create_xyz_string (elements, coords, energy=None, box=None, step=None, name='PlamsMol',line=None) :
         """
         Write an XYZ file based on the elements and the coordinates of the atoms
         """
-        block = '%8i\n'%(len(elements))
-        if step is not None :
+        block = '%i\n'%(len(elements))
+        if line is not None :
+                block += '%s'%(line)
+        elif step is not None :
                 if energy is None : energy = 0.
                 comment = '%-40s%6i %16.6f'%(name, step, energy)
                 if box is not None :
@@ -260,3 +299,34 @@ def create_xyz_string (elements, coords, energy=None, box=None, step=None, name=
                         block += '%20.10f '%(x)
                 block += '\n'
         return block
+
+def data_from_xyzcomment (line) :
+        """
+        Convert XYZ comment line (cell angles are in radians)
+        """
+        words = line.split()
+        if len(words) == 0 : return {}
+        if len(words) < 3 : return {'Line':line}
+        xyzdic = {}
+        xyzdic['Name'] = words[0]
+        try :
+                xyzdic['Step'] = int(words[1])
+                xyzdic['Energy'] = float(words[2])
+        except ValueError :
+                xyzdic['Line'] = line
+                return xyzdic
+        if len(words) >= 6 :
+                try :
+                        box = [float(w) for w in words[3:6]]
+                except ValueError :
+                        return xyzdic
+                if len(words) >= 9 :
+                        try :
+                                angles = [float(w) for w in words[6:9]]
+                        except ValueError :
+                                return xyzdic
+                        angles = [a for a in angles]
+                        box += angles
+                lattice = cellvectors_from_shape(box)
+                xyzdic['Lattice'] = lattice
+        return xyzdic

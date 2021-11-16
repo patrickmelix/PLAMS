@@ -4,6 +4,8 @@ import itertools
 import math
 import numpy as np
 import os
+import io
+
 from collections import OrderedDict
 
 from .atom import Atom
@@ -15,9 +17,11 @@ from ..core.functions import log
 from ..core.private import smart_copy, parse_action
 from ..core.settings import Settings
 from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array
+from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array, cell_lengths, cell_angles
 from ..tools.units import Units
 from ..tools.kftools import KFFile
+
+input_parser_available = 'AMSBIN' in os.environ
 
 __all__ = ['Molecule']
 
@@ -36,13 +40,21 @@ class Molecule:
 
         Each |Atom| in ``atoms`` list and each |Bond| in ``bonds`` list has a reference to the parent molecule. Moreover, each atom stores the list of bonds it's a part of and each bond stores references to atoms it bonds. That creates a complex net of references between objects that are part of a molecule. Consistency of this data is crucial for proper functioning of many methods. Because of that it is advised not to modify contents of ``atoms`` and ``bonds`` by hand. When you need to alter your molecule, methods :meth:`add_atom`, :meth:`delete_atom`, :meth:`add_bond` and :meth:`delete_bond` can be used to ensure that all these references are updated properly.
 
-    Creating a |Molecule| object for your calculation can be done in two ways. You can start with an empty molecule and manually add all atoms (and bonds, if needed)::
+    Creating a |Molecule| object for your calculation can be done in several ways. You can start with an empty molecule and manually add all atoms (and bonds, if needed)::
 
         mol = Molecule()
         mol.add_atom(Atom(atnum=1, coords=(0,0,0)))
         mol.add_atom(Atom(atnum=1, coords=(d,0,0)))
 
-    This approach can be useful for building small molecules, especially if you wish to parametrize some of atomic coordinates (like in :ref:`simple_example`), but in general it's not very practical. Usually one wants to import atomic coordinates from some external file::
+    This approach can be useful for building small molecules, especially if you wish to parametrize some of atomic coordinates (like in :ref:`simple_example`), but in general it's not very practical.
+    If coordinates and atom numbers are available, instantiation can be done by passing a value to the `positions`, `numbers` and optionally the `lattice` arguments::
+
+        xyz     = np.random.randn(10,3) # 10 atoms, 3 coordinates per atom
+        numbers = 10*[6] # 10 carbon atoms. If left None, will initialize to dummy atoms
+        lattice = [[1,2,3], [1,2,3]] # lattice should have a shape of {1,2,3}x3
+        mol     = Molecule(positions=xyz, numbers=numbers, lattice=lattice)
+
+    Alternatively, one can import atomic coordinates from some external file::
 
         mol = Molecule('xyz/Benzene.xyz')
 
@@ -103,7 +115,7 @@ class Molecule:
     However, if you feel more familiar with identifying atoms by natural numbers, you can use :meth:`set_atoms_id` to equip each atom of the molecule with ``id`` attribute equal to atom's position within ``atoms`` list. This method can also be helpful to track changes in your molecule during tasks that can reorder atoms.
     """
 
-    def __init__(self, filename=None, inputformat=None, **other):
+    def __init__(self, filename=None, inputformat=None, positions=None, numbers=None, lattice=None, **other):
         self.atoms = []
         self.bonds = []
         self.lattice = []
@@ -113,6 +125,23 @@ class Molecule:
             self.read(filename, inputformat, **other)
             self.properties.source = filename
             self.properties.name = os.path.splitext(os.path.basename(filename))[0]
+
+        elif positions is not None:
+            positions = np.array(positions)
+            assert positions.ndim == 2, f"`Positions` must be a 2d array"
+            assert positions.shape[-1] == 3, f"Inner dim of `positions` must be 3"
+            if numbers is None:
+                numbers = len(positions)*[0]
+            assert len(numbers) == len(positions), f"Length or `numbers` and `positions` does not match"
+            for num,xyz in zip(numbers, positions):
+                self.add_atom( Atom(atnum=num, coords=xyz) )
+            if lattice is not None:
+                lattice = np.array(lattice)
+                assert lattice.ndim      == 2, f"`Lattice` must be a 2d array"
+                assert lattice.shape[ 0] <= 3, f"`Lattice` shoud be a 3x3 vector at most"
+                assert lattice.shape[-1] == 3, f"Inner dim of `lattice` must be 3"
+                self.lattice = lattice.tolist()
+
 
 
 #===========================================================================
@@ -329,7 +358,7 @@ class Molecule:
     def separate(self):
         """Separate the molecule into connected components.
 
-        Returned is a list of new |Molecule| objects (all atoms and bonds are disjoint with the original molecule). Each element of this list is identical to one connected component of the base molecule. A connected component is a subset of atoms such that there exists a path (along one or more bonds) between any two atoms.
+        Returned is a list of new |Molecule| objects (all atoms and bonds are disjoint with the original molecule). Each element of this list is identical to one connected component of the base molecule. A connected component is a subset of atoms such that there exists a path (along one or more bonds) between any two atoms. Usually these connected components are molecules.
 
         Example::
 
@@ -595,7 +624,7 @@ class Molecule:
             at._metalbondcounter = len([x for x in at.bonds if x.other_end(at).is_metallic])
             at._electronegativebondcounter = len([x for x in at.bonds if x.other_end(at).is_electronegative])
             if at._electronegativebondcounter >= 3 or \
-                    (at._electronegativebondcounter >= 2 and at._metalbondcounter <= 2) or \
+                    (at._electronegativebondcounter >= 2 >= at._metalbondcounter) or \
                     (at._electronegativebondcounter >= 1 and at._metalbondcounter <= 0):
                 bonds_to_delete = [b for b in at.bonds if b.other_end(at).is_metallic or b.other_end(at).atnum == 1]
                 for b in bonds_to_delete:
@@ -645,56 +674,56 @@ class Molecule:
         For a diagonal supercell expansion (i.e. :math:`T_{i \\neq j}=0`) one can provide in input n positive integers instead of a matrix, where n is number of lattice vectors in the molecule. e.g. This ``mol.supercell([[2,0],[0,2]])`` is equivalent to ``mol.supercell(2,2)``.
 
         The returned |Molecule| is fully distinct from the current one, in a sense that it contains a different set of |Atom| and |Bond| instances. However, each atom of the returned |Molecule| carries an additional information about its origin within the supercell. If ``atom`` is an |Atom| instance in the supercell, ``atom.properties.supercell.origin`` points to the |Atom| instance of the original molecule that was copied to create ``atom``, while ``atom.properties.supercell.index`` stores the tuple (with length equal to the number of lattice vectors) with cell index. For example, ``atom.properties.supercell.index == (2,1,0)`` means that ``atom`` is a copy of ``atom.properties.supercell.origin`` that was translated twice along the first lattice vector, once along the second vector, and not translated along the third vector.
-    
+
         Example usage:
- 
+
         .. code-block:: python
-            
+
             >>> graphene = Molecule('graphene.xyz')
             >>> print(graphene)
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.230000      0.710000      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.230000      0.710000      0.000000
               Lattice:
                     2.4600000000     0.0000000000     0.0000000000
                     1.2300000000     2.1304224933     0.0000000000
-            
+
             >>> graphene_supercell = graphene.supercell(2,2) # diagonal supercell expansion
             >>> print(graphene_supercell)
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.230000      0.710000      0.000000 
-                3         C      1.230000      2.130422      0.000000 
-                4         C      2.460000      2.840422      0.000000 
-                5         C      2.460000      0.000000      0.000000 
-                6         C      3.690000      0.710000      0.000000 
-                7         C      3.690000      2.130422      0.000000 
-                8         C      4.920000      2.840422      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.230000      0.710000      0.000000
+                3         C      1.230000      2.130422      0.000000
+                4         C      2.460000      2.840422      0.000000
+                5         C      2.460000      0.000000      0.000000
+                6         C      3.690000      0.710000      0.000000
+                7         C      3.690000      2.130422      0.000000
+                8         C      4.920000      2.840422      0.000000
               Lattice:
                     4.9200000000     0.0000000000     0.0000000000
                     2.4600000000     4.2608449866     0.0000000000
-            
+
             >>> diamond = Molecule('diamond.xyz')
             >>> print(diamond)
-              Atoms: 
-                1         C     -0.446100     -0.446200     -0.446300 
-                2         C      0.446400      0.446500      0.446600 
+              Atoms:
+                1         C     -0.446100     -0.446200     -0.446300
+                2         C      0.446400      0.446500      0.446600
               Lattice:
                     0.0000000000     1.7850000000     1.7850000000
                     1.7850000000     0.0000000000     1.7850000000
                     1.7850000000     1.7850000000     0.0000000000
-            
+
             >>> diamond_supercell = diamond.supercell([[-1,1,1],[1,-1,1],[1,1,-1]])
             >>> print(diamond_supercell)
-              Atoms: 
-                1         C     -0.446100     -0.446200     -0.446300 
-                2         C      0.446400      0.446500      0.446600 
-                3         C      1.338900      1.338800     -0.446300 
-                4         C      2.231400      2.231500      0.446600 
-                5         C      1.338900     -0.446200      1.338700 
-                6         C      2.231400      0.446500      2.231600 
-                7         C     -0.446100      1.338800      1.338700 
-                8         C      0.446400      2.231500      2.231600 
+              Atoms:
+                1         C     -0.446100     -0.446200     -0.446300
+                2         C      0.446400      0.446500      0.446600
+                3         C      1.338900      1.338800     -0.446300
+                4         C      2.231400      2.231500      0.446600
+                5         C      1.338900     -0.446200      1.338700
+                6         C      2.231400      0.446500      2.231600
+                7         C     -0.446100      1.338800      1.338700
+                8         C      0.446400      2.231500      2.231600
               Lattice:
                     3.5700000000     0.0000000000     0.0000000000
                     0.0000000000     3.5700000000     0.0000000000
@@ -770,18 +799,38 @@ class Molecule:
         return ret
 
 
-
-
-
-
     def unit_cell_volume(self, unit='angstrom'):
         """Return the volume of the unit cell of a 3D system.
 
         *unit* is the unit of length, the cube of which will be used as the unit of volume.
         """
-        if len(self.lattice) != 3:
-            raise MoleculeError('unit_cell_volume: To calculate the volume of the unit cell the lattice must contain 3 vectors')
-        return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
+        if len(self.lattice) == 3:
+            return float(np.linalg.det(np.dstack([self.lattice[0],self.lattice[1],self.lattice[2]]))) * Units.conversion_ratio('angstrom', unit)**3
+        elif len(self.lattice) == 2:
+            return float(np.linalg.norm(np.cross(self.lattice[0],self.lattice[1]))) * Units.conversion_ratio('angstrom', unit)**2
+        elif len(self.lattice) == 1:
+            return float(np.linalg.norm(self.lattice[0])) * Units.conversion_ratio('angstrom', unit)
+        elif len(self.lattice) == 0:
+            raise ValueError("Cannot calculate unit cell volume for a nonperiodic molecule")
+        else:
+            raise ValueError("len(self.lattice) = {}, should be <=3.".format(len(self.lattice)))
+
+    def cell_lengths(self, unit='angstrom'):
+        """Return the lengths of the lattice vector. Returns a list with the same length as self.lattice"""
+
+        return cell_lengths(self.lattice, unit=unit)
+
+    def cell_angles(self, unit='degree'):
+        """Return the angles between lattice vectors.
+
+        unit : str
+            output unit
+
+        For 2D systems, returns a list [gamma]
+
+        For 3D systems, returns a list [alpha, beta, gamma]
+        """
+        return cell_angles(self.lattice, unit=unit)
 
 
     def set_integer_bonds(self, action = 'warn', tolerance = 10**-4):
@@ -1024,6 +1073,199 @@ class Molecule:
             mol_copy.from_array(xyz_round)
             return mol_copy
 
+    def get_connection_table (self) :
+        """
+        Get a connection table with atom indices (starting at 0)
+        """
+        table = []
+        for iat,at in enumerate(self.atoms) :
+            indices = sorted([self.index(n)-1 for n in self.neighbors(at)])
+            table.append(indices)
+        return table
+
+    def get_molecule_indices (self) :
+        """
+        Use the bond information to identify submolecules
+
+        Returns a list of lists of indices (e.g. for two methane molecules: [[0,1,2,3,4],[5,6,7,8,9]])
+        """
+        conect = self.get_connection_table()
+        atlist = [i for i in range(len(self))]
+
+        molecules = []
+        while(1) :
+            atoms = [atlist[0]]
+            # Continue to add to the atoms list below, as the loop progresses
+            for i,iat in enumerate(atoms) :
+                conlist = conect[iat]
+                atoms += [ind for ind in conlist if not ind in atoms]
+            # Remove the molecule from atlist
+            atlist = [i for i in atlist if not i in atoms]
+            molecules.append(sorted(atoms))
+
+            if len(atlist) == 0 :
+                    break
+
+        return molecules
+
+    def get_fragment (self, indices) :
+        """
+        Return a submolecule from self
+        """
+        ret = Molecule()
+        ret.lattice = self.lattice.copy()
+
+        # First the atoms
+        bro = {}
+        for iat in indices :
+            at = self.atoms[iat]
+            at_copy = smart_copy(at, owncopy=['properties'], without=['mol','bonds'])
+            ret.add_atom(at_copy)
+            bro[at] = at_copy
+    
+        # Then the bonds
+        for bo in self.bonds:
+            if (bo.atom1 in bro) and (bo.atom2 in bro):
+                bo_copy = smart_copy(bo, owncopy=['properties'], without=['atom1', 'atom2', 'mol'])
+                bo_copy.atom1 = bro[bo.atom1]
+                bo_copy.atom2 = bro[bo.atom2]
+                ret.add_bond(bo_copy)
+
+        return ret
+
+    def locate_rings (self) :
+        """
+        Find the rings in the structure
+        """
+        def shortest_path_dijkstra (conect, source, target) :
+            """
+            Find the shortest paths (can be more than 1) 
+            between a source atom and a target
+            atom in a molecule
+            """
+            huge = 100000.
+    
+            dist = {}
+            previous = {}
+            for v in range(len(conect)) :
+                dist[v] = huge
+                previous[v] = []
+            dist[source] = 0
+
+            Q = [source]
+            for iat in range(len(conect)) :
+                if iat != source :
+                    Q.append(iat)
+
+            while len(Q) > 0 :
+                # vertex in Q with smallest distance in dist
+                u = Q[0]
+                if dist[u] == huge :
+                    return []
+                u = Q.pop(0)
+                if u == target :
+                    break
+
+                # Select the neighbors of u, and loop over them
+                neighbors = conect[u]
+                for v in neighbors :
+                    if not v in Q :
+                        continue
+                    alt = dist[u] + 1.
+                    if alt == dist[v] :
+                        previous[v].append(u)
+                    if alt < dist[v] :
+                        previous[v] = [u]
+                        dist[v] = alt
+                        # Reorder Q
+                        for i,vertex in enumerate(Q) :
+                            if vertex == v :
+                                ind = i
+                                break
+                        Q.pop(ind)
+                        for i,vertex in enumerate(Q) :
+                            if dist[v] < dist[vertex] :
+                                ind = i
+                                break
+                        Q.insert(ind,v)
+
+            bridgelist = [[u]]
+            d = dist[u]
+            for i in range(int(d)) :
+                paths = []
+                for j,path in enumerate(bridgelist) :
+                    prevats = previous[path[-1]]
+                    for at in prevats :
+                        newpath = path+[at]
+                        paths.append(newpath)
+                bridgelist = paths
+
+            return bridgelist
+
+        def bond_from_indices (ret, iat1, iat2) :
+            """
+            Return a bond object from the atom indices
+            """
+            bond = None
+            for bond in ret.bonds :
+                indices = [i-1 for i in ret.index(bond)]
+                if iat1 in indices and iat2 in indices :
+                    break 
+            if bond is None : raise Exception('This bond should exist (%i %i), but does not!'%(iat1,iat2))
+            return bond
+
+        # For each atom find the list of neighbors,
+        # break the corresponding bond, and then find out if they are still
+        # connected. If so, find the shortest bridge, using Dijkstra's algorithm
+        conect = self.get_connection_table()
+        atoms = [i for i,at in enumerate(self)]
+        ret = self.copy()
+        allrings = []
+        oldneighbors = []
+        for iat in atoms :
+            neighbors = conect[iat]
+            for iatn in neighbors :
+                if iatn in oldneighbors :
+                    continue
+                bond = bond_from_indices(ret, iat, iatn)
+                # Delete the bond
+                ret.delete_bond(bond)
+                mollist = ret.get_molecule_indices()
+                for m in mollist :
+                    connection = False
+                    if iatn in m :
+                        if iat in m :
+                            connection = True
+                        break
+
+                if connection :
+                    retconect = ret.get_connection_table()
+                    rings = shortest_path_dijkstra(retconect,iat,iatn)
+                    for ring in rings :
+                        ring.sort()
+                        if not ring in allrings :
+                            allrings.append(ring)
+                    # Put the bond back
+                    ret.add_bond(bond)
+            oldneighbors.append(iat)
+
+        allrings = [self.order_ring(ring) for ring in allrings]
+        return allrings
+
+    def order_ring (self, ring_indices) :
+        """
+        Order the ring indices so that they are sequential along the ring
+        """
+        conect = self.get_connection_table()
+        new_ring = [ring_indices[0]]
+        for iat in new_ring :
+            neighbors = [jat for jat in conect[iat] if jat in ring_indices]
+            neighbors = [jat for jat in neighbors if not jat in new_ring]
+            if len(neighbors) == 0 :
+                break
+            else :
+                new_ring.append(neighbors[0])
+        return new_ring
 
 #===========================================================================
 #==== Geometry operations ==================================================
@@ -1331,16 +1573,16 @@ class Molecule:
 
             >>> graphene = Molecule('graphene.xyz')
             >>> print(graphene)
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.230000      0.710141      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.230000      0.710141      0.000000
               Lattice:
                     2.4600000000     0.0000000000     0.0000000000
                     1.2300000000     2.1304224900     0.0000000000
             >>> graphene.apply_strain([0.1,0.2,0.0], voigt_form=True)])
-              Atoms: 
-                1         C      0.000000      0.000000      0.000000 
-                2         C      1.353000      0.852169      0.000000 
+              Atoms:
+                1         C      0.000000      0.000000      0.000000
+                2         C      1.353000      0.852169      0.000000
               Lattice:
                     2.7060000000     0.0000000000     0.0000000000
                     1.3530000000     2.5565069880     0.0000000000
@@ -1574,12 +1816,27 @@ class Molecule:
 #===========================================================================
 
 
+    def __repr__(self):
+        # get_formula(), but with C,H first and counts of 1 not present in the string
+        syms = sorted([at.symbol for at in self])
+        for at in 'HC':
+            syms = syms.count(at)*[at] + [i for i in syms if i != at]
+        uniq = list(dict.fromkeys(syms)) # preserves order
+        cnts = [syms.count(i) for i in uniq]
+        cnts = [str(i) if i > 1 else '' for i in cnts]
+        s = ''.join(f"{at}{cnt}" for at,cnt in zip(uniq, cnts))
+        return f"{self.__class__.__name__}('{s}' at {hex(id(self))})"
+
 
     def __len__(self):
         """The length of the molecule is the number of atoms."""
         return len(self.atoms)
 
+
     def __str__(self):
+        return self.str()
+
+    def str(self, decimal=6):
         """Return a string representation of the molecule.
 
         Information about atoms is printed in ``xyz`` format fashion -- each atom in a separate, enumerated line. Then, if the molecule contains any bonds, they are printed. Each bond is printed in a separate line, with information about both atoms and bond order. Example:
@@ -1598,7 +1855,7 @@ class Molecule:
         """
         s = '  Atoms: \n'
         for i,atom in enumerate(self.atoms, 1):
-            s += ('%5i'%(i)) + str(atom) + '\n'
+            s += ('%5i'%(i)) + atom.str(decimal=decimal) + '\n'
         if len(self.bonds) > 0:
             for j,atom in enumerate(self.atoms, 1):
                 atom._tmpid = j
@@ -1843,17 +2100,30 @@ class Molecule:
             shift = 1 if (len(lst) > 4 and lst[0] == str(i)) else 0
             num = lst[0+shift]
             if isinstance(num, str):
-                self.add_atom(Atom(symbol=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
+                new_atom = Atom(symbol=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift]))
             else:
-                self.add_atom(Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift])))
+                new_atom = Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift]))
+            if len(lst) > shift + 4:
+                new_atom.properties.suffix = line.split(maxsplit=shift+5)[-1]
+            self.add_atom(new_atom)
+
 
         def newlatticevec(line):
             lst = line.split()
             self.lattice.append((float(lst[1]),float(lst[2]),float(lst[3])))
 
+        if isinstance(f, list):
+            f = io.StringIO('\n'.join(f))
+            log("WARNING: DEPRECATED A list was passed as 'f' argument to the Molecule.readxyz method. 'f' should be a file, and not a list. Tip: consider using io.StringIO if you want to pass a string as input to this function", 1)
+
         fr = geometry
         begin, first, nohead = True, True, False
-        for line in f:
+
+        while True:
+            last_pos = f.tell()
+            line = f.readline()
+            if line == '': break
+
             if first:
                 if line.strip() == '' : continue
                 first = False
@@ -1888,12 +2158,16 @@ class Molecule:
                     elif 'VEC' in line.upper():
                        newlatticevec(line)
                     else:
+                        # If we get here, it means that we just processed a line behond the last atom or VEC line
+                        # If this xyz file contains more than one molecule, this line might be the header of the next molecule.
+                        # Let's move back one step, so that if we call this function again the file pointer will be at the right position
+                        f.seek(last_pos)
                         break
         if not nohead and fr > 0:
-            raise FileError('readxyz: There are only %i geometries in %s' % (geometry - fr, f.name))
+            raise FileError(f'readxyz: cannot read frame from {f.name}')
 
 
-    def writexyz(self, f, **other):
+    def writexyz(self, f, space=16, decimal=8):
         f.write(str(len(self)) + '\n')
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -1901,10 +2175,13 @@ class Molecule:
                 comment = comment[0]
             f.write(comment)
         f.write('\n')
+
         for at in self.atoms:
-            f.write(str(at) + '\n')
+            f.write(at.str(space=space, decimal=decimal) + '\n')
+
         for i,vec in enumerate(self.lattice, 1):
-            f.write('VEC'+str(i) + '%14.6f %14.6f %14.6f\n'%tuple(vec))
+            f.write(f"VEC{i} " + ' '.join([f"{v:>{space}.{decimal}f}" for v in vec]) + '\n')
+
 
 
     def readmol(self, f, **other):
@@ -2126,13 +2403,17 @@ class Molecule:
         pdb.add_record(PDBRecord('END'))
         pdb.write(f)
 
+
     @staticmethod
     def _mol_from_rkf_section(sectiondict):
         """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
 
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
-        symbols = sectiondict['AtomSymbols'].split()
+        symbols = sectiondict['AtomSymbols']
+        # If the dictionary was read from memory and not from file, this is already a list
+        if isinstance(symbols,str) :
+                symbols = symbols.split()
         for crd, sym in zip(coords, symbols):
             if sym.startswith('Gh.'):
                 isghost = True
@@ -2151,7 +2432,7 @@ class Molecule:
             fromAtoms = sectiondict['fromAtoms'] if isinstance(sectiondict['fromAtoms'], list) else [sectiondict['fromAtoms']]
             toAtoms = sectiondict['toAtoms'] if isinstance(sectiondict['toAtoms'], list) else [sectiondict['toAtoms']]
             bondOrders = sectiondict['bondOrders'] if isinstance(sectiondict['bondOrders'], list) else [sectiondict['bondOrders']]
-                
+
             for fromAt, toAt, bondOrder in zip(fromAtoms, toAtoms, bondOrders):
                 ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
         if sectiondict['Charge'] != 0:
@@ -2176,6 +2457,31 @@ class Molecule:
         kf = KFFile(filename)
         sectiondict = kf.read_section(section)
         self.__dict__.update(Molecule._mol_from_rkf_section(sectiondict).__dict__)
+        for at in self.atoms: at.mol = self
+        for bo in self.bonds: bo.mol = self
+
+
+    def readin(self, f, **other):
+        """Read a file containing a System block used in AMS driver input files."""
+        if not input_parser_available:
+            raise NotImplementedError('Reading from System blocks from AMS input files requires the AMS input parser to be available.')
+        from scm.input_parser import InputParser
+        from ..interfaces.adfsuite.ams import AMSJob
+        sett = Settings()
+        with InputParser() as parser:
+            sett.input.AMS = Settings(parser._run('ams', f.read()))
+        if 'System' not in sett.input.AMS: raise ValueError('No System block found in file.')
+        sysname = other.get('sysname', '')
+        mols = AMSJob.settings_to_mol(sett)
+        if sysname not in mols: raise KeyError(f'No System block with id "{sysname}" found in file.')
+        self.__dict__.update(mols[sysname].__dict__)
+        for at in self.atoms: at.mol = self
+        for bo in self.bonds: bo.mol = self
+
+    def writein(self, f, **other):
+        """Write the Molecule instance to a file as a System block from the AMS driver input files."""
+        from ..interfaces.adfsuite.ams import AMSJob
+        f.write(AMSJob(molecule={other.get('sysname',''):self}).get_input())
 
 
     def read(self, filename, inputformat=None, **other):
@@ -2200,26 +2506,34 @@ class Molecule:
             raise MoleculeError(f"read: Unsupported file format '{inputformat}'")
 
 
-    def write(self, filename, outputformat=None, **other):
+    def write(self, filename, outputformat=None, mode='w', **other):
         """Write molecular coordinates to a file.
 
         *filename* should be a string with a path to a file. If *outputformat* is not ``None``, it should be one of supported formats or engines (keys occurring in the class attribute ``_writeformat``). Otherwise, the format is deduced from the file extension. For files without an extension the `xyz` format is used.
 
+        *mode* can be either 'w' (overwrites the file if the file exists) or 'a' (appends to the file if the file exists).
+
         All *other* options are passed to the chosen format writer.
         """
+
+        if not mode in ['w', 'a']:
+            raise ValueError(f"invalid mode {mode}")
 
         if outputformat is None:
             _, extension = os.path.splitext(filename)
             outputformat = extension.strip('.') if extension else 'xyz'
         if outputformat in self.__class__._writeformat:
-            with open(filename, 'w') as f:
+            with open(filename, mode) as f:
                 self._writeformat[outputformat](self, f, **other)
         else:
             raise MoleculeError(f"write: Unsupported file format '{outputformat}'")
 
-    #Support for the ASE engine is added if available by interfaces.molecules.ase
+    # Support for the ASE engine is added if available by interfaces.molecules.ase
     _readformat = {'xyz':readxyz, 'mol':readmol, 'mol2':readmol2, 'pdb':readpdb, 'rkf':readrkf}
     _writeformat = {'xyz':writexyz, 'mol':writemol, 'mol2':writemol2, 'pdb': writepdb}
+    if input_parser_available:
+        _readformat['in'] = readin
+        _writeformat['in'] = writein
 
 
     def add_hatoms(self) -> 'Molecule':
@@ -2232,14 +2546,14 @@ class Molecule:
             >>> o = Molecule()
             >>> o.add_atom(Atom(atnum=8))
             >>> print(o)
-              Atoms: 
-                1         O      0.000000       0.000000       0.000000 
+              Atoms:
+                1         O      0.000000       0.000000       0.000000
             >>> h2o = o.add_hatoms()
             >>> print(h2o)
-              Atoms: 
-                1         O      0.000000       0.000000       0.000000 
-                2         H     -0.109259       0.893161       0.334553 
-                3         H      0.327778       0.033891      -0.901672 
+              Atoms:
+                1         O      0.000000       0.000000       0.000000
+                2         H     -0.109259       0.893161       0.334553
+                3         H      0.327778       0.033891      -0.901672
 
         """
         from subprocess import Popen
@@ -2252,3 +2566,56 @@ class Molecule:
                 p.communicate()
                 retmol = self.__class__(f_out.name)
         return retmol
+
+
+    @staticmethod
+    def rmsd(mol1, mol2, return_rotmat=False, check=True):
+        """
+        Uses the
+        `Kabsch algorithm <https://en.wikipedia.org/wiki/Kabsch_algorithm>`_ to align and
+        calculate the root-mean-square deviation of two systems' atomic positions.
+
+        Assumes all elements and their order is the same in both systems, will check this if `check == True`.
+
+        :Returns:
+
+        rmsd : float
+            Root-mean-square-deviation of atomic coordinates
+        rotmat : ndarray
+            If `return_rotmat` is `True`, will additionally return the rotation matrix
+            that aligns `mol2` onto `mol1`.
+        """
+
+        def kabsch(x, y, rotmat=False):
+            """
+            Rotate a set of points `y` such that they are aligned with `x`
+            using the Kabsch algorithm (thanks to Toon for the idea).
+            Same as `scipy.spatial.transform.Rotation.align_vectors`.
+            """
+            x       -= x.mean(0)
+            y       -= y.mean(0)
+            covar    = np.dot(x.T, y)
+            U, S, Vt = np.linalg.svd(covar)
+            det      = np.ones(x.shape[-1])
+            det[-1]  = np.sign(np.linalg.det( Vt.dot(U) ))
+            R        = np.einsum("ji,j,kj", Vt, det, U)
+            y        = y@R
+            rmsd     = np.linalg.norm(x - y)
+            return (rmsd, R) if rotmat is True else rmsd
+
+        assert len(mol1) == len(mol2), "Can only calculate the RMSD of same-sized molecules"
+        if check:
+            nums1 = np.array([i.atnum for i in mol1])
+            nums2 = np.array([i.atnum for i in mol2])
+            assert (nums1 == nums2).all(), f"\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
+        return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
+
+    @property
+    def numbers(self):
+        """ Return an array of all atom numbers in Molecule """
+        return np.array([i.atnum for i in self])
+
+    @property
+    def symbols(self):
+        """ Return an array of all atom symbols in Molecule """
+        return np.array([i.symbol for i in self])

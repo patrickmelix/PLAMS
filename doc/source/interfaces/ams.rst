@@ -172,6 +172,28 @@ The contents of each branch of ``myjob.settings.input`` are translated to a stri
           file = /home/user/plams_workdir/oldjob/ams.rkf
         end
 
+* Convert AMS text-style input to a Settings object (this requires that the SCM python package is installed)::
+
+        text = '''
+        Task GeometryOptimization
+        Engine DFTB
+           Model GFN1-xTB
+        EndEngine
+        '''
+
+        sett = AMSJob.from_input(text).settings
+        print(sett)
+
+        # output:
+
+        input:
+              dftb:
+                   model: 	GFN1-xTB
+              ams:
+                   task: 	GeometryOptimization
+
+
+
 .. note::
 
     The algorithm translating |Settings| contents into an input file does not check the correctness of the given data - it simply takes keys and values from |Settings| and prints them in the text file.

@@ -1,5 +1,6 @@
 import textwrap
 import contextlib
+import re
 from functools import wraps
 
 __all__ = ['Settings']
@@ -46,7 +47,6 @@ class Settings(dict):
                 self[k] = cls(v)
             if isinstance(v, list):
                 self[k] = [cls(i) if (isinstance(i, dict) and type(i) is not cls) else i for i in v]
-
 
     def copy(self):
         """Return a new instance that is a copy of this one. Nested |Settings| instances are copied recursively, not linked.

@@ -7,7 +7,7 @@ except ImportError:
 
 from .units import Units
 
-__all__ = ['rotation_matrix', 'axis_rotation_matrix', 'distance_array', 'angle','dihedral','cell_shape']
+__all__ = ['rotation_matrix', 'axis_rotation_matrix', 'distance_array', 'angle','dihedral','cell_shape','cellvectors_from_shape']
 
 def rotation_matrix(vec1, vec2):
     """
@@ -93,7 +93,7 @@ def dihedral(p1, p2, p3, p4, unit='radian'):
 
 def cell_shape (lattice) :
     """
-    Converts lattice vectors to lengths and angles
+    Converts lattice vectors to lengths and angles (in radians)
     Sets internal cell size data, based on set of cell vectors.
 
     *cellvectors* is list containing three cell vectors (a 3x3 matrix)
@@ -113,3 +113,66 @@ def cell_shape (lattice) :
             gamma = angle (lattice[0],lattice[1])
 
     return [a,b,c,alpha,beta,gamma]
+
+def cell_lengths(lattice, unit='angstrom'):
+    """Return the lengths of the lattice vector. Returns a list with the same length as the number of lattice vector."""
+
+    if lattice is None or len(lattice) == 0:
+        raise ValueError('Cannot calculate cell_lengths for nonperiodic system')
+    lattice = np.asarray(lattice)
+    ret = np.sqrt((lattice**2).sum(axis=1)) * Units.conversion_ratio('angstrom', unit)
+    return ret.tolist()
+
+def cell_angles(lattice, unit='degree'):
+    """Return the angles between lattice vectors.
+
+    unit : str
+        output unit
+
+    For 2D systems, returns a list [gamma]
+
+    For 3D systems, returns a list [alpha, beta, gamma]
+    """
+    ndim = len(lattice)
+
+    if ndim < 2:
+        raise ValueError('Cannot calculate cell_angles for fewer than 2 lattice vectors. Tried with {} lattice vectors'.format(ndim))
+
+    gamma = angle(lattice[0], lattice[1], result_unit=unit)
+
+    if ndim == 2:
+        return [gamma]
+
+    if ndim >= 3:
+        alpha = angle(lattice[1], lattice[2], result_unit=unit)
+        beta = angle(lattice[0], lattice[2], result_unit=unit)
+        return [alpha, beta, gamma]
+
+
+def cellvectors_from_shape (box) :
+    """
+    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors 
+    """
+    a = box[0]
+    b = box[1]
+    c = box[2]
+    alpha, beta, gamma = 90., 90., 90
+    if len(box) == 6 :
+        alpha = box[3]#*np.pi/180.
+        beta = box[4]#*np.pi/180.
+        gamma = box[5]#*np.pi/180.
+
+    va = [a,0.,0.]
+    vb = [b*np.cos(gamma),b*np.sin(gamma),0.]
+
+    cx = c*np.cos(beta)
+    cy = (np.cos(alpha) - np.cos(beta)*np.cos(gamma)) * c / np.sin(gamma)
+    volume = 1 - np.cos(alpha)**2 - np.cos(beta)**2 - np.cos(gamma)**2
+    volume += 2 * np.cos(alpha) * np.cos(beta) * np.cos(gamma)
+    volume = np.sqrt(volume)
+    cz = c * volume / np.sin(gamma)
+    vc = [cx,cy,cz]
+
+    lattice = [va,vb,vc]
+
+    return lattice

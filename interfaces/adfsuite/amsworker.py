@@ -12,6 +12,7 @@ import functools
 import numpy as np
 import collections
 from typing import *
+from ..molecule.ase import toASE
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -114,13 +115,8 @@ class AMSWorkerResults:
         self._input_molecule = molecule
         self.error           = error
         self._results        = results
-        if self._results is not None and 'xyzAtoms' in self._results:
-            self._main_molecule = self._input_molecule.copy()
-            self._main_molecule.from_array(self._results.pop('xyzAtoms') * Units.conversion_ratio('au', 'Angstrom'))
-            if 'latticeVectors' in self._results:
-                self._main_molecule.lattice = [ tuple(v) for v in self._results.pop('latticeVectors') * Units.conversion_ratio('au', 'Angstrom') ]
-        else:
-            self._main_molecule = self._input_molecule
+        self._main_molecule  = None
+        self._main_ase_atoms = None
 
     @property
     def name(self):
@@ -184,6 +180,26 @@ class AMSWorkerResults:
         """
         return self._results["elasticTensor"]
 
+    def get_youngmodulus(self, unit='au'):
+        bm = self.get_bulkmodulus()
+        sm = self.get_shearmodulus()
+        ym = (9*bm*sm) / (3*bm+sm)
+        return ym * Units.conversion_ratio('au', unit)
+
+    def get_shearmodulus(self, unit='au'):
+        et = self.get_elastictensor()
+        if et.shape != (6,6):
+            raise ResultsError('Elastic moduli can only be calculated for bulk systems.')
+        sm = ((et[0,0] + et[1,1] + et[2,2]) - (et[0,1] + et[0,2] + et[1,2]) + 3 * (et[3,3] + et[4,4] + et[5,5])) / 15
+        return sm * Units.conversion_ratio('au', unit)
+
+    def get_bulkmodulus(self, unit='au'):
+        et = self.get_elastictensor()
+        if et.shape != (6,6):
+            raise ResultsError('Elastic moduli can only be calculated for bulk systems.')
+        bm = np.sum(et[0:3,0:3])/9
+        return bm * Units.conversion_ratio('au', unit)
+
     @_restrict
     def get_charges(self):
         """Return the atomic charges, expressed in atomic units.
@@ -212,8 +228,42 @@ class AMSWorkerResults:
     def get_main_molecule(self):
         """Return a |Molecule| instance with the final coordinates.
         """
+        if self._main_molecule is None:
+            if self._results is not None and 'xyzAtoms' in self._results:
+                self._main_molecule = self._input_molecule.copy()
+                self._main_molecule.from_array(self._results.get('xyzAtoms') * Units.conversion_ratio('au', 'Angstrom'))
+                if 'latticeVectors' in self._results:
+                    self._main_molecule.lattice = [ tuple(v) for v in self._results.get('latticeVectors') * Units.conversion_ratio('au', 'Angstrom') ]
+            else:
+                self._main_molecule = self._input_molecule
+
         return self._main_molecule
 
+    @_restrict
+    def get_main_ase_atoms(self):
+        """Return an ASE Atoms instance with the final coordinates.
+        """
+        from ase import Atoms
+        if self._main_ase_atoms is None:
+            if self._results is not None and 'xyzAtoms' in self._results:
+                bohr2angstrom = 0.529177210903
+                lattice = self._results.get('latticeVectors', None)
+                pbc = False
+                cell = None
+                if lattice is not None:
+                    nLatticeVectors = len(lattice)
+                    if nLatticeVectors > 0:
+                        pbc = [True] * nLatticeVectors + [False] * (3 - nLatticeVectors)
+                        cell = np.zeros((3, 3))
+                        lattice = np.array(lattice).reshape(-1, 3)
+                        cell[:lattice.shape[0], :lattice.shape[1]] = lattice * bohr2angstrom
+                atomsymbols = [at.symbol for at in self._input_molecule]
+                positions = np.array(self._results['xyzAtoms']).reshape(-1,3) * bohr2angstrom
+                self._main_ase_atoms = Atoms(symbols=atomsymbols, positions=positions, pbc=pbc, cell=cell)
+            else:
+                self._main_ase_atoms = toASE(self.get_main_molecule())
+
+        return self._main_ase_atoms
 
 
 class AMSWorkerError(PlamsError):
@@ -479,7 +529,7 @@ class AMSWorker:
             return worker_procs
 
 
-    def stop(self):
+    def stop(self, keep_workerdir=False):
         """Stops the worker process and removes its working directory.
 
         This method should be called when the |AMSWorker| instance is not used as a context manager and the instance is no longer needed. Otherwise proper cleanup is not guaranteed to happen, the worker process might be left running and files might be left on disk.
@@ -487,7 +537,6 @@ class AMSWorker:
 
         stdout  = None
         stderr  = None
-        keep_wd = False
 
         # Tell the worker process to stop.
         if self.proc is not None:
@@ -496,8 +545,8 @@ class AMSWorker:
                     self._call("Exit")
                 except AMSWorkerError:
                     # The process is likely exiting already.
-                    keep_wd = self.keep_wd
-                    if keep_wd:
+                    if self.keep_wd:
+                        keep_workerdir = True
                         print(f'AMSWorkerError encountered, will keep the workerdir in {self.workerdir}')
 
         # Tear down the pipes. Ignore OSError telling us the pipes are already broken.
@@ -555,7 +604,7 @@ class AMSWorker:
         self.restart_cache.clear()
         self.restart_cache_deleted.clear()
 
-        if keep_wd:
+        if keep_workerdir:
             # Keep the current workerdir and move to a new one
             self._finalize.detach()
             self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
@@ -635,6 +684,10 @@ class AMSWorker:
 
     def _solve_from_settings(self, name, molecule, settings):
         args = AMSWorker._settings_to_args(settings)
+        if args['task'].lower() == 'geometryoptimization':
+            args['gradients'] = True # need to explicitly set gradients to True to get them in the AMSWorkerReults
+            if args.get('optimizelattice', False):
+                args['stresstensor'] = True
         return self._solve(name, molecule, **args)
 
 
@@ -733,7 +786,7 @@ class AMSWorker:
         - *elastictensor*: Calculate the elastic tensor. This should only be requested for periodic systems.
         - *charges*: Calculate atomic charges.
         - *dipolemoment*: Calculate the electric dipole moment. This should only be requested for non-periodic systems.
-        - *dipolemoment*: Calculate the nuclear gradients of the electric dipole moment. This should only be requested for non-periodic systems.
+        - *dipolegradients*: Calculate the nuclear gradients of the electric dipole moment. This should only be requested for non-periodic systems.
 
         Users can pass an instance of a previously obtained |AMSWorkerResults| as the *prev_results* keyword argument. This can trigger a restart from previous results in the worker process, the details of which depend on the used computational engine: For example, a DFT based engine might restart from the electronic density obtained in an earlier calculation on a similar geometry. This is often useful to speed up series of sequentially dependent calculations:
 
@@ -761,7 +814,7 @@ class AMSWorker:
 
 
     def GeometryOptimization(self, name, molecule, prev_results=None, quiet=True,
-                             gradients=False, stresstensor=False, hessian=False, elastictensor=False,
+                             gradients=True, stresstensor=False, hessian=False, elastictensor=False,
                              charges=False, dipolemoment=False, dipolegradients=False,
                              method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
                              maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
@@ -782,6 +835,9 @@ class AMSWorker:
         - *convstep*: Convergence criterion for displacements (in Bohr).
         - *convstressenergyperatom*: Convergence criterion for the stress energy per atom (in Hartree).
         """
+        gradients = True
+        if optimizelattice:
+            stresstensor = True
         args = locals()
         del args['self']
         del args['name']
@@ -791,9 +847,15 @@ class AMSWorker:
         return self._solve_from_settings(name, molecule, s)
 
 
-    def ParseInput(self, program_name, text_input):
+    def ParseInput(self, program_name, text_input, string_leafs):
+        """Parse the text input and return a Python dictionary representing the the JSONified input.
+
+        - *program_name*: the name of the program. This will be used for loading the appropriate json input definitions. e.g. if program_name='adf', the input definition file 'adf.json' will be used.
+        - *text_input*: a string containing the text input to be parsed.
+        - *string_leafs*: if *True* the values in the parsed json input will always be string. e.g. if in the input you have 'SomeFloat 1.2', the json leaf node for 'SomeFloat' will be the string '1.2' (and not the float number 1.2). If False the leaf values in the json input will be of the 'appropriate' type, i.e. float will be floats, strings will be strings, booleans will be boleans etc...
+        """
         try:
-            reply = self._call("ParseInput", {"programName": program_name, "textInput": text_input})
+            reply = self._call("ParseInput", {"programName": program_name, "textInput": text_input, "stringLeafs": string_leafs})
             json_input = reply[0]['parsedInput']['jsonInput']
             return json_input
         except AMSWorkerError as exc:

@@ -88,7 +88,7 @@ class CRSResults(SCMResults):
         r"""Read the section of the .crskf file and return a list of the properties that were calculated.  The section argument can be supplied to look at previously-calculated results.  If no section name is supplied, the function defaults to using the most recent property that was calculated.
 
         """
-        if section == None:
+        if section is None:
             section = self.section
         try:
             return self._kf.get_skeleton()[section]
@@ -99,7 +99,7 @@ class CRSResults(SCMResults):
         r"""Read the section from the most recent calculation type and return the result as a dictionary.
 
         """
-        if section == None:
+        if section is None:
             section = self.section
 
         output = getattr(self, '_prop_dict', False)
