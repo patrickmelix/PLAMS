@@ -2210,7 +2210,7 @@ class Molecule:
                         self.add_atom(Atom(symbol=symb, coords=crd))
                     for j in range(nbond):
                         bondline = f.readline().rstrip()
-                        if len(bondline) == 21:
+                        if len(bondline) == 21 :
                             at1 = int(bondline[0:3])
                             at2 = int(bondline[3:6])
                             ordr = int(bondline[6:9])
@@ -2221,6 +2221,12 @@ class Molecule:
                             ordr = int(tmp[2])
                         if ordr == 4:
                             ordr = Bond.AR
+                        if at1 > natom or at2 > natom :
+                            at1 = int(bondline[0:3])
+                            at2 = int(bondline[3:6])
+                            ordr = int(bondline[6:9])
+                            if ordr == 4:
+                                ordr = Bond.AR
                         self.add_bond(Bond(atom1=self[at1], atom2=self[at2], order=ordr))
                     break
                 elif spl[-1] == 'V3000':
