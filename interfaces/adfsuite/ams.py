@@ -901,7 +901,7 @@ class AMSJob(SingleJob):
 
 
     @classmethod
-    def from_input(cls, text_input, name=None, molecule=None):
+    def from_input(cls, text_input, name='plamsjob', molecule=None):
         """
         Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError). 
 
@@ -929,7 +929,7 @@ class AMSJob(SingleJob):
         return cls(settings=sett, name=name, molecule=molecule)
 
     @classmethod
-    def from_runfile(cls, path, name=None, molecule=None):
+    def from_runfile(cls, path, name='plamsjob', molecule=None):
         """
         path : path to an AMS .run or .in file. Note: for AMS jobs generated with PLAMS, you should pass the path to the .in file to this function.
 
