@@ -1540,7 +1540,7 @@ class Molecule:
         return mass/vol
 
     def get_formula(self, as_dict=False):
-        """Calculate the molecular formula of the molecule.
+        """Calculate the molecular formula of the molecule according to the Hill system.
 
         Here molecular formula is a dictionary with keys being atomic symbols. The value for each key is the number of atoms of that type. If *as_dict* is ``True``, that dictionary is returned. Otherwise, it is converted into a string::
 
@@ -1551,17 +1551,26 @@ class Molecule:
             C378H629N105O118S1
 
         """
-        ret = {}
+        occ = {}
         for atom in self:
-            if atom.symbol not in ret:
-                ret[atom.symbol] = 0
-            ret[atom.symbol] +=1
+            if atom.symbol not in occ:
+                occ[atom.symbol] = 0
+            occ[atom.symbol] +=1
         if as_dict:
-            return ret
-        s = ''
-        for key in sorted(ret):
-            s += '{}{}'.format(key,ret[key])
-        return s
+            return occ
+
+        def string_for_sym(sym, occ):
+            if sym not in occ:
+                return ''
+            else:
+                n = occ.pop(sym)
+                return sym if n == 1 else f'{sym}{n}'
+        if 'C' in occ:
+            # for organic molecules C and H come first
+            return string_for_sym('C', occ) + string_for_sym('H', occ) + ''.join(string_for_sym(sym, occ) for sym in sorted(occ))
+        else:
+            # for inorganic systems the order is strictly alphabetic
+            return ''.join(string_for_sym(sym, occ) for sym in sorted(occ))
 
 
     def apply_strain(self, strain, voigt_form=False):
