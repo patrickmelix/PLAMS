@@ -266,8 +266,8 @@ KFBrowser is a GUI module used to inspect rkf files.
 
    whereas `<engine>` corresponds to the file `<engine>.rkf` present in the calculation directory.
 
-Iterating through MD trajectories
-----------------------------------
+From MD trajectories
+--------------------
 
 General MD properties
 +++++++++++++++++++++
@@ -307,7 +307,7 @@ Properties that can be iterated in this way are
 Molecules from trajectories
 +++++++++++++++++++++++++++
 
-The coordinates of an MD trajectory can efficiently be obtained by creating an `RKFTrajectoryFile <../components/rkf.html#rkf-trajectory-files>`__ . To create an instance of RKFTrajectoryFile, simply pass the according ams.rkf file to it. In this example the atomic coordinates, the lattice vectors are read via RKFTrajectoryFile while we use the PLAMS Molecule function `get_center_of_mass() <../components/mol_api.html#scm.plams.mol.molecule.Molecule.get_center_of_mass>`__  to calculate the center of mass for every frame. 
+The coordinates of an MD trajectory can efficiently be obtained by creating an `RKFTrajectoryFile <../components/rkf.html#rkf-trajectory-files>`__ . To create an instance of RKFTrajectoryFile, simply pass the according ams.rkf file to it. In this example, the atomic coordinates and lattice vectors are read via RKFTrajectoryFile while the PLAMS Molecule function `get_center_of_mass() <../components/mol_api.html#scm.plams.mol.molecule.Molecule.get_center_of_mass>`__  to calculate the center of mass for every frame. 
 
 .. code-block:: python
 
@@ -321,6 +321,12 @@ The coordinates of an MD trajectory can efficiently be obtained by creating an `
     for i in range(rkf.get_length()):
         crd,cell = rkf.read_frame(i,molecule=mol) 
         print(crd, cell, mol.get_get_mass())
+
+
+It is also possible to iterate through the History section of trajectory file. This can be useful in cases were the numbers of atoms is changing per frame or the coordinates per single molecule are needed. 
+Here's an example where the molecule types present in that particular frame are read for every frame:
+
+
 
 
 .. _accessing_old_jobs:
