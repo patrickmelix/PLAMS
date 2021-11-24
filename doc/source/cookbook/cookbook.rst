@@ -112,6 +112,27 @@ Generate a molecule from a SMILES string
     ethane = from_smiles('C-C', nconfs=10, forcefield='uff')[0]
 
 
+Counting rings
+--------------
+Rings inside molecules can be counted in various ways, which are not all giving the same results. 
+With the help of the RDKit library, a vast variety of ring counting approaches is readily available.  
+The general approach to using these functions in a PLAMS scripts is to convert your PLAMS molecule into an RDKit molecule. This is how one searches for the smallest set of rings in a molecule:
+
+.. code-block:: python
+
+   # import RDKit
+   from rdkit import Chem
+
+   # create a PLAMS molecule and convert it to an RDKit Mol
+   dicyclopentadiene = from_smiles('C1C=CC2C1C3CC2C=C3')
+   rdmol = to_rdmol(dicyclopentadiene)
+
+   # Calculate smalles set of rings
+   for atoms in Chem.GetSymmSSSR(rdmol):
+        print ([atom_id for atom_id in atoms], len(atoms))
+
+For more information see also the `RDKit manual <https://www.rdkit.org/docs/GettingStartedInPython.html#ring-information>`__. 
+
 Extracting Results
 ******************
 
@@ -127,7 +148,7 @@ In either case an AMSResults object should be present at runtime::
    myAMSResults = myAMSJob.results if myAMSJob.ok() else None
 
 .. warning::
-   Access to any results data should only occur under the condition that `AMSJob.ok()` indicate a successful termination of the computation
+   Access to any results data should only occur under the condition that `AMSJob.ok()` indicate a successful termination of the computation 
 
 Examples: Total Energy and Final Structure
 ++++++++++++++++++++++++++++++++++++++++++
@@ -244,6 +265,63 @@ KFBrowser is a GUI module used to inspect rkf files.
      myEngineProperty = myAMSResults.readrkf(section, variable, file=<engine>)
 
    whereas `<engine>` corresponds to the file `<engine>.rkf` present in the calculation directory.
+
+Iterating through MD trajectories
+----------------------------------
+
+General MD properties
++++++++++++++++++++++
+
+The KFHistory class can be used to iterate through the MDHistory of a trajectory. 
+In this example the temperature and pressure per frame are read and printed.
+
+.. code-block:: python
+
+    # use the KF reader to read from the ams.rkf binary output file
+    kf = KFReader(mdjob.results['ams.rkf'])
+    mdhist = KFHistory(kf, "MDHistory")
+
+    # iterate through mdhistory
+    for T, p in zip( mdhist.iter("Temperature"), mdhist.iter("Pressure")):
+        print(T,p)
+  
+Properties that can be iterated in this way are
+
+.. csv-table:: General MD properties in section MDHistory
+   :header: "Property", "Return type", "Unit"
+
+   "Step", "Integer","n.a." 
+   "Time", "Float", "fs" 
+   "TotalEnergy", "Float", "Hartree"
+   "PotentialEnergy", "Float", "Hartree"
+   "KineticEnergy", "Float", "Hartree"
+   "Temperature", "Float", "Kelvin"
+   "ConservedEnergy", "Array (numpy)", "Hartree"
+   "Velocities", "Array (numpy)", "bohr/fs"
+   "Charges", "Array (numpy)", "n.a."
+   "PressureTensor", "Array (numpy)", "hartree/bohr3"
+   "Pressure", "Float", "hartree/bohr3"
+   "Density", "Float", "dalton/bohr3"
+   "Number of molecules", "Float", "n.a."
+
+Molecules from trajectories
++++++++++++++++++++++++++++
+
+The coordinates of an MD trajectory can efficiently be obtained by creating an `RKFTrajectoryFile <../components/rkf.html#rkf-trajectory-files>`__ . To create an instance of RKFTrajectoryFile, simply pass the according ams.rkf file to it. In this example the atomic coordinates, the lattice vectors are read via RKFTrajectoryFile while we use the PLAMS Molecule function `get_center_of_mass() <../components/mol_api.html#scm.plams.mol.molecule.Molecule.get_center_of_mass>`__  to calculate the center of mass for every frame. 
+
+.. code-block:: python
+
+    # create an instance of the RKFTrajectory class
+    rkf = RKFTrajectoryFile(mdjob.results['ams.rkf'])
+    
+    # extracts a PLAMS molecule object from the RKF file
+    mol = rkf.get_plamsmol()
+
+    # loop through all frames of the trajectory
+    for i in range(rkf.get_length()):
+        crd,cell = rkf.read_frame(i,molecule=mol) 
+        print(crd, cell, mol.get_get_mass())
+
 
 .. _accessing_old_jobs:
 
