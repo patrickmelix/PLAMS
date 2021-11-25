@@ -13,6 +13,7 @@ from ...core.results import Results
 from ...core.settings import Settings
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
+from ...mol.bond import Bond
 from ...tools.kftools import KFFile
 from ...tools.units import Units
 from ...trajectories.rkffile import RKFTrajectoryFile
@@ -1210,10 +1211,16 @@ class AMSJob(SingleJob):
                 newsystem.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
 
             if len(molecule.bonds)>0:
-                newsystem.BondOrders._1 = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
+                lines = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
+                # Add bond properties if they are defined
+                newsystem.BondOrders._1 = ['{} {}'.format(text,molecule.bonds[i].properties.suffix) if 'suffix' in molecule.bonds[i].properties else text for i,text in enumerate(lines)]
 
             if 'charge' in molecule.properties:
                 newsystem.Charge = molecule.properties.charge
+
+            if 'regions' in molecule.properties :
+                #newsystem.Region = [Settings({'_h':name, '_1':['%s=%s'%(k,str(v)) for k,v in data.items()]}) for name, data in molecule.properties.regions.items()]
+                newsystem.Region = [Settings({'_h':name, 'Properties':Settings({'_1':[line for line in data]})}) for name, data in molecule.properties.regions.items() if isinstance(data,list)]
 
             ret.append(newsystem)
 
@@ -1406,13 +1413,26 @@ class AMSJob(SingleJob):
 
             # Add bonds
             for bond in settings_block.bondorders._1:
-                _at1, _at2, _order, *_ = bond.split()
+                _at1, _at2, _order, *bondprops = bond.split()
                 at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
-                mol.add_bond(at1, at2, order)
+                plams_bond = Bond(at1,at2,order=order)
+                # Add bond properties as string if present (used in ACErxn)
+                if len(bondprops) > 0 :
+                    suffix = ' '.join(bondprops)
+                    plams_bond.properties.suffix = suffix
+                mol.add_bond(plams_bond)
 
             # Set the molecular charge
             if settings_block.charge:
                 mol.properties.charge = float(settings_block.charge)
+
+            # Set the region info (used in ACErxn)
+            if settings_block.region :
+                for s_reg in settings_block.region :
+                    if not '_h' in s_reg.keys() :
+                        raise PlamsError ('Region block requires a header!')
+                    if s_reg.properties :
+                        mol.properties.regions[s_reg._h] = s_reg.properties._1
 
             mol.properties.name = str(settings_block._h)
             return mol

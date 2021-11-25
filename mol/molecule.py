@@ -2484,7 +2484,7 @@ class Molecule:
         from ..interfaces.adfsuite.ams import AMSJob
         sett = Settings()
         with InputParser() as parser:
-            sett.input.AMS = Settings(parser._run('ams', f.read()))
+            sett.input.AMS = Settings(parser._run('ams', f.read(), string_leafs=True))
         if 'System' not in sett.input.AMS: raise ValueError('No System block found in file.')
         sysname = other.get('sysname', '')
         mols = AMSJob.settings_to_mol(sett)

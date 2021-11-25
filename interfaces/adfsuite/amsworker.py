@@ -13,6 +13,7 @@ import numpy as np
 import collections
 from typing import *
 from ..molecule.ase import toASE
+from ...core.jobrunner import JobRunner
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -371,7 +372,7 @@ class AMSWorker:
         self.wd_root   = workerdir_root
         self.wd_prefix = workerdir_prefix+'_'
         self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
-        self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
+        self._finalization = weakref.finalize(self, shutil.rmtree, self.workerdir)
         self.keep_wd   = keep_crashed_workerdir
 
         # Start the worker process.
@@ -606,9 +607,9 @@ class AMSWorker:
 
         if keep_workerdir:
             # Keep the current workerdir and move to a new one
-            self._finalize.detach()
+            self._finalization.detach()
             self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
-            self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
+            self._finalization = weakref.finalize(self, shutil.rmtree, self.workerdir)
         else:
             # Remove the contents of the worker directory.
             for filename in os.listdir(self.workerdir):
@@ -945,7 +946,6 @@ class AMSWorker:
                 results.append(msg)
 
 
-
 class AMSWorkerPool:
     """A class representing a pool of AMS worker processes.
 
@@ -972,7 +972,30 @@ class AMSWorkerPool:
 
     """
 
-    def __init__(self, settings, num_workers, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
+    def __init__(self, settings, num_workers=None, jobrunner=None, jobmanager=None, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
+
+        if jobmanager is None:
+            if 'default_jobmanager' in config:
+                jobmanager = config.default_jobmanager
+            else:
+                # The jobmanager is not currently used for anything anyway
+                jobmanager = None
+                #raise PlamsError('No default jobmanager found. This probably means that PLAMS init() was not called.')
+        self.jobmanager = jobmanager   
+
+        # Choose the number of workers based on jobrunner first, num_workers second
+        if jobrunner is None :
+            if num_workers is not None :
+                jobrunner = JobRunner(parallel=True, maxjobs=num_workers)
+            else :
+                if 'default_jobrunner' in config:
+                    jobrunnner = config,default_jobrunner
+                else :
+                    raise PlamsError('No default jobrunner found. This probably means that PLAMS init() was not called.')
+        self.jobrunner = jobrunner
+        num_workers = 1
+        if jobrunner.parallel :
+            num_workers = jobrunner.maxjobs
 
         self.workers = num_workers * [None]
         if num_workers == 1:
@@ -1002,11 +1025,9 @@ class AMSWorkerPool:
 
         The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`_solve_from_settings <AMSWorker._solve_from_settings>` method of the pool's |AMSWorker| instances.
         """
+        if not self.jobrunner.parallel :
 
-
-        if len(self.workers) == 1:
-
-            # Do all the work in the main thread
+            # Do all the work in the main thread (REB: should be removed. Jobrunner should handle this as well)
             results = [ self.workers[0]._solve_from_settings(name, mol, settings) for name, mol, settings in items ]
 
         else:
@@ -1014,9 +1035,13 @@ class AMSWorkerPool:
             # Build a queue of things to do and spawn threads that grab from from the queue in parallel
             results = [None]*len(items)
             q = queue.Queue()
+            events = [threading.Event() for _ in self.workers]
 
-            threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
-            for t in threads: t.start()
+            # Call jobrunner._run_job several times. That will start the threads
+            for i, worker in enumerate(self.workers) :
+                self.jobrunner._run_job_with_args(self, self.jobmanager, (worker, q, results),(events[i],))
+            #threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
+            #for t in threads: t.start()
 
             for i, item in enumerate(items):
                 if len(item) == 3:
@@ -1025,8 +1050,15 @@ class AMSWorkerPool:
                     raise JobError('AMSWorkerPool._solve_from_settings expects a list containing only 3-tuples (name, molecule, settings).')
                 q.put((i, name, mol, settings))
 
-            for t in threads: q.put(None) # signal for the thread to end
-            for t in threads: t.join()
+            for i in range(len(self.workers)) : q.put(None) # signal for the thread to end
+
+            # Wait till the processes are finished
+            # Later I want to move this to the results object
+            # Then I have to make sure that the __exit__ method also waits for the worker to be done
+            for done in events :
+                done.wait()
+
+            #print ('All workers are done')
 
         return results
 
@@ -1078,20 +1110,6 @@ class AMSWorkerPool:
         return self._solve_from_settings(solve_items)
 
 
-
-    @staticmethod
-    def _execute_queue(worker, q, results):
-        while True:
-            item = q.get()
-            try:
-                if item is None:
-                    break
-                i, name, mol, settings = item
-                results[i] = worker._solve_from_settings(name, mol, settings)
-            finally:
-                q.task_done()
-
-
     def stop(self):
         """Stops the all worker processes and removes their working directories.
 
@@ -1103,3 +1121,48 @@ class AMSWorkerPool:
 
     def __exit__(self, *args):
         self.stop()
+
+    @staticmethod
+    def _execute_queue(worker, q, results):
+        """
+        This function will handle all tasks in the queue, before finishing.
+
+        Note: To be wrapped by the jobrunner
+        """
+        while True:
+            item = q.get()
+            try:
+                if item is None:
+                    break
+                i, name, mol, settings = item
+                results[i] = worker._solve_from_settings(name, mol, settings)
+            finally :
+                pass
+
+
+    def _prepare(self, jobmanager) :
+        """
+        Prepare for a task for this worker
+
+        Called by jobrunner._run_job()
+        """
+        # For now I am bypassing the jobmanager completely
+        return True
+
+
+    def _execute(self, jobrunner, worker, q, results) :
+        """
+        To be called by jobrunner._run_job. Does nothing else than call the relevant jobrunner call() method
+        (from within a thread created by the jobrunner).
+        """
+        jobrunner.call_function(self._execute_queue, args=(worker, q, results))
+
+
+    def _finalize(self, done) :
+        """
+        Set the event (self.done) that signals the job is over.
+
+        Called by jobrunner._run_job()
+        """
+        done.set()
+
