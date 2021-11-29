@@ -556,7 +556,9 @@ class AMSResults(Results):
 
             'Molecules': list of Molecule, the structure at each PES point. Only if the property molecules == True
 
-            'HistoryInidices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
+            'HistoryIndices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
+
+            'Properties': list of dict. The dictionary keys are what can be found on the AMSResults section of the engine .rkf file. These will only be populated if "CalcPropertiesAtPESPoints" is set to Yes when running the PES scan.
 
         """
         def tolist(x):
@@ -618,6 +620,17 @@ class AMSResults(Results):
             for ind in historyindices:
                 mols.append(self.get_history_molecule(ind))
             ret['Molecules'] = mols
+
+        ret['Properties'] = []
+        # self.rkfs has the keys PESPoint(1), PESPoint(2), ..., ams
+        # need to loop here to guarantee right order
+        for i in range(1, len(pes)+1):
+            key = f"PESPoint({i})"
+            if key in self.rkfs:
+                amsresults = self.rkfs[key].read_section("AMSResults") 
+            else:
+                amsresults = {}
+            ret['Properties'].append(amsresults)
 
         return ret
 
