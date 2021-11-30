@@ -326,7 +326,29 @@ The coordinates of an MD trajectory can efficiently be obtained by creating an `
 It is also possible to iterate through the History section of trajectory file. This can be useful in cases were the numbers of atoms is changing per frame or the coordinates per single molecule are needed. 
 Here's an example where the molecule types present in that particular frame are read for every frame:
 
+.. code-block:: python
 
+    # use the KF reader to read from the ams.rkf binary output file
+    kf = KFReader(mdjob.results['ams.rkf'])
+    mdhist = KFHistory(kf, "MDHistory")
+    hist = KFHistory(kf, "History")
+
+    # molecule types are found in section Molecules
+    number_of_molecules = kf.read('Molecules','Num molecules')
+    # store sum formulas in dict
+    molecules = {}
+    for i in range(number_of_molecules):
+        molecules[i] = kf.read('Molecules','Molecule name '+str(i+1))
+
+    # iterate through History and MDHistory entries
+    for mols, step in zip( hist.iter("Mols.Type"), mdhist.iter("Step")):
+        line = "{:8d} ".format(step)
+        # iterate through unique entries in mols
+        if isinstance(mols, int) == 1: 
+            line += "{:s} ".format(molecules[mols-1])
+        else:
+            for mol in set(mols): line += "{:s} ".format(molecules[mol-1]) 
+        print(line)
 
 
 .. _accessing_old_jobs:
