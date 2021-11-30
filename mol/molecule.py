@@ -1089,24 +1089,28 @@ class Molecule:
 
         Returns a list of lists of indices (e.g. for two methane molecules: [[0,1,2,3,4],[5,6,7,8,9]])
         """
-        conect = self.get_connection_table()
-        atlist = [i for i in range(len(self))]
+        molecule_indices = []
+        for at in self:
+            at._visited = False
 
-        molecules = []
-        while(1) :
-            atoms = [atlist[0]]
-            # Continue to add to the atoms list below, as the loop progresses
-            for i,iat in enumerate(atoms) :
-                conlist = conect[iat]
-                atoms += [ind for ind in conlist if not ind in atoms]
-            # Remove the molecule from atlist
-            atlist = [i for i in atlist if not i in atoms]
-            molecules.append(sorted(atoms))
+        def dfs(v, indices):
+            v._visited = True
+            for e in v.bonds:
+                u = e.other_end(v)
+                if not u._visited:
+                    indices.append(self.index(u, start=indices[0]+1)-1)
+                    dfs(u, indices)
 
-            if len(atlist) == 0 :
-                    break
+        for iatom,src in enumerate(self.atoms):
+            if not src._visited:
+                indices = [iatom]
+                dfs(src, indices)
+                molecule_indices.append(sorted(indices))
 
-        return molecules
+        for at in self:
+            del at._visited
+
+        return molecule_indices
 
     def get_fragment (self, indices) :
         """
