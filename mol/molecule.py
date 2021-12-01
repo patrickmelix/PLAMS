@@ -2633,8 +2633,21 @@ class Molecule:
     def numbers(self):
         """ Return an array of all atom numbers in Molecule """
         return np.array([i.atnum for i in self])
+    
+    @numbers.setter
+    def numbers(self, values):
+        if len(values) != len(self):
+            raise ValueError(f"Number of elements in array ({len(values)}) does not match the molecule size ({len(self)}).")
+        [setattr(at, 'atnum', value) for at,value in zip(self, values)]
+
 
     @property
     def symbols(self):
         """ Return an array of all atom symbols in Molecule """
         return np.array([i.symbol for i in self])
+    
+    @symbols.setter
+    def symbols(self, values):
+        if len(values) != len(self):
+            raise ValueError(f"Number of elements in array ({len(values)}) does not match the molecule size ({len(self)}).")
+        [setattr(at, 'symbol', value) for at,value in zip(self, values)]
