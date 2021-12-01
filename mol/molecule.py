@@ -2630,8 +2630,8 @@ class Molecule:
         return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
 
     @property
-    def numbers(self):
-        """ Return an array of all atom numbers in Molecule """
+    def numbers(self) -> np.ndarray:
+        """ Return an array of all atomic numbers in the Molecule. Can also be used to set all numbers at once. """
         return np.array([i.atnum for i in self])
     
     @numbers.setter
@@ -2642,8 +2642,8 @@ class Molecule:
 
 
     @property
-    def symbols(self):
-        """ Return an array of all atom symbols in Molecule """
+    def symbols(self) -> np.ndarray:
+        """ Return an array of all atomic symbols in the Molecule. Can also be used to set all symbols at once. """
         return np.array([i.symbol for i in self])
     
     @symbols.setter
