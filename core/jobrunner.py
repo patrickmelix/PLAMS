@@ -157,8 +157,8 @@ class JobRunner(metaclass=_MetaRunner):
         """
         try:
             if job._prepare(jobmanager):
-                job._execute(self,*args)
-                job._finalize(*args_fin)
+                exc = job._execute(self,*args)
+                job._finalize(*args_fin, exc)
         finally:
             if self.parallel and self._jobthread_limit:
                 self._jobthread_limit.release()

@@ -336,11 +336,13 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
-    def __init__(self, settings, workerdir_root=TMPDIR, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=False):
+    def __init__(self, settings, workerdir_root=TMPDIR, workerdir_prefix='amsworker', use_restart_cache=True,
+                 keep_crashed_workerdir=False, reuse_system=False):
 
         self.PyProtVersion = 1
         self.timeout = 2.0
         self.use_restart_cache = use_restart_cache
+        self.reuse_system = reuse_system
 
         # We'll initialize these communication related variables to None for now.
         # They will be overwritten when we actually start things up, but we do
@@ -707,19 +709,35 @@ class AMSWorker:
             # This is a good opportunity to let the worker process know about all the results we no longer need ...
             self._prune_restart_cache()
 
-            chemicalSystem = {}
-            chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
-            chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
-            if 'charge' in molecule.properties:
-                chemicalSystem['totalCharge'] = float(molecule.properties.charge)
-            else:
-                chemicalSystem['totalCharge'] = 0.0
-            self._call("SetSystem", chemicalSystem)
-            if molecule.lattice:
-                cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                self._call("SetLattice", {"vectors": cell})
-            else:
-                self._call("SetLattice", {})
+            if self.reuse_system and self.use_restart_cache and prev_results is not None and prev_results.name in self.restart_cache :
+                self._call('SetCoords', {"coords": molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')})
+                if molecule.lattice:
+                    cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
+                    self._call("SetLattice", {"vectors": cell})
+                else:
+                    self._call("SetLattice", {})
+            else :
+                chemicalSystem = {}
+                chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
+                chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
+                chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
+                if len(chemicalSystem['bonds']) == 0 :
+                    chemicalSystem['bonds'] = np.zeros((0,2))
+                chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
+                #chemicalSystem['bondOrders'] = np.asarray([bond.order for bond in molecule.bonds])
+                properties = [atom.properties.suffix if 'suffix' in atom.properties else '' for atom in molecule]
+                if len(''.join(properties)) == 0 :
+                    properties = []
+                chemicalSystem['atomicInfo'] = np.asarray(properties)
+                if 'charge' in molecule.properties:
+                    chemicalSystem['totalCharge'] = float(molecule.properties.charge)
+                else:
+                    chemicalSystem['totalCharge'] = 0.0
+                if molecule.lattice:
+                    chemicalSystem['vectors'] = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
+                else :
+                    chemicalSystem['vectors'] = np.zeros((0,3))
+                self._call("SetSystem", chemicalSystem)
 
             args = {
                 "request": { "title": str(name) },
@@ -882,6 +900,8 @@ class AMSWorker:
                 array = np.asarray(val)
                 out[key] = array.flatten()
                 out[key + "_dim_"] = array.shape[::-1]
+                if 'int' in str(out[key].dtype) :
+                    out[key] = out[key].tolist()
             elif isinstance(val, collections.abc.Mapping):
                 out[key] = self._flatten_arrays(val)
             else:
@@ -972,7 +992,8 @@ class AMSWorkerPool:
 
     """
 
-    def __init__(self, settings, num_workers=None, jobrunner=None, jobmanager=None, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
+    def __init__(self, settings, num_workers=None, jobrunner=None, jobmanager=None, workerdir_root=TMPDIR, workerdir_prefix='awp',
+                 keep_crashed_workerdir=False, reuse_system=False):
 
         if jobmanager is None:
             if 'default_jobmanager' in config:
@@ -981,7 +1002,7 @@ class AMSWorkerPool:
                 # The jobmanager is not currently used for anything anyway
                 jobmanager = None
                 #raise PlamsError('No default jobmanager found. This probably means that PLAMS init() was not called.')
-        self.jobmanager = jobmanager   
+        self.jobmanager = jobmanager
 
         # Choose the number of workers based on jobrunner first, num_workers second
         if jobrunner is None :
@@ -1000,10 +1021,10 @@ class AMSWorkerPool:
         self.workers = num_workers * [None]
         if num_workers == 1:
             # Do all the work in the main thread
-            AMSWorkerPool._spawn_worker(self.workers, settings, 0, workerdir_root, workerdir_prefix, keep_crashed_workerdir)
+            AMSWorkerPool._spawn_worker(self.workers, settings, 0, workerdir_root, workerdir_prefix, keep_crashed_workerdir, reuse_system)
         else:
             # Spawn all workers from separate threads to overlap the ams.exe startup latency
-            threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir))
+            threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir, reuse_system))
                         for i in range(num_workers) ]
             for t in threads: t.start()
             for t in threads: t.join()
@@ -1012,8 +1033,8 @@ class AMSWorkerPool:
 
 
     @staticmethod
-    def _spawn_worker(workers, settings, i, wdr, wdp, keep_crashed_workerdir):
-        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=False, keep_crashed_workerdir=keep_crashed_workerdir)
+    def _spawn_worker(workers, settings, i, wdr, wdp, keep_crashed_workerdir, reuse_system):
+        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=False, keep_crashed_workerdir=keep_crashed_workerdir, reuse_system=reuse_system)
 
 
     def __enter__(self):
@@ -1129,15 +1150,22 @@ class AMSWorkerPool:
 
         Note: To be wrapped by the jobrunner
         """
+        exc = None
+        prev_results = None
         while True:
             item = q.get()
             try:
                 if item is None:
                     break
                 i, name, mol, settings = item
+                # Reuse the previous results, to minimize the work
+                s = worker._args_to_settings(prev_results=prev_results)
+                for key in s.keys() :
+                    settings[key] = s[key]
                 results[i] = worker._solve_from_settings(name, mol, settings)
-            finally :
-                pass
+                prev_results = results[i]
+            except Exception as exc :
+                return exc
 
 
     def _prepare(self, jobmanager) :
@@ -1155,14 +1183,16 @@ class AMSWorkerPool:
         To be called by jobrunner._run_job. Does nothing else than call the relevant jobrunner call() method
         (from within a thread created by the jobrunner).
         """
-        jobrunner.call_function(self._execute_queue, args=(worker, q, results))
+        return jobrunner.call_function(self._execute_queue, args=(worker, q, results))
 
 
-    def _finalize(self, done) :
+    def _finalize(self, done, exc) :
         """
         Set the event (self.done) that signals the job is over.
 
         Called by jobrunner._run_job()
         """
         done.set()
+        if exc is not None :
+            raise exc
 
