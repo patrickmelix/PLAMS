@@ -720,11 +720,6 @@ class AMSWorker:
                 chemicalSystem = {}
                 chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
                 chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
-                chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
-                if len(chemicalSystem['bonds']) == 0 :
-                    chemicalSystem['bonds'] = np.zeros((0,2))
-                chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
-                #chemicalSystem['bondOrders'] = np.asarray([bond.order for bond in molecule.bonds])
                 properties = [atom.properties.suffix if 'suffix' in atom.properties else '' for atom in molecule]
                 if len(''.join(properties)) == 0 :
                     properties = []
@@ -734,10 +729,17 @@ class AMSWorker:
                 else:
                     chemicalSystem['totalCharge'] = 0.0
                 if molecule.lattice:
-                    chemicalSystem['vectors'] = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
+                    chemicalSystem['latticeVectors'] = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
                 else :
-                    chemicalSystem['vectors'] = np.zeros((0,3))
+                    chemicalSystem['latticeVectors'] = np.zeros((0,3))
                 self._call("SetSystem", chemicalSystem)
+                if len(molecule.bonds) > 0 :    
+                    bondInfo = {}
+                    bondInfo['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
+                    if len(bondInfo['bonds']) == 0 :
+                        bondInfo['bonds'] = np.zeros((0,2))
+                    bondInfo['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
+                    self._call('SetBonds', bondInfo)
 
             args = {
                 "request": { "title": str(name) },
