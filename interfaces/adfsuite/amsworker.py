@@ -717,22 +717,25 @@ class AMSWorker:
                 else:
                     self._call("SetLattice", {})
             else :
+                properties = [atom.properties.suffix if 'suffix' in atom.properties else '' for atom in molecule]
+                if len(''.join(properties)) > 0 :
+                    self._call('SetAtomicInfo', {'atomicInfo': np.asarray(properties)})
+
                 chemicalSystem = {}
                 chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
                 chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
-                properties = [atom.properties.suffix if 'suffix' in atom.properties else '' for atom in molecule]
-                if len(''.join(properties)) == 0 :
-                    properties = []
-                chemicalSystem['atomicInfo'] = np.asarray(properties)
                 if 'charge' in molecule.properties:
                     chemicalSystem['totalCharge'] = float(molecule.properties.charge)
                 else:
                     chemicalSystem['totalCharge'] = 0.0
-                if molecule.lattice:
-                    chemicalSystem['latticeVectors'] = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                else :
-                    chemicalSystem['latticeVectors'] = np.zeros((0,3))
                 self._call("SetSystem", chemicalSystem)
+
+                if molecule.lattice:
+                    cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
+                    self._call("SetLattice", {"vectors": cell})
+                else:
+                    self._call("SetLattice", {})
+
                 if len(molecule.bonds) > 0 :    
                     bondInfo = {}
                     bondInfo['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
