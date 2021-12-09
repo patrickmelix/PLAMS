@@ -299,6 +299,12 @@ Properties that can be iterated in this way are
    "Gradients", "List of float", "hartree/bohr"
    "StressTensor", "List of float", "atomic units"
 
+.. note::
+
+    For AMS MD simulations you must set
+    ``MolecularDynamics%Trajectory%WriteGradients = True`` to store the
+    gradients on the ams.rkf file. 
+
 .. csv-table:: General MD properties in section MDHistory
    :header: "Property", "Return type", "Unit"
 
@@ -315,6 +321,19 @@ Properties that can be iterated in this way are
    "Pressure", "Float", "hartree/bohr3"
    "Density", "Float", "dalton/bohr3"
    "Number of molecules", "Float", "n.a."
+
+To read a single property into a numpy array, you can run
+
+.. code-block:: python
+
+    import numpy as np
+
+    # mdjob is a finished AMSJob
+    coords = mdjob.results.get_history_property('Coords', history_section='History')
+    coords = np.array(coords).reshape(len(coords), -1, 3) # in bohr
+    print(coords.shape)
+
+Set ``history_section='MDHistory'`` to read from the MDHistory section.
 
 Molecules from trajectories
 +++++++++++++++++++++++++++
