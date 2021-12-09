@@ -537,7 +537,6 @@ class AMSWorker:
 
         This method should be called when the |AMSWorker| instance is not used as a context manager and the instance is no longer needed. Otherwise proper cleanup is not guaranteed to happen, the worker process might be left running and files might be left on disk.
         """
-
         stdout  = None
         stderr  = None
 
@@ -717,10 +716,6 @@ class AMSWorker:
                 else:
                     self._call("SetLattice", {})
             else :
-                properties = [atom.properties.suffix if 'suffix' in atom.properties else '' for atom in molecule]
-                if len(''.join(properties)) > 0 :
-                    self._call('SetAtomicInfo', {'atomicInfo': np.asarray(properties)})
-
                 chemicalSystem = {}
                 chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
                 chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
@@ -728,21 +723,18 @@ class AMSWorker:
                     chemicalSystem['totalCharge'] = float(molecule.properties.charge)
                 else:
                     chemicalSystem['totalCharge'] = 0.0
-                self._call("SetSystem", chemicalSystem)
-
+                properties = [atom.properties.suffix if 'suffix' in atom.properties else '' for atom in molecule]
+                if len(''.join(properties)) > 0 :
+                    chemicalSystem['atomicInfo'] = np.asarray(properties)
                 if molecule.lattice:
                     cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                    self._call("SetLattice", {"vectors": cell})
-                else:
-                    self._call("SetLattice", {})
-
+                    chemicalSystem["latticeVectors"] =  cell
                 if len(molecule.bonds) > 0 :    
-                    bondInfo = {}
-                    bondInfo['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
-                    if len(bondInfo['bonds']) == 0 :
-                        bondInfo['bonds'] = np.zeros((0,2))
-                    bondInfo['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
-                    self._call('SetBonds', bondInfo)
+                    chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
+                    if len(chemicalSystem['bonds']) == 0 :
+                        chemicalSystem['bonds'] = np.zeros((0,2))
+                    chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
+                self._call("SetSystem", chemicalSystem)
 
             args = {
                 "request": { "title": str(name) },
@@ -1012,7 +1004,10 @@ class AMSWorkerPool:
         # Choose the number of workers based on jobrunner first, num_workers second
         if jobrunner is None :
             if num_workers is not None :
-                jobrunner = JobRunner(parallel=True, maxjobs=num_workers)
+                if num_workers == 1 :
+                    jobrunner = JobRunner(parallel=False, maxjobs=num_workers) 
+                else :  
+                    jobrunner = JobRunner(parallel=True, maxjobs=num_workers)
             else :
                 if 'default_jobrunner' in config:
                     jobrunnner = config,default_jobrunner
