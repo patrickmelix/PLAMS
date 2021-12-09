@@ -266,26 +266,38 @@ KFBrowser is a GUI module used to inspect rkf files.
 
    whereas `<engine>` corresponds to the file `<engine>.rkf` present in the calculation directory.
 
-From MD trajectories
---------------------
+From molecular dynamics trajectories
+------------------------------------
 
 General MD properties
 +++++++++++++++++++++
 
-The KFHistory class can be used to iterate through the MDHistory of a trajectory. 
-In this example the temperature and pressure per frame are read and printed.
+The KFHistory class can be used to iterate through the History or MDHistory of a trajectory. 
+In this example the energy, temperature and pressure per frame are read and printed.
 
 .. code-block:: python
 
     # use the KF reader to read from the ams.rkf binary output file
-    kf = KFReader(mdjob.results['ams.rkf'])
+    kf = KFReader(mdjob.results['ams.rkf'])  
+    hist = KFHistory(kf, "History")
     mdhist = KFHistory(kf, "MDHistory")
 
-    # iterate through mdhistory
-    for T, p in zip( mdhist.iter("Temperature"), mdhist.iter("Pressure")):
-        print(T,p)
+    frame = 0
+    for E, T, p in zip(hist.iter("Energy"), mdhist.iter("Temperature"), mdhist.iter("Pressure")):
+        frame += 1
+        print("Frame: {} Energy: {} Temperature: {} Pressure: {}".format(frame, E, T, p))
   
 Properties that can be iterated in this way are
+
+.. csv-table:: General properties in section History
+   :header: "Property", "Return type", "Unit"
+
+   "Coords", "List of float","bohr" 
+   "nLatticeVectors", "Int", "n.a." 
+   "LatticeVectors", "List of float", "bohr"
+   "Energy", "Float", "hartree" 
+   "Gradients", "List of float", "hartree/bohr"
+   "StressTensor", "List of float", "atomic units"
 
 .. csv-table:: General MD properties in section MDHistory
    :header: "Property", "Return type", "Unit"
@@ -296,10 +308,10 @@ Properties that can be iterated in this way are
    "PotentialEnergy", "Float", "Hartree"
    "KineticEnergy", "Float", "Hartree"
    "Temperature", "Float", "Kelvin"
-   "ConservedEnergy", "Array (numpy)", "Hartree"
-   "Velocities", "Array (numpy)", "bohr/fs"
-   "Charges", "Array (numpy)", "n.a."
-   "PressureTensor", "Array (numpy)", "hartree/bohr3"
+   "ConservedEnergy", "Float", "Hartree"
+   "Velocities", "List of float", "bohr/fs"
+   "Charges", "List of float", "n.a."
+   "PressureTensor", "List of float", "hartree/bohr3"
    "Pressure", "Float", "hartree/bohr3"
    "Density", "Float", "dalton/bohr3"
    "Number of molecules", "Float", "n.a."
