@@ -1034,7 +1034,10 @@ class AMSWorkerPool:
 
     @staticmethod
     def _spawn_worker(workers, settings, i, wdr, wdp, keep_crashed_workerdir, reuse_system):
-        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=False, keep_crashed_workerdir=keep_crashed_workerdir, reuse_system=reuse_system)
+        use_restart_cache = False
+        if reuse_system :
+                use_restart_cache = True
+        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=use_restart_cache, keep_crashed_workerdir=keep_crashed_workerdir, reuse_system=reuse_system)
 
 
     def __enter__(self):
