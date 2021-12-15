@@ -1,5 +1,8 @@
+
+.. _RKF_trajectory_file:
+
 RKF trajectory files
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 
 .. autoclass :: scm.plams.trajectories.rkffile.RKFTrajectoryFile

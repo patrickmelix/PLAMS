@@ -338,7 +338,8 @@ Set ``history_section='MDHistory'`` to read from the MDHistory section.
 Molecules from trajectories
 +++++++++++++++++++++++++++
 
-The coordinates of an MD trajectory can efficiently be obtained by creating an `RKFTrajectoryFile <../components/rkf.html#rkf-trajectory-files>`__ . To create an instance of RKFTrajectoryFile, simply pass the according ams.rkf file to it. In this example, the atomic coordinates and lattice vectors are read via RKFTrajectoryFile while the PLAMS Molecule function `get_center_of_mass() <../components/mol_api.html#scm.plams.mol.molecule.Molecule.get_center_of_mass>`__  to calculate the center of mass for every frame. 
+The coordinates of an MD trajectory can efficiently be obtained by creating an :class:`~scm.plams.trajectories.rkffile.RKFTrajectoryFile`. 
+To create an instance of RKFTrajectoryFile, simply pass the according ams.rkf file to it. In this example, the atomic coordinates and lattice vectors are read via RKFTrajectoryFile while the PLAMS Molecule function :func:`~scm.plams.mol.molecule.Molecule.get_center_of_mass` to calculate the center of mass for every frame. 
 
 .. code-block:: python
 
