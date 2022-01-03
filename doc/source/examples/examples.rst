@@ -16,6 +16,7 @@ Examples
    WaterOptimization
    ManyJobsInParallel
    BasisSetBenchmark
+   ReactionEnergyBenchmark
    ExcitationsWorkflow
    ChargeTransferIntegralsADF
    gammascan
