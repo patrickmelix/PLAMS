@@ -310,7 +310,8 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     return get_conformations(molecule, nconfs, name, forcefield, rms)
 
 
-def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False):
+def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False, useExpTorsionAnglePrefs='default', constraint_ats=None,
+                        EmbedParameters='EmbedParameters'):
     """
     Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
@@ -324,6 +325,9 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     :parameter float rms: Root Mean Square deviation threshold for removing
         similar/equivalent conformations.
     :parameter bool enforceChirality: Enforce the correct chirality if chiral centers are present
+    :parameter str useExpTorsionAnglePrefs : Use experimental torsion angles preferences for the conformer generation by rdkit
+    :parameter list constraint_ats : List of atom indices to be constrained
+    :parameter str EmbedParameters : Name of RDKit EmbedParameters class ('EmbedParameters', 'ETKDG')
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
@@ -359,11 +363,29 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     if name:
         rdkit_mol.SetProp('name', name)
 
+    #if enforceChirality :
+    #    # This is how chirality is enforced in the GUI. The argument is not passed to AllChem.EmbedMultipleConfs
+    #    Chem.AssignAtomChiralTagsFromStructure(rdkit_mol)
+    #param_obj = AllChem.ETKDG()
+    param_obj = getattr(AllChem,EmbedParameters)()
+    param_obj.pruneRmsThresh = rms
+    param_obj.randomSeed = 1
+    param_obj.enforceChirality = enforceChirality
+    if useExpTorsionAnglePrefs != 'default' : # The default (True of False) changes with rdkit versions
+        param_obj.useExpTorsionAnglePrefs = True
+    if constraint_ats is not None :
+        coordMap = {}
+        for i,iat in enumerate(atoms) :
+            coordMap[iat] = rdkit_mol.GetConformer(0).GetAtomPosition(iat)
+        param_obj.coordMap = coordMap
     try:
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,enforceChirality=enforceChirality))
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
+        #cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1))
     except:
          # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,useRandomCoords=True,enforceChirality=enforceChirality))
+        param_obj.useRandomCoords = True
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
+        #cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,useRandomCoords=True))
 
     if forcefield:
         # Select the forcefield (UFF or MMFF)
