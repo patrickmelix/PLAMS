@@ -81,7 +81,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
             if stresstensor is not None :
                 historydata['StressTensor'] = stresstensor
             if len(historydata) == 0 :
-                historydata = None
+                historydata = {}
 
             rkfout.write_next(coords=coords, cell=cell, historydata=historydata, mddata=mddata)
 
