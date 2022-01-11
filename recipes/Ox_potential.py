@@ -256,12 +256,8 @@ class OxidationPotentialCalculator:
 
             defaults.input.ams.task = task
     
-            #handle solvent models
-            if phase == 'solvent':
-                if solvation_method == 'COSMO':
-                    defaults.soft_update(self.COSMO_defaults)
-                elif solvation_method == 'COSMO-RS':
-                    defaults.soft_update(self.COSMORS_defaults)
+            #load cosmo solvent
+            defaults.soft_update(self.COSMO_defaults)
 
             if frequencies:
                 defaults.soft_update(self.frequencies_defaults)
@@ -408,32 +404,35 @@ class OxidationPotentialCalculator:
 
 if __name__ == '__main__':
     #settings
-    job_dir = './OxidationPotential'
+    job_dir = './OxidationPotential_all'
+    if not os.path.exists(job_dir):
+        os.makedirs(job_dir)
+
     COSMORS_solvent_path = os.path.abspath('Dichloromethane.coskf')
 
     results = {}
     for mol_file in ["./molecules/NDI.xyz", "./molecules/NDI44.xyz", "./molecules/NDI55.xyz", "./molecules/NDI54.xyz", "./molecules/PDI.xyz"]:
-        job_name = None #if set to None, a name will be generated
-        method = 'screening'
+        for method in ['DC', 'TC', 'screening']:
+            job_name = None #if set to None, a name will be generated
+        
+            if job_name is None:
+                job_name = os.path.basename(mol_file).split('.')[0] + '_' + method
 
-        if job_name is None:
-            job_name = os.path.basename(mol_file).split('.')[0] + '_' + method
+            # job_dir = f'./OxidationPotential_{method}'
+            # if not os.path.exists(job_dir):
+            #     os.makedirs(job_dir)
 
-        job_dir = f'./OxidationPotential_{method}'
-        if not os.path.exists(job_dir):
-            os.makedirs(job_dir)
+            #calculation part
+            init(path=job_dir, folder=job_name)
 
-        #calculation part
-        init(path=job_dir, folder=job_name)
+            workdir = config.default_jobmanager.workdir
+            logfile = open(f'{workdir}/python.log', 'w')
 
-        workdir = config.default_jobmanager.workdir
-        logfile = open(f'{workdir}/python.log', 'w')
-
-        ox_potential_calc = OxidationPotentialCalculator(logfile=logfile)
-        mol = Molecule(mol_file)
-        oxpot = ox_potential_calc.oxidation_potential(mol, job_dir=workdir, method=method, COSMORS_solvent_path=COSMORS_solvent_path)
-        results[job_name] = oxpot
-        finish()
+            ox_potential_calc = OxidationPotentialCalculator(logfile=logfile)
+            mol = Molecule(mol_file)
+            oxpot = ox_potential_calc.oxidation_potential(mol, job_dir=workdir, method=method, COSMORS_solvent_path=COSMORS_solvent_path)
+            results[job_name] = oxpot
+            finish()
 
     print('System          | Oxidation potential')
     for n, o in results.items():
