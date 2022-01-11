@@ -420,11 +420,17 @@ class AMSWorker:
             with open(os.path.join(self.workerdir, 'amsworker.in'), 'r') as amsinput, \
                  open(os.path.join(self.workerdir, 'ams.out'), 'w') as amsoutput, \
                  open(os.path.join(self.workerdir, 'ams.err'), 'w') as amserror:
+                startupinfo = None
+                if (os.name == 'nt'):
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = subprocess.SW_HIDE
                 self.proc = subprocess.Popen(['sh', 'amsworker.run'], cwd=self.workerdir,
                                              stdout=amsoutput, stdin=amsinput, stderr=amserror,
                                              # Put all worker processes into a dedicated process group
                                              # to enable mass-killing in stop().
                                              start_new_session=(os.name == 'posix'),
+                                             startupinfo=startupinfo,
                                              creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
                                              )
 
