@@ -2452,8 +2452,14 @@ class Molecule:
             toAtoms = sectiondict['toAtoms'] if isinstance(sectiondict['toAtoms'], list) else [sectiondict['toAtoms']]
             bondOrders = sectiondict['bondOrders'] if isinstance(sectiondict['bondOrders'], list) else [sectiondict['bondOrders']]
 
-            for fromAt, toAt, bondOrder in zip(fromAtoms, toAtoms, bondOrders):
-                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
+            for iBond, (fromAt, toAt, bondOrder) in enumerate(zip(fromAtoms, toAtoms, bondOrders)):
+                b = Bond(ret[fromAt], ret[toAt], bondOrder)
+                if 'latticeDisplacements' in sectiondict:
+                    nLatVec = int(sectiondict['nLatticeVectors'])
+                    cellShifts = sectiondict['latticeDisplacements'][iBond*nLatVec:iBond*nLatVec+nLatVec]
+                    if not all(cs == 0 for cs in cellShifts):
+                        b.properties.suffix = " ".join(str(cs) for cs in cellShifts)
+                ret.add_bond(b)
         if sectiondict['Charge'] != 0:
             ret.properties.charge = sectiondict['Charge']
         if 'nLatticeVectors' in sectiondict:
