@@ -23,6 +23,15 @@ class VASPResults(Results):
             return [ Units.convert(float(x.split()[-1]), 'eV', unit) for x in s ]
 
 
+    def get_dispersion_energy(self, index=-1, unit='a.u.'):
+        """Returns `Edisp (eV)` from the OUTCAR."""
+        s = self.grep_output("Edisp (eV)")[index]
+        if not isinstance(index, slice):
+            return Units.convert(float(s.split()[-1]), 'eV', unit)
+        else:
+            return [ Units.convert(float(x.split()[-1]), 'eV', unit) for x in s ]
+
+
 
 class VASPJob(SingleJob):
     """
