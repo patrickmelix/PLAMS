@@ -149,11 +149,83 @@ Generate a molecule from a SMILES string
     ethane = from_smiles('C-C', nconfs=10, forcefield='uff')[0]
 
 
+Using RDKit descriptors
+-----------------------
+
+The `RDKit library <https://www.rdkit.org/docs/GettingStartedInPython.html>`__ is included in the AMS Python stack and can be used on molecular systems via a simple conversion between PLAMS and RDKit molecules.
+
+.. code-block:: python
+
+   # import RDKit
+   from rdkit.Chem import AllChem as Chem
+
+   # PLAMS molecule
+   mol = from_smiles('O')
+   
+   # PLAMS molecule to RDKit molecule
+   rdmol = to_rdmol(mol)
+
+   # RDKit molecule to PLAMS molecule
+   mol = from_rdmol(rdmol)
+
+RDKit includes many `molecular descriptors <https://www.rdkit.org/docs/GettingStartedInPython.html#list-of-available-descriptors>`__ . Some examples of using RDKit descriptors are shown in the following recipes. 
+
+Fraction of SP3 hybridized Carbon atoms
+---------------------------------------
+
+Use RDKit to calculate the fractions of Carbon atoms that are SP3 hybridized in a molecule:
+
+.. code-block:: python
+
+   # import RDKit
+   from rdkit.Chem import AllChem as Chem
+
+   # create a PLAMS molecule and convert it to an RDKit Mol
+   dicyclopentadiene = from_smiles('C1C=CC2C1C3CC2C=C3')
+   rdmol = to_rdmol(dicyclopentadiene)
+
+   # calculate fractions of SP3 Carbon atoms (here 0.6)
+   frac_sp3_c = Chem.CalcFractionCSP3(rdmol)
+
+Hydrogen Acceptors/Donors
+-------------------------
+
+The number of hydrogen acceptors and donors can be computed with RDKit:
+
+.. code-block:: python
+
+   # import RDKit
+   from rdkit.Chem import AllChem as Chem
+
+   # Adenine
+   mol = from_smiles('NC1=NC=NC2=C1N=CN2')
+   rdmol = to_rdmol(dicyclopentadiene)
+
+   # calculate number of hydrogen bond donors and acceptors
+   num_acceptors = Chem.CalcNumHBA(rdmol)
+   num_donors    = Chem.CalcNumHBA(rdmol)
+   
+
 Counting rings
 --------------
-Rings inside molecules can be counted in various ways, which are not all giving the same results. 
+
 With the help of the RDKit library, a vast variety of ring counting approaches is readily available.  
-The general approach to using these functions in a PLAMS scripts is to convert your PLAMS molecule into an RDKit molecule. This is how one searches for the smallest set of rings in a molecule:
+The general approach to using these functions in a PLAMS scripts is to convert your PLAMS molecule into an RDKit molecule. 
+This is how to find the total number of rings
+
+.. code-block:: python
+
+   # import RDKit
+   from rdkit.Chem import AllChem as Chem
+
+   # create a PLAMS molecule and convert it to an RDKit Mol
+   dicyclopentadiene = from_smiles('C1C=CC2C1C3CC2C=C3')
+   rdmol = to_rdmol(dicyclopentadiene)
+
+   # number of rings
+   num_rings = Chem.CalcNumRings(rdmol)
+
+The smallest set of rings in a molecule can be found like this:
 
 .. code-block:: python
 
@@ -164,11 +236,12 @@ The general approach to using these functions in a PLAMS scripts is to convert y
    dicyclopentadiene = from_smiles('C1C=CC2C1C3CC2C=C3')
    rdmol = to_rdmol(dicyclopentadiene)
 
-   # Calculate smalles set of rings
+   # Find smallest set of rings
    for atoms in Chem.GetSymmSSSR(rdmol):
+        # print atom indices of atoms in ring and ringsize 
         print ([atom_id for atom_id in atoms], len(atoms))
 
-For more information see also the `RDKit manual <https://www.rdkit.org/docs/GettingStartedInPython.html#ring-information>`__. 
+Note that rings inside molecules can be counted in various ways, which are not all giving the same results. For more information see also the `RDKit manual <https://www.rdkit.org/docs/GettingStartedInPython.html#ring-information>`__. 
 
 Extracting Results
 ******************
