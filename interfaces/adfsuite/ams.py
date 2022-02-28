@@ -2,11 +2,12 @@ import os
 import subprocess
 import numpy as np
 import re
+from natsort import natsorted
 
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import FileError, JobError, ResultsError, PTError
+from ...core.errors import FileError, JobError, ResultsError, PTError, PlamsError, JobError
 from ...core.functions import config, log, parse_heredoc
 from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
@@ -513,6 +514,8 @@ class AMSResults(Results):
 
         return ret
 
+    def get_poissonratio(self, engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'PoissonRatio'), engine)
 
     def get_youngmodulus(self, unit='au', engine=None):
         return self._process_engine_results(lambda x: x.read('AMSResults', 'YoungModulus'), engine) * Units.conversion_ratio('au', unit)
@@ -622,14 +625,8 @@ class AMSResults(Results):
             ret['Molecules'] = mols
 
         ret['Properties'] = []
-        # self.rkfs has the keys PESPoint(1), PESPoint(2), ..., ams
-        # need to loop here to guarantee right order
-        for i in range(1, len(pes)+1):
-            key = f"PESPoint({i})"
-            if key in self.rkfs:
-                amsresults = self.rkfs[key].read_section("AMSResults") 
-            else:
-                amsresults = {}
+        for key in natsorted(title for title in self.rkfs.keys() if title.startswith('PESPoint')):
+            amsresults = self.rkfs[key].read_section("AMSResults")
             ret['Properties'].append(amsresults)
 
         return ret
@@ -750,7 +747,8 @@ class AMSResults(Results):
     class EnergyLandscape:
 
         class State:
-            def __init__(self, landscape, engfile, energy, mol, count, isTS, reactantsID=None, productsID=None):
+            def __init__(self, landscape, engfile, energy, mol, count, isTS, reactantsID=None, productsID=None,
+                            prefactorsFromReactant=None, prefactorsFromProduct=None):
                 self._landscape = landscape
                 self.engfile = engfile
                 self.energy = energy
@@ -759,6 +757,8 @@ class AMSResults(Results):
                 self.isTS = isTS
                 self.reactantsID = reactantsID
                 self.productsID = productsID
+                self.prefactorsFromReactant = prefactorsFromReactant
+                self.prefactorsFromProduct = prefactorsFromProduct
 
             @property
             def id(self):
@@ -774,14 +774,70 @@ class AMSResults(Results):
 
             def __str__(self):
                 if self.isTS:
-                    lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
-                    if self.reactantsID is not None: lines += [f"|- Reactants: {self.reactants}"]
-                    if self.productsID is not None: lines += [f"+- Products:  {self.products}"]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times, results on {self.engfile})"]
+                    if self.reactantsID is not None: lines += [f"  +- Reactants: {self.reactants}"]
+                    if self.productsID is not None:  lines += [f"     Products:  {self.products}"]
+                    if self.reactantsID is not None: lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E}"]
                 else:
-                    lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times, results on {self.engfile})"]
                 return "\n".join(lines)
 
+
+        class Fragment:
+            def __init__(self, landscape, engfile, energy, mol):
+                self._landscape = landscape
+                self.engfile = engfile
+                self.energy = energy
+                self.molecule = mol
+
+            @property
+            def id(self):
+                return self._landscape._fragments.index(self)+1
+
+            def __str__(self):
+                lines  = [f"Fragment {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (results on {self.engfile})"]
+                return "\n".join(lines)
+
+
+        class FragmentedState:
+            def __init__(self, landscape, energy, composition, connections=None, adsorptionPrefactors=None, desorptionPrefactors=None):
+                self._landscape = landscape
+                self.energy = energy
+                self.composition = composition
+                self.connections = connections
+                self.adsorptionPrefactors = adsorptionPrefactors
+                self.desorptionPrefactors = desorptionPrefactors
+
+            @property
+            def id(self):
+                return self._landscape._fstates.index(self)+1
+
+            @property
+            def fragments(self):
+                return [ self._landscape._fragments[i] for i in self.composition ]
+
+            def __str__(self):
+                formula = ""
+                for i,id in enumerate(self.composition):
+                    formula += self._landscape._fragments[id].molecule.get_formula(False)
+                    if( i != len(self.composition)-1 ):
+                        formula += "+"
+                lines  = [f"FragmentedState {self.id}: {formula} local minimum @ {self.energy:.8f} Hartree (fragments {[i+1 for i in self.composition]})"]
+                for i,iState in enumerate(self.connections):
+                    lines += [f"  +- {self._landscape._states[iState]}"]
+
+                    if( i == len(self.connections)-1 ):
+                        lines += [f"     Prefactors: {self.adsorptionPrefactors[iState]:.3E}:{self.desorptionPrefactors[iState]:.3E}"]
+                    else:
+                        lines += [f"  |  Prefactors: {self.adsorptionPrefactors[iState]:.3E}:{self.desorptionPrefactors[iState]:.3E}"]
+                return "\n".join(lines)
+
+
         def __init__(self, results):
+            self._states = []
+            self._fragments = []
+            self._fstates = []
+
             sec = results.read_rkf_section("EnergyLandscape")
 
             # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats').
@@ -791,7 +847,6 @@ class AMSResults(Results):
                     sec[var] = [sec[var]]
 
             nStates = sec['nStates']
-            self._states = []
 
             for iState in range(nStates):
                 energy  = sec['energies'][iState]
@@ -803,7 +858,35 @@ class AMSResults(Results):
                 else:
                     reactantsID = sec['reactants'][iState] if sec['reactants'][iState] > 0 else None
                     productsID  = sec['products'][iState] if sec['products'][iState] > 0 else None
-                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
+                    prefactorsFromReactant = sec['prefactorsFromReactant'][iState] if sec['products'][iState] > 0 else None
+                    prefactorsFromProduct  = sec['prefactorsFromProduct'][iState] if sec['products'][iState] > 0 else None
+                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID,
+                                                                            prefactorsFromReactant, prefactorsFromProduct))
+
+            if( 'nFragments' not in sec ): return
+
+            nFragments = sec['nFragments']
+
+            for iFragment in range(nFragments):
+                energy  = sec['fragmentsEnergies'][iFragment]
+                resfile = os.path.splitext(sec['fragmentsFileNames'].split('\0')[iFragment])[0]
+                mol = results.get_molecule('Molecule',file=resfile)
+                self._fragments.append(AMSResults.EnergyLandscape.Fragment(self, resfile, energy, mol))
+
+            if( 'nFStates' not in sec ): return
+
+            nFragmentedStates = sec['nFStates']
+
+            for iFState in range(nFragmentedStates):
+                iEnergy = sec['fStatesEnergy('+str(iFState+1)+')']
+                iNFragments = sec['fStatesNFragments('+str(iFState+1)+')']
+                iComposition = [ i-1 for i in sec['fStatesComposition('+str(iFState+1)+')'] ]
+                iNConnections = sec['fStatesNConnections('+str(iFState+1)+')']
+                iConnections = [ i-1 for i in sec['fStatesConnections('+str(iFState+1)+')'] ]
+                iAdsorptionPrefactors = sec['fStatesAdsorptionPrefactors('+str(iFState+1)+')']
+                iDesorptionPrefactors = sec['fStatesDesorptionPrefactors('+str(iFState+1)+')']
+
+                self._fstates.append(AMSResults.EnergyLandscape.FragmentedState(self, iEnergy, iComposition, iConnections, iAdsorptionPrefactors, iDesorptionPrefactors))
 
         @property
         def minima(self):
@@ -813,10 +896,21 @@ class AMSResults(Results):
         def transition_states(self):
             return [s for s in self._states if s.isTS]
 
+        @property
+        def fragments(self):
+            return [f for f in self._fragments]
+
+        @property
+        def fragmented_states(self):
+            return [fs for fs in self._fstates]
+
         def __str__(self):
-            return 'All stationary points:\n'+\
-                   '======================\n'+\
-                   '\n'.join(str(s) for s in self._states)
+            lines  = [ 'All stationary points:' ]
+            lines += ['======================' ]
+            for s in self._states: lines += [ str(s) ]
+            for f in self._fragments: lines += [ str(f) ]
+            for fs in self._fstates: lines += [ str(fs) ]
+            return "\n".join(lines)
 
         def __getitem__(self, i):
             return self._states[i-1]
@@ -913,50 +1007,6 @@ class AMSJob(SingleJob):
     _result_type = AMSResults
     _command = 'ams'
 
-
-    @classmethod
-    def from_input(cls, text_input, name='plamsjob', molecule=None):
-        """
-        Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError). 
-
-        text_input : a multi-line string
-
-        Returns: An AMSJob instance
-
-        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the ``text_input``, then it will be read into the returned job's settings.
-
-        Example::
-
-           text = '''
-           Task GeometryOptimization
-           Engine DFTB
-               Model GFN1-xTB
-           EndEngine
-           '''
-
-           job = AMSJob.from_input(text)
-        """
-        from scm.input_parser import InputParser
-        sett = Settings()
-        with InputParser() as parser:
-            sett.input = parser.to_settings('ams', text_input)
-        return cls(settings=sett, name=name, molecule=molecule)
-
-    @classmethod
-    def from_runfile(cls, path, name='plamsjob', molecule=None):
-        """
-        path : path to an AMS .run or .in file. Note: for AMS jobs generated with PLAMS, you should pass the path to the .in file to this function.
-
-        Returns an AMSJob based on the text input in the .run or .in file.
-
-        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the run file, then it will be read into the returned job's settings.
-        """
-        with open(path) as f:
-            run = f.read()
-        if '<<' in run:
-            delimiter = re.findall(r"<<.*?(\w+)", run)[0]
-            run = ''.join(re.findall(rf"(?s)(?:{delimiter})(.*)(?:[\r\n]{delimiter})", run))
-        return cls.from_input(run, name, molecule)
 
     def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs):
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
@@ -1355,37 +1405,61 @@ class AMSJob(SingleJob):
 
 
     @classmethod
-    def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
-        """Construct an :class:`AMSJob` instance from an ADF inputfile or runfile.
+    def from_input(cls, text_input:str, **kwargs) -> 'AMSJob':
+        """
+        Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError).
 
-        If a runscript is provide than this method will attempt to extract the input file based
-        on the heredoc delimiter (see *heredoc_delimit*).
+        text_input : a multi-line string
 
+        Returns: An AMSJob instance
+
+        Example::
+
+           text = '''
+           Task GeometryOptimization
+           Engine DFTB
+               Model GFN1-xTB
+           EndEngine
+           '''
+
+           job = AMSJob.from_input(text)
+
+        .. note::
+
+            If *molecule* is included in the keyword arguments to this method, the *text_input* may not contain any System blocks. In other words, the molecules to be used either need to come from the *text_input*, or the keyword argument, but not both.
+
+            If *settings* is included in the keyword arguments to this method, the |Settings| created from the *text_input* will be soft updated with the settings from the keyword argument. In other word, the *text_input* takes precedence over the *settings* keyword argument.
         """
         try:
             from scm.input_parser import InputParser
         except ImportError:  # Try to load the parser from $AMSHOME/scripting
             with UpdateSysPath():
                 from scm.input_parser import InputParser
+        sett = Settings()
+        with InputParser() as parser:
+            sett.input = parser.to_settings(cls._command, text_input)
+        mol = cls.settings_to_mol(sett)
+        if mol:
+            if 'molecule' in kwargs:
+                raise JobError('AMSJob.from_input(): molecule passed in both text_input and as keyword argument')
+        else:
+            mol = kwargs.pop('molecule', None)
+        if 'settings' in kwargs:
+            sett.soft_update(kwargs.pop('settings'))
+        return cls(molecule=mol, settings=sett, **kwargs)
 
-        s = Settings()
+
+    @classmethod
+    def from_inputfile(cls, filename:str, heredoc_delimit:str='eor', **kwargs) -> 'AMSJob':
+        """Construct an :class:`AMSJob` instance from an AMS inputfile or runfile.
+
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
         with open(filename, 'r') as f:
             inp_file = parse_heredoc(f.read(), heredoc_delimit)
-
-        with InputParser() as parser:
-            s.input = parser.to_settings(cls._command, inp_file)
-        if not s.input:
-            raise JobError(f"from_inputfile: failed to parse '{filename}'")
-
-        # Extract a molecule from the input settings
-        mol = cls.settings_to_mol(s)
-
-        # Create and return the Job instance
-        if mol is not None:
-            return cls(molecule=mol, settings=s, **kwargs)
-        else:
-            s.ignore_molecule = True
-            return cls(settings=s, **kwargs)
+        return cls.from_input(inp_file, **kwargs)
 
 
     @staticmethod
@@ -1443,7 +1517,7 @@ class AMSJob(SingleJob):
             if settings_block.region :
                 for s_reg in settings_block.region :
                     if not '_h' in s_reg.keys() :
-                        raise PlamsError ('Region block requires a header!')
+                        raise JobError ('Region block requires a header!')
                     if s_reg.properties :
                         mol.properties.regions[s_reg._h] = s_reg.properties._1
 

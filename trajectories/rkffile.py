@@ -213,8 +213,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Overwrite the molecule section with the latest frame
                 """
-                crd,cell = self.read_last_frame()
-                self._write_molecule_section(crd,cell)
+                molecule = self.get_plamsmol()
+                crd,cell = self.read_last_frame(molecule=molecule)
+                self._write_molecule_section(crd,cell,molecule=molecule)
 
         def _read_header (self, molecule_section='Molecule') :
                 """
@@ -822,4 +823,44 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
                                 suffixes.append('')
                 if present :
                         rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                # Also add a bond section
+                if len(molecule.bonds) > 0 :
+                        bond_indices = [sorted([iat for iat in molecule.index(bond)]) for bond in molecule.bonds]
+                        atoms_from = [bond[0] for bond in bond_indices]
+                        atoms_to = [bond[1] for bond in bond_indices]
+                        orders = [float(bond.order) for bond in molecule.bonds]
+                        rkf.write(section,'fromAtoms',atoms_from)
+                        rkf.write(section,'toAtoms',atoms_to)
+                        rkf.write(section,'bondOrders',orders)
 
+                        # I also need to write the lattice displacements of the bonds
+                        # To do that, I need to compute them.
+                        # I could make a start with writing in zeros
+                        if cell is not None :
+                                lattice_displacements = compute_lattice_displacements(molecule)
+                                #lattice_displacements = [0 for i in range(len(cell)*len(molecule.bonds))]
+                                rkf.write(section,'latticeDisplacements',lattice_displacements)
+
+def compute_lattice_displacements (molecule) :
+        """
+        Determine which bonds are displaced along the periodic lattice, so that they are not at their closest distance
+        """
+        cell = numpy.array(molecule.lattice)
+
+        # Get the difference vectors for the bonds
+        nbonds = len(molecule.bonds)
+        bond_indices = numpy.array([sorted([iat-1 for iat in molecule.index(bond)]) for bond in molecule.bonds])
+        coords = molecule.as_array()
+        vectors = coords[bond_indices[:,0]] - coords[bond_indices[:,1]]
+        
+        # Project the vectors onto the lattice vectors
+        celldiameters_sqrd = (cell**2).sum(axis=1)
+        proj = (vectors.reshape((nbonds,1,3)) * cell.reshape(1,3,3)).sum(axis=2)
+        proj = proj / celldiameters_sqrd.reshape((1,3))
+        
+        # Now see what multiple they are of 0.5
+        lattice_displacements = numpy.round(proj).astype(int)
+        lattice_displacements = lattice_displacements.reshape((3*nbonds)).tolist()
+        return lattice_displacements
+
+                                

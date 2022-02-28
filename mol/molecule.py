@@ -1135,6 +1135,8 @@ class Molecule:
                 bo_copy.atom2 = bro[bo.atom2]
                 ret.add_bond(bo_copy)
 
+        ret.properties.soft_update(self.properties)
+
         return ret
 
     def locate_rings (self) :
@@ -1664,11 +1666,48 @@ class Molecule:
         frac_coords_transf = np.linalg.inv(lattice_mat.T)
         fractional_coords = coords[:,:n]@frac_coords_transf.T
         if around_origin:
-            fractional_coords = fractional_coords - np.rint(fractional_coords)
+            shift = - np.rint(fractional_coords)
         else:
-            fractional_coords = fractional_coords - np.floor(fractional_coords)
-        coords[:,:n] = (lattice_mat.T@fractional_coords.T).T
+            shift = - np.floor(fractional_coords)
+        fractional_coords_new = fractional_coords + shift
+        coords[:,:n] = (lattice_mat.T@fractional_coords_new.T).T
         self.from_array(coords)
+
+        def has_cell_shifts(bnd):
+            return 'suffix' in bnd.properties and \
+                   isinstance(bnd.properties.suffix, str) and \
+                   bnd.properties.suffix != '' and \
+                   not bnd.properties.suffix.isspace()
+
+        if any(has_cell_shifts(b) for b in self.bonds):
+            # Fix cell shifts for bonds for atoms that were moved.
+            for b in self.bonds:
+                # Check if the mapping has moved the bonded atoms relative to each other.
+                at1, at2 = self.index(b); at1 = at1 - 1 ; at2 = at2 - 1 # -1 because np.array is indexed from 0
+                relshift = (shift[at2,:n] - shift[at1,:n]).astype(int)
+                if not np.all(relshift == 0):
+                    # Relative position has changed: cell shifts need updating!
+                    if has_cell_shifts(b):
+                        # Grab the original cell shifts from the suffix. An empty
+                        # suffix means "0 0 0" if at least one atom has cell shifts. If
+                        # no atom has cell shifts and all suffixes are empty, the bonds
+                        # are always taken to be to the closest image, but that case is
+                        # covered by to top level if (above) already.
+                        try:
+                            cell_shifts = np.array([ int(cs) for cs in b.properties.suffix.split() ])
+                        except Exception:
+                            raise MoleculeError("Cell shifts in bond suffix are not all integers.")
+                        if cell_shifts.size != n:
+                            raise MoleculeError("Wrong number of cell shifts in bond suffix.")
+                    else:
+                        cell_shifts = np.array([ 0 for i in range(n) ])
+                    cell_shifts_new = cell_shifts - relshift
+                    if np.all(cell_shifts_new == 0):
+                        # All 0 cell shifts are not written out explicitly
+                        if 'suffix' in b.properties:
+                            del b.properties.suffix
+                    else:
+                        b.properties.suffix = " ".join(str(cs) for cs in cell_shifts_new)
 
 
     def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
@@ -2581,20 +2620,20 @@ class Molecule:
                 3         H      0.327778       0.033891      -0.901672
 
         """
-        from subprocess import Popen
+        from subprocess import Popen, DEVNULL
         from tempfile import NamedTemporaryFile
         with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_in:
             self.writexyz(f_in)
             f_in.seek(0)
             with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_out:
-                p = Popen(f'amsprep -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True)
+                p = Popen(f'amsprep -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True, stdout=DEVNULL)
                 p.communicate()
                 retmol = self.__class__(f_out.name)
         return retmol
 
 
     @staticmethod
-    def rmsd(mol1, mol2, return_rotmat=False, check=True):
+    def rmsd(mol1, mol2, ignore_hydrogen=False, return_rotmat=False, check=True):
         """
         Uses the
         `Kabsch algorithm <https://en.wikipedia.org/wiki/Kabsch_algorithm>`_ to align and
@@ -2633,6 +2672,9 @@ class Molecule:
             nums1 = np.array([i.atnum for i in mol1])
             nums2 = np.array([i.atnum for i in mol2])
             assert (nums1 == nums2).all(), f"\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
+        if ignore_hydrogen is True:
+            mol1 = [at.coords for at in mol1 if at.symbol != 'H']
+            mol2 = [at.coords for at in mol2 if at.symbol != 'H']
         return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
 
     @property
