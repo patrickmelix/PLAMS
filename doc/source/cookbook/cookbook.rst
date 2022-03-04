@@ -608,7 +608,7 @@ The only change you should make is *not* to set the maximum number of jobs.
 
 Furthermore you may need to wrap the call to the PLAMS :ref:`launch script <master-script>` in a job script, in which we recommend you ``cd`` to the directory from which the job was submitted.
 This makes sure you will find the PLAMS working directory in the normal location.
-(If ``$AMSBIN`` is not already in your environment upon login, this is also the place to `set up the AMS environment <../../Installation/Installation.html#set-up-the-environment>`__.)
+(If ``$AMSBIN`` is not already in your environment, this is also the place to `set up the AMS environment <../../Installation/Installation.html#set-up-the-environment>`__.)
 
 .. code-block:: sh
 
