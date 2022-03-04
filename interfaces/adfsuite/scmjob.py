@@ -232,7 +232,7 @@ class SCMJob(SingleJob):
         if s.stdout_redirect:
             ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
-        return AMSJob._slurm_env(self.settings) + ret
+        return ret
 
 
     def check(self):
