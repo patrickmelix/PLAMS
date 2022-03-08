@@ -3,6 +3,7 @@ import re
 import shutil
 import sys
 import threading
+import subprocess
 import time
 import types
 import warnings
@@ -66,12 +67,60 @@ def init(path=None, folder=None, config_settings:Dict=None):
     log('PLAMS environment initialized', 5)
     log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
 
+    if "SLURM_JOB_ID" in os.environ:
+       config.slurm = _init_slurm()
+
     try:
         import dill
     except ImportError:
         log('WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling', 1)
 
     config.init = True
+
+
+def _init_slurm():
+    """If PLAMS is running under Slurm, query some information about the batch system and set up the environment for the PLAMS/Slurm integration."""
+    ret = Settings()
+    if "SLURM_JOB_ID" not in os.environ:
+        log("Slurm setup aborted: SLURM_JOB_ID is not set")
+        return None
+    try:
+        srun = subprocess.run(['srun','--version'], stdout=subprocess.PIPE, timeout=60)
+    except subprocess.TimeoutExpired:
+        log("Slurm setup failed: timeout for srun --version")
+        return None
+    if srun.returncode != 0:
+        log("Slurm setup failed: srun --version exited with non-zero return code")
+        return None
+    try:
+        ret.slurm_version = int(srun.stdout.decode().split()[1].split('.')[0])
+    except Exception:
+        log("Slurm setup failed: could not determine Slurm major version")
+        return None
+    if ret.slurm_version < 15:
+        log("Slurm setup failed: Slurm version >=15 is required for Slurm/PLAMS integration")
+        return None
+    if "SLURM_TASKS_PER_NODE" not in os.environ:
+        log("Slurm setup failed: SLURM_TASKS_PER_NODE is not set")
+        return None
+    ret.tasks_per_node = []
+    for tasks in os.environ["SLURM_TASKS_PER_NODE"].split(','):
+        try:
+            if '(' in tasks:
+                tasks, _, num_nodes = tasks.partition('(')
+                num_nodes = num_nodes[1:-1]
+                ret.tasks_per_node += [int(tasks)] * int(num_nodes)
+            else:
+                ret.tasks_per_node.append(int(tasks))
+        except Exception:
+            log("Slurm setup failed: can not determine the number of tasks per node")
+            return None
+    ret.tasks_per_node.sort(reverse=True)
+
+    # General setup of the environment when running under SLURM.
+    os.environ["SCM_MPIRUN_OPTIONS"] = ("-m block:block:block,NoPack --use-min-nodes " + os.environ.get("SCM_MPIRUN_OPTIONS","")).strip()
+
+    return ret
 
 
 #===========================================================================

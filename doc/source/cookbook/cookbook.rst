@@ -623,8 +623,3 @@ The above job script can then simply be submitted to the batch system::
 Alternatively you can also skip the job script, and submit the PLAMS :ref:`launch script <master-script>` itself::
 
    sbatch [...] --chdir=. $AMSBIN/plams myscript.plms
-
-.. note::
-
-   The integration of AMS/PLAMS with the batch system has only really been tested for SLURM, though it may work in the same way for other batch systems.
-   If it does not work out of the box as expected, please contact support@scm.com.
