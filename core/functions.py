@@ -93,11 +93,13 @@ def _init_slurm():
         log("Slurm setup failed: srun --version exited with non-zero return code")
         return None
     try:
-        ret.slurm_version = int(srun.stdout.decode().split()[1].split('.')[0])
+        ret.slurm_version = srun.stdout.decode().split()[1].split('.')
+        int(ret.slurm_version[0])
+        int(ret.slurm_version[1])
     except Exception:
-        log("Slurm setup failed: could not determine Slurm major version")
+        log("Slurm setup failed: could not determine Slurm version")
         return None
-    if ret.slurm_version < 15:
+    if int(ret.slurm_version[0]) < 15:
         log("Slurm setup failed: Slurm version >=15 is required for Slurm/PLAMS integration")
         return None
     if "SLURM_TASKS_PER_NODE" not in os.environ:
@@ -119,6 +121,12 @@ def _init_slurm():
 
     # General setup of the environment when running under SLURM.
     os.environ["SCM_MPIRUN_OPTIONS"] = ("-m block:block:block,NoPack --use-min-nodes " + os.environ.get("SCM_MPIRUN_OPTIONS","")).strip()
+    # There was a change in the behaviour of the srun --exclusive flag in Slurm 20.11.
+    # Newer versions should use --exact instead, see: https://www.nsc.liu.se/support/batch-jobs/slurm/20.11/
+    if int(ret.slurm_version[0]) >= 21 or (int(ret.slurm_version[0]) == 20 and int(ret.slurm_version[1] >= 11)):
+        os.environ["SCM_MPIRUN_OPTIONS"] += " --exact"
+    else:
+        os.environ["SCM_MPIRUN_OPTIONS"] += " --exclusive"
 
     return ret
 

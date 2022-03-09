@@ -1077,6 +1077,7 @@ class AMSJob(SingleJob):
         elif 'nproc' in self.settings.runscript and config.slurm:
             # Running as a SLURM job step and user asked for a specific number of tasks.
             # Make sure to use as few nodes as possible to avoid distributing jobs needlessly across nodes.
+            # See: https://stackoverflow.com/questions/71382578
             for nnode in range(1,len(config.slurm.tasks_per_node)+1):
                 if sum(config.slurm.tasks_per_node[0:nnode]) >= self.settings.runscript.nproc:
                     break
