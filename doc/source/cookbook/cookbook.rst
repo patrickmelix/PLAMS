@@ -623,3 +623,11 @@ The above job script can then simply be submitted to the batch system::
 Alternatively you can also skip the job script, and submit the PLAMS :ref:`launch script <master-script>` itself::
 
    sbatch [...] --chdir=. $AMSBIN/plams myscript.plms
+
+.. warning::
+
+   The integration of PLAMS, AMS and Slurm will only work on Slurm versions >=15.
+   Furthermore AMS needs to use an MPI implementation that is integrated with the Slurm.
+   This is the case for the IntelMPI builds of AMS, but *not* the OpenMPI builds.
+   Please refer to the `installation manual <../../Installation/Additional_Information_and_Known_Issues.html#running-mpi-jobs>`__ for details on the capabilities of the different MPI versions.
+   If the batch system integration does not work for you, you can still run PLAMS scripts via the batch system, but you will be restricted to running on a single node and will need to use the ``maxjobs`` argument in the constructor of the |JobRunner| to limit the number of simultaneously running jobs.
