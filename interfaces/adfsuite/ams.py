@@ -1073,7 +1073,7 @@ class AMSJob(SingleJob):
         ret += 'unset SCM_LOGFILE\n'
         if 'nnode' in self.settings.runscript and config.slurm:
             # Running as a SLURM job step and user specified the number of nodes explicitly.
-            ret += f'export SCM_MPIRUN_OPTIONS="$SCM_MPIRUN_OPTIONS -N {self.settings.runscript.nnode}"\n'
+            ret += f'export SCM_SRUN_OPTIONS="$SCM_SRUN_OPTIONS -N {self.settings.runscript.nnode}"\n'
         elif 'nproc' in self.settings.runscript and config.slurm:
             # Running as a SLURM job step and user asked for a specific number of tasks.
             # Make sure to use as few nodes as possible to avoid distributing jobs needlessly across nodes.
@@ -1082,7 +1082,7 @@ class AMSJob(SingleJob):
                 if sum(config.slurm.tasks_per_node[0:nnode]) >= self.settings.runscript.nproc:
                     break
             if nnode > 1: nnode = f"1-{nnode}"
-            ret += f'export SCM_MPIRUN_OPTIONS="$SCM_MPIRUN_OPTIONS -N {nnode}"\n'
+            ret += f'export SCM_SRUN_OPTIONS="$SCM_SRUN_OPTIONS -N {nnode}"\n'
         if 'preamble_lines' in self.settings.runscript:
             for line in self.settings.runscript.preamble_lines:
                 ret += f'{line}\n'

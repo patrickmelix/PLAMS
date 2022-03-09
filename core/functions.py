@@ -120,13 +120,13 @@ def _init_slurm():
     ret.tasks_per_node.sort(reverse=True)
 
     # General setup of the environment when running under SLURM.
-    os.environ["SCM_MPIRUN_OPTIONS"] = ("-m block:block:block,NoPack --use-min-nodes " + os.environ.get("SCM_MPIRUN_OPTIONS","")).strip()
+    os.environ["SCM_SRUN_OPTIONS"] = "-m block:block:block,NoPack --use-min-nodes"
     # There was a change in the behaviour of the srun --exclusive flag in Slurm 20.11.
     # Newer versions should use --exact instead, see: https://www.nsc.liu.se/support/batch-jobs/slurm/20.11/
     if int(ret.slurm_version[0]) >= 21 or (int(ret.slurm_version[0]) == 20 and int(ret.slurm_version[1] >= 11)):
-        os.environ["SCM_MPIRUN_OPTIONS"] += " --exact"
+        os.environ["SCM_SRUN_OPTIONS"] += " --exact"
     else:
-        os.environ["SCM_MPIRUN_OPTIONS"] += " --exclusive"
+        os.environ["SCM_SRUN_OPTIONS"] += " --exclusive"
 
     return ret
 
