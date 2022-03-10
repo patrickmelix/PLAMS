@@ -2699,3 +2699,112 @@ class Molecule:
         if len(values) != len(self):
             raise ValueError(f"Number of elements in array ({len(values)}) does not match the molecule size ({len(self)}).")
         [setattr(at, 'symbol', value) for at,value in zip(self, values)]
+
+    def _get_bond_id(self, at1, at2, id_type):
+        """
+        at1: Atom in this molecule
+        at2: Atom in this molecule
+        id_type: str, 'IDname' or 'symbol'
+        This function is called by get_unique_bonds()
+
+        Returns: a 2-tuple, the key and a bool. The bool is True if the order was reversed.
+        """
+        at1key = getattr(at1, id_type)
+        at2key = getattr(at2, id_type)
+        if at1key < at2key:
+            return at1key+'-'+at2key, False
+        else:
+            return at2key+'-'+at1key, True
+
+    def get_unique_bonds(self, ignore_dict=None, id_type='symbol', index_start=1):
+        """
+
+        Returns a dictionary of all unique bonds in this molecule, where the
+        key is the identifier and the value is a 2-tuple containing the 1-based
+        indices of the atoms making up the bond (or 0-based indices if
+        index_start == 0).
+
+        ignore_dict : dict
+            Bonds already existing in ignore_dict (as defined by the keys) will not be added to the returned dictionary
+
+            Example: if id_type == 'symbol' and ignore_dict has a key 'C-C', then no C-C bond will be added to the return dictionary.
+
+        id_type: str
+            'symbol': The atomic symbols become the keys, e.g. 'C-H' (alphabetically sorted)
+
+            'IDname': The IDname from molecule.set_local_labels() become the keys, e.g. 'an4va8478432bfl471baf74-knrq78jhkhq78fak111nf' (alphabetically sorted). Note: You must first call Molecule.set_local_labels()
+
+
+        index_start : int
+            If 1, indices are 1-based. If 0, indices are 0-based.
+
+        """
+        ret = {}
+        ignore_dict = ignore_dict or {}
+        for at in self:
+            for b in at.bonds:
+                other_atom = b.other_end(at)
+                bondid, reverse = self._get_bond_id(at, other_atom, id_type)
+                if bondid not in ignore_dict and bondid not in ret:
+                    if reverse:
+                        ret[bondid] = self.index(other_atom) - 1 + index_start, self.index(at) - 1 + index_start
+                    else:
+                        ret[bondid] = self.index(at) - 1 + index_start, self.index(other_atom) - 1 + index_start
+
+        return ret
+
+    def _get_angle_id(self, at1, at2, at3, id_type):
+        at1key = getattr(at1, id_type)
+        at2key = getattr(at2, id_type)
+        at3key = getattr(at3, id_type)
+        if at1key < at3key:
+            return at1key+'-'+at2key+'-'+at3key, False
+        else:
+            return at3key+'-'+at2key+'-'+at1key, True
+
+    def get_unique_angles(self, ignore_dict=None, id_type='symbol', index_start=1):
+        """
+
+        Returns a dictionary of all unique angles in this molecule, where the
+        key is the identifier and the value is a 3-tuple containing the 1-based
+        indices of the atoms making up the angle (or 0-based indices if
+        index_start == 0). The central atom is the second atom.
+
+        ignore_dict : dict
+            Angles already existing in ignore_dict (as defined by the keys) will not be added to the returned dictionary
+
+            Example: if id_type == 'symbol' and ignore_dict has a key 'C-C-C', then no C-C-C angle will be added to the return dictionary.
+
+        id_type: str
+            'symbol': The atomic symbols become the keys, e.g. 'C-C-C' (alphabetically sorted, the central atom in the middle)
+
+            'IDname': The IDname from molecule.set_local_labels() become the keys, e.g. 'an4va8478432bfl471baf74-knrq78jhkhq78fak111nf-mf42918vslahf879bakfhk' (alphabetically sorted, the central atom in middle). Note: You must first call Molecule.set_local_labels()
+
+
+        index_start : int
+            If 1, indices are 1-based. If 0, indices are 0-based.
+
+        """
+        ret = {}
+        ignore_dict = ignore_dict or {}
+        for at in self:
+            for b in at.bonds:
+                at2 = b.other_end(at)
+                for b2 in at2.bonds:
+                    at3 = b2.other_end(at2)
+                    if at == at3:
+                        continue
+                    angleid, reverse = self._get_angle_id(at, at2, at3, id_type)
+                    if angleid not in ignore_dict and angleid not in ret:
+                        if reverse:
+                            ret[angleid] = self.index(at3)-1+index_start, self.index(at2)-1+index_start, self.index(at)-1+index_start
+                        else:
+                            ret[angleid] = self.index(at)-1+index_start, self.index(at2)-1+index_start, self.index(at3)-1+index_start
+
+        return ret
+
+        
+
+    if __name__ == '__main__':
+        main()
+
