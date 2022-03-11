@@ -590,10 +590,10 @@ The script below shows how to parallelize the trivially parallel task of just ex
 Obviously, ``runscript.nproc`` could also be set on a per-job basis.
 This is useful if some of your jobs do not scale well with the number of CPU cores, or if you have jobs of very different computational cost.
 
-PLAMS scripts under SLURM
+PLAMS scripts under Slurm
 -------------------------
 
-A PLAMS script can be run under the SLURM batch system and execute jobs within the resource allocation that is created for the script.
+A PLAMS script can be run under the Slurm batch system and execute jobs within the resource allocation that is created for the script.
 The script shown in the previous section should work just fine when run under a batch system.
 The only change you should make is *not* to set the maximum number of jobs.
 
@@ -603,8 +603,8 @@ The only change you should make is *not* to set the maximum number of jobs.
 
 .. technical::
 
-   The execution of the job is implemented as a SLURM job step, which may need to wait for free resources before actually starting.
-   As SLURM is taking care of limiting the number of simultaneously executing jobs, we no longer need to do that through the PLAMS |JobRunner| and can therefore skip the ``maxjobs`` argument of its constructor.
+   The execution of the job is implemented as a Slurm job step, which may need to wait for free resources before actually starting.
+   As Slurm is taking care of limiting the number of simultaneously executing jobs, we no longer need to do that through the PLAMS |JobRunner| and can therefore skip the ``maxjobs`` argument of its constructor.
 
 Furthermore you may need to wrap the call to the PLAMS :ref:`launch script <master-script>` in a job script, in which we recommend you ``cd`` to the directory from which the job was submitted.
 This makes sure you will find the PLAMS working directory in the normal location.
