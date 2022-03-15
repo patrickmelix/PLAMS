@@ -432,6 +432,42 @@ class SingleJob(Job):
 
 
     @classmethod
+    def load(cls, path, jobmanager=None, strict=True):
+        """
+        Loads a Job instance from `path`, where path can either be a
+        directory with a `*.dill` file, or the full path to the `*.dill` file.
+        If ``init()`` has been called, or a non-default `jobmanager` is provided,
+        will register the job with the Job Manager.
+
+        When `strict = True`, will check that the loaded job is an isntance of the right class
+        (`e.g.` calling `AMSResults.load()` returns a `AMSResults` instance)
+        and raise a `ValueError` if the check fails.
+        Setting `strict = False` disables the check, allowing for signatures such as
+        `SingleJob.load() -> AMSJob`.
+        """
+        if not os.path.exists(path):
+            raise FileError(f"Path '{path}' does not exist")
+        if os.path.isdir(path):
+            for f in os.listdir(path):
+                if f.endswith('.dill'):
+                    path = opj(path,f)
+                    break
+            else:
+                raise FileError(f"No '.dill' file present in '{path}'. You might try `load_external()` instead.")
+
+        jobmanager = jobmanager or (config.default_jobmanager if config.init else None)
+        if jobmanager:
+            job = jobmanager.load_job(path)
+        else:
+            with open(path, 'rb') as f:
+                job = pickle.load(f)
+            job.path = os.path.dirname(os.path.abspath(path))
+            job.results.collect()
+
+        if strict and job.__class__ != cls:
+            raise ValueError(f"The loaded job is an instance of '{job.__class__.__name__}', wheras this method expects it to be a '{cls.__name__}'. Use `strict=False` to ignore this.")
+
+    @classmethod
     def load_external(cls, path, settings=None, molecule=None, finalize=False):
         """Load an external job from *path*.
 
