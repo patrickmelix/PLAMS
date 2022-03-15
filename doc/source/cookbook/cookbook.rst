@@ -45,6 +45,27 @@ will generate the following text input when used for an |AMSJob|:
     SomeInputBlock
     End
 
+
+Create an input block with repeating keys
+-----------------------------------------
+These |Settings|
+
+.. code-block:: python
+
+    sett = Settings()
+    sett.input.ams.constraints.atom = [1,2,3]
+
+will generate the following text input when used for an |AMSJob|:
+
+::
+
+    Constraints
+        Atom 1
+        Atom 2
+        Atom 3
+    End
+
+
 Convert an AMS text input into an AMS job
 -----------------------------------------
 
