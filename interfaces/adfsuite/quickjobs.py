@@ -35,7 +35,7 @@ def preoptimize(molecule: Molecule, model:str='UFF', settings:Settings=None, npr
     else:
         return output_molecules
 
-def refine_density(molecule: Molecule, density:float, step_size=0.05, model:str='UFF', settings:Settings=None, nproc:int=1, maxiterations:int=100):
+def refine_density(molecule: Molecule, density:float, step_size=50, model:str='UFF', settings:Settings=None, nproc:int=1, maxiterations:int=100):
     """
 
         Performs a series of geometry optimizations with densities approaching
@@ -53,9 +53,9 @@ def refine_density(molecule: Molecule, density:float, step_size=0.05, model:str=
         molecule: Molecule
             The molecule must have a 3D lattice
         density: float
-            Target density in g/cm^3
+            Target density in kg/m^3   (1000x the density in g/cm^3)
         step_size: float
-            Step size for the density (in g/cm^3). Set step_size to a large number to only use 1 step.
+            Step size for the density (in kg/m^3). Set step_size to a large number to only use 1 step.
         model: str
             e.g. 'UFF'
         settings: Settings
@@ -69,7 +69,7 @@ def refine_density(molecule: Molecule, density:float, step_size=0.05, model:str=
     assert(len(molecule.lattice) == 3)
     tolerance = 1e-3
     my_settings = _get_quick_settings(model, settings, nproc)
-    current_density = molecule.get_density() * 1e-3
+    current_density = molecule.get_density()  # kg/m^3
     output_molecule = molecule.copy()
     counter = 0
     with AMSWorker(my_settings) as worker:
@@ -82,14 +82,12 @@ def refine_density(molecule: Molecule, density:float, step_size=0.05, model:str=
             else:
                 new_density = density
 
-            strain = (current_density/new_density)**(1/3.0)
-            strain = strain - 1.0
-            output_molecule.apply_strain([strain, strain, strain, 0, 0, 0], voigt_form=True)
+            output_molecule.set_density(new_density)
 
             results = worker.GeometryOptimization(name=f'preoptimization_{counter}', molecule=output_molecule, maxiterations=maxiterations, pretendconverged=True)
 
             output_molecule = results.get_main_molecule()
-            current_density = output_molecule.get_density() * 1e-3
+            current_density = output_molecule.get_density()  # kg/m^3
 
     return output_molecule
 

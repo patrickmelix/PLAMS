@@ -1545,6 +1545,17 @@ class Molecule:
         mass = self.get_mass(unit='kg')
         return mass/vol
 
+    def set_density(self, density:float):
+        """
+        Applies a uniform strain so that the density becomes ``density`` kg/m^3
+        """
+        assert(len(self.lattice) == 3)
+        current_density = self.get_density() # in kg/m^3
+        strain = (current_density/density)**(1/3.0)
+        strain -= 1.0
+        self.apply_strain([strain, strain, strain, 0, 0, 0], voigt_form=True)
+
+
     def get_formula(self, as_dict=False):
         """Calculate the molecular formula of the molecule according to the Hill system.
 
