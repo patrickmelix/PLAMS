@@ -1,3 +1,5 @@
+.. _Quickjobs:
+
 Quick jobs
 ----------------------
 

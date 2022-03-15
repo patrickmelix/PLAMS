@@ -164,6 +164,31 @@ See function |read_molecules|.
         print("Name of the file (without extension): ", name)
         print(mol)
 
+Generate a liquid or gas mixture
+-----------------------------------------
+
+
+.. code-block:: python
+
+    # Generate a 2-to-1 water-acetonitrile mixture with a density of 0.9 g/cm^3 and approximately 200 atoms
+    water = from_smiles('O')
+    acetonitrile = from_smiles('CC#N')
+    mixture = packmol_mixture(molecules=[water, acetonitrile], 
+                              mole_fractions=[0.667, 0.333], 
+                              n_atoms=200, 
+                              density=0.9)
+
+See :ref:`PackMolExample` for more examples on how to construct liquid or gas mixtures and solid/liquid or solid/gas interfaces.
+
+Pre-optimize a molecule
+------------------------------------
+
+.. code-block:: python
+    
+    # pre-optimize with UFF inside AMS 
+    optimized_mol = preoptimize(mol)
+
+See :ref:`QuickJobs` for details and options.
 
 Counting rings
 --------------
