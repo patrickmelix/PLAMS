@@ -21,6 +21,7 @@ Examples
    ChargeTransferIntegralsADF
    gammascan
    OxidationPotential
+   PackMolExample
 
 
 .. _recipes:
