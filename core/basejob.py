@@ -439,8 +439,8 @@ class SingleJob(Job):
         If ``init()`` has been called, or a non-default `jobmanager` is provided,
         will register the job with the Job Manager.
 
-        When `strict = True`, will check that the loaded job is an isntance of the right class
-        (`e.g.` calling `AMSResults.load()` returns a `AMSResults` instance)
+        When `strict = True`, will check that the loaded job is an instance of the right class
+        (`e.g.` calling `AMSJob.load()` returns a `AMSJob` instance)
         and raise a `ValueError` if the check fails.
         Setting `strict = False` disables the check, allowing for signatures such as
         `SingleJob.load() -> AMSJob`.
