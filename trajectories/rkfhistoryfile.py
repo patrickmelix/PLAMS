@@ -1,16 +1,20 @@
 #!/usr/bin/env python
 
 import numpy
+import os
+
+from typing import List
 from ..tools.periodic_table import PT
 from ..mol.molecule import Molecule
 from ..mol.atom import Atom
 from ..core.settings import Settings
 from ..core.errors import PlamsError
+from ..tools.kftools import KFFile
 from .rkffile import RKFTrajectoryFile
 from .rkffile import bohr_to_angstrom
 from .rkffile import write_general_section
 
-__all__ = ['RKFHistoryFile']
+__all__ = ['RKFHistoryFile', 'molecules_to_rkf']
 
 class RKFHistoryFile (RKFTrajectoryFile) :
         """
@@ -564,3 +568,19 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 for num,key in zip(nums,keys) :
                         elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(key,'AtomicNumbers')]
                         self.system_version_elements[num] = elements
+
+def molecules_to_rkf(molecules:List[Molecule], fname, overwrite=False):
+    """
+    Convert a list of molecules to a .rkf file
+    """
+
+    if os.path.exists(fname) and overwrite:
+        os.remove(fname)
+
+    rkfout = RKFHistoryFile(fname, mode='wb')
+
+    for i, mol in enumerate(molecules):
+        rkfout.write_next(molecule=mol)
+    rkfout.close()
+
+

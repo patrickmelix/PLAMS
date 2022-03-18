@@ -201,6 +201,19 @@ Generate a liquid or gas mixture
 
 See :ref:`PackMolExample` for more examples on how to construct liquid or gas mixtures and solid/liquid or solid/gas interfaces.
 
+Write an ams.rkf-like trajectory
+---------------------------------
+
+If you have a list of molecules, it can be convenient to write them to an
+AMS-like .rkf file so that you can visualize them in the GUI module AMSmovie.
+
+.. code-block:: python
+
+    from scm.plams import molecules_to_rkf, from_smiles
+
+    molecule_list = [from_smiles('C'), from_smiles('CC')]
+    molecules_to_rkf(molecule_list, 'output.rkf', overwrite=True)
+
 Pre-optimize a molecule
 ------------------------------------
 
