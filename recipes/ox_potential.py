@@ -16,7 +16,7 @@ class OxidationPotentialCalculator:
 
 
     def set_default_settings(self) -> None:
-        #### DEFAULT SETTINGS these can be changed after creating a new OxidationPotentialCalculator object
+        #### DEFAULT SETTINGS, these can be changed after creating a new OxidationPotentialCalculator object
         #default settings for pre-optimization using DFTB
         self.pre_optimize_defaults = Settings()
         self.pre_optimize_defaults.input.ams.task = 'GeometryOptimization' 
@@ -141,12 +141,13 @@ class OxidationPotentialCalculator:
             molecule = self._pre_optimize(molecule, name=name)
             self.log(' done!')
 
+        Gelectron = 0.0375
         #get on with the actual calculations
         if method == 'DC':
             GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='solvent')
             GO_ns    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral',  phase='solvent')
 
-            oxpot = GO_os['gibbs_energy'] - GO_ns['gibbs_energy'] + 0.0375
+            oxpot = GO_os['gibbs_energy'] - GO_ns['gibbs_energy'] + Gelectron
             
         elif method == 'TC-COSMO':
             GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum')
@@ -162,7 +163,7 @@ class OxidationPotentialCalculator:
 
             oxidized_part = GO_nv['gibbs_energy'] + SP_ns_nv['gibbs_energy'] + (GO_nv['bond_energy'] - SP_nv_ns['bond_energy'])
             neutral_part  = GO_ov['gibbs_energy'] + SP_os_ov['gibbs_energy'] + (SP_nv_ov['bond_energy'] - SP_nv_os['bond_energy'])
-            oxpot = oxidized_part - neutral_part + 0.0375
+            oxpot = oxidized_part - neutral_part + Gelectron
 
         elif method == 'TC-COSMO-RS':
             GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum')
@@ -178,7 +179,7 @@ class OxidationPotentialCalculator:
 
             oxidized_part = GO_nv['gibbs_energy'] + SP_ns_nv['gibbs_energy'] + (GO_nv['bond_energy'] - SP_nv_os['bond_energy'])
             neutral_part  = GO_ov['gibbs_energy'] + SP_os_ov['gibbs_energy'] + (SP_nv_ov['bond_energy'] - SP_nv_os['bond_energy'])
-            oxpot = oxidized_part - neutral_part + 0.0375
+            oxpot = oxidized_part - neutral_part + Gelectron
 
         elif method == 'screening':
             self.COSMORS_solvent_path = COSMORS_solvent_path
@@ -191,7 +192,7 @@ class OxidationPotentialCalculator:
             SP_ov_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', phase='vacuum', frequencies=False)
             COSMO_ov = self._calculation_step(GO_ov['geometry'], task='COSMO', name=name, state='oxidized')
 
-            oxpot = COSMO_ov['gibbs_energy'] - COSMO_nv['gibbs_energy'] + 0.0375
+            oxpot = COSMO_ov['gibbs_energy'] - COSMO_nv['gibbs_energy'] + Gelectron
 
         self.log(f"\nOxidation potential: {oxpot:.4f} eV")
         return oxpot

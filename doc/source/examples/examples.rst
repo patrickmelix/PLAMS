@@ -45,4 +45,5 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     molecule_gun
     global_minimum
     vibrationASE
+    OxidationPotential
 
