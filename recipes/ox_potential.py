@@ -285,7 +285,7 @@ class OxidationPotentialCalculator:
                 defaults.soft_update(self.DFTB_oxidized_defaults)
             else:
                 defaults.soft_update(self.DFT_oxidized_defaults)
-        self.log(defaults)
+
         return defaults
 
 
