@@ -461,7 +461,7 @@ if __name__ == '__main__':
             OxPotCalc = OxidationPotentialCalculator(logfile=logfile)
             mol = Molecule(mol_file)
             oxpot = OxPotCalc(mol, job_dir=workdir, method=method, COSMORS_solvent_path=COSMORS_solvent_path)
-            results[method][mol_name] = oxpot
+            results[mol_name][method] = oxpot
             finish()
 
     print('Oxidation Potentials:')
