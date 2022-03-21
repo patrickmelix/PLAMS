@@ -40,7 +40,7 @@ A recent paper by Belic, J. et al. (Phys. Chem. Chem. Phys., **24 (1)**, 197–2
 
 The class ``OxidationPotentialCalculator`` implements all the required methods for calculating the oxidation potential for any molecule using one of the methods described above.To perform a calculation, create an ``OxidationPotentialCalculator`` object and then call it. You must pass an ``scm.plams.Molecule`` object, optionally you can specify the method, which must be one of ``['DC', 'TS-COSMO', 'TC-COSMO-RS', 'screening']`` (by default uses ``'screening'``). You can also specify the job name and job directory for PLAMS. Once the ``OxidationPotentialCalculator`` object has been created you can change the default settings by accessing the ``scm.plams.Settings`` attributes set in the ``set_default_settings`` method. By default the calculator uses B3LYP-D3(BJ)/TZ2P level of theory for the DFT calculations and GFN1-xTB for the DFTB calculations. The default COSMO solvent is dichloromethane, to change the COSMO-RS solvent you will need to perform a COSMO-RS job before the oxidation potential calculation and provide the ``.coskf`` file (`COSMO-RS tutorials <../../Tutorials/COSMO-RS/index.html>`__).
 
-A ``.coskf`` file and a number of ``.xyz`` files are provided in :download:`OxidationPotentialFiles.zip <../../../examples/OxidationPotentialFiles.zip>`. By default the script uses the ``screening`` method as this is a very fast method and is also very accurate.
+A ``.coskf`` file and a number of ``.xyz`` files are provided in :download:`OxidationPotentialFiles.zip <./OxidationPotential/OxidationPotentialFiles.zip>`. By default the script uses the ``screening`` method as this is a very fast method and is also very accurate.
 
 .. literalinclude:: ../../../recipes/ox_potential.py
 	:language: python
@@ -48,7 +48,7 @@ A ``.coskf`` file and a number of ``.xyz`` files are provided in :download:`Oxid
 **Example usage:**
 
 
-.. literalinclude:: ../../../examples/OxidationPotential.py
+.. literalinclude:: ./OxidationPotential/OxidationPotential.py
 	:language: python
 
 **Example output:**

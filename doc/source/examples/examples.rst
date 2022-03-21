@@ -20,7 +20,6 @@ Examples
    ExcitationsWorkflow
    ChargeTransferIntegralsADF
    gammascan
-   OxidationPotential
    PackMolExample
 
 
