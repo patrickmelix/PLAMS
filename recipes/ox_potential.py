@@ -151,45 +151,45 @@ class OxidationPotentialCalculator:
             
         elif method == 'TC-COSMO':
             GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum')
-            SP_ns_nv = self._calculation_step(GO_nv['geometry'], task='SinglePoint', name=name, state='neutral', phase='solvent')
+            SP_nv_ns = self._calculation_step(GO_nv['geometry'], task='SinglePoint', name=name, state='neutral', phase='solvent')
             GO_ns    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='solvent')
-            SP_nv_ns = self._calculation_step(GO_ns['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
+            SP_nv_nv = self._calculation_step(GO_ns['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
 
             GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='vacuum')
-            SP_os_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', phase='solvent')
-            SP_nv_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
+            SP_ov_os = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', phase='solvent')
             GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='solvent')
-            SP_nv_os = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
+            SP_ov_ov = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state='oxidized', phase='vacuum')
 
-            oxidized_part = GO_nv['gibbs_energy'] + SP_ns_nv['gibbs_energy'] + (GO_nv['bond_energy'] - SP_nv_ns['bond_energy'])
-            neutral_part  = GO_ov['gibbs_energy'] + SP_os_ov['gibbs_energy'] + (SP_nv_ov['bond_energy'] - SP_nv_os['bond_energy'])
+            oxidized_part = GO_ov['gibbs_energy'] + SP_ov_os['dG_solvation'] + (SP_ov_ov['bond_energy'] - GO_ov['bond_energy'])
+            neutral_part  = GO_nv['gibbs_energy'] + SP_nv_ns['dG_solvation'] + (SP_nv_nv['bond_energy'] - GO_nv['bond_energy'])
             oxpot = oxidized_part - neutral_part + Gelectron
 
         elif method == 'TC-COSMO-RS':
+            self.COSMORS_solvent_path = COSMORS_solvent_path
+            assert os.path.exists(self.COSMORS_solvent_path), f'Solvent database {self.COSMORS_solvent_path} does not exist'
             GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum')
-            SP_ns_nv = self._calculation_step(GO_nv['geometry'], task='SinglePoint', name=name, state='neutral', phase='solvent')
+            SP_nv_ns = self._calculation_step(GO_nv['geometry'], task='SinglePoint', name=name, state='neutral', phase='solvent')
+            COSMO_nv = self._calculation_step(GO_nv['geometry'], task='COSMO', name=name, state='neutral', phase='solvent')
             GO_ns    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='solvent')
-            SP_nv_ns = self._calculation_step(GO_ns['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
+            SP_nv_nv = self._calculation_step(GO_ns['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
 
             GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='vacuum')
-            SP_os_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', phase='solvent')
-            SP_nv_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
+            SP_ov_os = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', phase='solvent')
+            COSMO_ov = self._calculation_step(GO_ov['geometry'], task='COSMO', name=name, state='neutral', phase='solvent')
             GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='solvent')
-            SP_nv_os = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
+            SP_ov_ov = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum')
 
-            oxidized_part = GO_nv['gibbs_energy'] + SP_ns_nv['gibbs_energy'] + (GO_nv['bond_energy'] - SP_nv_os['bond_energy'])
-            neutral_part  = GO_ov['gibbs_energy'] + SP_os_ov['gibbs_energy'] + (SP_nv_ov['bond_energy'] - SP_nv_os['bond_energy'])
+            oxidized_part = GO_ov['gibbs_energy'] + COSMO_ov['dG_solvation'] + (SP_ov_os['bond_energy'] - SP_ov_ov['bond_energy'])
+            neutral_part  = GO_nv['gibbs_energy'] + COSMO_nv['dG_solvation'] + (SP_nv_ns['bond_energy'] - SP_nv_nv['bond_energy'])
             oxpot = oxidized_part - neutral_part + Gelectron
 
         elif method == 'screening':
             self.COSMORS_solvent_path = COSMORS_solvent_path
             assert os.path.exists(self.COSMORS_solvent_path), f'Solvent database {self.COSMORS_solvent_path} does not exist'
             GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum', use_dftb=True)
-            SP_nv_nv = self._calculation_step(GO_nv['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum', frequencies=False)
             COSMO_nv = self._calculation_step(GO_nv['geometry'], task='COSMO', name=name, state='neutral')
 
             GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='vacuum', use_dftb=True)
-            SP_ov_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', phase='vacuum', frequencies=False)
             COSMO_ov = self._calculation_step(GO_ov['geometry'], task='COSMO', name=name, state='oxidized')
 
             oxpot = COSMO_ov['gibbs_energy'] - COSMO_nv['gibbs_energy'] + Gelectron
@@ -403,6 +403,11 @@ class OxidationPotentialCalculator:
                 opt_mol.write(os.path.join(self.geo_opt_dir, name + '_' + job_desc + '.xyz'))
                 result_dict['geometry'] = res.get_main_molecule()
 
+            if phase == 'solvent':
+                dG_solvation = res.readrkf('Energy','Solvation Energy (el)','adf') + res.readrkf('Energy','Solvation Energy (cd)','adf')
+                result_dict['dG_solvation'] = Units.convert(dG_solvation, 'hartree', 'eV')
+                self.log(f'\t\tdG_solvation = {result_dict["dG_solvation"]:.4f} eV')
+
         else:
             self.log(f'\tSuccessfull          = False')
             if task == 'GeometryOptimization':
@@ -420,15 +425,15 @@ class OxidationPotentialCalculator:
 
 
 if __name__ == '__main__':
-    job_dir = './Screening'
+    job_dir = './Validate'
     if not os.path.exists(job_dir):
         os.makedirs(job_dir)
 
     COSMORS_solvent_path = os.path.abspath('Dichloromethane.coskf')
 
     results = {}
-    for mol_file in ["./molecules/NDI.xyz", "./molecules/NDI44.xyz", "./molecules/NDI55.xyz", "./molecules/NDI54.xyz", "./molecules/PDI.xyz"]:
-        for method in ['screening']:
+    for mol_file in ["./molecules/water.xyz"]:
+        for method in ['TC-COSMO', 'screening']:
             job_name = None #if set to None, a name will be generated
         
             if job_name is None:
