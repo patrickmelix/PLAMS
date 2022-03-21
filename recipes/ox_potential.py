@@ -39,13 +39,14 @@ class OxidationPotentialCalculator:
         self.DFT_defaults.input.ams.task             = 'GeometryOptimization'
         self.DFT_defaults.input.adf.basis.type       = 'TZ2P'
         self.DFT_defaults.input.adf.basis.core       = 'None'
-        self.DFT_defaults.input.adf.SCF.converge     = '1e-8 1e-8'
+        self.DFT_defaults.input.adf.SCF.converge     = '1e-7 1e-7'
+        self.DFT_defaults.input.adf.SCF.mixing       = '0.015'
         self.DFT_defaults.input.adf.xc.hybrid        = 'B3LYP'
         self.DFT_defaults.input.adf.xc.Dispersion    = 'GRIMME3 BJDAMP'
         self.DFT_defaults.input.adf.Relativity.Level = 'None'
         self.DFT_defaults.input.adf.NumericalQuality         = 'Good'
         self.DFT_defaults.input.adf.RIHartreeFock.UseMe      = 'Yes'
-        self.DFT_defaults.input.adf.RIHartreeFock.Quality    = 'Normal'  
+        self.DFT_defaults.input.adf.RIHartreeFock.Quality    = 'Good'  
         self.DFT_defaults.input.adf.Symmetry                 = 'NOSYM'
         self.DFT_defaults.input.ams.UseSymmetry              = 'No'
 
@@ -269,11 +270,11 @@ class OxidationPotentialCalculator:
             else:
                 defaults = self.DFT_defaults.copy()
 
-        defaults.input.ams.task = task
+            #load cosmo solvent
+            if phase == 'solvent' and not use_COSMORS:
+                defaults.soft_update(self.COSMO_defaults)
 
-        #load cosmo solvent
-        if phase == 'solvent' and not use_COSMORS:
-            defaults.soft_update(self.COSMO_defaults)
+        defaults.input.ams.task = task
 
         if frequencies:
             defaults.soft_update(self.frequencies_defaults)
@@ -443,7 +444,7 @@ if __name__ == '__main__':
     COSMORS_solvent_path = os.path.abspath('Dichloromethane.coskf')
 
     results = {}
-    for mol_file in ["./molecules/ammonia.xyz", "./molecules/water.xyz"]:
+    for mol_file in ["./molecules/water.xyz", "./molecules/ammonia.xyz", "./molecules/benzene.xyz", './molecules/NDI.xyz']:
         mol_name = os.path.basename(mol_file).split('.')[0]
         results[mol_name] = {}
         for method in ['DC', 'TC-COSMO', 'TC-COSMO-RS', 'screening']:
