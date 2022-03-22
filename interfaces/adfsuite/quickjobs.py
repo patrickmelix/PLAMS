@@ -1,9 +1,12 @@
 import os
 from ...mol.molecule import Molecule
 from .amsworker import AMSWorker
+from .ams import AMSJob
 from ...core.settings import Settings
+from ...core.functions import config, init, finish, delete_job
+import numpy as np
 
-__all__ = ['preoptimize', 'refine_density']
+__all__ = ['preoptimize', 'refine_density', 'refine_lattice']
 
 def preoptimize(molecule: Molecule, model:str='UFF', settings:Settings=None, nproc:int=1, maxiterations:int=100):
     """
@@ -91,6 +94,99 @@ def refine_density(molecule: Molecule, density:float, step_size=50, model:str='U
 
     return output_molecule
 
+
+def refine_lattice(molecule: Molecule, lattice, n_points=None, max_strain=0.15, model:str='UFF', settings:Settings=None, nproc:int=1, maxiterations:int=10):
+    """
+
+        Returns a ``Molecule`` for which the lattice of the ``molecule`` is
+        transformed to ``lattice``, by performing short geometry optimizations
+        (each for at most ``maxiterations``) on gradually distorted lattices
+        (linearly interpolating from the original lattice to the new lattice
+        using ``n_points`` points).
+
+        This can be useful for transforming an orthorhombic box of a liquid
+        into a non-orthorhombic box of a liquid, where the gradual transformation
+        of the lattice ensures that the molecules do not become too distorted.
+
+        If init() has been called before calling this function, the job will be run in
+        the current PLAMS working directory and will be deleted when the job finishes.
+
+        Returns: a Molecule with the requested lattice. If the refinement
+        fails, ``None`` is returned.
+
+        molecule: Molecule
+            The initial molecule
+        lattice: list of list of float
+            List with 1, 2, or 3 elements. Each element is a list of float with 3 elements each. For example, ``lattice=[[10, 0, 0],[-5, 5, 0],[0, 0, 12]]``.
+        n_points: None or int >=2
+            Number of points used for the linear interpolation. If None, n_points will be chosen such that the maximum strain for any step is at most ``max_strain`` compared to the original lattice vector lengths. 
+        max_strain: float
+            Only if ``n_points=None``, use this value to determine the maximum allowed strain from one step to the next (as a fraction of the length of the original lattice vectors).
+        model: str
+            e.g. 'UFF'
+        settings: Settings
+            Engine settings (overrides ``model``)
+        nproc: int
+            Number of processes used by the job
+        maxiterations: int
+            maximum number of iterations for the geometry optimizations.
+
+    """
+    assert len(lattice) == len(molecule.lattice), f"Different number of lattice vectors: len(molecule.lattice) = {len(molecule.lattice)}, len(lattice) = {len(lattice)}"
+    assert all(len(x) == 3 for x in lattice), f"Lattice vectors must have three components. Lattice: {lattice}"
+    assert all(len(x) == 3 for x in molecule.lattice), f"Lattice vectors must have three components. Lattice: {lattice}"
+    assert len(lattice) >= 1 and len(lattice) <= 3, f"{len(lattice)} lattice vectors given but must be between 1 and 3. Lattice: {lattice}"
+
+    def lattice2str(latt):
+        return '\n'.join(' '.join(str(j) for j in i) for i in latt)
+
+
+    from_lattice = lattice2str(molecule.lattice)
+    to_lattice = lattice2str(lattice)
+
+    if n_points is None:
+        lat1 = np.array(molecule.lattice)
+        lat2 = np.array(lattice)
+        strain = np.linalg.norm(lat2, axis=1) / np.linalg.norm(lat1, axis=1)
+        n_points = np.ceil(np.max(np.abs(strain-1) / max_strain ))
+        n_points = int(max(n_points, 2))
+
+    assert n_points >=2, f"Expected n_points >=2, but received {n_points}"
+
+    called_plams_init = _ensure_init()
+
+    s = _get_quick_settings(model, settings, nproc)
+    s.input.ams.task = 'PESScan'
+    s.input.ams.PESScan.ScanCoordinate.FromLattice._1 = lattice2str(molecule.lattice)
+    s.input.ams.PESScan.ScanCoordinate.ToLattice._1 = lattice2str(lattice)
+    s.input.ams.PESScan.ScanCoordinate.NPoints = n_points
+    s.input.ams.GeometryOptimization.MaxIterations = maxiterations
+    s.input.ams.GeometryOptimization.PretendConverged = 'Yes'
+
+    job = AMSJob(settings=s, molecule=molecule, name='refine_density')
+    job.run()
+
+    final_molecule = None
+    if job.ok():
+        results = job.results.get_pesscan_results(molecules=True)
+        final_molecule = results['Molecules'][-1]
+
+    delete_job(job)
+
+    if called_plams_init:
+        finish()
+
+    return final_molecule
+
+def _ensure_init():
+    if config.init:
+        called_plams_init = False
+    else:
+        init()
+        config.erase_workdir = True
+        called_plams_init = True
+
+    return called_plams_init
 
 def model_to_settings(model:str):
     """
