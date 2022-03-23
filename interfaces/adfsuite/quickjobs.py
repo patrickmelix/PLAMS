@@ -184,6 +184,7 @@ def _ensure_init():
     else:
         init()
         config.erase_workdir = True
+        config.log.stdout = 0
         called_plams_init = True
 
     return called_plams_init
