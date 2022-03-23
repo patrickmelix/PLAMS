@@ -182,9 +182,10 @@ def _ensure_init():
     if config.init:
         called_plams_init = False
     else:
-        init()
-        config.erase_workdir = True
-        config.log.stdout = 0
+        s = Settings()
+        s.erase_workdir = True
+        s.log.stdout = 0
+        init(config_settings=s)
         called_plams_init = True
 
     return called_plams_init

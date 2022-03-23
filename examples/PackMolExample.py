@@ -1,5 +1,5 @@
 #!/usr/bin/env amspython
-from scm.plams import from_smiles, packmol_liquid, packmol_mixture, packmol_solid_liquid, packmol_solid_liquid_mixture, fromASE
+from scm.plams import from_smiles, packmol_liquid, packmol_mixture, packmol_solid_liquid, packmol_solid_liquid_mixture, fromASE, refine_lattice
 from ase.build import fcc111
 
 def printsummary(mol):
@@ -30,6 +30,21 @@ def main():
     out = packmol_liquid(water, n_molecules=64, box_bounds=[0., 0., 0., 12., 13., 14.])
     printsummary(out)
     out.write('water-4.xyz')
+
+    print('water-5.xyz: pure liquid in non-orthorhombic box (requires AMS2022 or later)')
+    # first place the molecules in a cube surrounding the desired lattice
+    # then gradually change into the desired lattice using refine_lattice()
+    # note that the molecules may become distorted by this procedure
+    lattice = [[10., 2., -1.], [-5., 8., 0.], [0., -2., 11.]]
+    temp_out = packmol_liquid(water, n_molecules=32, box_bounds=[
+        0, 0, 0,
+        max(lattice[i][0] for i in range(3))-min(lattice[i][0] for i in range(3)),
+        max(lattice[i][1] for i in range(3))-min(lattice[i][1] for i in range(3)),
+        max(lattice[i][2] for i in range(3))-min(lattice[i][2] for i in range(3))
+    ])
+    out = refine_lattice(temp_out, lattice=lattice)
+    if out is not None:
+        out.write('water-5.xyz')
 
     # MIXTURES
     x_water = 0.666                # mole fraction
