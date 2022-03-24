@@ -827,9 +827,9 @@ class AMSResults(Results):
                     lines += [f"  +- {self._landscape._states[iState]}"]
 
                     if( i == len(self.connections)-1 ):
-                        lines += [f"     Prefactors: {self.adsorptionPrefactors[iState]:.3E}:{self.desorptionPrefactors[iState]:.3E}"]
+                        lines += [f"     Prefactors: {self.adsorptionPrefactors[i]:.3E}:{self.desorptionPrefactors[i]:.3E}"]
                     else:
-                        lines += [f"  |  Prefactors: {self.adsorptionPrefactors[iState]:.3E}:{self.desorptionPrefactors[iState]:.3E}"]
+                        lines += [f"  |  Prefactors: {self.adsorptionPrefactors[i]:.3E}:{self.desorptionPrefactors[i]:.3E}"]
                 return "\n".join(lines)
 
 
@@ -880,17 +880,26 @@ class AMSResults(Results):
             for iFState in range(nFragmentedStates):
                 iEnergy = sec['fStatesEnergy('+str(iFState+1)+')']
                 iNFragments = sec['fStatesNFragments('+str(iFState+1)+')']
-                iComposition = [ i-1 for i in sec['fStatesComposition('+str(iFState+1)+')'] ]
+
+                value = sec['fStatesComposition('+str(iFState+1)+')']
+                iComposition = [i-1 for i in value] if isinstance(value,list) else [value-1]
+
                 iNConnections = sec['fStatesNConnections('+str(iFState+1)+')']
-                iConnections = [ i-1 for i in sec['fStatesConnections('+str(iFState+1)+')'] ]
-                iAdsorptionPrefactors = sec['fStatesAdsorptionPrefactors('+str(iFState+1)+')']
-                iDesorptionPrefactors = sec['fStatesDesorptionPrefactors('+str(iFState+1)+')']
+
+                value = sec['fStatesConnections('+str(iFState+1)+')']
+                iConnections = [i-1 for i in value] if isinstance(value,list) else [value-1]
+
+                value = sec['fStatesAdsorptionPrefactors('+str(iFState+1)+')']
+                iAdsorptionPrefactors = value if isinstance(value,list) else [value]
+
+                value = sec['fStatesDesorptionPrefactors('+str(iFState+1)+')']
+                iDesorptionPrefactors = value if isinstance(value,list) else [value]
 
                 self._fstates.append(AMSResults.EnergyLandscape.FragmentedState(self, iEnergy, iComposition, iConnections, iAdsorptionPrefactors, iDesorptionPrefactors))
 
         @property
         def minima(self):
-            return [s for s in self._states if not s.isTS ]
+            return [s for s in self._states if not s.isTS]
 
         @property
         def transition_states(self):
@@ -905,8 +914,8 @@ class AMSResults(Results):
             return [fs for fs in self._fstates]
 
         def __str__(self):
-            lines  = [ 'All stationary points:' ]
-            lines += ['======================' ]
+            lines  = ['All stationary points:']
+            lines += ['======================']
             for s in self._states: lines += [ str(s) ]
             for f in self._fragments: lines += [ str(f) ]
             for fs in self._fstates: lines += [ str(fs) ]
