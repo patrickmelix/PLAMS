@@ -2476,6 +2476,7 @@ class Molecule:
     @staticmethod
     def _mol_from_rkf_section(sectiondict):
         """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
+        from ..interfaces.adfsuite.ams import AMSJob
 
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
@@ -2525,7 +2526,8 @@ class Molecule:
                 # AMS<=2019: Separated with new line characters
                 suffixes = sectiondict['EngineAtomicInfo'].splitlines()
             for at, suffix in zip(ret, suffixes):
-                at.properties.suffix = suffix
+                if suffix:
+                    at.properties.soft_update(AMSJob._atom_suffix_to_settings(suffix))
         return ret
 
     def readrkf(self, filename, section='Molecule', **other):

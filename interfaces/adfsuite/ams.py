@@ -1289,7 +1289,7 @@ class AMSJob(SingleJob):
                 log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self._full_name()), 3)
 
             newsystem.Atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
-                    suffix=(atom.properties.suffix if 'suffix' in atom.properties else '')) for atom in molecule]
+                                           suffix=self._atom_suffix(atom)) for atom in molecule]
 
             if molecule.lattice:
                 newsystem.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
@@ -1310,7 +1310,6 @@ class AMSJob(SingleJob):
 
         return ret
 
-
     #=========================================================================
 
     def get_task(self):
@@ -1318,6 +1317,52 @@ class AMSJob(SingleJob):
         if isinstance(self.settings, Settings) and 'input' in self.settings and 'ams' in self.settings.input and 'task' in self.settings.input.ams:
             return self.settings.input.ams.task
         return None
+
+
+    @staticmethod
+    def _atom_suffix(atom):
+        """Return the suffix of an atom. Combines both ``properties.suffix`` as well as the other properties in a format that is suitable for inclusion in the AMSuite input."""
+
+        # Build key-value dictionary from properties
+        keyval_dict = {}
+        def serialize(sett, prefix=''):
+            for key, val in sett.items():
+                if prefix == '' and key.lower() in ['suffix', 'ghost', 'name']:
+                    # Special atomic properties that are handled by _atom_symbol() already.
+                    # Suffix handled explicitly below ...
+                    continue
+                if isinstance(val, Settings):
+                    # Recursively serialize nested Settings object
+                    serialize(val, prefix+key+'.')
+                    continue
+                elif isinstance(val, list):
+                    # Lists are converted to a comma separated string of elements
+                    val = ",".join( str(v) for v in val )
+                elif isinstance(val, set):
+                    # Sets are converted to a *sorted* comma separated string of elements
+                    val = ",".join( str(v) for v in sorted(val) )
+                key = prefix+key
+                if not isinstance(val, str): val = str(val)
+                if '\n' in val:
+                    raise ValueError(f"String representation of atomic property {key} may not include line breaks")
+                if '{' in val or '}' in val:
+                    raise ValueError(f"String representation of atomic property {key} may not include curly brackets: {val}")
+                if ' ' in val:
+                    # Ensure that space containing values are quoted
+                    if   '"' not in val:
+                        val = '"'+val+'"'
+                    elif "'" not in val:
+                        val = "'"+val+"'"
+                    else:
+                        raise ValueError(f"Atomic property {key} can not include both single and double quotes: {val}")
+                keyval_dict[key] = str(val)
+        serialize(atom.properties)
+
+        # Assemble and return complete suffix string
+        ret = " ".join( f"{key}={val}" for key,val in keyval_dict.items() )
+        if 'suffix' in atom.properties:
+            ret += " "+str(atom.properties.suffix)
+        return ret.strip()
 
 
     @staticmethod
@@ -1500,19 +1545,20 @@ class AMSJob(SingleJob):
                 mol = Molecule()
                 for atom in settings_block.atoms._1:
                     # Extract arguments for Atom()
-                    symbol, x, y, z, *comment = atom.split(maxsplit=4)
-                    kwargs = {} if not comment else {'suffix': comment[0]}
+                    symbol, x, y, z, *suffix = atom.split(maxsplit=4)
                     coords = float(x), float(y), float(z)
 
                     try:
-                        at = Atom(symbol=symbol, coords=coords, **kwargs)
+                        at = Atom(symbol=symbol, coords=coords)
                     except PTError:  # It's either a ghost atom and/or an atom with a custom name
+                        kwargs = {}
                         if symbol.startswith('Gh.'):  # Ghost atom
-                            kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
+                            kwargs['ghost'] = True
+                            _, symbol = symbol.split('.', maxsplit=1)
                         if '.' in symbol:  # Atom with a custom name
                             symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
                         at = Atom(symbol=symbol, coords=coords, **kwargs)
-
+                    if suffix: at.properties.soft_update(AMSJob._atom_suffix_to_settings(suffix[0]))
                     mol.add_atom(at)
 
                 # Set the lattice vector if applicable
@@ -1521,13 +1567,10 @@ class AMSJob(SingleJob):
 
             # Add bonds
             for bond in settings_block.bondorders._1:
-                _at1, _at2, _order, *bondprops = bond.split()
+                _at1, _at2, _order, *suffix = bond.split(maxsplit=3)
                 at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
                 plams_bond = Bond(at1,at2,order=order)
-                # Add bond properties as string if present (used in ACErxn)
-                if len(bondprops) > 0 :
-                    suffix = ' '.join(bondprops)
-                    plams_bond.properties.suffix = suffix
+                if suffix: plams_bond.properties.suffix = suffix[0]
                 mol.add_bond(plams_bond)
 
             # Set the molecular charge
@@ -1561,3 +1604,71 @@ class AMSJob(SingleJob):
             moldict[key] = read_mol(settings_block)
 
         return moldict
+
+
+    @staticmethod
+    def _atom_suffix_to_settings(suffix) -> Settings:
+
+        def is_int(s):
+            if '.' in s:
+                return False
+            try:
+                return int(s) == float(s)
+            except ValueError:
+                return False
+
+        def is_float(s):
+            try:
+                float(s)
+                return True
+            except ValueError:
+                return False
+
+        import shlex
+        tokens = shlex.split(suffix)
+
+        # Remove possible spaces around = signs
+        i = 0
+        while i < len(tokens):
+            if tokens[i].endswith('='):
+                tokens[i] += tokens.pop(i+1)
+            elif tokens[i].startswith('='):
+                tokens[i-1] += tokens.pop(i)
+            else:
+                i += 1
+
+        properties = Settings()
+        for i,t in enumerate(tokens):
+            key, _, val = t.partition('=')
+            if not val:
+                # Token that is not a key=value pair? Let's accumulate those in the plain text suffix.
+                if 'suffix' in properties:
+                    properties.suffix += ' '+key
+                else:
+                    properties.suffix = key
+                continue
+            else:
+                # We have a value. Let's make an educated guess for its type.
+                if val.lower() == 'true':
+                    val = True
+                elif val.lower() == 'false':
+                    val = False
+                elif is_int(val):
+                    val = int(val)
+                elif is_float(val):
+                    val = float(val)
+                elif ',' in val:
+                    elem = val.split(',')
+                    if key.lower() == 'region':
+                        # For regions we will output a set instead of a list
+                        val = set(elem)
+                    elif all(is_int(i) for i in elem):
+                        val = [ int(i) for i in elem ]
+                    elif all(is_float(f) for f in elem):
+                        val = [ float(f) for f in elem ]
+                    else:
+                        # Anything else will come out as a list of strings
+                        val = elem
+            properties.set_nested(key.split('.'), val)
+
+        return properties

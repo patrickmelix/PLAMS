@@ -91,7 +91,7 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
             plams_mol.bonds[-1].properties.stereo = 'down'
 
     # Set charge and assign properties to PLAMS molecule and bonds if *properties* = True
-    plams_mol.charge = total_charge
+    plams_mol.properties.charge = total_charge
     if properties:
         prop_from_rdmol(plams_mol, rdkit_mol)
         for rd_atom, plams_atom in zip(rdkit_mol.GetAtoms(), plams_mol):
@@ -331,7 +331,6 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
-
     if isinstance(mol, Molecule):
         rdkit_mol = to_rdmol(mol,assignChirality=enforceChirality)
     else:
