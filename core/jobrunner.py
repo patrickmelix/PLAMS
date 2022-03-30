@@ -123,16 +123,6 @@ class JobRunner(metaclass=_MetaRunner):
         return process.returncode
 
 
-    @_limit
-    def call_function(self, function, args) :
-        """
-        Execute the function that needs to be scheduled by the jobrunner. 
-
-        This is wrapped by the _limit() function, so that no more than maxjobs processes can run at the same time
-        """
-        return function(*args)
-
-
     @_in_limited_thread
     def _run_job(self, job, jobmanager):
         """_run_job(job, jobmanager)
@@ -147,22 +137,6 @@ class JobRunner(metaclass=_MetaRunner):
         finally:
             if self.parallel and self._jobthread_limit:
                 self._jobthread_limit.release()
-
-    @_in_limited_thread
-    def _run_job_with_args(self, job, jobmanager, args, args_fin):
-        """_run_job(job, jobmanager)
-        This method aggregates the parts of :ref:`job-life-cycle` that are supposed to be run in a separate thread in case of parallel job execution. It is wrapped with :func:`_in_limited_thread` decorator.
-
-        This method should not be overridden.
-        """
-        try:
-            if job._prepare(jobmanager):
-                exc = job._execute(self,*args)
-                job._finalize(*args_fin, exc)
-        finally:
-            if self.parallel and self._jobthread_limit:
-                self._jobthread_limit.release()
-
 
 
 

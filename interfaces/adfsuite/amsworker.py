@@ -13,7 +13,6 @@ import numpy as np
 import collections
 from typing import *
 from ..molecule.ase import toASE
-from ...core.jobrunner import JobRunner
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -341,13 +340,11 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
-    def __init__(self, settings, workerdir_root=TMPDIR, workerdir_prefix='amsworker', use_restart_cache=True,
-                 keep_crashed_workerdir=False, reuse_system=False):
+    def __init__(self, settings, workerdir_root=TMPDIR, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=False):
 
         self.PyProtVersion = 1
         self.timeout = 2.0
         self.use_restart_cache = use_restart_cache
-        self.reuse_system = reuse_system
 
         # We'll initialize these communication related variables to None for now.
         # They will be overwritten when we actually start things up, but we do
@@ -379,7 +376,7 @@ class AMSWorker:
         self.wd_root   = workerdir_root
         self.wd_prefix = workerdir_prefix+'_'
         self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
-        self._finalization = weakref.finalize(self, shutil.rmtree, self.workerdir)
+        self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
         self.keep_wd   = keep_crashed_workerdir
 
         # Start the worker process.
@@ -550,6 +547,7 @@ class AMSWorker:
 
         This method should be called when the |AMSWorker| instance is not used as a context manager and the instance is no longer needed. Otherwise proper cleanup is not guaranteed to happen, the worker process might be left running and files might be left on disk.
         """
+
         stdout  = None
         stderr  = None
 
@@ -621,9 +619,9 @@ class AMSWorker:
 
         if keep_workerdir:
             # Keep the current workerdir and move to a new one
-            self._finalization.detach()
+            self._finalize.detach()
             self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
-            self._finalization = weakref.finalize(self, shutil.rmtree, self.workerdir)
+            self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
         else:
             # Remove the contents of the worker directory.
             for filename in os.listdir(self.workerdir):
@@ -700,7 +698,7 @@ class AMSWorker:
     def _solve_from_settings(self, name, molecule, settings):
         args = AMSWorker._settings_to_args(settings)
         if args['task'].lower() == 'geometryoptimization':
-            args['gradients'] = True # need to explicitly set gradients to True to get them in the AMSWorkerReults
+            args['gradients'] = True # need to explicitly set gradients to True to get them in the AMSWorkerResults
             if args.get('optimizelattice', False):
                 args['stresstensor'] = True
         return self._solve(name, molecule, **args)
@@ -721,33 +719,25 @@ class AMSWorker:
             # This is a good opportunity to let the worker process know about all the results we no longer need ...
             self._prune_restart_cache()
 
-            if self.reuse_system and self.use_restart_cache and prev_results is not None and prev_results.name in self.restart_cache :
-                self._call('SetCoords', {"coords": molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')})
-                if molecule.lattice:
-                    cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                    self._call("SetLattice", {"vectors": cell})
-                else:
-                    self._call("SetLattice", {})
-            else :
-                chemicalSystem = {}
-                chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
-                chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
-                if 'charge' in molecule.properties:
-                    chemicalSystem['totalCharge'] = float(molecule.properties.charge)
-                else:
-                    chemicalSystem['totalCharge'] = 0.0
-                properties = [atom.properties.suffix if 'suffix' in atom.properties else '' for atom in molecule]
-                if len(''.join(properties)) > 0 :
-                    chemicalSystem['atomicInfo'] = np.asarray(properties)
-                if molecule.lattice:
-                    cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                    chemicalSystem["latticeVectors"] =  cell
-                if len(molecule.bonds) > 0 :    
-                    chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
-                    if len(chemicalSystem['bonds']) == 0 :
-                        chemicalSystem['bonds'] = np.zeros((0,2))
-                    chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
-                self._call("SetSystem", chemicalSystem)
+            chemicalSystem = {}
+            chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
+            chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
+            if 'charge' in molecule.properties:
+                chemicalSystem['totalCharge'] = float(molecule.properties.charge)
+            else:
+                chemicalSystem['totalCharge'] = 0.0
+            atomicInfo = [AMSJob._atom_suffix(atom) for atom in molecule]
+            if any(ai != '' for ai in atomicInfo):
+                chemicalSystem['atomicInfo'] = np.asarray(atomicInfo)
+            if molecule.lattice:
+                cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
+                chemicalSystem["latticeVectors"] =  cell
+            if molecule.bonds:
+                chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
+                if len(chemicalSystem['bonds']) == 0:
+                    chemicalSystem['bonds'] = np.zeros((0,2))
+                chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
+            self._call("SetSystem", chemicalSystem)
 
             args = {
                 "request": { "title": str(name) },
@@ -976,6 +966,7 @@ class AMSWorker:
                 results.append(msg)
 
 
+
 class AMSWorkerPool:
     """A class representing a pool of AMS worker processes.
 
@@ -1002,42 +993,15 @@ class AMSWorkerPool:
 
     """
 
-    def __init__(self, settings, num_workers=None, jobrunner=None, jobmanager=None, workerdir_root=TMPDIR, workerdir_prefix='awp',
-                 keep_crashed_workerdir=False, reuse_system=False):
-
-        if jobmanager is None:
-            if 'default_jobmanager' in config:
-                jobmanager = config.default_jobmanager
-            else:
-                # The jobmanager is not currently used for anything anyway
-                jobmanager = None
-                #raise PlamsError('No default jobmanager found. This probably means that PLAMS init() was not called.')
-        self.jobmanager = jobmanager
-
-        # Choose the number of workers based on jobrunner first, num_workers second
-        if jobrunner is None :
-            if num_workers is not None :
-                if num_workers == 1 :
-                    jobrunner = JobRunner(parallel=False, maxjobs=num_workers) 
-                else :  
-                    jobrunner = JobRunner(parallel=True, maxjobs=num_workers)
-            else :
-                if 'default_jobrunner' in config:
-                    jobrunnner = config,default_jobrunner
-                else :
-                    raise PlamsError('No default jobrunner found. This probably means that PLAMS init() was not called.')
-        self.jobrunner = jobrunner
-        num_workers = 1
-        if jobrunner.parallel :
-            num_workers = jobrunner.maxjobs
+    def __init__(self, settings, num_workers, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
 
         self.workers = num_workers * [None]
         if num_workers == 1:
             # Do all the work in the main thread
-            AMSWorkerPool._spawn_worker(self.workers, settings, 0, workerdir_root, workerdir_prefix, keep_crashed_workerdir, reuse_system)
+            AMSWorkerPool._spawn_worker(self.workers, settings, 0, workerdir_root, workerdir_prefix, keep_crashed_workerdir)
         else:
             # Spawn all workers from separate threads to overlap the ams.exe startup latency
-            threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir, reuse_system))
+            threads = [ threading.Thread(target=AMSWorkerPool._spawn_worker, args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir))
                         for i in range(num_workers) ]
             for t in threads: t.start()
             for t in threads: t.join()
@@ -1046,11 +1010,8 @@ class AMSWorkerPool:
 
 
     @staticmethod
-    def _spawn_worker(workers, settings, i, wdr, wdp, keep_crashed_workerdir, reuse_system):
-        use_restart_cache = False
-        if reuse_system :
-                use_restart_cache = True
-        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=use_restart_cache, keep_crashed_workerdir=keep_crashed_workerdir, reuse_system=reuse_system)
+    def _spawn_worker(workers, settings, i, wdr, wdp, keep_crashed_workerdir):
+        workers[i] = AMSWorker(settings, workerdir_root=wdr, workerdir_prefix=f'{wdp}_{i}', use_restart_cache=False, keep_crashed_workerdir=keep_crashed_workerdir)
 
 
     def __enter__(self):
@@ -1062,9 +1023,11 @@ class AMSWorkerPool:
 
         The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`_solve_from_settings <AMSWorker._solve_from_settings>` method of the pool's |AMSWorker| instances.
         """
-        if not self.jobrunner.parallel :
 
-            # Do all the work in the main thread (REB: should be removed. Jobrunner should handle this as well)
+
+        if len(self.workers) == 1:
+
+            # Do all the work in the main thread
             results = [ self.workers[0]._solve_from_settings(name, mol, settings) for name, mol, settings in items ]
 
         else:
@@ -1072,13 +1035,9 @@ class AMSWorkerPool:
             # Build a queue of things to do and spawn threads that grab from from the queue in parallel
             results = [None]*len(items)
             q = queue.Queue()
-            events = [threading.Event() for _ in self.workers]
 
-            # Call jobrunner._run_job several times. That will start the threads
-            for i, worker in enumerate(self.workers) :
-                self.jobrunner._run_job_with_args(self, self.jobmanager, (worker, q, results),(events[i],))
-            #threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
-            #for t in threads: t.start()
+            threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
+            for t in threads: t.start()
 
             for i, item in enumerate(items):
                 if len(item) == 3:
@@ -1087,15 +1046,8 @@ class AMSWorkerPool:
                     raise JobError('AMSWorkerPool._solve_from_settings expects a list containing only 3-tuples (name, molecule, settings).')
                 q.put((i, name, mol, settings))
 
-            for i in range(len(self.workers)) : q.put(None) # signal for the thread to end
-
-            # Wait till the processes are finished
-            # Later I want to move this to the results object
-            # Then I have to make sure that the __exit__ method also waits for the worker to be done
-            for done in events :
-                done.wait()
-
-            #print ('All workers are done')
+            for t in threads: q.put(None) # signal for the thread to end
+            for t in threads: t.join()
 
         return results
 
@@ -1147,6 +1099,20 @@ class AMSWorkerPool:
         return self._solve_from_settings(solve_items)
 
 
+
+    @staticmethod
+    def _execute_queue(worker, q, results):
+        while True:
+            item = q.get()
+            try:
+                if item is None:
+                    break
+                i, name, mol, settings = item
+                results[i] = worker._solve_from_settings(name, mol, settings)
+            finally:
+                q.task_done()
+
+
     def stop(self):
         """Stops the all worker processes and removes their working directories.
 
@@ -1158,57 +1124,3 @@ class AMSWorkerPool:
 
     def __exit__(self, *args):
         self.stop()
-
-    @staticmethod
-    def _execute_queue(worker, q, results):
-        """
-        This function will handle all tasks in the queue, before finishing.
-
-        Note: To be wrapped by the jobrunner
-        """
-        exc = None
-        prev_results = None
-        while True:
-            item = q.get()
-            try:
-                if item is None:
-                    break
-                i, name, mol, settings = item
-                # Reuse the previous results, to minimize the work
-                s = worker._args_to_settings(prev_results=prev_results)
-                for key in s.keys() :
-                    settings[key] = s[key]
-                results[i] = worker._solve_from_settings(name, mol, settings)
-                prev_results = results[i]
-            except Exception as exc :
-                return exc
-
-
-    def _prepare(self, jobmanager) :
-        """
-        Prepare for a task for this worker
-
-        Called by jobrunner._run_job()
-        """
-        # For now I am bypassing the jobmanager completely
-        return True
-
-
-    def _execute(self, jobrunner, worker, q, results) :
-        """
-        To be called by jobrunner._run_job. Does nothing else than call the relevant jobrunner call() method
-        (from within a thread created by the jobrunner).
-        """
-        return jobrunner.call_function(self._execute_queue, args=(worker, q, results))
-
-
-    def _finalize(self, done, exc) :
-        """
-        Set the event (self.done) that signals the job is over.
-
-        Called by jobrunner._run_job()
-        """
-        done.set()
-        if exc is not None :
-            raise exc
-
