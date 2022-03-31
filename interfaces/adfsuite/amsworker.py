@@ -3,6 +3,7 @@ import shutil
 import signal
 import subprocess
 import time
+import datetime
 import threading
 import queue
 import struct
@@ -1018,25 +1019,48 @@ class AMSWorkerPool:
         return self
 
 
-    def _solve_from_settings(self, items):
+    def _solve_from_settings(self, items, watch=False, watch_interval=60):
         """Request to pool to execute calculations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects.
 
         The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`_solve_from_settings <AMSWorker._solve_from_settings>` method of the pool's |AMSWorker| instances.
+
+        If *watch* is set to ``True``, the AMSWorkerPool will regularly log progress information. The interval between messages can be set with the *watch_interval* argument in seconds.
         """
 
-
-        if len(self.workers) == 1:
-
-            # Do all the work in the main thread
-            results = [ self.workers[0]._solve_from_settings(name, mol, settings) for name, mol, settings in items ]
-
+        if watch:
+            progress_data = {
+                "starttime" : time.time(),
+                "lock"      : threading.Lock(),
+                "done_event": threading.Event(),
+                "num_jobs"  : len(items),
+                "num_done"  : 0
+            }
+            pmt = threading.Thread(target=AMSWorkerPool._progress_monitor, args=(progress_data, watch_interval))
+            if (all(s.input.ams.task.lower() == 'singlepoint' for _,_,s in items)):
+                tasks = 'single point calculations'
+            elif (all(s.input.ams.task.lower() == 'geometryoptimization' for _,_,s in items)):
+                tasks = 'geometry optimizations'
+            else:
+                tasks = 'jobs'
+            log(f"Running {len(items)} {tasks} with {len(self.workers)} worker{'s' if len(self.workers)>1 else ''}")
+            pmt.start()
         else:
+            progress_data = None
 
-            # Build a queue of things to do and spawn threads that grab from from the queue in parallel
+        if len(self.workers) == 1: # Do all the work in the main thread
+
+            results = []
+            for name, mol, settings in items:
+                results.append(self.workers[0]._solve_from_settings(name, mol, settings))
+                if watch:
+                    progress_data['num_done'] += 1
+
+        else: # Build a queue of things to do and spawn threads that grab from from the queue in parallel
+
             results = [None]*len(items)
             q = queue.Queue()
 
-            threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
+            threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results, progress_data)) for i in range(len(self.workers)) ]
             for t in threads: t.start()
 
             for i, item in enumerate(items):
@@ -1049,7 +1073,31 @@ class AMSWorkerPool:
             for t in threads: q.put(None) # signal for the thread to end
             for t in threads: t.join()
 
+        if watch:
+            progress_data['done_event'].set()
+            pmt.join()
+            log(f"All {len(items)} {tasks} done! Total runtime: {datetime.timedelta(seconds=round(time.time()-progress_data['starttime']))}s")
+
         return results
+
+
+    @staticmethod
+    def _progress_monitor(pd, t):
+        width = len(str(pd['num_jobs']))
+        while True:
+            with pd['lock']:
+                num_done = pd['num_done']
+            percent_done = 100.0 * num_done / pd['num_jobs']
+            if percent_done > 5.0:
+                dt = time.time()-pd['starttime']
+                dtrem = dt / percent_done * (100 - percent_done)
+                dtrem = datetime.timedelta(seconds=round(dtrem))
+                trem = f", {dtrem}s remaining"
+            else:
+                trem = ''
+            log(f"{str(num_done).rjust(width)} / {pd['num_jobs']} jobs finished:{percent_done:5.1f}%{trem}")
+            if pd['done_event'].wait(timeout=t):
+                break
 
 
     def _prep_solve_from_settings(self, method, items):
@@ -1071,10 +1119,12 @@ class AMSWorkerPool:
         return solve_items
 
 
-    def SinglePoints(self, items):
+    def SinglePoints(self, items, watch=False, watch_interval=60):
         """Request to pool to execute single point calculations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects.
 
         The *items* argument is expected to be an iterable of 2-tuples ``(name, molecule)`` and/or 3-tuples ``(name, molecule, kwargs)``, which are passed on to the :meth:`SinglePoint <AMSWorker.SinglePoint>` method of the pool's |AMSWorker| instances. (Here ``kwargs`` is a dictionary containing the optional keyword arguments and their values for this method.)
+
+        If *watch* is set to ``True``, the AMSWorkerPool will regularly log progress information. The interval between messages can be set with the *watch_interval* argument in seconds.
 
         As an example, the following call would do single point calculations with gradients and (only for periodic systems) stress tensors for all |Molecule| instances in the dictionary ``molecules``.
 
@@ -1086,22 +1136,24 @@ class AMSWorkerPool:
                                           }) for name in sorted(molecules) ])
         """
         solve_items = self._prep_solve_from_settings('SinglePoint', items)
-        return self._solve_from_settings(solve_items)
+        return self._solve_from_settings(solve_items, watch, watch_interval)
 
 
 
-    def GeometryOptimizations(self, items):
+    def GeometryOptimizations(self, items, watch=False, watch_interval=60):
         """Request to pool to execute geometry optimizations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects for the optimized geometries.
+
+        If *watch* is set to ``True``, the AMSWorkerPool will regularly log progress information. The interval between messages can be set with the *watch_interval* argument in seconds.
 
         The *items* argument is expected to be an iterable of 2-tuples ``(name, molecule)`` and/or 3-tuples ``(name, molecule, kwargs)``, which are passed on to the :meth:`GeometryOptimization <AMSWorker.GeometryOptimization>` method of the pool's |AMSWorker| instances. (Here ``kwargs`` is a dictionary containing the optional keyword arguments and their values for this method.)
         """
         solve_items = self._prep_solve_from_settings('GeometryOptimization', items)
-        return self._solve_from_settings(solve_items)
+        return self._solve_from_settings(solve_items, watch, watch_interval)
 
 
 
     @staticmethod
-    def _execute_queue(worker, q, results):
+    def _execute_queue(worker, q, results, progress_data=None):
         while True:
             item = q.get()
             try:
@@ -1109,6 +1161,9 @@ class AMSWorkerPool:
                     break
                 i, name, mol, settings = item
                 results[i] = worker._solve_from_settings(name, mol, settings)
+                if progress_data:
+                    with progress_data['lock']:
+                        progress_data['num_done'] += 1
             finally:
                 q.task_done()
 
