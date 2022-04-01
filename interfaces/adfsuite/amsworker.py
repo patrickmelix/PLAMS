@@ -1085,6 +1085,8 @@ class AMSWorkerPool:
     def _progress_monitor(pd, t):
         width = len(str(pd['num_jobs']))
         while True:
+            if pd['done_event'].wait(timeout=t):
+                break
             with pd['lock']:
                 num_done = pd['num_done']
             percent_done = 100.0 * num_done / pd['num_jobs']
@@ -1096,8 +1098,6 @@ class AMSWorkerPool:
             else:
                 trem = ''
             log(f"{str(num_done).rjust(width)} / {pd['num_jobs']} jobs finished:{percent_done:5.1f}%{trem}")
-            if pd['done_event'].wait(timeout=t):
-                break
 
 
     def _prep_solve_from_settings(self, method, items):
