@@ -389,7 +389,7 @@ class AMSWorker:
         # We will use the standard PLAMS AMSJob class to prepare our input and runscript.
         amsjob = AMSJob(name='amsworker', settings=self.settings)
         if 'runscript' in amsjob.settings and 'nproc' in amsjob.settings.runscript and amsjob.settings.runscript.nproc == 1:
-            amsjob.settings.runscript.preamble_lines = amsjob.settings.runscript.get('preamble_lines', []) + ['export AMS_FORCE_DIRECT_SERIAL_EXECUTION=1']
+            amsjob.settings.runscript.preamble_lines = amsjob.settings.runscript.get('preamble_lines', []) + ['export SCM_DISABLE_MPI=1']
         with open(os.path.join(self.workerdir, 'amsworker.in'), 'w') as input_file:
             input_file.write(amsjob.get_input())
         with open(os.path.join(self.workerdir, 'amsworker.run'), 'w') as runscript:
