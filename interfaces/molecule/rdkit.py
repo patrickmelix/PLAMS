@@ -339,7 +339,7 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
 
 
 def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False, useExpTorsionAnglePrefs='default', constraint_ats=None,
-                        EmbedParameters='EmbedParameters'):
+                        EmbedParameters='EmbedParameters', randomSeed=1):
     """
     Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
@@ -356,6 +356,7 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     :parameter str useExpTorsionAnglePrefs: Use experimental torsion angles preferences for the conformer generation by rdkit
     :parameter list constraint_ats: List of atom indices to be constrained
     :parameter str EmbedParameters: Name of RDKit EmbedParameters class ('EmbedParameters', 'ETKDG')
+    :parameter int randomSeed: The seed for the random number generator. If set to None the generated conformers will be non-deterministic.
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
@@ -396,7 +397,8 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     #param_obj = AllChem.ETKDG()
     param_obj = getattr(AllChem,EmbedParameters)()
     param_obj.pruneRmsThresh = rms
-    param_obj.randomSeed = 1
+    param_obj.randomSeed = randomSeed if randomSeed is not None else random.getrandbits(31)
+    print(param_obj.randomSeed, type(param_obj.randomSeed))
     param_obj.enforceChirality = enforceChirality
     if useExpTorsionAnglePrefs != 'default' : # The default (True of False) changes with rdkit versions
         param_obj.useExpTorsionAnglePrefs = True
