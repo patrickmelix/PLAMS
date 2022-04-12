@@ -398,7 +398,6 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     param_obj = getattr(AllChem,EmbedParameters)()
     param_obj.pruneRmsThresh = rms
     param_obj.randomSeed = randomSeed if randomSeed is not None else random.getrandbits(31)
-    print(param_obj.randomSeed, type(param_obj.randomSeed))
     param_obj.enforceChirality = enforceChirality
     if useExpTorsionAnglePrefs != 'default' : # The default (True of False) changes with rdkit versions
         param_obj.useExpTorsionAnglePrefs = True
