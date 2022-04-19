@@ -1076,7 +1076,7 @@ class AMSWorkerPool:
         if watch:
             progress_data['done_event'].set()
             pmt.join()
-            log(f"All {len(items)} {tasks} done! Total runtime: {datetime.timedelta(seconds=round(time.time()-progress_data['starttime']))}s")
+            log(f"All {len(items)} {tasks} done! Time taken: {datetime.timedelta(seconds=round(time.time()-progress_data['starttime']))}s")
 
         return results
 

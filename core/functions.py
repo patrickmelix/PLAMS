@@ -24,7 +24,7 @@ config.init = False
 #===========================================================================
 
 
-def init(path=None, folder=None, config_settings:Dict=None):
+def init(path=None, folder=None, config_settings:Dict=None, quiet=False):
     """Initialize PLAMS environment. Create global ``config`` and the default |JobManager|.
 
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
@@ -60,12 +60,13 @@ def init(path=None, folder=None, config_settings:Dict=None):
     from .jobmanager import JobManager
     config.default_jobmanager = JobManager(config.jobmanager, path, folder)
 
-    log('Running PLAMS located in {}'.format(dirname(dirname(__file__))), 5)
-    log('Using Python {}.{}.{} located in {}'.format(*sys.version_info[:3], sys.executable), 5)
-    log('PLAMS defaults were loaded from {}'.format(defaults), 5)
+    if not quiet:
+        log('Running PLAMS located in {}'.format(dirname(dirname(__file__))), 5)
+        log('Using Python {}.{}.{} located in {}'.format(*sys.version_info[:3], sys.executable), 5)
+        log('PLAMS defaults were loaded from {}'.format(defaults), 5)
 
-    log('PLAMS environment initialized', 5)
-    log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
+        log('PLAMS environment initialized', 5)
+        log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
 
     if "SLURM_JOB_ID" in os.environ:
        config.slurm = _init_slurm()
