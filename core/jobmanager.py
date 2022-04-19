@@ -67,11 +67,7 @@ class JobManager:
             n += 1
 
         self.workdir = opj(self.path, self.foldername)
-        scm_logfile = os.getenv("SCM_LOGFILE")
-        if not scm_logfile is None and os.path.isfile(scm_logfile):
-            self.logfile = scm_logfile
-        else:
-            self.logfile = opj(self.workdir, 'logfile')
+        self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self.workdir, 'logfile')
         self.input = opj(self.workdir, 'input')
         os.mkdir(self.workdir)
 
