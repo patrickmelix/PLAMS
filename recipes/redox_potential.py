@@ -1,10 +1,10 @@
 import os, sys
 from scm.plams import *
 
-__all__ = ['OxidationPotentialCalculator']
+__all__ = ['RedOxPotentialCalculator']
 
 
-class OxidationPotentialCalculator:
+class RedOxPotentialCalculator:
     def __init__(self, 
                  logfile = sys.stdout) -> None:
 
@@ -13,25 +13,14 @@ class OxidationPotentialCalculator:
 
 
     def __call__(self, *args, **kwargs) -> float:
-        return self.oxidation_potential(*args, **kwargs)
+        return self.redox_potential(*args, **kwargs)
 
 
     def set_default_settings(self) -> None:
-        #### DEFAULT SETTINGS, these can be changed after creating a new OxidationPotentialCalculator object
-        #default settings for pre-optimization using DFTB
-        self.pre_optimize_defaults = Settings()
-        self.pre_optimize_defaults.input.ams.task = 'GeometryOptimization' 
-        self.pre_optimize_defaults.input.ams.Properties.NormalModes           = 'Yes'
-        self.pre_optimize_defaults.input.ams.Properties.PESPointCharacter     = 'Yes'
-        self.pre_optimize_defaults.input.ams.NormalModes.ReScanFreqRange      = '-1000 0'
-        self.pre_optimize_defaults.input.ams.PESPointCharacter.NegativeFrequenciesTolerance = -20
-        self.pre_optimize_defaults.input.DFTB
-        self.pre_optimize_defaults.input.DFTB.Model           = "DFTB3" 
-        self.pre_optimize_defaults.input.DFTB.ResourcesDir    = 'DFTB.org/3ob-3-1'
-
+        #### DEFAULT SETTINGS, these can be changed after creating a new RedOxPotentialCalculator object
         #DFTB GO settings
         self.DFTB_defaults = Settings()
-        self.DFTB_defaults.input.ams.task       = 'GeometryOptimization'
+        self.DFTB_defaults.input.ams.task   = 'GeometryOptimization'
         self.DFTB_defaults.input.DFTB
         self.DFTB_defaults.input.DFTB.Model = "GFN1-xTB" 
 
@@ -40,18 +29,12 @@ class OxidationPotentialCalculator:
         self.DFT_defaults.input.ams.task             = 'GeometryOptimization'
         self.DFT_defaults.input.adf.basis.type       = 'TZ2P'
         self.DFT_defaults.input.adf.basis.core       = 'None'
-        # self.DFT_defaults.input.adf.SCF.converge     = '1e-7 1e-7'
-        # self.DFT_defaults.input.adf.SCF.mixing       = '0.015'
-        # self.DFT_defaults.input.adf.SCF.DIIS.N       = '25'
         self.DFT_defaults.input.adf.xc.hybrid        = 'B3LYP'
         self.DFT_defaults.input.adf.xc.Dispersion    = 'GRIMME3 BJDAMP'
         self.DFT_defaults.input.adf.Relativity.Level = 'None'
-        # self.DFT_defaults.input.ams.GeometryOptimization.Coordinatetype = 'Cartesian'
-        self.DFT_defaults.input.adf.NumericalQuality         = 'Good'
-        # self.DFT_defaults.input.adf.RIHartreeFock.UseMe      = 'Yes'
-        # self.DFT_defaults.input.adf.RIHartreeFock.Quality    = 'Normal'  
-        self.DFT_defaults.input.adf.Symmetry                 = 'NOSYM'
-        self.DFT_defaults.input.ams.UseSymmetry              = 'No'
+        self.DFT_defaults.input.adf.NumericalQuality = 'Good'
+        self.DFT_defaults.input.adf.Symmetry         = 'NOSYM'
+        self.DFT_defaults.input.ams.UseSymmetry      = 'No'
 
         #frequency calculation settings
         self.frequencies_defaults = Settings()
@@ -69,36 +52,18 @@ class OxidationPotentialCalculator:
         self.DFT_oxidized_defaults.input.adf.Unrestricted     = 'Yes'
         self.DFT_oxidized_defaults.input.adf.SpinPolarization = '1.0'
         self.DFT_oxidized_defaults.input.ams.System.Charge    = '1.0'
-
         #default settings for DFTB for oxidized molecules
         self.DFTB_oxidized_defaults = Settings()
-        self.DFTB_oxidized_defaults.input.ams.System.Charge    = '1.0'
+        self.DFTB_oxidized_defaults.input.ams.System.Charge   = '1.0'
 
-
-    def set_paths(self, 
-                  job_dir:str = os.getcwd()
-                  ) -> None:
-
-        #default paths
-        self.job_dir = job_dir
-        if not os.path.exists(job_dir):                 os.makedirs(job_dir)
-        self.log(f'Job directory:                             {job_dir}')
-
-        self.geo_preopt_dir     = os.path.join(job_dir,'Geometries', 'Preoptimization', 'Preopt_Geo')
-        if not os.path.exists(self.geo_preopt_dir):     os.makedirs(self.geo_preopt_dir)
-        self.log(f'Preoptimization geometry directory:        {self.geo_preopt_dir}')
-
-        self.not_geo_preopt_dir     = os.path.join(job_dir,'Geometries', 'Preoptimization', 'Not_Preopt_Geo')
-        if not os.path.exists(self.not_geo_preopt_dir): os.makedirs(self.not_geo_preopt_dir)
-        self.log(f'Failed preoptimization geometry directory: {self.not_geo_preopt_dir}')
-
-        self.geo_opt_dir    = os.path.join(job_dir,'Geometries', "Optimized_Geo")
-        if not os.path.exists(self.geo_opt_dir):        os.makedirs(self.geo_opt_dir)
-        self.log(f'DFT optimized geometry directory:          {self.geo_opt_dir}')
-
-        self.not_geo_opt_dir = os.path.join(job_dir,'Geometries', "Not_Optimized_Geo")
-        if not os.path.exists(self.not_geo_opt_dir):    os.makedirs(self.not_geo_opt_dir)
-        self.log(f'Failed DFT optimized geometry directory:   {self.not_geo_opt_dir}')
+        #default settings for reduced molecules
+        self.DFT_reduced_defaults = Settings()
+        self.DFT_reduced_defaults.input.adf.Unrestricted      = 'Yes'
+        self.DFT_reduced_defaults.input.adf.SpinPolarization  = '1.0'
+        self.DFT_reduced_defaults.input.ams.System.Charge     = '-1.0'
+        #default settings for DFTB for reduced molecules
+        self.DFTB_reduced_defaults = Settings()
+        self.DFTB_reduced_defaults.input.ams.System.Charge    = '-1.0'
 
 
     def check_termination_succes(self,
@@ -111,19 +76,15 @@ class OxidationPotentialCalculator:
         return 
 
 
-    def __call__(self, *args, **kwargs):
-        return self.oxidation_potential(*args, **kwargs)
-
-
-    def oxidation_potential(self, 
+    def redox_potential(self, 
                             molecule            :Molecule, 
+                            mode                :str,
                             method              :str        = 'screening',
                             name                :str        = None,
-                            pre_optimize        :bool       = True,
-                            job_dir             :str        = os.getcwd(),
                             COSMORS_solvent_path:str        = None,
                                 ) -> float:
 
+        assert mode in ['oxidation', 'reduction']
         assert method in ['DC', 'TC-COSMO', 'TC-COSMO-RS', 'screening'], 'Argument "method" must be "DC", "TC-COSMO", "TC-COSMO-RS" or "screening"'
 
         #set name
@@ -131,31 +92,25 @@ class OxidationPotentialCalculator:
             name = molecule.properties.name
 
         self.log(f'========================================================================')
-        self.log(f'Starting oxidation potential calculation for molecule {name}:\n')
-
-        #set paths for the jobs:
-        self.log('Setting paths ...')
-        self.set_paths(job_dir)
+        self.log(f'Starting redox potential calculation for molecule {name}:\n')
 
         self.log('\nInitial coordinates:')
         self.log(molecule)
         self.log('Settings:')
         self.log(f'\tName:              {name}')
+        self.log(f'\tMode:              {mode}')
         self.log(f'\tMethod:            {method}')
-        self.log(f'\tPreoptimize:       {pre_optimize}')
 
-        if pre_optimize:
-            self.log('\nPre-optimizing the molecule ...', newline=False)
-            molecule = self._pre_optimize(molecule, name=name)
-            self.log(' done!')
-
-        Gelectron = -0.0375
+        if mode == 'oxidation':
+            Gelectron = -0.0375
+        elif mode == 'reduction':
+            Gelectron = 0.0375
         #get on with the actual calculations
         if method == 'DC':
-            GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='solvent')
+            GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state=mode, phase='solvent')
             GO_ns    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral',  phase='solvent')
 
-            oxpot = GO_os['gibbs_energy'] - GO_ns['gibbs_energy'] + Gelectron
+            redoxpot = GO_os['gibbs_energy'] - GO_ns['gibbs_energy'] + Gelectron
             
         elif method == 'TC-COSMO':
             GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum')
@@ -163,31 +118,31 @@ class OxidationPotentialCalculator:
             GO_ns    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='solvent', frequencies=False)
             SP_nv_nv = self._calculation_step(GO_ns['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum',  frequencies=False)
 
-            GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='vacuum')
-            SP_ov_os = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', phase='solvent', frequencies=False)
-            GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='solvent', frequencies=False)
-            SP_ov_ov = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state='oxidized', phase='vacuum',  frequencies=False)
+            GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state=mode, phase='vacuum')
+            SP_ov_os = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state=mode, phase='solvent', frequencies=False)
+            GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state=mode, phase='solvent', frequencies=False)
+            SP_ov_ov = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state=mode, phase='vacuum',  frequencies=False)
 
-            oxidized_part = GO_ov['gibbs_energy'] + SP_ov_os['dG_solvation'] + (SP_ov_ov['bond_energy'] - GO_ov['bond_energy'])
+            redox_part = GO_ov['gibbs_energy'] + SP_ov_os['dG_solvation'] + (SP_ov_ov['bond_energy'] - GO_ov['bond_energy'])
             neutral_part  = GO_nv['gibbs_energy'] + SP_nv_ns['dG_solvation'] + (SP_nv_nv['bond_energy'] - GO_nv['bond_energy'])
-            oxpot = oxidized_part - neutral_part + Gelectron
+            redoxpot = redox_part - neutral_part + Gelectron
 
         elif method == 'TC-COSMO-RS':
             self.COSMORS_solvent_path = COSMORS_solvent_path
             assert os.path.exists(self.COSMORS_solvent_path), f'Solvent database {self.COSMORS_solvent_path} does not exist'
-            GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum')
+            GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum',   frequencies=False)
             SP_nv_ns = self._calculation_step(GO_nv['geometry'], task='SinglePoint', name=name, state='neutral', use_COSMORS=True, frequencies=False)
             GO_ns    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', use_COSMORS=True, frequencies=False)
             SP_ns_nv = self._calculation_step(GO_ns['geometry'], task='SinglePoint', name=name, state='neutral', phase='vacuum',   frequencies=False)
 
-            GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='vacuum')
-            SP_ov_os = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', use_COSMORS=True, frequencies=False)
-            GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', use_COSMORS=True, frequencies=False)
-            SP_os_ov = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state='oxidized', phase='vacuum',   frequencies=False)
+            GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state=mode, phase='vacuum', frequencies=False)
+            SP_ov_os = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state=mode, use_COSMORS=True, frequencies=False)
+            GO_os    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state=mode, use_COSMORS=True, frequencies=False)
+            SP_os_ov = self._calculation_step(GO_os['geometry'], task='SinglePoint', name=name, state=mode, phase='vacuum',   frequencies=False)
 
-            oxidized_part = GO_ov['gibbs_energy'] + SP_ov_os['dG_solvation'] + (SP_os_ov['bond_energy'] - GO_ov['bond_energy'])
+            redox_part = GO_ov['gibbs_energy'] + SP_ov_os['dG_solvation'] + (SP_os_ov['bond_energy'] - GO_ov['bond_energy'])
             neutral_part  = GO_nv['gibbs_energy'] + SP_nv_ns['dG_solvation'] + (SP_ns_nv['bond_energy'] - GO_nv['bond_energy'])
-            oxpot = oxidized_part - neutral_part + Gelectron
+            redoxpot = redox_part - neutral_part + Gelectron
 
         elif method == 'screening':
             self.COSMORS_solvent_path = COSMORS_solvent_path
@@ -195,35 +150,13 @@ class OxidationPotentialCalculator:
             GO_nv    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='neutral', phase='vacuum', use_dftb=True, frequencies=False)
             COSMO_nv = self._calculation_step(GO_nv['geometry'], task='SinglePoint', name=name, state='neutral', use_COSMORS=True, frequencies=False)
 
-            GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state='oxidized', phase='vacuum', use_dftb=True, frequencies=False)
-            COSMO_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state='oxidized', use_COSMORS=True, frequencies=False)
+            GO_ov    = self._calculation_step(molecule, task='GeometryOptimization', name=name, state=mode, phase='vacuum', use_dftb=True, frequencies=False)
+            COSMO_ov = self._calculation_step(GO_ov['geometry'], task='SinglePoint', name=name, state=mode, use_COSMORS=True, frequencies=False)
 
-            oxpot = COSMO_ov['gibbs_energy'] - COSMO_nv['gibbs_energy'] + Gelectron
+            redoxpot = COSMO_ov['gibbs_energy'] - COSMO_nv['gibbs_energy'] + Gelectron
 
-        self.log(f"\nOxidation potential: {oxpot:.4f} eV")
-        return oxpot
-
-
-    def _pre_optimize(self,
-                  molecule  :Molecule,
-                  name      :str        = None,
-                     ) -> Molecule:
-        """Method used to pre-optimize the molecule using DFTB3
-        """
-        job = AMSJob(molecule   = molecule,
-                     settings   = self.pre_optimize_defaults,
-                     name       = name + '_preoptimization')
-        res = job.run()
-
-        #if the optimization is succesful we return the new molecule
-        if self.check_termination_succes(res):
-            molecule = res.get_main_molecule()
-            molecule.write(os.path.join(self.geo_preopt_dir, name + '.xyz'))
-        else:
-            molecule.write(os.path.join(self.not_geo_preopt_dir, name + '.xyz'))
-        
-        return molecule
-
+        self.log(f"\nOxidation potential: {redoxpot:.4f} eV")
+        return redoxpot
 
     def _get_settings(self,
                 task                :str        = 'GeometryOptimization',
@@ -237,7 +170,7 @@ class OxidationPotentialCalculator:
         Method that generates settings for jobs based on 
         '''
 
-        assert state in ['neutral', 'oxidized'], 'argument "state" must be "neutral" or "oxidized"'
+        assert state in ['neutral', 'oxidation', 'reduction'], 'argument "state" must be "neutral", "oxidation" or "reduction"'
         assert phase in ['vacuum', 'solvent'], 'argument "phase" must be "vacuum" or "solvent"'
         assert task  in ['GeometryOptimization', 'SinglePoint'], 'argument "task" must be "GeometryOptimization", "SinglePoint" or "COSMO"'
 
@@ -281,11 +214,16 @@ class OxidationPotentialCalculator:
             defaults.soft_update(self.frequencies_defaults)
 
         #handle state, if neutral the settings are already correct
-        if state == 'oxidized':
+        if state == 'oxidation':
             if use_dftb:
                 defaults.soft_update(self.DFTB_oxidized_defaults)
             else:
                 defaults.soft_update(self.DFT_oxidized_defaults)
+        if state == 'reduction':
+            if use_dftb:
+                defaults.soft_update(self.DFTB_reduced_defaults)
+            else:
+                defaults.soft_update(self.DFT_reduced_defaults)
 
         return defaults
 
@@ -331,12 +269,12 @@ class OxidationPotentialCalculator:
                     ) -> dict:
         """ Method used to optimize the geometry of molecule using DFT (by default B3LYP)
         Other settings may be supplied using settings which will be soft-updated using self.DFT_defaults
-        State specifies whether the molecule is neutral or oxidised
+        State specifies whether the molecule is neutral, oxidised or reduced
         Phase specifies whether the system is in vacuum or solvated
         if use_dftb, the system will be optimised using DFTB (by default GFN1-xTB) instead of DFT
         """
 
-        assert state in ['neutral', 'oxidized'], 'argument "state" must be "neutral" or "oxidized"'
+        assert state in ['neutral', 'oxidation', 'reduction'], 'argument "state" must be "neutral", "oxidation", "reduction"'
         assert phase in ['vacuum', 'solvent'], 'argument "phase" must be "vacuum" or "solvent"'
         assert task  in ['GeometryOptimization', 'SinglePoint'], 'argument "task" must be "GeometryOptimization" or "SinglePoint"'
 
@@ -411,8 +349,6 @@ class OxidationPotentialCalculator:
 
             #extract also optimised molecule
             if task == 'GeometryOptimization':
-                opt_mol = res.get_main_molecule()
-                opt_mol.write(os.path.join(self.geo_opt_dir, name + '_' + job_desc + '.xyz'))
                 result_dict['geometry'] = res.get_main_molecule()
 
             #and if the phase is solvent we also need the solvation gibbs energy change
@@ -423,8 +359,6 @@ class OxidationPotentialCalculator:
 
         else:
             self.log(f'\tSuccessfull          = False')
-            if task == 'GeometryOptimization':
-                molecule.write(os.path.join(self.not_geo_opt_dir, name + '_' + job_desc + '.xyz'))
 
         return result_dict
 
@@ -438,6 +372,7 @@ class OxidationPotentialCalculator:
 
 
 if __name__ == '__main__':
+    mode = 'oxidation'
     job_dir = './Test'
     if not os.path.exists(job_dir):
         os.makedirs(job_dir)
@@ -460,13 +395,13 @@ if __name__ == '__main__':
             workdir = config.default_jobmanager.workdir
             logfile = open(f'{workdir}/{job_name}_python.log', 'w')
 
-            OxPotCalc = OxidationPotentialCalculator(logfile=logfile)
+            RedOxPotCalc = RedOxPotentialCalculator(logfile=logfile)
             mol = Molecule(mol_file)
-            oxpot = OxPotCalc(mol, job_dir=workdir, method=method, COSMORS_solvent_path=COSMORS_solvent_path)
-            results[mol_name][method] = oxpot
+            redoxpot = RedOxPotCalc(mol, mode, method=method, COSMORS_solvent_path=COSMORS_solvent_path)
+            results[mol_name][method] = redoxpot
             finish()
 
-    print('Oxidation Potentials:')
+    print('RedOx Potentials:')
     name_len = max(len('System'), max(len(n) for n in results))
     methods = list(results[list(results.keys())[0]])
     method_lens = [max(9, len(m)) for m in methods]
