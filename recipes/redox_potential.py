@@ -1,6 +1,6 @@
 import os, sys
 from scm.plams import *
-import redox_defaults as defaults
+# import redox_defaults as defaults
 
 
 
