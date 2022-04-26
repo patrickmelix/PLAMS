@@ -1,7 +1,10 @@
 import os, sys
 from scm.plams import *
+import argparse
 # import redox_defaults as defaults
 
+
+__all__ = ['redox_potential']
 
 
 ### ==== SETTINGS ==== ###
@@ -404,4 +407,6 @@ def main(mode):
 
 
 if __name__ == '__main__':
+    ap = argparse.ArgumentParser(description='Redox potential workflow.')
+    ap.add_argument('molecule', type=str)
     main('oxidation')
