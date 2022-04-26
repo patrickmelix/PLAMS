@@ -1,3 +1,5 @@
+.. _examples:
+
 Examples
 ========
 
@@ -21,6 +23,7 @@ Examples
    ChargeTransferIntegralsADF
    gammascan
    PackMolExample
+   ConformersGeneration
 
 
 .. _recipes:
