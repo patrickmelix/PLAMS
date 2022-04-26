@@ -192,7 +192,7 @@ The class ``OxidationPotentialCalculator`` implements all the required methods f
 
 A ``.coskf`` file and a number of ``.xyz`` files are provided in :download:`OxidationPotentialFiles.zip <./OxidationPotential/OxidationPotentialFiles.zip>`. By default the script uses the ``screening`` method as this is a very fast method and is also very accurate.
 
-.. literalinclude:: ../../../recipes/ox_potential.py
+.. literalinclude:: ../../../recipes/redox_potential.py
   :language: python
 
 **Example usage:**
