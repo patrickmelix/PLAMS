@@ -2,10 +2,10 @@ from scm.conformers import ConformersJob, ConformersResults
 
 # This example shows how to use the AMS's Conformers tool via PLAMS
 
-def print_conformers(conformers: ConformersResults):
-   for i, conf in enumerate(conformers):
-      print(f"Conformer {i}: Energy = {conf.properties.energy_kcalmol} [kcal/mol]")
-      print(conf)
+def print_results(results: ConformersResults):
+   for (energy, mol) in zip(results.get_energies("kcal/mol"), results.get_conformers()):
+      print(f"Energy = {energy} [kcal/mol]")
+      print(mol)
 
 ethanol = from_smiles('OCC')
 
@@ -18,7 +18,7 @@ job = ConformersJob(name='conformers_generation', molecule=ethanol)
 job.run()
 
 print("Conformers generated using RDKit and UFF:")
-print_conformers(job.results.conformers)
+print_results(job.results)
 
 # Re-optimize the conformers generated in the previous steps using the GFN1-xTB engine:
 
@@ -43,4 +43,10 @@ reoptimize_job = ConformersJob(name='optimize_conformers', settings=sett)
 reoptimize_job.run()
 
 print("Conformers re-optimized using the more accurate GFN1-xTB method:")
-print_conformers(reoptimize_job.results.conformers)
+print_results(reoptimize_job.results)
+
+temperature = 273
+print(f"Boltzmann distribution at {temperature} Kelvin")
+for i,p in enumerate(reoptimize_job.results.get_boltzmann_distribution(temperature)):
+   print(f"Conformer {i} probability: {p}")
+
