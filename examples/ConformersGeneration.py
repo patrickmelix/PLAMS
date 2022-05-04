@@ -3,8 +3,8 @@ from scm.conformers import ConformersJob, ConformersResults
 # This example shows how to use the AMS's Conformers tool via PLAMS
 
 def print_results(results: ConformersResults):
-   for (energy, mol) in zip(results.get_energies("kcal/mol"), results.get_conformers()):
-      print(f"Energy = {energy} [kcal/mol]")
+   for i, (energy, mol) in enumerate(zip(results.get_energies("kcal/mol"), results.get_conformers())):
+      print(f"Energy conformer {i} = {energy} [kcal/mol]")
       print(mol)
 
 ethanol = from_smiles('OCC')
