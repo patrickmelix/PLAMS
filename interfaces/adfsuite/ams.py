@@ -1215,7 +1215,7 @@ class AMSJob(SingleJob):
 
             elif isinstance(value, list):
                 for el in value:
-                    ret += serialize(key, el, indent)
+                    ret += serialize(key, el, indent, end)
             elif value == '' or value is True:
                 ret += ' '*indent + key + '\n'
             elif value is False or value is None:
