@@ -689,7 +689,170 @@ class AMSResults(Results):
 
         return ret
 
+    def get_time_step(self):
+        """ Returns the time step in femtoseconds for MD simulation jobs """
+        time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory') 
+        time2 = self.get_property_at_step(2, 'Time', history_section='MDHistory') 
+        time_step = time2 - time1
+        return time_step
+            
+    def _get_integer_start_end_every_max(self, start_fs, end_fs, every_fs, max_dt_fs):
+        time_step = self.get_time_step()
+        start_step = int( start_fs / time_step )
+        end_step = int( end_fs / time_step ) if end_fs is not None else None
+        every = int ( every_fs / time_step) if every_fs is not None else 1
+        max_dt = int( max_dt_fs / time_step) if max_dt_fs is not None else None
 
+        return start_step, end_step, every, max_dt
+
+    def get_velocity_acf(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, atom_indices=None, x=True, y=True, z=True):
+        """
+        Calculate a normalized velocity autocorrelation function. Works only for trajectories with a constant number of atoms.
+
+        start_fs : float
+            Start time in femtoseconds. Defaults to 0 (first frame)
+
+        end_fs : float
+            End time in femtoseconds. Defaults to the end of the trajectory.
+
+        max_dt_fs : float
+            Maximum correlation time in femtoseconds.
+
+        atom_indices: list of int
+            Atom indices for which to calculate the velocity autocorrelation function. Defaults to all atoms. The atom indices start with 1.
+
+        x : bool
+            Whether to use the velocities along x
+
+        y : bool
+            Whether to use the velocities along y
+
+        z : bool
+            Whether to use the velocities along z
+
+        Returns: 2-tuple (times, C)
+            ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the autocorrelation function.
+        """
+        from ...trajectories.analysis import autocorrelation
+        nEntries = self.readrkf('MDHistory', 'nEntries')
+
+        time_step = self.get_time_step()
+
+        start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
+
+        data = self.get_history_property('Velocities', history_section='MDHistory')
+        data = np.array(data).reshape(nEntries, -1, 3)[start_step:end_step:every]
+        if atom_indices is not None:
+            zero_based_atom_indices = [x-1 for x in atom_indices]
+            data = data[:, zero_based_atom_indices, :]
+
+        if not x or not y or not z:
+            components = []
+            if x:
+                components += [0]
+            if y:
+                components += [1]
+            if z:
+                components += [2]
+
+            data = data[:, :, components]
+
+        vacf = autocorrelation(data, max_dt=max_dt, normalize=True)
+
+        times = np.arange(len(vacf)) * time_step * every 
+
+        return times, vacf
+
+    def get_power_spectrum(self, times=None, acf=None, max_freq=None, number_of_points=None):
+        """
+        Calculates a power spectrum from the velocity autocorrelation function.
+
+        If ``times`` or ``acf`` is None, then a default velocity autocorrelation function will be calculated.
+
+        times: 1D numpy array of float
+            The ``times`` returned by ``AMSResults.get_velocity_acf()``.
+        acf: 1D numpy arra of float
+            The ``vacf`` returned by ``AMSResults.get_velocity_acf()``
+        max_freq: float
+            Maximum frequency (in cm^-1) of the returned power spectrum. Defaults to 5000 cm^-1.
+        number_of_points: int
+            Number of points in the returned power spectrum. Defaults to a number so that the spacing between points is about 1 cm^-1.
+
+        Returns: 2-tuple (frequencies, intensities)
+            ``frequencies`` : Frequencies in cm^-1 (1D numpy array). ``intensities``: Intensities (1D numpy array).
+        """
+        from ...trajectories.analysis import power_spectrum
+        if times is None or acf is None:
+            times, acf = self.get_velocity_acf()
+
+        return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
+
+    def get_green_kubo_viscosity(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True):
+        """
+        Calculates the viscosity using the Green-Kubo relation (integrating the off-diagonal pressure tensor autocorrelation function).
+
+        start_fs : float
+            Start time in femtoseconds. Defaults to 0 (first frame)
+
+        end_fs : float
+            End time in femtoseconds. Defaults to the end of the trajectory.
+
+        max_dt_fs : float
+            Maximum correlation time in femtoseconds.
+
+        atom_indices: list of int
+            Atom indices for which to calculate the velocity autocorrelation function. Defaults to all atoms. The atom indices start with 1.
+
+        xy : bool
+            Whether to use the xy off-diagonal elements
+
+        yz : bool
+            Whether to use the yz off-diagonal elements
+
+        xz : bool
+            Whether to use the xz off-diagonal elements
+
+        Returns: 2-tuple (times, C)
+            ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the viscosity (in mPa*s) integral. It should converge to the viscosity values as the time increases.
+
+        """
+        from ...trajectories.analysis import autocorrelation
+        from ...tools.units import Units
+        from scipy.integrate import cumtrapz
+        nEntries = self.readrkf('MDHistory', 'nEntries')
+        time_step = self.get_time_step()
+        start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
+        data = self.get_history_property('PressureTensor', 'MDHistory')
+        data = np.array(data)[start_step:end_step:every]
+
+        components = []
+        if yz:
+            components += [3]
+        if xz:
+            components += [4]
+        if xy:
+            components += [5]
+
+        data = data[:, components]
+        acf = autocorrelation(data, max_dt=max_dt)
+        times = np.arange(len(acf)) * time_step * every 
+
+        integrated_acf = cumtrapz(acf, times)
+        integrated_times = np.arange(len(integrated_acf)) * time_step * every
+
+        V = self.get_main_molecule().unit_cell_volume()
+
+        T = self.get_history_property('Temperature', 'MDHistory')
+        T = np.array(T)[start_step:end_step:every]
+        mean_T = np.mean(T)
+
+        k_B = Units.constants['k_B']
+
+        au2Pa = Units.convert(1.0, 'hartree/bohr^3', 'Pa')
+
+        viscosity = (V*1e-30)/(k_B*mean_T) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
+
+        return integrated_times, viscosity
 
 
 
