@@ -837,9 +837,6 @@ class AMSResults(Results):
         max_dt_fs : float
             Maximum correlation time in femtoseconds.
 
-        atom_indices: list of int
-            Atom indices for which to calculate the velocity autocorrelation function. Defaults to all atoms. The atom indices start with 1.
-
         xy : bool
             Whether to use the xy off-diagonal elements
 
