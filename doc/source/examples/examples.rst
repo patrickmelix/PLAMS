@@ -24,6 +24,7 @@ Examples
    gammascan
    PackMolExample
    ConformersGeneration
+   BasicMDPostanalysis
 
 
 .. _recipes:

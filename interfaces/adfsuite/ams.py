@@ -705,9 +705,9 @@ class AMSResults(Results):
 
         return start_step, end_step, every, max_dt
 
-    def get_velocity_acf(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, atom_indices=None, x=True, y=True, z=True):
+    def get_velocity_acf(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, atom_indices=None, x=True, y=True, z=True, normalize=False):
         """
-        Calculate a normalized velocity autocorrelation function. Works only for trajectories with a constant number of atoms.
+        Calculate the velocity autocorrelation function. Works only for trajectories with a constant number of atoms.
 
         start_fs : float
             Start time in femtoseconds. Defaults to 0 (first frame)
@@ -730,8 +730,11 @@ class AMSResults(Results):
         z : bool
             Whether to use the velocities along z
 
+        normalize : bool
+            Whether to normalize the velocity autocorrelation function so that it is 1 at time 0.
+
         Returns: 2-tuple (times, C)
-            ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the autocorrelation function.
+            ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the autocorrelation function. If not ``normalize`` then the unit is angstrom^2/fs^2.
         """
         from ...trajectories.analysis import autocorrelation
         nEntries = self.readrkf('MDHistory', 'nEntries')
@@ -746,6 +749,7 @@ class AMSResults(Results):
             zero_based_atom_indices = [x-1 for x in atom_indices]
             data = data[:, zero_based_atom_indices, :]
 
+        n_dimensions = 3
         if not x or not y or not z:
             components = []
             if x:
@@ -756,12 +760,45 @@ class AMSResults(Results):
                 components += [2]
 
             data = data[:, :, components]
+            n_dimensions = len(components)
 
-        vacf = autocorrelation(data, max_dt=max_dt, normalize=True)
+        data *= Units.convert(1.0, 'bohr', 'angstrom') # convert from bohr/fs to ang/fs
+
+        vacf = autocorrelation(data, max_dt=max_dt, normalize=normalize) * n_dimensions # multiply by n_dimensions to undo the averaging per component and instead average per atom
 
         times = np.arange(len(vacf)) * time_step * every 
 
         return times, vacf
+
+    def get_diffusion_coefficient_from_velocity_acf(self, times=None, acf=None, n_dimensions=3):
+        """
+        Diffusion coefficient by integration of the velocity autocorrelation function
+
+        If ``times`` or ``acf`` is None, then a default velocity autocorrelation function will be calculated.
+
+        times: 1D numpy array
+            1D numpy array with the times
+
+        acf: 1D numpy array
+            1D numpy array with the velocity autocorrelation function in ang^2/fs^2
+
+        n_dimensions: int
+            Number of dimensions that were used to calculate the autocorrelation function.
+
+        Returns: 2-tuple (times, diffusion_coefficient)
+            ``times`` are the times in femtoseconds. ``diffusion_coefficient`` is a 1D numpy array with the diffusion coefficients in m^2/s.
+
+        """
+
+        from scipy.integrate import cumtrapz
+        if times is None or acf is None:
+            times, acf = self.get_velocity_acf(normalize=False)
+
+        diffusion_coefficient = (1.0/n_dimensions) * cumtrapz(acf, times)  #ang^2/fs
+        diffusion_coefficient *= 1e-20/1e-15
+        new_times = times[:-1]
+
+        return np.array(new_times), diffusion_coefficient
 
     def get_power_spectrum(self, times=None, acf=None, max_freq=None, number_of_points=None):
         """
@@ -783,7 +820,7 @@ class AMSResults(Results):
         """
         from ...trajectories.analysis import power_spectrum
         if times is None or acf is None:
-            times, acf = self.get_velocity_acf()
+            times, acf = self.get_velocity_acf(normalize=True)
 
         return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
 
