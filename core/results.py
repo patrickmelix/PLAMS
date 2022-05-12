@@ -122,7 +122,7 @@ class _MetaResults(type):
     _dont_restrict = ['refresh', 'collect', '_clean', 'get_errormsg']
     def __new__(meta, name, bases, dct):
         for attr in dct:
-            if not (attr.endswith('__') and attr.startswith('__')) and callable(dct[attr]) and (attr not in _MetaResults._dont_restrict):
+            if not (attr.endswith('__') and attr.startswith('__')) and not type(dct[attr]) is type and callable(dct[attr]) and (attr not in _MetaResults._dont_restrict):
                 dct[attr] = _restrict(dct[attr])
         return type.__new__(meta, name, bases, dct)
 

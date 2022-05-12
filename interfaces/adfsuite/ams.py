@@ -974,12 +974,12 @@ class AMSResults(Results):
 
             def __str__(self):
                 if self.isTS:
-                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times, results on {self.engfile})"]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
                     if self.reactantsID is not None: lines += [f"  +- Reactants: {self.reactants}"]
                     if self.productsID is not None:  lines += [f"     Products:  {self.products}"]
                     if self.reactantsID is not None: lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E}"]
                 else:
-                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times, results on {self.engfile})"]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
                 return "\n".join(lines)
 
 
@@ -1037,6 +1037,7 @@ class AMSResults(Results):
             self._states = []
             self._fragments = []
             self._fstates = []
+            if results is None: return
 
             sec = results.read_rkf_section("EnergyLandscape")
 
