@@ -62,6 +62,16 @@ def plot_results(results):
     A = np.stack((t, viscosity), axis=1)
     np.savetxt("plams_green_kubo_viscosity.txt", A, header="Time(fs) Viscosity(mPa*s)")
 
+    plt.clf()
+    z, density = results.get_density_along_axis(axis='z', density_type='mass', bin_width=0.2, atom_indices=None)
+    plt.plot(z, density)
+    plt.xlabel("z coordinate (Å)")
+    plt.ylabel("Density (g/cm³)")
+    plt.title("Density along z")
+    plt.savefig("plams_density_along_z.png")
+    A = np.stack((z, density), axis=1)
+    np.savetxt("plams_density_along_z.txt", A, header="z(angstrom) density(g/cm^3)")
+
 def main():
     job = run_md()
     # alternatively:

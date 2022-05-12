@@ -891,6 +891,96 @@ class AMSResults(Results):
 
         return integrated_times, viscosity
 
+    def get_density_along_axis(self, axis:str='z', density_type:str='mass', start_fs=0, end_fs=None, every_fs=None, bin_width=0.1, atom_indices=None):
+        """
+        Calculates the density of atoms along a Cartesian coordinate axis.
+        
+        This only works if the axis is perpendicular to the other two axes. The
+        system must be 3D-periodic and the number of atoms cannot change during
+        the trajectory.
+
+        axis : str
+            'x', 'y', or 'z'
+
+        density_type : str
+            'mass' gives the density in g/cm^3. 'number' gives the number density in ang^-3.
+
+        start_fs : float
+            Start time in fs
+
+        end_fs : float
+            End time in fs
+
+        every_fs : float
+            Use data every every_fs timesteps
+
+        bin_width : float
+            Bin width of the returned coordinates (in angstrom).
+
+        atom_indices: list of int
+            Indices (starting with 1) for the atoms to use for calculating the density.
+
+        Returns: 2-tuple (coordinates, density)
+            ``coordinates`` is a 1D array with the coordinates (in angstrom). ``density`` is a 1D array with the densities (in g/cm^3 or ang^-3 depending on ``density_type``).
+
+        """
+        assert axis in ['x', 'y', 'z'], f"Unknown axis: {axis}. Must be 'x', 'y', or 'z'"
+        assert density_type in ['mass', 'number'], f"Unknown density_type: {density_type}. Must be 'mass' or 'number'"
+
+        main_mol = self.get_main_molecule()
+
+        assert len(main_mol.lattice) == 3, f"get_density_along_axis can only be called for 3d-periodic systems. Current periodicity: {len(main_mol.lattice)}"
+
+        start_step, end_step, every, _ = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, None)
+        nEntries = self.readrkf('History', 'nEntries')
+        coords = np.array(self.get_history_property('Coords')).reshape(nEntries, -1, 3)
+        coords = coords[start_step:end_step:every]
+
+        dummy_mol = Molecule()
+        if axis == 'x':
+            index = 0
+            dummy_mol.lattice = [main_mol.lattice[1], main_mol.lattice[2]]
+        elif axis == 'y':
+            index = 1
+            dummy_mol.lattice = [main_mol.lattice[0], main_mol.lattice[2]]
+        else:
+            index = 2
+            dummy_mol.lattice = [main_mol.lattice[0], main_mol.lattice[1]]
+
+        area = dummy_mol.unit_cell_volume()
+
+        coords = coords[:, :, index]
+
+        if atom_indices is not None:
+            zero_based_atom_indices = [x-1 for x in atom_indices]
+            coords = coords[:, zero_based_atom_indices]
+
+        coords *= Units.convert(1.0, 'bohr', 'angstrom')
+
+        avogadro = Units.constants['NA']
+
+        min_c = np.min(coords)
+        max_c = np.max(coords)
+        num_bins = round((max_c-min_c) / bin_width + 1)
+        bins = np.linspace( min_c, max_c, num_bins, endpoint=True )
+
+        if density_type == 'mass':
+            masses = np.array(self.readrkf('Molecule', 'AtomMasses'))
+            if atom_indices is not None:
+                masses = masses[zero_based_atom_indices]
+            masses_broadcasted = np.broadcast_to(masses, coords.shape)
+            hist, bin_edges = np.histogram(coords, weights=masses_broadcasted, bins=bins)
+            volume_slice_ang3 = area * (bin_edges[1]-bin_edges[0])
+            volume_slice_cm3 = volume_slice_ang3*1e-24
+            density = (1.0 / nEntries) * (hist / avogadro) / volume_slice_cm3
+        elif density_type == 'number':
+            hist, bin_edges = np.histogram(coords, bins=bins)
+            volume_slice_ang3 = area * (bin_edges[1]-bin_edges[0])
+            density = (1.0 / nEntries) * hist / volume_slice_ang3
+
+        z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+        return z, density
+
 
 
     def recreate_molecule(self):
