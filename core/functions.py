@@ -68,8 +68,7 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False):
         log('PLAMS environment initialized', 5)
         log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
 
-    if "SLURM_JOB_ID" in os.environ:
-       config.slurm = _init_slurm()
+    config.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
 
     try:
         import dill
