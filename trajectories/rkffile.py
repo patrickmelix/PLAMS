@@ -343,8 +343,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.include_historydata :
                         self._store_historydata_for_step(i)
                 # Read and store all MDData for this frame
-                if self.include_mddata :
-                        self._store_mddata_for_step(i)
+                try:
+                    if self.include_mddata :
+                            self._store_mddata_for_step(i)
+                except AttributeError: # this is triggered when self.file_object is None triggered via self.close()
+                    pass
                 # Finalize
                 if self.firsttime :
                         self.firsttime = False

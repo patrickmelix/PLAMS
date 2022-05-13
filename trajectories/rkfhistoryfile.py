@@ -3,7 +3,7 @@
 import numpy
 import os
 
-from typing import List
+from typing import List, Union, Set
 from ..tools.periodic_table import PT
 from ..mol.molecule import Molecule
 from ..mol.atom import Atom
@@ -14,7 +14,7 @@ from .rkffile import RKFTrajectoryFile
 from .rkffile import bohr_to_angstrom
 from .rkffile import write_general_section
 
-__all__ = ['RKFHistoryFile', 'molecules_to_rkf']
+__all__ = ['RKFHistoryFile', 'molecules_to_rkf', 'rkf_filter_regions']
 
 class RKFHistoryFile (RKFTrajectoryFile) :
         """
@@ -583,4 +583,52 @@ def molecules_to_rkf(molecules:List[Molecule], fname, overwrite=False):
         rkfout.write_next(molecule=mol)
     rkfout.close()
 
+
+def rkf_filter_regions(in_file, out_file, region:Union[str,Set[str]], mode='keep', overwrite=False):
+    """
+        Filter an ams.rkf trajectory file from region info. The new trajectory file only contains the atomic positions (not velocities).
+
+        in_file: str
+            path to an ams.rkf file
+
+        out_file: str
+            path to the output .rkf file
+
+        region: str or set of str
+            Names of regions
+
+        mode: str
+            'keep': keep all atoms in the named regions. 'remove': remove all atoms in the named regions.
+
+        overwrite: bool
+            Whether to overwrite out_file if it exists
+
+
+    """
+    rkf_in = RKFHistoryFile(in_file)
+    mol = rkf_in.get_plamsmol()
+
+    if os.path.exists(out_file) and overwrite:
+        os.remove(out_file)
+
+    rkf_out = RKFHistoryFile(out_file, mode='wb')
+    rkf_out.store_mddata()
+
+    if isinstance(region, str):
+        region = set([region])
+
+    for crd, cell in rkf_in(mol):
+        new_mol = Molecule()
+        new_mol.lattice = mol.lattice
+
+        for at in mol:
+            region_match = any(x in at.properties.region for x in region)
+            if (mode == 'keep' and region_match) or (mode == 'remove' and not region_match):
+                new_at = Atom(atnum=at.atnum, coords=at.coords, mddata={'PotentialEnergy': 0})
+                new_at.properties = at.properties
+                new_mol.add_atom(new_at)
+
+        rkf_out.write_next(molecule=new_mol)
+
+    rkf_out.close()
 
