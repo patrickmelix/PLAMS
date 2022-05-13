@@ -900,7 +900,7 @@ class AMSResults(Results):
             'x', 'y', or 'z'
 
         density_type : str
-            'mass' gives the density in g/cm^3. 'number' gives the number density in ang^-3.
+            'mass' gives the density in g/cm^3. 'number' gives the number density in ang^-3, 'histogram' gives the number of atoms per frame (so the number depends on the bin size)
 
         start_fs : float
             Start time in fs
@@ -922,29 +922,40 @@ class AMSResults(Results):
 
         """
         assert axis in ['x', 'y', 'z'], f"Unknown axis: {axis}. Must be 'x', 'y', or 'z'"
-        assert density_type in ['mass', 'number'], f"Unknown density_type: {density_type}. Must be 'mass' or 'number'"
+        assert density_type in ['mass', 'number', 'histogram'], f"Unknown density_type: {density_type}. Must be 'mass' or 'number'"
 
         main_mol = self.get_main_molecule()
 
-        assert len(main_mol.lattice) == 3, f"get_density_along_axis can only be called for 3d-periodic systems. Current periodicity: {len(main_mol.lattice)}"
+        histogram = density_type == 'histogram'
+
+        bohr2ang = Units.convert(1.0, 'bohr', 'angstrom')
 
         start_step, end_step, every, _ = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, None)
         nEntries = self.readrkf('History', 'nEntries')
         coords = np.array(self.get_history_property('Coords')).reshape(nEntries, -1, 3)
         coords = coords[start_step:end_step:every]
 
-        dummy_mol = Molecule()
-        if axis == 'x':
-            index = 0
-            dummy_mol.lattice = [main_mol.lattice[1], main_mol.lattice[2]]
-        elif axis == 'y':
-            index = 1
-            dummy_mol.lattice = [main_mol.lattice[0], main_mol.lattice[2]]
-        else:
-            index = 2
-            dummy_mol.lattice = [main_mol.lattice[0], main_mol.lattice[1]]
+        axis2index = {'x': 0, 'y': 1, 'z': 2}
+        index = axis2index[axis]
 
-        area = dummy_mol.unit_cell_volume()
+        if not histogram:
+            other_indices = [0,1,2]
+            other_indices.remove(index)
+
+            assert len(main_mol.lattice) == 3, f"get_density_along_axis with density_type='mass' or 'number' can only be called for 3d-periodic systems. Current periodicity: {len(main_mol.lattice)}. Use density_type='histogram' instead."
+            assert np.abs(np.dot(main_mol.lattice[other_indices[0]], main_mol.lattice[index])) < 1e-6, f"Axis {axis} must be perpendicular to the other two axes"
+            assert np.abs(np.dot(main_mol.lattice[other_indices[1]], main_mol.lattice[index])) < 1e-6, f"Axis {axis} must be perpendicular to the other two axes"
+            assert np.abs(main_mol.lattice[index][other_indices[0]]) < 1e-6, f"Density along {axis} requires that lattice vector {index+1} has only 1 non-zero component (along {axis}). The vector is {main_mol.lattice[index]}"
+            assert np.abs(main_mol.lattice[index][other_indices[1]]) < 1e-6, f"Density along {axis} requires that lattice vector {index+1} has only 1 non-zero component (along {axis}). The vector is {main_mol.lattice[index]}"
+
+            lattice_vectors = np.array(self.get_history_property('LatticeVectors')).reshape(-1,3,3)
+            lattice_vectors = lattice_vectors[start_step:end_step:every] * bohr2ang
+
+            vec1s = lattice_vectors[:, other_indices[0], :]
+            vec2s = lattice_vectors[:, other_indices[1], :]
+            cross_products = np.cross(vec1s, vec2s)
+            areas = np.linalg.norm(cross_products, axis=1)
+            mean_area = np.mean(areas)
 
         coords = coords[:, :, index]
 
@@ -952,7 +963,7 @@ class AMSResults(Results):
             zero_based_atom_indices = [x-1 for x in atom_indices]
             coords = coords[:, zero_based_atom_indices]
 
-        coords *= Units.convert(1.0, 'bohr', 'angstrom')
+        coords *=  bohr2ang
 
         avogadro = Units.constants['NA']
 
@@ -967,13 +978,16 @@ class AMSResults(Results):
                 masses = masses[zero_based_atom_indices]
             masses_broadcasted = np.broadcast_to(masses, coords.shape)
             hist, bin_edges = np.histogram(coords, weights=masses_broadcasted, bins=bins)
-            volume_slice_ang3 = area * (bin_edges[1]-bin_edges[0])
+            volume_slice_ang3 = mean_area * (bin_edges[1]-bin_edges[0])
             volume_slice_cm3 = volume_slice_ang3*1e-24
             density = (1.0 / nEntries) * (hist / avogadro) / volume_slice_cm3
         elif density_type == 'number':
             hist, bin_edges = np.histogram(coords, bins=bins)
-            volume_slice_ang3 = area * (bin_edges[1]-bin_edges[0])
+            volume_slice_ang3 = mean_area * (bin_edges[1]-bin_edges[0])
             density = (1.0 / nEntries) * hist / volume_slice_ang3
+        elif density_type == 'histogram':
+            hist, bin_edges = np.histogram(coords, bins=bins)
+            density = (1.0 / nEntries) * hist
 
         z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
         return z, density
