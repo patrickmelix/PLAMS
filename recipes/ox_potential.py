@@ -24,7 +24,7 @@ class OxidationPotentialCalculator:
         self.pre_optimize_defaults.input.ams.Properties.NormalModes           = 'Yes'
         self.pre_optimize_defaults.input.ams.Properties.PESPointCharacter     = 'Yes'
         self.pre_optimize_defaults.input.ams.NormalModes.ReScanFreqRange      = '-1000 0'
-        self.pre_optimize_defaults.input.ams.PESPointCharacter.NegativeFrequenciesTolerance = -20
+        self.pre_optimize_defaults.input.ams.PESPointCharacter.NegativeEigenvalueTolerance = -0.001
         self.pre_optimize_defaults.input.DFTB
         self.pre_optimize_defaults.input.DFTB.Model           = "DFTB3" 
         self.pre_optimize_defaults.input.DFTB.ResourcesDir    = 'DFTB.org/3ob-3-1'
@@ -58,7 +58,7 @@ class OxidationPotentialCalculator:
         self.frequencies_defaults.input.ams.properties.NormalModes   = 'Yes'
         self.frequencies_defaults.input.ams.Properties.PESPointCharacter     = 'No'
         self.frequencies_defaults.input.ams.NormalModes.ReScanFreqRange      = '-1000 0'
-        self.frequencies_defaults.input.ams.PESPointCharacter.NegativeFrequenciesTolerance = -20
+        self.frequencies_defaults.input.ams.PESPointCharacter.NegativeEigenvalueTolerance = -0.001
 
         #default solvent settings for optimization
         self.COSMO_defaults = Settings()

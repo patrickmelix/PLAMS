@@ -44,7 +44,7 @@ def frequencies_defaults():
     s.input.ams.properties.NormalModes   = 'Yes'
     s.input.ams.Properties.PESPointCharacter     = 'No'
     s.input.ams.NormalModes.ReScanFreqRange      = '-1000 0'
-    s.input.ams.PESPointCharacter.NegativeFrequenciesTolerance = -20
+    s.input.ams.PESPointCharacter.NegativeEigenvalueTolerance = -0.001
     return s
 
 
