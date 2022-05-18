@@ -7,7 +7,7 @@ try:
 except ImportError:
     import pickle
 
-from scm.plams import AMSJob
+from scm.plams import AMSJob, Settings
 
 def test_hybrid_engine_input():
     """test :meth:`AMSJob.get_input` for writing sub engines in a hybrid engine block of ams."""
@@ -109,4 +109,25 @@ EndEngine
 """
     job = AMSJob.from_input(AMSinput)
     assert job.get_input() == AMSinput
+
+def test_settings_to_molecule():
+    s = Settings()
+    s.input.ams.system.Atoms._1 = '         H       0.0000000000       0.0000000000       0.0000000000 '
+    s.input.ams.system.Atoms._2 = '         O       1.0000000000       0.0000000000       0.0000000000 '
+
+    t=s.copy()
+    mol = AMSJob.settings_to_mol(t)['']
+
+    assert AMSJob(settings = s).get_input() == AMSJob(settings = t, molecule = mol).get_input()
+
+    s = Settings()
+    s.input.ams.system.Atoms._1 = ['         H       0.0000000000       0.0000000000       0.0000000000 ', 
+                                   '         O       1.0000000000       0.0000000000       0.0000000000 ']
+
+    t=s.copy()
+    mol = AMSJob.settings_to_mol(t)['']
+    
+    assert AMSJob(settings = s).get_input() == AMSJob(settings = t, molecule = mol).get_input()
+
+
 

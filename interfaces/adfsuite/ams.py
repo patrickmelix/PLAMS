@@ -1839,13 +1839,24 @@ class AMSJob(SingleJob):
         The existing `s.input.ams.system` block is removed in the process, assuming it was present in the first place.
 
         """
+        def get_list(s):
+            if len(s) == 1 and isinstance(s._1, list):
+                return s._1
+            else:
+                i = 1
+                l = []
+                while '_' + str(i) in s:
+                    l.append(s['_' + str(i)])
+                    i += 1
+                return l
+
         def read_mol(settings_block: Settings) -> Molecule:
             """Retrieve single molecule from a single `s.input.ams.system` block."""
             if 'geometryfile' in settings_block:
                 mol = Molecule(settings_block.geometryfile)
             else:
                 mol = Molecule()
-                for atom in settings_block.atoms._1:
+                for atom in get_list(settings_block.atoms):
                     # Extract arguments for Atom()
                     symbol, x, y, z, *suffix = atom.split(maxsplit=4)
                     coords = float(x), float(y), float(z)
@@ -1864,11 +1875,11 @@ class AMSJob(SingleJob):
                     mol.add_atom(at)
 
                 # Set the lattice vector if applicable
-                if settings_block.lattice._1:
-                    mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
+                if get_list(settings_block.lattice):
+                    mol.lattice = [tuple(float(j) for j in i.split()) for i in get_list(settings_block.lattice)]
 
             # Add bonds
-            for bond in settings_block.bondorders._1:
+            for bond in get_list(settings_block.bondorders):
                 _at1, _at2, _order, *suffix = bond.split(maxsplit=3)
                 at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
                 plams_bond = Bond(at1,at2,order=order)
@@ -1894,6 +1905,8 @@ class AMSJob(SingleJob):
         with s.suppress_missing():
             try:
                 settings_list = s.input.ams.pop('system')
+                if not isinstance(settings_list, list):
+                    settings_list = [settings_list]
             except KeyError:  # The block s.input.ams.system is absent
                 return None
 
