@@ -10,11 +10,10 @@ co = Atoms('CO', positions=[(0, 0, 0), (0, 0, d)])
 
 def test_AMSJob():
     s = Settings()
-    s.input.ADF
-    s.Calculator.AMSJob
+    s.input.ForceField
     s.input.ams.Task = 'SinglePoint'
-
-    job = AMSCalculator(s)
+    s.runscript.nproc = 1
+    job = AMSCalculator(s, name = 'AMSJob')
     job.calculate(co)
     print('energy =', job.results['energy'])
     job.calculate(properties = 'forces')
@@ -25,11 +24,10 @@ def test_AMSJob():
 
 def test_AMSPipe():
     s = Settings()
-    s.input.ADF
-    s.Calculator.Pipe
+    s.input.ForceField
     s.input.ams.Task = 'SinglePoint'
-
-    job = AMSCalculator(s)
+    s.runscript.nproc = 1
+    job = AMSCalculator(s, name = 'AMSPipe', amsworker = True)
     job.calculate(co)
     print('energy =', job.results['energy'])
 
@@ -41,15 +39,13 @@ def test_AMSPipe():
 
 def test_System():
     s = Settings()
-    s.input.ADF
-    s.Calculator.Pipe
+    s.input.ForceField
     s.input.ams.Task = 'SinglePoint'
-
+    s.runscript.nproc = 1
     s.input.ams.system.atoms._1 = f'C     0.0    0.0     0.0'
-    s.input.ams.system.atoms._2 = f'O     1.0    0.0     {d}'
-    s.input.ams.system.charge = 1.0
+    s.input.ams.system.atoms._2 = f'O     0.0    0.0     {d}'
 
-    job = AMSCalculator(s)
+    job = AMSCalculator(s, name = 'System', amsworker = False, restart = True)
     job.calculate()
     print('energy =', job.results['energy'])
 
@@ -62,40 +58,29 @@ def test_System():
 
 def test_Properties():
     s = Settings()
-    s.input.ADF
-    s.Calculator.AMSJob
+    s.input.ForceField
     s.input.ams.Task = 'SinglePoint'
+    s.runscript.nproc = 1
     s.input.ams.Properties.Gradients = True
-    job = AMSCalculator(s)
+    job = AMSCalculator(s, name = 'Properties')
     job.calculate(co)
     print('found forces:', 'forces' in job.results )
 
 
 def test_PipeWorker():
     s = Settings()
-    s.input.ADF
-    s.Calculator.Pipe
+    s.input.ForceField
     s.input.ams.Task = 'SinglePoint'
+    s.runscript.nproc = 1
     s.amsworker.quiet = True
-    s.Calculator.Pipe.Worker.use_restart_cache=True
-    job = AMSCalculator(s)
+    job = AMSCalculator(s, name = 'PipeWorker', amsworker = True, restart = True)
     job.calculate(co)
 
 
 if __name__ == '__main__':
-    init(folder = 'workdir_AMSJob')
     test_AMSJob()
-    finish()
-    init(folder = 'workdir_AMSPipe')
     test_AMSPipe()
-    finish()
-    init(folder = 'workdir_System')
     test_System()
-    finish()
-    init(folder = 'workdir_Properties')
     test_Properties()
-    finish()
-    init(folder = 'workdir_PipeWorker')
     test_PipeWorker()
     finish()
-

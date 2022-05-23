@@ -72,47 +72,50 @@ class AMSCalculator(Calculator):
 
     Parameters:
 
-    settings : Settings
-               A Settings object representing the input for an AMSJob or AMSWorker.
-    molecule : Molecule , optional
-               A Molecule object for which the calculation has to be performed. If 
-               settings.input.ams.system is defined it overrides the molecule argument.
-               If AMSCalculator.calculate(atoms = atoms) is called with an atoms argument 
-               it overrides any earlier definition of the system and remembers it.
-
-    Additional settings for the calculator can be passed in settings.Calculator:
-
-    settings.Calculator.Pipe: use the AMSWorker to set up an interactive session.
-    settings.Calculator.Pipe.worker: keyword arguments for the AMSWorker.
-
-    settings.Calculator.AMSJob: use the AMSJob to set up an io session.
-
-    settings.Calculator.Extractors: define extractors for additional properties.
+    settings  : Settings
+                A Settings object representing the input for an AMSJob or AMSWorker.
+    name      : str, optional
+                Name of the rundir of calculations done by this calculator. A counter 
+                is appended to the name for every calculation.
+    amsworker : bool , optional
+                If True, use the AMSWorker to set up an interactive session. Otherwise
+                use AMSJob to set up an io session.
+    restart   : bool , optional
+                Allow the engine to restart based on previous calculations.
+    molecule  : Molecule , optional
+                A Molecule object for which the calculation has to be performed. If 
+                settings.input.ams.system is defined it overrides the molecule argument.
+                If AMSCalculator.calculate(atoms = atoms) is called with an atoms argument 
+                it overrides any earlier definition of the system and remembers it.
+    extractors: List[BasePropertyExtractor] , optional
+                Define extractors for additional properties.
     
 
     Examples:
     """
 
 
-    def __new__(cls, settings = None, molecule = None):
+    def __new__(cls, settings = None, name = '', amsworker = False, restart = True, molecule = None, extractors = []):
         """Dispatch object creation to AMSPipeCalculator or AMSJobCalculator depending on |settings|"""
         if cls == AMSCalculator:
-            if 'Pipe' in settings.Calculator:
+            if amsworker:
                 obj = object.__new__(AMSPipeCalculator)
-            elif 'AMSJob' in settings.Calculator:
-                obj = object.__new__(AMSJobCalculator)
             else:
-                raise NotImplementedError("Only settings.Calculator.Pipe and .AMSJob are implemented.")
+                obj = object.__new__(AMSJobCalculator)
         else:
             obj = object.__new__(cls)
         return obj
 
-    def __init__(self, settings, molecule = None):
+    def __init__(self, settings = None, name='', amsworker = False, restart = True, molecule = None, extractors = [] ):
         settings = settings.copy()
         self.settings = settings.copy()
+        self.amsworker = amsworker
+        self.name = name
+        self.restart = restart
         self.molecule = molecule
-        self.calculator_settings = settings.Calculator.copy()
-        del settings.Calculator
+        extractors = settings.pop('Extractors', [])
+        self.extractors = [EnergyExtractor(), ForceExtractor(), StressExtractor()]
+        self.extractors += [e for e in extractors if not e in self.extractors]
 
         if 'system' in self.settings.input.ams:
             mol_dict = AMSJob.settings_to_mol(settings)
@@ -124,17 +127,13 @@ class AMSCalculator(Calculator):
 
         super().__init__()
         self.atoms = atoms
-        self.ams_settings = settings
         
         self.counter = 0
         self.prev_ams_results = None
         self.results = dict()
 
-        self.extractors = [EnergyExtractor(), ForceExtractor(), StressExtractor()]
-        self.extractors += self.calculator_settings.get('extractors', [])
-
     def __getnewargs__(self):
-        return self.settings, self.molecule
+        return self.settings, self.amsworker, self.restart, self.molecule, self.extractors
 
     @property
     def implemented_properties(self):
@@ -174,7 +173,7 @@ class AMSCalculator(Calculator):
     def _get_job_settings(self, properties):
         """Returns a Settings object which ensures that an AMS calculation is run from which all requested
         properties can be extracted"""
-        settings = self.ams_settings.copy()
+        settings = self.settings.copy()
         for extractor in self.extractors:
             if extractor.name in properties:
                 extractor.set_settings(settings)
@@ -183,14 +182,13 @@ class AMSCalculator(Calculator):
 
 class AMSPipeCalculator(AMSCalculator):
     """This class should be instantiated through AMSCalculator with settings.Calculator.Pipe defined"""
-    def __init__(self, settings, molecule = None):
-        super().__init__(settings)
+    def __init__(self, settings = None, name = '', amsworker = False, restart = True, molecule = None, extractors = []):
+        super().__init__(settings, name, amsworker, restart, molecule, extractors)
 
-        worker_settings = self.ams_settings.copy()
+        worker_settings = self.settings.copy()
         del worker_settings.input.ams.Task
 
-        worker_kwargs = settings.Calculator.Pipe.Worker.as_dict()
-        self.worker = AMSWorker(worker_settings, **worker_kwargs)
+        self.worker = AMSWorker(worker_settings, use_restart_cache = self.restart)
 
     def _get_ams_results(self, molecule, properties):
         job_settings = self._get_job_settings(properties)
@@ -202,9 +200,8 @@ class AMSPipeCalculator(AMSCalculator):
             s.amsworker = job_settings.amsworker
         s.amsworker.prev_results = self.prev_ams_results
         job_settings = s
-
         #run the worker from _solve_from_settings
-        return self.worker._solve_from_settings(name     = str(self.counter),
+        return self.worker._solve_from_settings(name     = self.name+str(self.counter),
                                                 molecule = molecule,
                                                 settings = job_settings
                                                )
@@ -213,9 +210,12 @@ class AMSPipeCalculator(AMSCalculator):
 class AMSJobCalculator(AMSCalculator):
     """This class should be instantiated through AMSCalculator with settings.Calculator.AMSJob defined"""
     def _get_ams_results(self, molecule, properties):
-        settings = self.ams_settings.copy()
+        settings = self.settings.copy()
         job_settings = self._get_job_settings(properties)
-        return AMSJob( name     = str(self.counter),
+        if self.restart and self.prev_ams_results:
+            job_settings.input.ams.EngineRestart = self.prev_ams_results.rkfpath(file='engine')
+
+        return AMSJob( name     = self.name+str(self.counter),
                        molecule = molecule, 
                        settings = job_settings
                        ).run()
