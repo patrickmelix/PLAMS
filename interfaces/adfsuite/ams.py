@@ -1840,7 +1840,7 @@ class AMSJob(SingleJob):
 
         """
         def get_list(s):
-            if len(s) == 1 and isinstance(s._1, list):
+            if '_1' in s and not '_2' in s and  isinstance(s._1, list):
                 return s._1
             else:
                 i = 1
