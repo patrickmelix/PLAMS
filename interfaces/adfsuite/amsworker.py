@@ -313,7 +313,7 @@ for x in ("gradients", "stresstensor", "hessian", "elastictensor", "charges", "d
 for x in ("coordinatetype", "optimizelattice", "maxiterations", "pretendconverged", "calcpropertiesonlyifconverged"):
     _arg2setting[x] = ('input', 'ams', 'geometryoptimization', x)
 
-for x in ("convenergy", "convgradients", "convstep", "convstressenergyperatom"):
+for x in ("convquality", "convenergy", "convgradients", "convstep", "convstressenergyperatom"):
     _arg2setting[x] = ('input', 'ams', 'geometryoptimization', 'convergence', x[4:])
 
 _arg2setting['task'] = ('input', 'ams', 'task')
@@ -710,7 +710,7 @@ class AMSWorker:
                charges=False, dipolemoment=False, dipolegradients=False,
                method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
                maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
-               convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
+               convquality=None, convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
 
         if self.use_restart_cache and name in self.restart_cache:
             raise JobError(f'Name "{name}" is already associated with results from the restart cache.')
@@ -763,6 +763,7 @@ class AMSWorker:
                 if maxiterations is not None: args["maxIterations"] = int(maxiterations)
                 if pretendconverged: args["pretendConverged"] = True
                 if not calcpropertiesonlyifconverged: args["calcPropertiesIfNotConverged"] = True
+                if convquality is not None: args["convQuality"] = str(convquality)
                 if convenergy is not None: args["convEnergy"] = float(convenergy)
                 if convgradients is not None: args["convGradients"] = float(convgradients)
                 if convstep is not None: args["convStep"] = float(convstep)
@@ -838,7 +839,7 @@ class AMSWorker:
                              charges=False, dipolemoment=False, dipolegradients=False,
                              method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
                              maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
-                             convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
+                             convquality=None, convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
         """Performs a geometry optimization on the |Molecule| instance *molecule* and returns an instance of |AMSWorkerResults| containing the results from the optimized geometry.
 
         The geometry optimizer can be controlled using the following keyword arguments:
@@ -850,6 +851,7 @@ class AMSWorker:
         - *maxiterations*: Maximum number of iterations allowed.
         - *pretendconverged*: If set to true, non converged geometry optimizations will be considered successful.
         - *calcpropertiesonlyifconverged*: Calculate properties (e.g. the Hessian) only if the optimization converged.
+        - *convquality*: Overall convergence quality, see AMS driver manual for the GeometryOptimization task.
         - *convenergy*: Convergence criterion for the energy (in Hartree).
         - *convgradients*: Convergence criterion for the gradients (in Hartree/Bohr).
         - *convstep*: Convergence criterion for displacements (in Bohr).
