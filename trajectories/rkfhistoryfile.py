@@ -264,7 +264,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                write_general_section(self.file_object)
+                write_general_section(self.file_object,self.program)
                 
                 # Then write the input molecule
                 self._update_celldata(cell)

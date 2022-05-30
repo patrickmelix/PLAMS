@@ -145,6 +145,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.store_molecule = True # Even if True, the molecule attribute is only stored during iteration
         
                 # RKF specific attributes
+                self.program = 'plams'
                 self.nvecs = 3
                 self.latticevecs = numpy.zeros((3,3))
                 self.read_lattice = True               # Reading time can be saved by skipping the lattice info
@@ -265,7 +266,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                write_general_section(self.file_object)
+                write_general_section(self.file_object,self.program)
 
                 # Then write the input molecule
                 self._update_celldata(cell)
@@ -773,13 +774,13 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 crd,cell = self.read_frame(nsteps-1, molecule)
                 return crd, cell
 
-def write_general_section (rkf) :
+def write_general_section (rkf, program='plams') :
         """
         Write the General section of the RKF file
         """
         rkf.write('General','file-ident','RKF')
         rkf.write('General','termination status','NORMAL TERMINATION')
-        rkf.write('General','program','ams')
+        rkf.write('General','program','%s'%(program))
         rkf.write('General','user input',' ')
 
 def write_molecule_section (rkf, coords=None, cell=None, elements=None, section='Molecule', molecule=None) :
