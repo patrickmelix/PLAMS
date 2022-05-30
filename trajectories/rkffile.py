@@ -6,7 +6,6 @@ from ..mol.molecule import Molecule, Bond
 from ..tools.periodic_table import PeriodicTable
 from ..tools.kftools import KFFile
 from ..tools.units import Units
-#from ..interfaces.adfsuite.ams import AMSResults
 from ..core.errors import PlamsError
 from .trajectoryfile import TrajectoryFile
 
@@ -512,7 +511,6 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 * ``molecule`` -- A molecule object to read the molecular data from
                 * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system) in angstrom
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
-                * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
                 * ``historydata`` -- A dictionary containing additional variables to be written to the History section
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
 
@@ -817,16 +815,10 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
         # Should it write bonds?
         # Write atom properties
         if molecule is not None :
-                suffixes = []
-                present = False
-                for at in molecule :
-                        if 'suffix' in at.properties :
-                                present = True
-                                suffixes.append(at.properties.suffix)
-                        else :
-                                suffixes.append('')
-                if present :
-                        rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                from ..interfaces.adfsuite.ams import AMSJob
+                suffixes = [ AMSJob._atom_suffix(at) for at in molecule ]
+                if any(s != '' for s in suffixes):
+                    rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
                 # Also add a bond section
                 if len(molecule.bonds) > 0 :
                         bond_indices = [sorted([iat for iat in molecule.index(bond)]) for bond in molecule.bonds]
