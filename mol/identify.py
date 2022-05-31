@@ -323,7 +323,7 @@ if has_networkx:
     @add_to_class(Molecule)
     def find_permutation(self, other, level=1):
         """
-        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
+        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. 
         """
         # Get bonds and unique atomIDs if needed
         if len(self.bonds) == 0:
@@ -363,7 +363,7 @@ if has_networkx:
         """
         Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is a new ``Molecule`` object, or ``None`` if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
         """
-        indices = self.find_permutation(other, level=1)
+        indices = self.find_permutation(other, level=level)
         if indices is None:
             return None
         mol = self.get_fragment(indices)
