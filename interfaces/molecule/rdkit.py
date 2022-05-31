@@ -339,7 +339,7 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
 
 
 def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False, useExpTorsionAnglePrefs='default', constraint_ats=None,
-                        EmbedParameters='EmbedParameters', randomSeed=1):
+                        EmbedParameters='EmbedParameters', randomSeed=1, best_rms=-1):
     """
     Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
@@ -351,6 +351,8 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
         optimization and ranking of comformations. The default value None results
         in skipping of the geometry optimization step
     :parameter float rms: Root Mean Square deviation threshold for removing
+        similar/equivalent conformations.
+    :parameter float best_rms: Root Mean Square deviation of best atomic permutation for removing
         similar/equivalent conformations.
     :parameter bool enforceChirality: Enforce the correct chirality if chiral centers are present
     :parameter str useExpTorsionAnglePrefs: Use experimental torsion angles preferences for the conformer generation by rdkit
@@ -388,8 +390,20 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
             energy = 1e9
         return energy
 
+    def remove_some_Hs(m):
+        res = Chem.RWMol(m)
+        c_hs = [x[0] for x in m.GetSubstructMatches(Chem.MolFromSmarts('[#1;$([#1]-[#6])]'))]
+        c_hs.sort(reverse=True)
+        for aid in c_hs:
+            res.RemoveAtom(aid)
+        return res.GetMol()
+
     if name:
         rdkit_mol.SetProp('name', name)
+
+    if best_rms > 0:
+        if rms > 0: raise PlamsError('Cannot set both rms and best_rms')
+        rms = best_rms
 
     #if enforceChirality :
     #    # This is how chirality is enforced in the GUI. The argument is not passed to AllChem.EmbedMultipleConfs
@@ -427,24 +441,31 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
             optimize_molecule(rdkit_mol, confId=cid)
         cids.sort(key=energy)
 
-        # Remove duplicate conformations based on RMS
-        if rms > 0:
-            keep = [cids[0]]
-            for cid in cids[1:]:
-                for idx in keep:
-                    try:
-                        r = AllChem.AlignMol(rdkit_mol, rdkit_mol, cid, idx)
-                    except:
-                        r = rms + 1
-                        message = "Alignment failed in multiple conformation generation: "
-                        message += Chem.MolToSmiles(rdkit_mol)
-                        message += "\nAssuming different conformations."
-                        warn(message)
-                    if r < rms:
-                        break
-                else:
-                    keep.append(cid)
-            cids = keep
+    # Remove duplicate conformations based on RMS
+    if best_rms > 0 or forcefield:
+        rdmol_local = rdkit_mol
+        rms_function = AllChem.AlignMol
+        if best_rms > 0:
+            # Remove the H atoms, and prepare to use the more expensive RDKit function
+            rdmol_local = remove_some_Hs(rdkit_mol)
+            rms_function = AllChem.GetBestRMS
+        keep = [cids[0]]
+        for cid in cids[1:]:
+            for idx in keep:
+                try:
+                    #r = AllChem.AlignMol(rdkit_mol, rdkit_mol, cid, idx)
+                    r = rms_function(rdmol_local, rdmol_local, cid, idx)
+                except:
+                    r = rms + 1
+                    message = "Alignment failed in multiple conformation generation: "
+                    message += Chem.MolToSmiles(rdkit_mol)
+                    message += "\nAssuming different conformations."
+                    warn(message)
+                if r < rms:
+                    break
+            else:
+                keep.append(cid)
+        cids = keep
 
     if nconfs == 1:
         return from_rdmol(rdkit_mol)
