@@ -2,15 +2,26 @@
 
 """
 import numpy as np
-from ase.calculators.calculator import Calculator, all_changes
-from ase.units import Hartree, Bohr
 
 from .amsworker import AMSWorker
 from .ams import AMSJob
 from ...core.settings import Settings
 from ..molecule.ase import fromASE, toASE
 
+from scm.plams import log
 __all__ = ['AMSCalculator', 'BasePropertyExtractor'] 
+
+try:
+    from ase.calculators.calculator import Calculator, all_changes
+    from ase.units import Hartree, Bohr
+except ImportError:
+    #empty interface if ase does not exist:
+    __all__ = []
+    class Calculator:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError('AMSCalculator can not be used without ASE')
+    all_changes = []
+    Hartree = Bohr = 1
 
 
 class BasePropertyExtractor:
@@ -41,7 +52,7 @@ class ForceExtractor(BasePropertyExtractor):
         return -ams_results.get_gradients() * Hartree / Bohr
 
     def set_settings(self, settings):
-        settings.input.ams.Properties.Gradients = True
+        settings.input.ams.Properties.Gradients = "Yes"
 
 
 class StressExtractor(BasePropertyExtractor):
@@ -63,7 +74,7 @@ class StressExtractor(BasePropertyExtractor):
             return np.array([xx, yy, zz, yz, xz, xy])
 
     def set_settings(self, settings):
-        settings.input.ams.Properties.StressTensor = True
+        settings.input.ams.Properties.StressTensor = "Yes"
 
 
 class AMSCalculator(Calculator):
@@ -93,10 +104,11 @@ class AMSCalculator(Calculator):
 
     Examples:
     """
-
+    #counters are a dict as a class variable. This is to support deepcopying/multiple instances with the same name
+    _counter = {}
 
     def __new__(cls, settings = None, name = '', amsworker = False, restart = True, molecule = None, extractors = []):
-        """Dispatch object creation to AMSPipeCalculator or AMSJobCalculator depending on |settings|"""
+        """Dispatch object creation to AMSPipeCalculator or AMSJobCalculator depending on |amsworker|"""
         if cls == AMSCalculator:
             if amsworker:
                 obj = object.__new__(AMSPipeCalculator)
@@ -106,7 +118,7 @@ class AMSCalculator(Calculator):
             obj = object.__new__(cls)
         return obj
 
-    def __init__(self, settings = None, name='', amsworker = False, restart = True, molecule = None, extractors = [] ):
+    def __init__(self, settings = None, name='', amsworker = False, restart = True, molecule = None, extractors = []):
         settings = settings.copy()
         self.settings = settings.copy()
         self.amsworker = amsworker
@@ -116,7 +128,7 @@ class AMSCalculator(Calculator):
         extractors = settings.pop('Extractors', [])
         self.extractors = [EnergyExtractor(), ForceExtractor(), StressExtractor()]
         self.extractors += [e for e in extractors if not e in self.extractors]
-
+        
         if 'system' in self.settings.input.ams:
             mol_dict = AMSJob.settings_to_mol(settings)
             atoms = toASE(mol_dict['']) if mol_dict else None
@@ -127,13 +139,23 @@ class AMSCalculator(Calculator):
 
         super().__init__()
         self.atoms = atoms
-        
-        self.counter = 0
+
         self.prev_ams_results = None
         self.results = dict()
 
-    def __getnewargs__(self):
-        return self.settings, self.amsworker, self.restart, self.molecule, self.extractors
+    @property
+    def counter(self):
+        #this is needed for deepcopy/pickling etc
+        if not self.name in self._counter:
+            self.set_counter()
+        self._counter[self.name] += 1
+        return self._counter[self.name]
+
+    def set_counter(self, value = 0):
+        self._counter[self.name] = value
+
+    #def __getnewargs__(self):
+    #    return self.settings, self.name, self.amsworker, self.restart, self.molecule, self.extractors
 
     @property
     def implemented_properties(self):
@@ -142,7 +164,12 @@ class AMSCalculator(Calculator):
 
     def calculate(self, atoms=None, properties=['energy'], system_changes=all_changes):
         """Calculate the requested properties. If atoms is not set, it will reuse the last known Atoms object."""
+        log("I was asked to compute "+str( properties)+ " for the following system", 0)
+        log(str(atoms), 0)
         if atoms is not None:
+            #no need to redo the calculation, we already have everything.
+            if self.atoms == atoms and all([p in self.results for p in properties]):
+                return
             self.atoms = atoms
 
         if self.atoms is None:
@@ -152,7 +179,6 @@ class AMSCalculator(Calculator):
             return
 
         molecule = fromASE(self.atoms)
-        self.counter += 1
         ams_results = self._get_ams_results(molecule, properties)
         if not ams_results.ok():
             self.results = dict()
