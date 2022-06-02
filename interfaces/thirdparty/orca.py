@@ -40,15 +40,34 @@ class ORCAResults(Results):
         """Returns true if ORCA TERMINATED NORMALLY is in the output"""
         return bool(self.grep_output('ORCA TERMINATED NORMALLY'))
 
-    def _get_energy_type(self, search='FINAL SINGLE POINT ENERGY', index=-1, unit='a.u.'):
+    def check_go_conv(self):
+        """Returns true if THE OPTIMIZATION HAS CONVERGED is in the output"""
+        return bool(self.grep_output('THE OPTIMIZATION HAS CONVERGED'))
+
+    def check_scf_conv(self):
+        """Returns true if SCF NOT CONVERGED AFTER is NOT in the output"""
+        return not bool(self.grep_output('SCF NOT CONVERGED AFTER'))
+
+    def _get_energy_correct_unit(string, unit='Eh'):
+        #if there are multiple numbers in the string, get the one labeled with unit
+        #otherwise get the last number
+        stringList = string.split()
+        if unit in string:
+            index = stringList.index(unit)
+            return float(stringList[index-1])
+        else:
+            return float(stringList[-1])
+
+    def _get_energy_type(self, search='FINAL SINGLE POINT ENERGY', index=-1, unit='a.u.', filterDotDotDot=True):
         # hacky way of getting rid of some entries: first get all, remove those that are '... done'
         s = self.grep_output(search)
-        s = [ item for item in s if not '...' in item ]
+        if filterDotDotDot:
+            s = [ item for item in s if not '...' in item ]
         s = s[index]
         if not isinstance(index, slice):
-            return Units.convert(float(s.split()[-1]), 'a.u.', unit)
+            return Units.convert(self._get_energy_correct_unit(s), 'a.u.', unit)
         else:
-            return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
+            return [ Units.convert(self._get_energy_correct_unit(x), 'a.u.', unit) for x in s ]
 
     def get_scf_iterations(self, index=-1):
         """Returns Number of SCF Iterations from the Output File.
@@ -77,6 +96,51 @@ class ORCAResults(Results):
         Defaults to the last occurence.
         """
         return self._get_energy_type('Dispersion correction', index=index, unit=unit)
+
+    def get_zpe(self, index=-1, unit='a.u.'):
+        """Returns 'Non-thermal (ZPE) correction' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the ZPE in the output, *e.g.* to choose a certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('Non-thermal (ZPE) correction', index=index, unit=unit)
+
+    def get_inner_energy(self, index=-1, unit='a.u.'):
+        """Returns 'Total thermal energy' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the inner energy in the output, *e.g.* to choose a certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('Total thermal energy', index=index, unit=unit)
+
+    def get_enthalpy(self, index=-1, unit='a.u.'):
+        """Returns 'Total Enthalpy' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the enthalpy in the output, *e.g.* to choose a certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('Total Enthalpy', index=index, unit=unit, filterDotDotDot=False)
+
+    def get_entropy(self, index=-1, unit='a.u.'):
+        """Returns 'Final entropy term' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the entropy in the output, *e.g.* to choose a certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('Final entropy term', index=index, unit=unit, filterDotDotDot=False)
+
+    def get_gibbs_free_energy(self, index=-1, unit='a.u.'):
+        """Returns 'Final Gibbs free energy' from the output file.
+
+        Set ``index`` to choose the n-th occurence of the Gibbs free energy in the output, *e.g.* to choose a certain step.
+        Also supports slices.
+        Defaults to the last occurence.
+        """
+        return self._get_energy_type('Final Gibbs free energy', index=index, unit=unit, filterDotDotDot=False)
 
     def get_electrons(self, index=-1, spin_resolved=False):
         """Get Electron count from Output.
