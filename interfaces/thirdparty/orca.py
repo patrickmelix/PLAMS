@@ -48,7 +48,7 @@ class ORCAResults(Results):
         """Returns true if SCF NOT CONVERGED AFTER is NOT in the output"""
         return not bool(self.grep_output('SCF NOT CONVERGED AFTER'))
 
-    def _get_energy_correct_unit(string, unit='Eh'):
+    def _get_energy_correct_unit(self, string, unit='Eh'):
         #if there are multiple numbers in the string, get the one labeled with unit
         #otherwise get the last number
         stringList = string.split()
