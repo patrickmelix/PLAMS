@@ -170,7 +170,7 @@ class AMSCalculator(Calculator):
             #no need to redo the calculation, we already have everything.
             if self.atoms == atoms and all([p in self.results for p in properties]):
                 return
-            self.atoms = atoms
+            self.atoms = atoms.copy()
 
         if self.atoms is None:
             raise ValueError("No atoms object was set.")
