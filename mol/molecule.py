@@ -1089,24 +1089,28 @@ class Molecule:
 
         Returns a list of lists of indices (e.g. for two methane molecules: [[0,1,2,3,4],[5,6,7,8,9]])
         """
-        conect = self.get_connection_table()
-        atlist = [i for i in range(len(self))]
+        molecule_indices = []
+        for at in self:
+            at._visited = False
 
-        molecules = []
-        while(1) :
-            atoms = [atlist[0]]
-            # Continue to add to the atoms list below, as the loop progresses
-            for i,iat in enumerate(atoms) :
-                conlist = conect[iat]
-                atoms += [ind for ind in conlist if not ind in atoms]
-            # Remove the molecule from atlist
-            atlist = [i for i in atlist if not i in atoms]
-            molecules.append(sorted(atoms))
+        def dfs(v, indices):
+            v._visited = True
+            for e in v.bonds:
+                u = e.other_end(v)
+                if not u._visited:
+                    indices.append(self.index(u, start=indices[0]+1)-1)
+                    dfs(u, indices)
 
-            if len(atlist) == 0 :
-                    break
+        for iatom,src in enumerate(self.atoms):
+            if not src._visited:
+                indices = [iatom]
+                dfs(src, indices)
+                molecule_indices.append(sorted(indices))
 
-        return molecules
+        for at in self:
+            del at._visited
+
+        return molecule_indices
 
     def get_fragment (self, indices) :
         """
@@ -1130,6 +1134,8 @@ class Molecule:
                 bo_copy.atom1 = bro[bo.atom1]
                 bo_copy.atom2 = bro[bo.atom2]
                 ret.add_bond(bo_copy)
+
+        ret.properties.soft_update(self.properties)
 
         return ret
 
@@ -1539,8 +1545,19 @@ class Molecule:
         mass = self.get_mass(unit='kg')
         return mass/vol
 
+    def set_density(self, density:float):
+        """
+        Applies a uniform strain so that the density becomes ``density`` kg/m^3
+        """
+        assert(len(self.lattice) == 3)
+        current_density = self.get_density() # in kg/m^3
+        strain = (current_density/density)**(1/3.0)
+        strain -= 1.0
+        self.apply_strain([strain, strain, strain, 0, 0, 0], voigt_form=True)
+
+
     def get_formula(self, as_dict=False):
-        """Calculate the molecular formula of the molecule.
+        """Calculate the molecular formula of the molecule according to the Hill system.
 
         Here molecular formula is a dictionary with keys being atomic symbols. The value for each key is the number of atoms of that type. If *as_dict* is ``True``, that dictionary is returned. Otherwise, it is converted into a string::
 
@@ -1551,17 +1568,26 @@ class Molecule:
             C378H629N105O118S1
 
         """
-        ret = {}
+        occ = {}
         for atom in self:
-            if atom.symbol not in ret:
-                ret[atom.symbol] = 0
-            ret[atom.symbol] +=1
+            if atom.symbol not in occ:
+                occ[atom.symbol] = 0
+            occ[atom.symbol] +=1
         if as_dict:
-            return ret
-        s = ''
-        for key in sorted(ret):
-            s += '{}{}'.format(key,ret[key])
-        return s
+            return occ
+
+        def string_for_sym(sym, occ):
+            if sym not in occ:
+                return ''
+            else:
+                n = occ.pop(sym)
+                return sym if n == 1 else f'{sym}{n}'
+        if 'C' in occ:
+            # for organic molecules C and H come first
+            return string_for_sym('C', occ) + string_for_sym('H', occ) + ''.join(string_for_sym(sym, occ) for sym in sorted(occ))
+        else:
+            # for inorganic systems the order is strictly alphabetic
+            return ''.join(string_for_sym(sym, occ) for sym in sorted(occ))
 
 
     def apply_strain(self, strain, voigt_form=False):
@@ -1651,11 +1677,48 @@ class Molecule:
         frac_coords_transf = np.linalg.inv(lattice_mat.T)
         fractional_coords = coords[:,:n]@frac_coords_transf.T
         if around_origin:
-            fractional_coords = fractional_coords - np.rint(fractional_coords)
+            shift = - np.rint(fractional_coords)
         else:
-            fractional_coords = fractional_coords - np.floor(fractional_coords)
-        coords[:,:n] = (lattice_mat.T@fractional_coords.T).T
+            shift = - np.floor(fractional_coords)
+        fractional_coords_new = fractional_coords + shift
+        coords[:,:n] = (lattice_mat.T@fractional_coords_new.T).T
         self.from_array(coords)
+
+        def has_cell_shifts(bnd):
+            return 'suffix' in bnd.properties and \
+                   isinstance(bnd.properties.suffix, str) and \
+                   bnd.properties.suffix != '' and \
+                   not bnd.properties.suffix.isspace()
+
+        if any(has_cell_shifts(b) for b in self.bonds):
+            # Fix cell shifts for bonds for atoms that were moved.
+            for b in self.bonds:
+                # Check if the mapping has moved the bonded atoms relative to each other.
+                at1, at2 = self.index(b); at1 = at1 - 1 ; at2 = at2 - 1 # -1 because np.array is indexed from 0
+                relshift = (shift[at2,:n] - shift[at1,:n]).astype(int)
+                if not np.all(relshift == 0):
+                    # Relative position has changed: cell shifts need updating!
+                    if has_cell_shifts(b):
+                        # Grab the original cell shifts from the suffix. An empty
+                        # suffix means "0 0 0" if at least one atom has cell shifts. If
+                        # no atom has cell shifts and all suffixes are empty, the bonds
+                        # are always taken to be to the closest image, but that case is
+                        # covered by to top level if (above) already.
+                        try:
+                            cell_shifts = np.array([ int(cs) for cs in b.properties.suffix.split() ])
+                        except Exception:
+                            raise MoleculeError("Cell shifts in bond suffix are not all integers.")
+                        if cell_shifts.size != n:
+                            raise MoleculeError("Wrong number of cell shifts in bond suffix.")
+                    else:
+                        cell_shifts = np.array([ 0 for i in range(n) ])
+                    cell_shifts_new = cell_shifts - relshift
+                    if np.all(cell_shifts_new == 0):
+                        # All 0 cell shifts are not written out explicitly
+                        if 'suffix' in b.properties:
+                            del b.properties.suffix
+                    else:
+                        b.properties.suffix = " ".join(str(cs) for cs in cell_shifts_new)
 
 
     def perturb_atoms(self, max_displacement=0.01, unit='angstrom', atoms=None):
@@ -2210,7 +2273,7 @@ class Molecule:
                         self.add_atom(Atom(symbol=symb, coords=crd))
                     for j in range(nbond):
                         bondline = f.readline().rstrip()
-                        if len(bondline) == 21:
+                        if len(bondline) == 21 :
                             at1 = int(bondline[0:3])
                             at2 = int(bondline[3:6])
                             ordr = int(bondline[6:9])
@@ -2221,6 +2284,12 @@ class Molecule:
                             ordr = int(tmp[2])
                         if ordr == 4:
                             ordr = Bond.AR
+                        if at1 > natom or at2 > natom :
+                            at1 = int(bondline[0:3])
+                            at2 = int(bondline[3:6])
+                            ordr = int(bondline[6:9])
+                            if ordr == 4:
+                                ordr = Bond.AR
                         self.add_bond(Bond(atom1=self[at1], atom2=self[at2], order=ordr))
                     break
                 elif spl[-1] == 'V3000':
@@ -2407,6 +2476,7 @@ class Molecule:
     @staticmethod
     def _mol_from_rkf_section(sectiondict):
         """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
+        from ..interfaces.adfsuite.ams import AMSJob
 
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
@@ -2433,8 +2503,14 @@ class Molecule:
             toAtoms = sectiondict['toAtoms'] if isinstance(sectiondict['toAtoms'], list) else [sectiondict['toAtoms']]
             bondOrders = sectiondict['bondOrders'] if isinstance(sectiondict['bondOrders'], list) else [sectiondict['bondOrders']]
 
-            for fromAt, toAt, bondOrder in zip(fromAtoms, toAtoms, bondOrders):
-                ret.add_bond(ret[fromAt], ret[toAt], bondOrder)
+            for iBond, (fromAt, toAt, bondOrder) in enumerate(zip(fromAtoms, toAtoms, bondOrders)):
+                b = Bond(ret[fromAt], ret[toAt], bondOrder)
+                if 'latticeDisplacements' in sectiondict:
+                    nLatVec = int(sectiondict['nLatticeVectors'])
+                    cellShifts = sectiondict['latticeDisplacements'][iBond*nLatVec:iBond*nLatVec+nLatVec]
+                    if not all(cs == 0 for cs in cellShifts):
+                        b.properties.suffix = " ".join(str(cs) for cs in cellShifts)
+                ret.add_bond(b)
         if sectiondict['Charge'] != 0:
             ret.properties.charge = sectiondict['Charge']
         if 'nLatticeVectors' in sectiondict:
@@ -2450,7 +2526,8 @@ class Molecule:
                 # AMS<=2019: Separated with new line characters
                 suffixes = sectiondict['EngineAtomicInfo'].splitlines()
             for at, suffix in zip(ret, suffixes):
-                at.properties.suffix = suffix
+                if suffix:
+                    at.properties.soft_update(AMSJob._atom_suffix_to_settings(suffix))
         return ret
 
     def readrkf(self, filename, section='Molecule', **other):
@@ -2469,7 +2546,7 @@ class Molecule:
         from ..interfaces.adfsuite.ams import AMSJob
         sett = Settings()
         with InputParser() as parser:
-            sett.input.AMS = Settings(parser._run('ams', f.read()))
+            sett.input.AMS = Settings(parser._run('ams', f.read(), string_leafs=True))
         if 'System' not in sett.input.AMS: raise ValueError('No System block found in file.')
         sysname = other.get('sysname', '')
         mols = AMSJob.settings_to_mol(sett)
@@ -2556,20 +2633,20 @@ class Molecule:
                 3         H      0.327778       0.033891      -0.901672
 
         """
-        from subprocess import Popen
+        from subprocess import Popen, DEVNULL
         from tempfile import NamedTemporaryFile
         with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_in:
             self.writexyz(f_in)
             f_in.seek(0)
             with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_out:
-                p = Popen(f'amsprep -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True)
+                p = Popen(f'amsprep -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True, stdout=DEVNULL)
                 p.communicate()
                 retmol = self.__class__(f_out.name)
         return retmol
 
 
     @staticmethod
-    def rmsd(mol1, mol2, return_rotmat=False, check=True):
+    def rmsd(mol1, mol2, ignore_hydrogen=False, return_rotmat=False, check=True):
         """
         Uses the
         `Kabsch algorithm <https://en.wikipedia.org/wiki/Kabsch_algorithm>`_ to align and
@@ -2608,14 +2685,139 @@ class Molecule:
             nums1 = np.array([i.atnum for i in mol1])
             nums2 = np.array([i.atnum for i in mol2])
             assert (nums1 == nums2).all(), f"\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
+        if ignore_hydrogen is True:
+            mol1 = [at.coords for at in mol1 if at.symbol != 'H']
+            mol2 = [at.coords for at in mol2 if at.symbol != 'H']
         return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
 
     @property
-    def numbers(self):
-        """ Return an array of all atom numbers in Molecule """
+    def numbers(self) -> np.ndarray:
+        """ Return an array of all atomic numbers in the Molecule. Can also be used to set all numbers at once. """
         return np.array([i.atnum for i in self])
+    
+    @numbers.setter
+    def numbers(self, values):
+        if len(values) != len(self):
+            raise ValueError(f"Number of elements in array ({len(values)}) does not match the molecule size ({len(self)}).")
+        [setattr(at, 'atnum', value) for at,value in zip(self, values)]
+
 
     @property
-    def symbols(self):
-        """ Return an array of all atom symbols in Molecule """
+    def symbols(self) -> np.ndarray:
+        """ Return an array of all atomic symbols in the Molecule. Can also be used to set all symbols at once. """
         return np.array([i.symbol for i in self])
+    
+    @symbols.setter
+    def symbols(self, values):
+        if len(values) != len(self):
+            raise ValueError(f"Number of elements in array ({len(values)}) does not match the molecule size ({len(self)}).")
+        [setattr(at, 'symbol', value) for at,value in zip(self, values)]
+
+    def _get_bond_id(self, at1, at2, id_type):
+        """
+        at1: Atom in this molecule
+        at2: Atom in this molecule
+        id_type: str, 'IDname' or 'symbol'
+        This function is called by get_unique_bonds()
+
+        Returns: a 2-tuple, the key and a bool. The bool is True if the order was reversed.
+        """
+        at1key = getattr(at1, id_type)
+        at2key = getattr(at2, id_type)
+        if at1key < at2key:
+            return at1key+'-'+at2key, False
+        else:
+            return at2key+'-'+at1key, True
+
+    def get_unique_bonds(self, ignore_dict=None, id_type='symbol', index_start=1):
+        """
+
+        Returns a dictionary of all unique bonds in this molecule, where the
+        key is the identifier and the value is a 2-tuple containing the 1-based
+        indices of the atoms making up the bond (or 0-based indices if
+        index_start == 0).
+
+        ignore_dict : dict
+            Bonds already existing in ignore_dict (as defined by the keys) will not be added to the returned dictionary
+
+            Example: if id_type == 'symbol' and ignore_dict has a key 'C-C', then no C-C bond will be added to the return dictionary.
+
+        id_type: str
+            'symbol': The atomic symbols become the keys, e.g. 'C-H' (alphabetically sorted)
+
+            'IDname': The IDname from molecule.set_local_labels() become the keys, e.g. 'an4va8478432bfl471baf74-knrq78jhkhq78fak111nf' (alphabetically sorted). Note: You must first call Molecule.set_local_labels()
+
+
+        index_start : int
+            If 1, indices are 1-based. If 0, indices are 0-based.
+
+        """
+        ret = {}
+        ignore_dict = ignore_dict or {}
+        for at in self:
+            for b in at.bonds:
+                other_atom = b.other_end(at)
+                bondid, reverse = self._get_bond_id(at, other_atom, id_type)
+                if bondid not in ignore_dict and bondid not in ret:
+                    if reverse:
+                        ret[bondid] = self.index(other_atom) - 1 + index_start, self.index(at) - 1 + index_start
+                    else:
+                        ret[bondid] = self.index(at) - 1 + index_start, self.index(other_atom) - 1 + index_start
+
+        return ret
+
+    def _get_angle_id(self, at1, at2, at3, id_type):
+        at1key = getattr(at1, id_type)
+        at2key = getattr(at2, id_type)
+        at3key = getattr(at3, id_type)
+        if at1key < at3key:
+            return at1key+'-'+at2key+'-'+at3key, False
+        else:
+            return at3key+'-'+at2key+'-'+at1key, True
+
+    def get_unique_angles(self, ignore_dict=None, id_type='symbol', index_start=1):
+        """
+
+        Returns a dictionary of all unique angles in this molecule, where the
+        key is the identifier and the value is a 3-tuple containing the 1-based
+        indices of the atoms making up the angle (or 0-based indices if
+        index_start == 0). The central atom is the second atom.
+
+        ignore_dict : dict
+            Angles already existing in ignore_dict (as defined by the keys) will not be added to the returned dictionary
+
+            Example: if id_type == 'symbol' and ignore_dict has a key 'C-C-C', then no C-C-C angle will be added to the return dictionary.
+
+        id_type: str
+            'symbol': The atomic symbols become the keys, e.g. 'C-C-C' (alphabetically sorted, the central atom in the middle)
+
+            'IDname': The IDname from molecule.set_local_labels() become the keys, e.g. 'an4va8478432bfl471baf74-knrq78jhkhq78fak111nf-mf42918vslahf879bakfhk' (alphabetically sorted, the central atom in middle). Note: You must first call Molecule.set_local_labels()
+
+
+        index_start : int
+            If 1, indices are 1-based. If 0, indices are 0-based.
+
+        """
+        ret = {}
+        ignore_dict = ignore_dict or {}
+        for at in self:
+            for b in at.bonds:
+                at2 = b.other_end(at)
+                for b2 in at2.bonds:
+                    at3 = b2.other_end(at2)
+                    if at == at3:
+                        continue
+                    angleid, reverse = self._get_angle_id(at, at2, at3, id_type)
+                    if angleid not in ignore_dict and angleid not in ret:
+                        if reverse:
+                            ret[angleid] = self.index(at3)-1+index_start, self.index(at2)-1+index_start, self.index(at)-1+index_start
+                        else:
+                            ret[angleid] = self.index(at)-1+index_start, self.index(at2)-1+index_start, self.index(at3)-1+index_start
+
+        return ret
+
+        
+
+    if __name__ == '__main__':
+        main()
+

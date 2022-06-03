@@ -6,7 +6,6 @@ from ..mol.molecule import Molecule, Bond
 from ..tools.periodic_table import PeriodicTable
 from ..tools.kftools import KFFile
 from ..tools.units import Units
-#from ..interfaces.adfsuite.ams import AMSResults
 from ..core.errors import PlamsError
 from .trajectoryfile import TrajectoryFile
 
@@ -145,6 +144,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.store_molecule = True # Even if True, the molecule attribute is only stored during iteration
         
                 # RKF specific attributes
+                self.program = 'plams'
                 self.nvecs = 3
                 self.latticevecs = numpy.zeros((3,3))
                 self.read_lattice = True               # Reading time can be saved by skipping the lattice info
@@ -213,8 +213,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Overwrite the molecule section with the latest frame
                 """
-                crd,cell = self.read_last_frame()
-                self._write_molecule_section(crd,cell)
+                molecule = self.get_plamsmol()
+                crd,cell = self.read_last_frame(molecule=molecule)
+                self._write_molecule_section(crd,cell,molecule=molecule)
 
         def _read_header (self, molecule_section='Molecule') :
                 """
@@ -264,7 +265,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                write_general_section(self.file_object)
+                write_general_section(self.file_object,self.program)
 
                 # Then write the input molecule
                 self._update_celldata(cell)
@@ -342,8 +343,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.include_historydata :
                         self._store_historydata_for_step(i)
                 # Read and store all MDData for this frame
-                if self.include_mddata :
-                        self._store_mddata_for_step(i)
+                try:
+                    if self.include_mddata :
+                            self._store_mddata_for_step(i)
+                except AttributeError: # this is triggered when self.file_object is None triggered via self.close()
+                    pass
                 # Finalize
                 if self.firsttime :
                         self.firsttime = False
@@ -506,7 +510,6 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates in angstrom
                 * ``molecule`` -- A molecule object to read the molecular data from
                 * ``cell``     -- A set of lattice vectors (or cell diameters for an orthorhombic system) in angstrom
-                * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
                 * ``conect``   -- A dictionary containing the connectivity info (e.g. {1:[2],2:[1]})
                 * ``historydata`` -- A dictionary containing additional variables to be written to the History section
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
@@ -769,13 +772,13 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 crd,cell = self.read_frame(nsteps-1, molecule)
                 return crd, cell
 
-def write_general_section (rkf) :
+def write_general_section (rkf, program='plams') :
         """
         Write the General section of the RKF file
         """
         rkf.write('General','file-ident','RKF')
         rkf.write('General','termination status','NORMAL TERMINATION')
-        rkf.write('General','program','ams')
+        rkf.write('General','program','%s'%(program))
         rkf.write('General','user input',' ')
 
 def write_molecule_section (rkf, coords=None, cell=None, elements=None, section='Molecule', molecule=None) :
@@ -812,14 +815,48 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
         # Should it write bonds?
         # Write atom properties
         if molecule is not None :
-                suffixes = []
-                present = False
-                for at in molecule :
-                        if 'suffix' in at.properties :
-                                present = True
-                                suffixes.append(at.properties.suffix)
-                        else :
-                                suffixes.append('')
-                if present :
-                        rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                from ..interfaces.adfsuite.ams import AMSJob
+                suffixes = [ AMSJob._atom_suffix(at) for at in molecule ]
+                if any(s != '' for s in suffixes):
+                    rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                # Also add a bond section
+                if len(molecule.bonds) > 0 :
+                        bond_indices = [sorted([iat for iat in molecule.index(bond)]) for bond in molecule.bonds]
+                        atoms_from = [bond[0] for bond in bond_indices]
+                        atoms_to = [bond[1] for bond in bond_indices]
+                        orders = [float(bond.order) for bond in molecule.bonds]
+                        rkf.write(section,'fromAtoms',atoms_from)
+                        rkf.write(section,'toAtoms',atoms_to)
+                        rkf.write(section,'bondOrders',orders)
 
+                        # I also need to write the lattice displacements of the bonds
+                        # To do that, I need to compute them.
+                        # I could make a start with writing in zeros
+                        if cell is not None :
+                                lattice_displacements = compute_lattice_displacements(molecule)
+                                #lattice_displacements = [0 for i in range(len(cell)*len(molecule.bonds))]
+                                rkf.write(section,'latticeDisplacements',lattice_displacements)
+
+def compute_lattice_displacements (molecule) :
+        """
+        Determine which bonds are displaced along the periodic lattice, so that they are not at their closest distance
+        """
+        cell = numpy.array(molecule.lattice)
+
+        # Get the difference vectors for the bonds
+        nbonds = len(molecule.bonds)
+        bond_indices = numpy.array([sorted([iat-1 for iat in molecule.index(bond)]) for bond in molecule.bonds])
+        coords = molecule.as_array()
+        vectors = coords[bond_indices[:,0]] - coords[bond_indices[:,1]]
+        
+        # Project the vectors onto the lattice vectors
+        celldiameters_sqrd = (cell**2).sum(axis=1)
+        proj = (vectors.reshape((nbonds,1,3)) * cell.reshape(1,3,3)).sum(axis=2)
+        proj = proj / celldiameters_sqrd.reshape((1,3))
+        
+        # Now see what multiple they are of 0.5
+        lattice_displacements = numpy.round(proj).astype(int)
+        lattice_displacements = lattice_displacements.reshape((3*nbonds)).tolist()
+        return lattice_displacements
+
+                                

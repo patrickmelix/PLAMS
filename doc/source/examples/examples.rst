@@ -1,3 +1,5 @@
+.. _examples:
+
 Examples
 ========
 
@@ -16,9 +18,13 @@ Examples
    WaterOptimization
    ManyJobsInParallel
    BasisSetBenchmark
+   ReactionEnergyBenchmark
    ExcitationsWorkflow
    ChargeTransferIntegralsADF
    gammascan
+   PackMolExample
+   ConformersGeneration
+   BasicMDPostanalysis
 
 
 .. _recipes:
@@ -42,4 +48,5 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     molecule_gun
     global_minimum
     vibrationASE
+    RedoxPotential
 

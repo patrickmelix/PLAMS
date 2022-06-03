@@ -89,6 +89,15 @@ class KFReader:
                         return ret
 
 
+    def variable_type(self, section, variable):
+        """Return the integer code of the variable's type (int:1, float:2, string:3, bool:4)"""
+        try:
+            vtype, vlb, vstart, vlen = self._sections[section][variable]
+        except KeyError:
+            raise KeyError(f"Section '{section}' or variable '{variable}' not present in '{self.path}'")
+        return vtype
+
+
     def __iter__(self):
         """Iteration yields pairs of section name and variable name."""
         if self._sections is None:

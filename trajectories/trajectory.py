@@ -69,11 +69,13 @@ class Trajectory :
 
                 * ``s`` -- Python slice object
                 """
+                is_slice = False
                 if isinstance(s,int) :
                         s = slice(s)
                         start, stop, step = s.indices(len(self))
                         indices = range(stop,stop+1)
                 elif isinstance(s,slice) :
+                        is_slice = True
                         start, stop, step = s.indices(len(self))
                         indices = range(start,stop,step)
                 mols = []
@@ -83,7 +85,7 @@ class Trajectory :
                         mol = self.molecules[irkf].copy()
                         crd,cell = self.files[irkf].read_frame(istep,molecule=mol)
                         mols.append(mol)
-                if len(mols) == 1 :
+                if not is_slice :
                         mols = mols[0]
                 return mols
 
