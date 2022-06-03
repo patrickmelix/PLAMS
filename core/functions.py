@@ -3,6 +3,7 @@ import re
 import shutil
 import sys
 import threading
+import subprocess
 import time
 import types
 import warnings
@@ -13,6 +14,7 @@ from os.path import isfile, isdir, expandvars, dirname
 
 from .errors import PlamsError, FileError
 from .settings import Settings
+from .private import retry
 
 __all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules', 'read_all_molecules_in_xyz_file']
 
@@ -22,7 +24,7 @@ config.init = False
 #===========================================================================
 
 
-def init(path=None, folder=None, config_settings:Dict=None):
+def init(path=None, folder=None, config_settings:Dict=None, quiet=False):
     """Initialize PLAMS environment. Create global ``config`` and the default |JobManager|.
 
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
@@ -58,12 +60,15 @@ def init(path=None, folder=None, config_settings:Dict=None):
     from .jobmanager import JobManager
     config.default_jobmanager = JobManager(config.jobmanager, path, folder)
 
-    log('Running PLAMS located in {}'.format(dirname(dirname(__file__))), 5)
-    log('Using Python {}.{}.{} located in {}'.format(*sys.version_info[:3], sys.executable), 5)
-    log('PLAMS defaults were loaded from {}'.format(defaults), 5)
+    if not quiet:
+        log('Running PLAMS located in {}'.format(dirname(dirname(__file__))), 5)
+        log('Using Python {}.{}.{} located in {}'.format(*sys.version_info[:3], sys.executable), 5)
+        log('PLAMS defaults were loaded from {}'.format(defaults), 5)
 
-    log('PLAMS environment initialized', 5)
-    log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
+        log('PLAMS environment initialized', 5)
+        log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
+
+    config.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
 
     try:
         import dill
@@ -71,6 +76,59 @@ def init(path=None, folder=None, config_settings:Dict=None):
         log('WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling', 1)
 
     config.init = True
+
+
+def _init_slurm():
+    """If PLAMS is running under Slurm, query some information about the batch system and set up the environment for the PLAMS/Slurm integration."""
+    ret = Settings()
+    if "SLURM_JOB_ID" not in os.environ:
+        log("Slurm setup aborted: SLURM_JOB_ID is not set")
+        return None
+    try:
+        srun = subprocess.run(['srun','--version'], stdout=subprocess.PIPE, timeout=60)
+    except subprocess.TimeoutExpired:
+        log("Slurm setup failed: timeout for srun --version")
+        return None
+    if srun.returncode != 0:
+        log("Slurm setup failed: srun --version exited with non-zero return code")
+        return None
+    try:
+        ret.slurm_version = srun.stdout.decode().split()[1].split('.')
+        int(ret.slurm_version[0])
+        int(ret.slurm_version[1])
+    except Exception:
+        log("Slurm setup failed: could not determine Slurm version")
+        return None
+    if int(ret.slurm_version[0]) < 15:
+        log("Slurm setup failed: Slurm version >=15 is required for Slurm/PLAMS integration")
+        return None
+    if "SLURM_TASKS_PER_NODE" not in os.environ:
+        log("Slurm setup failed: SLURM_TASKS_PER_NODE is not set")
+        return None
+    ret.tasks_per_node = []
+    for tasks in os.environ["SLURM_TASKS_PER_NODE"].split(','):
+        try:
+            if '(' in tasks:
+                tasks, _, num_nodes = tasks.partition('(')
+                num_nodes = num_nodes[1:-1]
+                ret.tasks_per_node += [int(tasks)] * int(num_nodes)
+            else:
+                ret.tasks_per_node.append(int(tasks))
+        except Exception:
+            log("Slurm setup failed: can not determine the number of tasks per node")
+            return None
+    ret.tasks_per_node.sort(reverse=True)
+
+    # General setup of the environment when running under SLURM.
+    os.environ["SCM_SRUN_OPTIONS"] = "-m block:block:block,NoPack --use-min-nodes"
+    # There was a change in the behaviour of the srun --exclusive flag in Slurm 20.11.
+    # Newer versions should use --exact instead, see: https://www.nsc.liu.se/support/batch-jobs/slurm/20.11/
+    if int(ret.slurm_version[0]) >= 21 or (int(ret.slurm_version[0]) == 20 and int(ret.slurm_version[1]) >= 11):
+        os.environ["SCM_SRUN_OPTIONS"] += " --exact"
+    else:
+        os.environ["SCM_SRUN_OPTIONS"] += " --exclusive"
+
+    return ret
 
 
 #===========================================================================
@@ -143,6 +201,7 @@ def load_all(path, jobmanager=None):
 #===========================================================================
 
 
+@retry()
 def delete_job(job):
     """Remove *job* from its corresponding |JobManager| and delete the job folder from the disk. Mark *job* as 'deleted'."""
 
@@ -152,7 +211,6 @@ def delete_job(job):
     #In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
     if job.jobmanager is not None:
         job.jobmanager.remove_job(job)
-        shutil.rmtree(job.path)
 
     if job.parent is not None:
         job.parent.remove_child(job)

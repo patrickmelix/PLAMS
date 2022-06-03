@@ -9,6 +9,7 @@ import threading
 
 from os.path import join as opj
 from subprocess import PIPE
+from typing import List
 
 from .private import saferun
 from .errors import ResultsError, FileError
@@ -121,7 +122,7 @@ class _MetaResults(type):
     _dont_restrict = ['refresh', 'collect', '_clean', 'get_errormsg']
     def __new__(meta, name, bases, dct):
         for attr in dct:
-            if not (attr.endswith('__') and attr.startswith('__')) and callable(dct[attr]) and (attr not in _MetaResults._dont_restrict):
+            if not (attr.endswith('__') and attr.startswith('__')) and not type(dct[attr]) is type and callable(dct[attr]) and (attr not in _MetaResults._dont_restrict):
                 dct[attr] = _restrict(dct[attr])
         return type.__new__(meta, name, bases, dct)
 
@@ -213,6 +214,35 @@ class Results(metaclass=_MetaResults):
         except KeyError:
             raise ResultsError('Job {} does not have an output'.format(self.job.name))
         return self.grep_file(output, pattern, options)
+
+
+    def read_file(self, filename:str) -> str:
+        """
+        Returns the contents of the `filename`,
+        where `filename` has to be in `self.files`.
+        If `filename` contains the  ``$JN`` string, it will be replaced with
+        `self.job.name`.
+
+        .. note::
+
+            For text files only. Reading binary files such as `*.rkf` will result in an error.
+         """
+        filename = filename.replace('$JN', self.job.name)
+        if filename not in self.files:
+            raise ResultsError(f'No `{filename}` associated with job `{self.job.name}`')
+        with open(opj(self.job.path, filename)) as f:
+            return f.read()
+
+
+    def regex_file(self, filename:str, regex:str) -> List:
+        """
+        Applies a regular expression pattern to the
+        output of :meth:`read_file` such that the returned value
+        is ``re.findall(regex, read_file(filename))``.
+        """
+        from re import findall
+        txt = self.read_file(filename)
+        return findall(regex, txt)
 
 
     def awk_file(self, filename, script='', progfile=None, **kwargs):
@@ -431,4 +461,3 @@ class Results(metaclass=_MetaResults):
             return ret
         else:
             raise FileError('File {} not present in {}'.format(filename, self.job.path))
-

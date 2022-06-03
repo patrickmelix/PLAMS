@@ -37,7 +37,7 @@ Note: in this example we focus on the **scripting** aspects rather than studying
     
     * :download:`Download ExcitationsWorkflow.py <../../../examples/ExcitationsWorkflow.py>`
     * :download:`Download molecules.tar <../../../../../../examples/plams/ExcitationsWorkflow/molecules.tar>` and extract it
-    * ``$ADFBIN/plams ExcitationsWorkflow.py``
+    * ``$AMSBIN/plams ExcitationsWorkflow.py``
 
 **Output**
 

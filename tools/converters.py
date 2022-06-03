@@ -81,7 +81,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
             if stresstensor is not None :
                 historydata['StressTensor'] = stresstensor
             if len(historydata) == 0 :
-                historydata = None
+                historydata = {}
 
             rkfout.write_next(coords=coords, cell=cell, historydata=historydata, mddata=mddata)
 
@@ -93,6 +93,12 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
     kf = KFFile(rkftrajectoryfile)
     kf['EngineResults%nEntries'] = 0
     kf['General%user input'] = '\xFF'.join(['Engine External','EndEngine'])
+    if len(traj) == 1:
+        kf['General%task'] = 'singlepoint'
+    elif kinetic_energy is None or kinetic_energy == 0:
+        kf['General%task'] = 'geometryoptimization'
+    else:
+        kf['General%task'] = 'moleculardynamics'
 
     return coords, cell
 
@@ -103,10 +109,13 @@ def file_to_traj(outfile, trajfile):
     trajfile : str
         will be created
     """
+    from ase.io import read, write
     if os.path.exists(trajfile):
         os.remove(trajfile)
-    cmd = ['sh', os.path.join(os.environ.get('AMSBIN'), 'amspython'), '-m', 'ase', 'convert', outfile, trajfile]
-    saferun(cmd)
+
+    atoms = read(outfile, ':') 
+    write(trajfile, atoms)
+
     if not os.path.exists(trajfile):
         raise RuntimeError("Couldn't write {}".format(trajfile))
 
@@ -202,7 +211,7 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
         return wdir
 
     # convert OUTCAR to a .traj file inside wdir
-    trajfile = file_to_traj(outcar, os.path.join(wdir, 'outcar.traj'))
+    trajfile = file_to_traj(outcar, os.path.join(wdir, 'vasp.traj'))
 
     # remove the target files first if overwrite
     kffile = os.path.join(wdir, 'ams.rkf')

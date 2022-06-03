@@ -94,15 +94,6 @@ class TrajectoryFile (object) :
                 """
                 self.close()
 
-        def __del__ (self) :
-                """
-                If self.file_object is a regular fileobject, close it
-                """
-                try :
-                        self.file.close()
-                except AttributeError :
-                        pass
-
         def get_elements (self) :
                 """
                 Get the elements attribute
@@ -145,9 +136,10 @@ class TrajectoryFile (object) :
 
         def close (self) :
                 """
-                Cleanly close and garbage collect the file
+                Close the file
                 """
-                del(self)
+                if hasattr(self.file_object, 'close'):
+                    self.file_object.close()
 
         def read_next (self, molecule=None, read=True) :
                 """

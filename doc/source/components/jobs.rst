@@ -15,6 +15,10 @@ Various jobs may differ in details quite a lot, but they all follow the same set
     When a subclass of an abstract class defines all required abstract methods, it is called a *concrete class*.
     You should never create an instance of an abstract class, because when you try to use it, empty abstract methods are called and your script crashes.
 
+.. seealso::
+    
+    The |AMSJob| class handles AMS jobs.
+
 Every job has its own unique name and a separate folder (called the job folder, with the same name as the job) located in the main working folder.
 All files regarding that particular job (input, output, runscript, other files produced by the job execution) end up in the job folder.
 

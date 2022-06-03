@@ -22,25 +22,25 @@ For instance, a single point calculation for pentacene::
     penta.input.force_eval.dft.localize._h = "T"
 
 
-    penta.input.force_eval.qs.method = "GPW"
-    penta.input.force_eval.scf.eps_scf = 1e-6
-    penta.input.force_eval.scf.max_scf = 200
-    penta.input.force_eval.xc.xc_functional = "PBE"
+    penta.input.force_eval.dft.qs.method = "GPW"
+    penta.input.force_eval.dft.scf.eps_scf = 1e-6
+    penta.input.force_eval.dft.scf.max_scf = 200
+    penta.input.force_eval.dft.xc.xc_functional._h = "PBE"
 
-    penta.input.force_eval.subsys.cell.A = [16.11886919, 0.07814137, -0.697284243]
-    penta.input.force_eval.subsys.cell.B = [-0.215317662, 4.389405268, 1.408951791]
-    penta.input.force_eval.subsys.cell.C = [-0.216126961, 1.732808365, 9.74896108]
+    penta.input.force_eval.subsys.cell.A = '16.11886919 0.07814137 -0.697284243'
+    penta.input.force_eval.subsys.cell.B = '-0.215317662 4.389405268 1.408951791'
+    penta.input.force_eval.subsys.cell.C = '-0.216126961 1.732808365 9.74896108'
     penta.input.force_eval.subsys.cell.periodic = 'XYZ'
     penta.input.force_eval.subsys.kind.C.basis_set = "DZVP-MOLOPT-SR-GTH-Q4"
-    penta.input.force_eval.subsys.kind.C.basis_set = "GTH-PBE-Q4"
+    penta.input.force_eval.subsys.kind.C.potential = "GTH-PBE-Q4"
     penta.input.force_eval.subsys.kind.H.basis_set = "DZVP-MOLOPT-SR-GTH-Q1"
-    penta.input.force_eval.subsys.kind.H.basis_set = "GTH-PBE-q1"
+    penta.input.force_eval.subsys.kind.H.potential = "GTH-PBE-q1"
     penta.input.force_eval.subsys.topology.coord_file_name = "./penta.xyz"
     penta.input.force_eval.subsys.topology.coordinate = "xyz"
 
-    penta.input.['global'].print_level = "low"
-    penta.input.['global'].project  = "example"
-    penta.input.['global'].run_type = "energy_force"
+    penta.input['global'].print_level = "low"
+    penta.input['global'].project  = "example"
+    penta.input['global'].run_type = "energy_force"
 
 The input generated during the execution of the cp2k_ job is similar to: ::
 

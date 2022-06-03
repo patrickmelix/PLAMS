@@ -34,7 +34,7 @@ That task can be conveniently wrapped in a simple function ``gamma_scan``.
     To execute this PLAMS script:
     
     * :download:`Download TuningRangeSeparation.py <../../../examples/TuningRangeSeparation.py>`
-    * ``$ADFBIN/plams TuningRangeSeparation.py``
+    * ``$AMSBIN/plams TuningRangeSeparation.py``
 
 **Output**
 

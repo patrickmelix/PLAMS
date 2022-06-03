@@ -9,7 +9,7 @@ Charge transfer integrals with ADF
     
     * :download:`Download ChargeTransferIntegralsADF.py <../../../examples/ChargeTransferIntegralsADF.py>`
     * :download:`Download BenzeneDimer.xyz <../../../../../../examples/plams/ChargeTransferIntegralsADF/BenzeneDimer.xyz>`
-    * ``$ADFBIN/plams ChargeTransferIntegralsADF.py``
+    * ``$AMSBIN/plams ChargeTransferIntegralsADF.py``
 
 **Output**
 

@@ -2,6 +2,13 @@ import numpy as np
 from collections import OrderedDict
 from itertools import combinations
 
+try:
+    import networkx
+    from networkx.algorithms import isomorphism
+    has_networkx = True
+except ImportError:
+    has_networkx = False
+
 from .atom import Atom
 from .molecule import Molecule
 from ..core.private import sha256
@@ -266,7 +273,7 @@ def label(self, level=1, keep_labels=False, flags=None):
     return ret
 
 @add_to_class(Molecule)
-def set_local_labels(self, niter=2, flags=None) :
+def set_local_labels(self, niter=2, flags=None):
     """
     Set atomic labels (IDnames) that are unique for local structures of a molecule
 
@@ -275,31 +282,89 @@ def set_local_labels(self, niter=2, flags=None) :
     The idea of this method is that the number of iterations can be specified.
     If kept low (default niter), local structures over different molecules will have the same label.
     """
-    if flags is None :
+    if flags is None:
         flags = {i:False for i in possible_flags}
     initialize(self)
-    for i in range(niter) :
+    for i in range(niter):
         iterate(self,flags)
 
 
-# TODO: Implement methods below ...
-#
-#def find_permutation(molecule1, molecule2):
-#    """
-#
-#
-#    """
-#    if molecule1.label(0) != molecule2.label(0):
-#        return None
-#
-#
-#@add_to_class(Molecule)
-#def reorder(self, other):
-#    """Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
-#    """
-#
-#    perm = find_permutation(self, other)
-#    if perm:
-#        self.atoms = [self.atoms[i] for i in perm]
-#        return perm
-#    return None
+if has_networkx:
+
+    def get_graph(mol, dic, level=1):
+        """
+        Create a networkx graph for this molecule that can be used to compare (all info is in the edge.weight attribute)
+        """
+        nats = len(mol)
+        mol = mol.copy()
+        if len(mol.bonds) == 0:
+            mol.guess_bonds()
+        if not hasattr(mol.atoms[0],'IDname'):
+            mol.label(level=1,keep_labels=True)
+
+        # Get the connectivigty matrix (remove bond orders)
+        matrix = mol.bond_matrix()
+        matrix = matrix.astype(np.int32)
+        matrix[matrix>0] = 1
+
+        # Multilpy the graph entries with the unique labels for each atom
+        identifiers = np.array([dic[at.IDname] if at.IDname in dic.keys() else None for at in mol.atoms])
+        if None in identifiers:
+            return None
+        identifiers = identifiers.astype(np.int32)
+        matrix *= identifiers.reshape((1,nats))
+        matrix *= identifiers.reshape((nats,1))
+
+        # Create the graph
+        graph = networkx.from_numpy_matrix(matrix)
+
+        return graph
+
+    @add_to_class(Molecule)
+    def find_permutation(self, other, level=1):
+        """
+        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. 
+        """
+        # Get bonds and unique atomIDs if needed
+        if len(self.bonds) == 0:
+            self.guess_bonds()
+        if not hasattr(self.atoms[0],'IDname'):
+            self.label(level=1, keep_labels=True)
+
+        # Link atom IDs to integers
+        dic = {}
+        for at in self.atoms:
+            if not at.IDname in dic.keys():
+                dic[at.IDname] = max([v for v in dic.values()])+1 if len(dic)>0 else 1
+
+        # Create the graphs
+        graph = get_graph(self, dic, level=1)
+        graph2 = get_graph(other, dic, level=1)
+        if graph2 is None:
+            return None
+
+        # Match
+        GM = isomorphism.GraphMatcher(graph, graph2, edge_match=isomorphism.categorical_edge_match('weight',1))
+        isomorphic = GM.is_isomorphic()
+        if not isomorphic:
+            return None
+
+        # Invert the solution dictionary, to be able to reorder the first graph
+        dic = {}
+        for k,v in GM.mapping.items():
+            dic[v] = k
+        keys = sorted([key for key in dic.keys()])
+        indices = [dic[key] for key in keys]
+
+        return indices
+
+    @add_to_class(Molecule)
+    def reorder(self, other, level=1):
+        """
+        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is a new ``Molecule`` object, or ``None`` if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
+        """
+        indices = self.find_permutation(other, level=level)
+        if indices is None:
+            return None
+        mol = self.get_fragment(indices)
+        return mol
