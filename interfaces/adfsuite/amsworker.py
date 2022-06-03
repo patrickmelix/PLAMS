@@ -3,6 +3,7 @@ import shutil
 import signal
 import subprocess
 import time
+import datetime
 import threading
 import queue
 import struct
@@ -180,6 +181,11 @@ class AMSWorkerResults:
         """
         return self._results["elasticTensor"]
 
+    def get_poissonratio(self):
+        bm = self.get_bulkmodulus()
+        sm = self.get_shearmodulus()
+        return (3*bm - 2*sm) / (6*bm + 2*sm)
+
     def get_youngmodulus(self, unit='au'):
         bm = self.get_bulkmodulus()
         sm = self.get_shearmodulus()
@@ -307,7 +313,7 @@ for x in ("gradients", "stresstensor", "hessian", "elastictensor", "charges", "d
 for x in ("coordinatetype", "optimizelattice", "maxiterations", "pretendconverged", "calcpropertiesonlyifconverged"):
     _arg2setting[x] = ('input', 'ams', 'geometryoptimization', x)
 
-for x in ("convenergy", "convgradients", "convstep", "convstressenergyperatom"):
+for x in ("convquality", "convenergy", "convgradients", "convstep", "convstressenergyperatom"):
     _arg2setting[x] = ('input', 'ams', 'geometryoptimization', 'convergence', x[4:])
 
 _arg2setting['task'] = ('input', 'ams', 'task')
@@ -382,6 +388,8 @@ class AMSWorker:
 
         # We will use the standard PLAMS AMSJob class to prepare our input and runscript.
         amsjob = AMSJob(name='amsworker', settings=self.settings)
+        if 'runscript' in amsjob.settings and 'nproc' in amsjob.settings.runscript and amsjob.settings.runscript.nproc == 1:
+            amsjob.settings.runscript.preamble_lines = amsjob.settings.runscript.get('preamble_lines', []) + ['export SCM_DISABLE_MPI=1']
         with open(os.path.join(self.workerdir, 'amsworker.in'), 'w') as input_file:
             input_file.write(amsjob.get_input())
         with open(os.path.join(self.workerdir, 'amsworker.run'), 'w') as runscript:
@@ -417,11 +425,17 @@ class AMSWorker:
             with open(os.path.join(self.workerdir, 'amsworker.in'), 'r') as amsinput, \
                  open(os.path.join(self.workerdir, 'ams.out'), 'w') as amsoutput, \
                  open(os.path.join(self.workerdir, 'ams.err'), 'w') as amserror:
+                startupinfo = None
+                if (os.name == 'nt'):
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = subprocess.SW_HIDE
                 self.proc = subprocess.Popen(['sh', 'amsworker.run'], cwd=self.workerdir,
                                              stdout=amsoutput, stdin=amsinput, stderr=amserror,
                                              # Put all worker processes into a dedicated process group
                                              # to enable mass-killing in stop().
                                              start_new_session=(os.name == 'posix'),
+                                             startupinfo=startupinfo,
                                              creationflags=(subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
                                              )
 
@@ -685,7 +699,7 @@ class AMSWorker:
     def _solve_from_settings(self, name, molecule, settings):
         args = AMSWorker._settings_to_args(settings)
         if args['task'].lower() == 'geometryoptimization':
-            args['gradients'] = True # need to explicitly set gradients to True to get them in the AMSWorkerReults
+            args['gradients'] = True # need to explicitly set gradients to True to get them in the AMSWorkerResults
             if args.get('optimizelattice', False):
                 args['stresstensor'] = True
         return self._solve(name, molecule, **args)
@@ -696,7 +710,7 @@ class AMSWorker:
                charges=False, dipolemoment=False, dipolegradients=False,
                method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
                maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
-               convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
+               convquality=None, convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
 
         if self.use_restart_cache and name in self.restart_cache:
             raise JobError(f'Name "{name}" is already associated with results from the restart cache.')
@@ -713,12 +727,18 @@ class AMSWorker:
                 chemicalSystem['totalCharge'] = float(molecule.properties.charge)
             else:
                 chemicalSystem['totalCharge'] = 0.0
-            self._call("SetSystem", chemicalSystem)
+            atomicInfo = [AMSJob._atom_suffix(atom) for atom in molecule]
+            if any(ai != '' for ai in atomicInfo):
+                chemicalSystem['atomicInfo'] = np.asarray(atomicInfo)
             if molecule.lattice:
                 cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                self._call("SetLattice", {"vectors": cell})
-            else:
-                self._call("SetLattice", {})
+                chemicalSystem["latticeVectors"] =  cell
+            if molecule.bonds:
+                chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
+                if len(chemicalSystem['bonds']) == 0:
+                    chemicalSystem['bonds'] = np.zeros((0,2))
+                chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
+            self._call("SetSystem", chemicalSystem)
 
             args = {
                 "request": { "title": str(name) },
@@ -743,6 +763,7 @@ class AMSWorker:
                 if maxiterations is not None: args["maxIterations"] = int(maxiterations)
                 if pretendconverged: args["pretendConverged"] = True
                 if not calcpropertiesonlyifconverged: args["calcPropertiesIfNotConverged"] = True
+                if convquality is not None: args["convQuality"] = str(convquality)
                 if convenergy is not None: args["convEnergy"] = float(convenergy)
                 if convgradients is not None: args["convGradients"] = float(convgradients)
                 if convstep is not None: args["convStep"] = float(convstep)
@@ -818,7 +839,7 @@ class AMSWorker:
                              charges=False, dipolemoment=False, dipolegradients=False,
                              method=None, coordinatetype=None, usesymmetry=None, optimizelattice=False,
                              maxiterations=None, pretendconverged=None, calcpropertiesonlyifconverged=True,
-                             convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
+                             convquality=None, convenergy=None, convgradients=None, convstep=None, convstressenergyperatom=None):
         """Performs a geometry optimization on the |Molecule| instance *molecule* and returns an instance of |AMSWorkerResults| containing the results from the optimized geometry.
 
         The geometry optimizer can be controlled using the following keyword arguments:
@@ -830,6 +851,7 @@ class AMSWorker:
         - *maxiterations*: Maximum number of iterations allowed.
         - *pretendconverged*: If set to true, non converged geometry optimizations will be considered successful.
         - *calcpropertiesonlyifconverged*: Calculate properties (e.g. the Hessian) only if the optimization converged.
+        - *convquality*: Overall convergence quality, see AMS driver manual for the GeometryOptimization task.
         - *convenergy*: Convergence criterion for the energy (in Hartree).
         - *convgradients*: Convergence criterion for the gradients (in Hartree/Bohr).
         - *convstep*: Convergence criterion for displacements (in Bohr).
@@ -881,6 +903,8 @@ class AMSWorker:
                 array = np.asarray(val)
                 out[key] = array.flatten()
                 out[key + "_dim_"] = array.shape[::-1]
+                if 'int' in str(out[key].dtype) :
+                    out[key] = out[key].tolist()
             elif isinstance(val, collections.abc.Mapping):
                 out[key] = self._flatten_arrays(val)
             else:
@@ -997,25 +1021,48 @@ class AMSWorkerPool:
         return self
 
 
-    def _solve_from_settings(self, items):
+    def _solve_from_settings(self, items, watch=False, watch_interval=60):
         """Request to pool to execute calculations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects.
 
         The *items* argument is expected to be an iterable of 3-tuples ``(name, molecule, settings)``, which are passed on to the the :meth:`_solve_from_settings <AMSWorker._solve_from_settings>` method of the pool's |AMSWorker| instances.
+
+        If *watch* is set to ``True``, the AMSWorkerPool will regularly log progress information. The interval between messages can be set with the *watch_interval* argument in seconds.
         """
 
-
-        if len(self.workers) == 1:
-
-            # Do all the work in the main thread
-            results = [ self.workers[0]._solve_from_settings(name, mol, settings) for name, mol, settings in items ]
-
+        if watch:
+            progress_data = {
+                "starttime" : time.time(),
+                "lock"      : threading.Lock(),
+                "done_event": threading.Event(),
+                "num_jobs"  : len(items),
+                "num_done"  : 0
+            }
+            pmt = threading.Thread(target=AMSWorkerPool._progress_monitor, args=(progress_data, watch_interval))
+            if (all(s.input.ams.task.lower() == 'singlepoint' for _,_,s in items)):
+                tasks = 'single point calculations'
+            elif (all(s.input.ams.task.lower() == 'geometryoptimization' for _,_,s in items)):
+                tasks = 'geometry optimizations'
+            else:
+                tasks = 'jobs'
+            log(f"Running {len(items)} {tasks} with {len(self.workers)} worker{'s' if len(self.workers)>1 else ''}")
+            pmt.start()
         else:
+            progress_data = None
 
-            # Build a queue of things to do and spawn threads that grab from from the queue in parallel
+        if len(self.workers) == 1: # Do all the work in the main thread
+
+            results = []
+            for name, mol, settings in items:
+                results.append(self.workers[0]._solve_from_settings(name, mol, settings))
+                if watch:
+                    progress_data['num_done'] += 1
+
+        else: # Build a queue of things to do and spawn threads that grab from from the queue in parallel
+
             results = [None]*len(items)
             q = queue.Queue()
 
-            threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results)) for i in range(len(self.workers)) ]
+            threads = [ threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results, progress_data)) for i in range(len(self.workers)) ]
             for t in threads: t.start()
 
             for i, item in enumerate(items):
@@ -1028,7 +1075,31 @@ class AMSWorkerPool:
             for t in threads: q.put(None) # signal for the thread to end
             for t in threads: t.join()
 
+        if watch:
+            progress_data['done_event'].set()
+            pmt.join()
+            log(f"All {len(items)} {tasks} done! Time taken: {datetime.timedelta(seconds=round(time.time()-progress_data['starttime']))}s")
+
         return results
+
+
+    @staticmethod
+    def _progress_monitor(pd, t):
+        width = len(str(pd['num_jobs']))
+        while True:
+            if pd['done_event'].wait(timeout=t):
+                break
+            with pd['lock']:
+                num_done = pd['num_done']
+            percent_done = 100.0 * num_done / pd['num_jobs']
+            if percent_done > 5.0:
+                dt = time.time()-pd['starttime']
+                dtrem = dt / percent_done * (100 - percent_done)
+                dtrem = datetime.timedelta(seconds=round(dtrem))
+                trem = f", {dtrem}s remaining"
+            else:
+                trem = ''
+            log(f"{str(num_done).rjust(width)} / {pd['num_jobs']} jobs finished:{percent_done:5.1f}%{trem}")
 
 
     def _prep_solve_from_settings(self, method, items):
@@ -1050,10 +1121,12 @@ class AMSWorkerPool:
         return solve_items
 
 
-    def SinglePoints(self, items):
+    def SinglePoints(self, items, watch=False, watch_interval=60):
         """Request to pool to execute single point calculations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects.
 
         The *items* argument is expected to be an iterable of 2-tuples ``(name, molecule)`` and/or 3-tuples ``(name, molecule, kwargs)``, which are passed on to the :meth:`SinglePoint <AMSWorker.SinglePoint>` method of the pool's |AMSWorker| instances. (Here ``kwargs`` is a dictionary containing the optional keyword arguments and their values for this method.)
+
+        If *watch* is set to ``True``, the AMSWorkerPool will regularly log progress information. The interval between messages can be set with the *watch_interval* argument in seconds.
 
         As an example, the following call would do single point calculations with gradients and (only for periodic systems) stress tensors for all |Molecule| instances in the dictionary ``molecules``.
 
@@ -1065,22 +1138,24 @@ class AMSWorkerPool:
                                           }) for name in sorted(molecules) ])
         """
         solve_items = self._prep_solve_from_settings('SinglePoint', items)
-        return self._solve_from_settings(solve_items)
+        return self._solve_from_settings(solve_items, watch, watch_interval)
 
 
 
-    def GeometryOptimizations(self, items):
+    def GeometryOptimizations(self, items, watch=False, watch_interval=60):
         """Request to pool to execute geometry optimizations for all items in the iterable *items*. Returns a list of |AMSWorkerResults| objects for the optimized geometries.
+
+        If *watch* is set to ``True``, the AMSWorkerPool will regularly log progress information. The interval between messages can be set with the *watch_interval* argument in seconds.
 
         The *items* argument is expected to be an iterable of 2-tuples ``(name, molecule)`` and/or 3-tuples ``(name, molecule, kwargs)``, which are passed on to the :meth:`GeometryOptimization <AMSWorker.GeometryOptimization>` method of the pool's |AMSWorker| instances. (Here ``kwargs`` is a dictionary containing the optional keyword arguments and their values for this method.)
         """
         solve_items = self._prep_solve_from_settings('GeometryOptimization', items)
-        return self._solve_from_settings(solve_items)
+        return self._solve_from_settings(solve_items, watch, watch_interval)
 
 
 
     @staticmethod
-    def _execute_queue(worker, q, results):
+    def _execute_queue(worker, q, results, progress_data=None):
         while True:
             item = q.get()
             try:
@@ -1088,6 +1163,9 @@ class AMSWorkerPool:
                     break
                 i, name, mol, settings = item
                 results[i] = worker._solve_from_settings(name, mol, settings)
+                if progress_data:
+                    with progress_data['lock']:
+                        progress_data['num_done'] += 1
             finally:
                 q.task_done()
 

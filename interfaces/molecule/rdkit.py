@@ -60,18 +60,18 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
         pos = conf.GetAtomPosition(rd_atom.GetIdx())
         ch = rd_atom.GetFormalCharge()
         pl_atom = Atom(
-            rd_atom.GetAtomicNum(), coords=(pos.x, pos.y, pos.z), charge=ch)
+            rd_atom.GetAtomicNum(), coords=(pos.x, pos.y, pos.z), rdkit={'charge':ch})
         if properties and rd_atom.GetPDBResidueInfo():
-            pl_atom.properties.pdb_info = get_PDBResidueInfo(rd_atom)
+            pl_atom.properties.rdkit.pdb_info = get_PDBResidueInfo(rd_atom)
         plams_mol.add_atom(pl_atom)
         total_charge += ch
 
         # Check for R/S information
         stereo = str(rd_atom.GetChiralTag())
         if stereo == 'CHI_TETRAHEDRAL_CCW':
-            pl_atom.properties.stereo = 'counter-clockwise'
+            pl_atom.properties.rdkit.stereo = 'counter-clockwise'
         elif stereo == 'CHI_TETRAHEDRAL_CW':
-            pl_atom.properties.stereo = 'clockwise'
+            pl_atom.properties.rdkit.stereo = 'clockwise'
 
     # Add bonds to the PLAMS molecule
     for bond in rdkit_mol.GetBonds():
@@ -82,16 +82,16 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
         # Check for cis/trans information
         stereo, bond_dir = str(bond.GetStereo()), str(bond.GetBondDir())
         if stereo == 'STEREOZ' or stereo == 'STEREOCIS':
-            plams_mol.bonds[-1].properties.stereo = 'Z'
+            plams_mol.bonds[-1].properties.rdkit.stereo = 'Z'
         elif stereo == 'STEREOE' or stereo == 'STEREOTRANS':
-            plams_mol.bonds[-1].properties.stereo = 'E'
+            plams_mol.bonds[-1].properties.rdkit.stereo = 'E'
         elif bond_dir == 'ENDUPRIGHT':
-            plams_mol.bonds[-1].properties.stereo = 'up'
+            plams_mol.bonds[-1].properties.rdkit.stereo = 'up'
         elif bond_dir == 'ENDDOWNRIGHT':
-            plams_mol.bonds[-1].properties.stereo = 'down'
+            plams_mol.bonds[-1].properties.rdkit.stereo = 'down'
 
     # Set charge and assign properties to PLAMS molecule and bonds if *properties* = True
-    plams_mol.charge = total_charge
+    plams_mol.properties.charge = total_charge
     if properties:
         prop_from_rdmol(plams_mol, rdkit_mol)
         for rd_atom, plams_atom in zip(rdkit_mol.GetAtoms(), plams_mol):
@@ -123,18 +123,26 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
     # Add atoms and assign properties to the RDKit atom if *properties* = True
     for pl_atom in plams_mol.atoms:
         rd_atom = Chem.Atom(int(pl_atom.atnum))
-        if 'charge' in pl_atom.properties:
-            rd_atom.SetFormalCharge(pl_atom.properties.charge)
+        if 'rdkit' in pl_atom.properties:
+            if 'charge' in pl_atom.properties.rdkit:
+                rd_atom.SetFormalCharge(pl_atom.properties.rdkit.charge)
         if properties:
-            if 'pdb_info' in pl_atom.properties:
-                set_PDBresidueInfo(rd_atom, pl_atom.properties.pdb_info)
-            for prop in pl_atom.properties:
-                if prop not in ('charge', 'pdb_info', 'stereo'):
-                    prop_to_rdmol(pl_atom, rd_atom, prop)
+            if 'rdkit' in pl_atom.properties :
+                if 'pdb_info' in pl_atom.properties.rdkit:
+                    set_PDBresidueInfo(rd_atom, pl_atom.properties.rdkit.pdb_info)
+                for prop in pl_atom.properties.rdkit:
+                    if prop not in ('charge', 'pdb_info', 'stereo'):
+                        prop_to_rdmol(rd_atom, prop, pl_atom.properties.rdkit.get(prop))
+            prop_dic = {}
+            for prop in pl_atom.properties :
+                if prop != 'rdkit' :
+                    prop_dic[prop] = pl_atom.properties.get(prop)
+            if len(prop_dic) > 0 :
+                prop_to_rdmol(rd_atom, 'plams', prop_dic)
 
         # Check for R/S information
-        if pl_atom.properties.stereo:
-            stereo = pl_atom.properties.stereo.lower()
+        if pl_atom.properties.rdkit.stereo:
+            stereo = pl_atom.properties.rdkit.stereo.lower()
             if stereo == 'counter-clockwise':
                 rd_atom.SetChiralTag(Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CCW)
             elif stereo == 'clockwise':
@@ -157,8 +165,8 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
 
     # Check for cis/trans information
     for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
-        if pl_bond.properties.stereo:
-            stereo = pl_bond.properties.stereo.lower()
+        if pl_bond.properties.rdkit.stereo:
+            stereo = pl_bond.properties.rdkit.stereo.lower()
             if stereo == 'e' or stereo == 'trans':
                 rd_bond.SetStereo(Chem.rdchem.BondStereo.STEREOE)
             elif stereo == 'z' or stereo == 'cis':
@@ -169,13 +177,26 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
                 rd_bond.SetBondDir(Chem.rdchem.BondDir.ENDDOWNRIGHT)
 
     # Assign properties to RDKit molecule and bonds if *properties* = True
+    # All properties will be taken from 'rdkit' subsettings, except the molecular charge
     if properties:
-        for prop in plams_mol.properties:
-            prop_to_rdmol(plams_mol, rdmol, prop)
+        prop_dic = {}
+        for prop in plams_mol.properties :
+            if prop == 'rdkit' :
+                for rdprop in plams_mol.properties.rdkit:
+                    prop_to_rdmol(rdmol, rdprop, plams_mol.properties.rdkit.get(rdprop))
+            else :
+                prop_dic[prop] = {'plams':plams_mol.properties.get(prop)}
+        if len(prop_dic) > 0 : prop_to_rdmol(rdmol, 'plams', prop_dic)
+        prop_dic = {}
         for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
-            for prop in pl_bond.properties:
-                if prop != 'stereo':
-                    prop_to_rdmol(pl_bond, rd_bond, prop)
+            for prop in pl_bond.properties :
+                if prop == 'rdkit' :
+                    for rdprop in pl_bond.properties.rdkit:
+                        if rdprop != 'stereo' :
+                            prop_to_rdmol(rd_bond, rdprop, pl_bond.properties.rdkit.get(rdprop))
+                else :
+                    prop_dic[prop] = pl_bond.properties.get(prop)
+        if len(prop_dic) > 0 : prop_to_rdmol(rd_bond, 'plams', prop_dic)
 
     if sanitize:
         Chem.SanitizeMol(rdmol)
@@ -217,7 +238,7 @@ def set_PDBresidueInfo(rdkit_atom, pdb_info):
     rdkit_atom.SetMonomerInfo(atom_pdb_residue_info)
 
 
-def prop_to_rdmol(pl_obj, rd_obj, prop):
+def prop_to_rdmol(rd_obj, propkey, propvalue):
     """
     Convert a single PLAMS property into an RDKit property.
 
@@ -225,19 +246,19 @@ def prop_to_rdmol(pl_obj, rd_obj, prop):
     :type pl_obj: |Molecule|, |Atom| or |Bond|.
     :parameter rd_obj: An RDKit object.
     :type rd_obj: rdkit.Chem.Mol, rdkit.Chem.Atom or rdkit.Chem.Bond
-    :parameter str prop: The |Settings| key of the PLAMS property.
+    :parameter str propkey: The |Settings| key of the PLAMS property.
     """
-    obj = type(pl_obj.properties.get(prop))
+    obj = type(propvalue)
     obj_dict = {bool: rd_obj.SetBoolProp,
                 float: rd_obj.SetDoubleProp,
                 int: rd_obj.SetIntProp,
                 str: rd_obj.SetProp}
     if obj_dict.get(obj):
-        obj_dict[obj](prop, pl_obj.properties.get(prop))
+        obj_dict[obj](propkey, propvalue)
     else:
-        name = prop + '_pickled'
+        name = propkey + '_pickled'
         try:
-            rd_obj.SetProp(name, pickle.dumps(pl_obj.properties.get(prop), 0).decode())
+            rd_obj.SetProp(name, pickle.dumps(propvalue, 0).decode())
         except (Exception, pickle.PicklingError):
             pass
 
@@ -253,14 +274,21 @@ def prop_from_rdmol(pl_obj, rd_obj):
     """
     prop_dict = rd_obj.GetPropsAsDict()
     for propname in prop_dict.keys():
-        if propname == '__computedProps':
-            continue
-        if '_pickled' not in propname:
-            pl_obj.properties[propname] = prop_dict[propname]
-        else:
-            prop = prop_dict[propname]
-            propname = propname.rsplit('_pickled', 1)[0]
-            pl_obj.properties[propname] = pickle.loads(prop.encode())
+        if propname == 'plams_pickled' :
+            plams_props = pickle.loads(prop_dict[propname].encode())
+            if not isinstance(plams_props,dict) : raise Exception('PLAMS property not properly stored in RDKit')
+            for key, value in plams_props.items() :
+                pl_obj.properties[key] = value
+        else :
+            if propname == '__computedProps':
+                continue
+            if '_pickled' not in propname:
+                pl_obj.properties.rdkit[propname] = prop_dict[propname]
+            else:
+                prop = prop_dict[propname]
+                propname = propname.rsplit('_pickled', 1)[0]
+                propvalue = pickle.loads(prop.encode())
+                pl_obj.properties.rdkit[propname] = propvalue
 
 
 def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
@@ -310,7 +338,8 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     return get_conformations(molecule, nconfs, name, forcefield, rms)
 
 
-def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False):
+def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False, useExpTorsionAnglePrefs='default', constraint_ats=None,
+                        EmbedParameters='EmbedParameters', randomSeed=1, best_rms=-1):
     """
     Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
@@ -323,11 +352,16 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
         in skipping of the geometry optimization step
     :parameter float rms: Root Mean Square deviation threshold for removing
         similar/equivalent conformations.
+    :parameter float best_rms: Root Mean Square deviation of best atomic permutation for removing
+        similar/equivalent conformations.
     :parameter bool enforceChirality: Enforce the correct chirality if chiral centers are present
+    :parameter str useExpTorsionAnglePrefs: Use experimental torsion angles preferences for the conformer generation by rdkit
+    :parameter list constraint_ats: List of atom indices to be constrained
+    :parameter str EmbedParameters: Name of RDKit EmbedParameters class ('EmbedParameters', 'ETKDG')
+    :parameter int randomSeed: The seed for the random number generator. If set to None the generated conformers will be non-deterministic.
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
-
     if isinstance(mol, Molecule):
         rdkit_mol = to_rdmol(mol,assignChirality=enforceChirality)
     else:
@@ -356,14 +390,44 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
             energy = 1e9
         return energy
 
+    def remove_some_Hs(m):
+        res = Chem.RWMol(m)
+        c_hs = [x[0] for x in m.GetSubstructMatches(Chem.MolFromSmarts('[#1;$([#1]-[#6])]'))]
+        c_hs.sort(reverse=True)
+        for aid in c_hs:
+            res.RemoveAtom(aid)
+        return res.GetMol()
+
     if name:
         rdkit_mol.SetProp('name', name)
 
+    if best_rms > 0:
+        if rms > 0: raise PlamsError('Cannot set both rms and best_rms')
+        rms = best_rms
+
+    #if enforceChirality :
+    #    # This is how chirality is enforced in the GUI. The argument is not passed to AllChem.EmbedMultipleConfs
+    #    Chem.AssignAtomChiralTagsFromStructure(rdkit_mol)
+    #param_obj = AllChem.ETKDG()
+    param_obj = getattr(AllChem,EmbedParameters)()
+    param_obj.pruneRmsThresh = rms
+    param_obj.randomSeed = randomSeed if randomSeed is not None else random.getrandbits(31)
+    param_obj.enforceChirality = enforceChirality
+    if useExpTorsionAnglePrefs != 'default' : # The default (True of False) changes with rdkit versions
+        param_obj.useExpTorsionAnglePrefs = True
+    if constraint_ats is not None :
+        coordMap = {}
+        for i,iat in enumerate(atoms) :
+            coordMap[iat] = rdkit_mol.GetConformer(0).GetAtomPosition(iat)
+        param_obj.coordMap = coordMap
     try:
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,enforceChirality=enforceChirality))
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
+        #cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1))
     except:
          # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,useRandomCoords=True,enforceChirality=enforceChirality))
+        param_obj.useRandomCoords = True
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
+        #cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,pruneRmsThresh=rms,randomSeed=1,useRandomCoords=True))
 
     if forcefield:
         # Select the forcefield (UFF or MMFF)
@@ -377,24 +441,31 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
             optimize_molecule(rdkit_mol, confId=cid)
         cids.sort(key=energy)
 
-        # Remove duplicate conformations based on RMS
-        if rms > 0:
-            keep = [cids[0]]
-            for cid in cids[1:]:
-                for idx in keep:
-                    try:
-                        r = AllChem.AlignMol(rdkit_mol, rdkit_mol, cid, idx)
-                    except:
-                        r = rms + 1
-                        message = "Alignment failed in multiple conformation generation: "
-                        message += Chem.MolToSmiles(rdkit_mol)
-                        message += "\nAssuming different conformations."
-                        warn(message)
-                    if r < rms:
-                        break
-                else:
-                    keep.append(cid)
-            cids = keep
+    # Remove duplicate conformations based on RMS
+    if best_rms > 0 or forcefield:
+        rdmol_local = rdkit_mol
+        rms_function = AllChem.AlignMol
+        if best_rms > 0:
+            # Remove the H atoms, and prepare to use the more expensive RDKit function
+            rdmol_local = remove_some_Hs(rdkit_mol)
+            rms_function = AllChem.GetBestRMS
+        keep = [cids[0]]
+        for cid in cids[1:]:
+            for idx in keep:
+                try:
+                    #r = AllChem.AlignMol(rdkit_mol, rdkit_mol, cid, idx)
+                    r = rms_function(rdmol_local, rdmol_local, cid, idx)
+                except:
+                    r = rms + 1
+                    message = "Alignment failed in multiple conformation generation: "
+                    message += Chem.MolToSmiles(rdkit_mol)
+                    message += "\nAssuming different conformations."
+                    warn(message)
+                if r < rms:
+                    break
+            else:
+                keep.append(cid)
+        cids = keep
 
     if nconfs == 1:
         return from_rdmol(rdkit_mol)
@@ -969,13 +1040,13 @@ def assign_chirality(self):
     # Add R/S info to self
     for iat,pl_atom in enumerate(pl_mol.atoms):
         # Check for R/S information
-        if pl_atom.properties.stereo:
-            self.atoms[iat].properties.stereo = pl_atom.properties.stereo
+        if pl_atom.properties.rdkit.stereo:
+            self.atoms[iat].properties.rdkit.stereo = pl_atom.properties.rdkit.stereo
 
     # Add cis/trans information to self
     for ibond,pl_bond in enumerate(pl_mol.bonds):
-        if pl_bond.properties.stereo:
-            self.bonds[ibond] = pl_bond.properties.stereo
+        if pl_bond.properties.rdkit.stereo:
+            self.bonds[ibond] = pl_bond.properties.rdkit.stereo
 
 
 @add_to_class(Molecule)

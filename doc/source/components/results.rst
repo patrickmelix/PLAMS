@@ -304,6 +304,10 @@ As you can see above, while cleaning a multijob folder you have to keep in mind 
 API
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. note::
+
+    These functions work for all Results type. See the |AMSResults| class for functions extracting or manipulating results from AMS jobs.
+
 .. autoclass:: Results
     :exclude-members: __weakref__, __metaclass__
 

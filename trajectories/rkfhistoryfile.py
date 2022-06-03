@@ -1,16 +1,20 @@
 #!/usr/bin/env python
 
 import numpy
+import os
+
+from typing import List, Union, Set
 from ..tools.periodic_table import PT
 from ..mol.molecule import Molecule
 from ..mol.atom import Atom
 from ..core.settings import Settings
 from ..core.errors import PlamsError
+from ..tools.kftools import KFFile
 from .rkffile import RKFTrajectoryFile
 from .rkffile import bohr_to_angstrom
 from .rkffile import write_general_section
 
-__all__ = ['RKFHistoryFile']
+__all__ = ['RKFHistoryFile', 'molecules_to_rkf', 'rkf_filter_regions']
 
 class RKFHistoryFile (RKFTrajectoryFile) :
         """
@@ -260,7 +264,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                write_general_section(self.file_object)
+                write_general_section(self.file_object,self.program)
                 
                 # Then write the input molecule
                 self._update_celldata(cell)
@@ -564,3 +568,67 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 for num,key in zip(nums,keys) :
                         elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(key,'AtomicNumbers')]
                         self.system_version_elements[num] = elements
+
+def molecules_to_rkf(molecules:List[Molecule], fname, overwrite=False):
+    """
+    Convert a list of molecules to a .rkf file
+    """
+
+    if os.path.exists(fname) and overwrite:
+        os.remove(fname)
+
+    rkfout = RKFHistoryFile(fname, mode='wb')
+
+    for i, mol in enumerate(molecules):
+        rkfout.write_next(molecule=mol)
+    rkfout.close()
+
+
+def rkf_filter_regions(in_file, out_file, region:Union[str,Set[str]], mode='keep', overwrite=False):
+    """
+        Filter an ams.rkf trajectory file from region info. The new trajectory file only contains the atomic positions (not velocities).
+
+        in_file: str
+            path to an ams.rkf file
+
+        out_file: str
+            path to the output .rkf file
+
+        region: str or set of str
+            Names of regions
+
+        mode: str
+            'keep': keep all atoms in the named regions. 'remove': remove all atoms in the named regions.
+
+        overwrite: bool
+            Whether to overwrite out_file if it exists
+
+
+    """
+    rkf_in = RKFHistoryFile(in_file)
+    mol = rkf_in.get_plamsmol()
+
+    if os.path.exists(out_file) and overwrite:
+        os.remove(out_file)
+
+    rkf_out = RKFHistoryFile(out_file, mode='wb')
+    rkf_out.store_mddata()
+
+    if isinstance(region, str):
+        region = set([region])
+
+    for crd, cell in rkf_in(mol):
+        new_mol = Molecule()
+        new_mol.lattice = mol.lattice
+
+        for at in mol:
+            region_match = any(x in at.properties.region for x in region)
+            if (mode == 'keep' and region_match) or (mode == 'remove' and not region_match):
+                new_at = Atom(atnum=at.atnum, coords=at.coords, mddata={'PotentialEnergy': 0})
+                new_at.properties = at.properties
+                new_mol.add_atom(new_at)
+
+        rkf_out.write_next(molecule=new_mol)
+
+    rkf_out.close()
+

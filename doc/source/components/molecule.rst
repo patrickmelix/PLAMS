@@ -14,3 +14,4 @@ For importing coordinates in other formats or performing more advanced operation
     atombond
     mol_rdkit
     mol_ase
+    mol_packmol

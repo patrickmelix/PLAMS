@@ -156,8 +156,6 @@ class PeriodicTable:
         """Convert atomic symbol to atomic number."""
         if symbol.lower().capitalize() in cls.dummysymbols:
             return 0
-        elif symbol.lower().startswith('gh.'):
-            return 0
         try:
             number = cls.symtonum[symbol.capitalize()]
         except KeyError:

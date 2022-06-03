@@ -2,17 +2,19 @@ import os
 import subprocess
 import numpy as np
 import re
+from natsort import natsorted
 
 from os.path import join as opj
 
 from ...core.basejob import SingleJob
-from ...core.errors import FileError, JobError, ResultsError, PTError
+from ...core.errors import FileError, JobError, ResultsError, PTError, PlamsError, JobError
 from ...core.functions import config, log, parse_heredoc
 from ...core.private import sha256, UpdateSysPath
 from ...core.results import Results
 from ...core.settings import Settings
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
+from ...mol.bond import Bond
 from ...tools.kftools import KFFile
 from ...tools.units import Units
 from ...trajectories.rkffile import RKFTrajectoryFile
@@ -512,6 +514,8 @@ class AMSResults(Results):
 
         return ret
 
+    def get_poissonratio(self, engine=None):
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'PoissonRatio'), engine)
 
     def get_youngmodulus(self, unit='au', engine=None):
         return self._process_engine_results(lambda x: x.read('AMSResults', 'YoungModulus'), engine) * Units.conversion_ratio('au', unit)
@@ -555,7 +559,9 @@ class AMSResults(Results):
 
             'Molecules': list of Molecule, the structure at each PES point. Only if the property molecules == True
 
-            'HistoryInidices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
+            'HistoryIndices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
+
+            'Properties': list of dict. The dictionary keys are what can be found on the AMSResults section of the engine .rkf file. These will only be populated if "CalcPropertiesAtPESPoints" is set to Yes when running the PES scan.
 
         """
         def tolist(x):
@@ -618,6 +624,11 @@ class AMSResults(Results):
                 mols.append(self.get_history_molecule(ind))
             ret['Molecules'] = mols
 
+        ret['Properties'] = []
+        for key in natsorted(title for title in self.rkfs.keys() if title.startswith('PESPoint')):
+            amsresults = self.rkfs[key].read_section("AMSResults")
+            ret['Properties'].append(amsresults)
+
         return ret
 
     def get_neb_results(self, molecules=True, unit='au'):
@@ -678,7 +689,308 @@ class AMSResults(Results):
 
         return ret
 
+    def get_time_step(self):
+        """ Returns the time step in femtoseconds for MD simulation jobs """
+        time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory') 
+        time2 = self.get_property_at_step(2, 'Time', history_section='MDHistory') 
+        time_step = time2 - time1
+        return time_step
+            
+    def _get_integer_start_end_every_max(self, start_fs, end_fs, every_fs, max_dt_fs):
+        time_step = self.get_time_step()
+        start_step = int( start_fs / time_step )
+        end_step = int( end_fs / time_step ) if end_fs is not None else None
+        every = int ( every_fs / time_step) if every_fs is not None else 1
+        max_dt = int( max_dt_fs / time_step) if max_dt_fs is not None else None
 
+        return start_step, end_step, every, max_dt
+
+    def get_velocity_acf(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, atom_indices=None, x=True, y=True, z=True, normalize=False):
+        """
+        Calculate the velocity autocorrelation function. Works only for trajectories with a constant number of atoms.
+
+        start_fs : float
+            Start time in femtoseconds. Defaults to 0 (first frame)
+
+        end_fs : float
+            End time in femtoseconds. Defaults to the end of the trajectory.
+
+        max_dt_fs : float
+            Maximum correlation time in femtoseconds.
+
+        atom_indices: list of int
+            Atom indices for which to calculate the velocity autocorrelation function. Defaults to all atoms. The atom indices start with 1.
+
+        x : bool
+            Whether to use the velocities along x
+
+        y : bool
+            Whether to use the velocities along y
+
+        z : bool
+            Whether to use the velocities along z
+
+        normalize : bool
+            Whether to normalize the velocity autocorrelation function so that it is 1 at time 0.
+
+        Returns: 2-tuple (times, C)
+            ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the autocorrelation function. If not ``normalize`` then the unit is angstrom^2/fs^2.
+        """
+        from ...trajectories.analysis import autocorrelation
+        nEntries = self.readrkf('MDHistory', 'nEntries')
+
+        time_step = self.get_time_step()
+
+        start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
+
+        data = self.get_history_property('Velocities', history_section='MDHistory')
+        data = np.array(data).reshape(nEntries, -1, 3)[start_step:end_step:every]
+        if atom_indices is not None:
+            zero_based_atom_indices = [x-1 for x in atom_indices]
+            data = data[:, zero_based_atom_indices, :]
+
+        n_dimensions = 3
+        if not x or not y or not z:
+            components = []
+            if x:
+                components += [0]
+            if y:
+                components += [1]
+            if z:
+                components += [2]
+
+            data = data[:, :, components]
+            n_dimensions = len(components)
+
+        data *= Units.convert(1.0, 'bohr', 'angstrom') # convert from bohr/fs to ang/fs
+
+        vacf = autocorrelation(data, max_dt=max_dt, normalize=normalize) * n_dimensions # multiply by n_dimensions to undo the averaging per component and instead average per atom
+
+        times = np.arange(len(vacf)) * time_step * every 
+
+        return times, vacf
+
+    def get_diffusion_coefficient_from_velocity_acf(self, times=None, acf=None, n_dimensions=3):
+        """
+        Diffusion coefficient by integration of the velocity autocorrelation function
+
+        If ``times`` or ``acf`` is None, then a default velocity autocorrelation function will be calculated.
+
+        times: 1D numpy array
+            1D numpy array with the times
+
+        acf: 1D numpy array
+            1D numpy array with the velocity autocorrelation function in ang^2/fs^2
+
+        n_dimensions: int
+            Number of dimensions that were used to calculate the autocorrelation function.
+
+        Returns: 2-tuple (times, diffusion_coefficient)
+            ``times`` are the times in femtoseconds. ``diffusion_coefficient`` is a 1D numpy array with the diffusion coefficients in m^2/s.
+
+        """
+
+        from scipy.integrate import cumtrapz
+        if times is None or acf is None:
+            times, acf = self.get_velocity_acf(normalize=False)
+
+        diffusion_coefficient = (1.0/n_dimensions) * cumtrapz(acf, times)  #ang^2/fs
+        diffusion_coefficient *= 1e-20/1e-15
+        new_times = times[:-1]
+
+        return np.array(new_times), diffusion_coefficient
+
+    def get_power_spectrum(self, times=None, acf=None, max_freq=None, number_of_points=None):
+        """
+        Calculates a power spectrum from the velocity autocorrelation function.
+
+        If ``times`` or ``acf`` is None, then a default velocity autocorrelation function will be calculated.
+
+        times: 1D numpy array of float
+            The ``times`` returned by ``AMSResults.get_velocity_acf()``.
+        acf: 1D numpy arra of float
+            The ``vacf`` returned by ``AMSResults.get_velocity_acf()``
+        max_freq: float
+            Maximum frequency (in cm^-1) of the returned power spectrum. Defaults to 5000 cm^-1.
+        number_of_points: int
+            Number of points in the returned power spectrum. Defaults to a number so that the spacing between points is about 1 cm^-1.
+
+        Returns: 2-tuple (frequencies, intensities)
+            ``frequencies`` : Frequencies in cm^-1 (1D numpy array). ``intensities``: Intensities (1D numpy array).
+        """
+        from ...trajectories.analysis import power_spectrum
+        if times is None or acf is None:
+            times, acf = self.get_velocity_acf(normalize=True)
+
+        return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
+
+    def get_green_kubo_viscosity(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True):
+        """
+        Calculates the viscosity using the Green-Kubo relation (integrating the off-diagonal pressure tensor autocorrelation function).
+
+        start_fs : float
+            Start time in femtoseconds. Defaults to 0 (first frame)
+
+        end_fs : float
+            End time in femtoseconds. Defaults to the end of the trajectory.
+
+        max_dt_fs : float
+            Maximum correlation time in femtoseconds.
+
+        xy : bool
+            Whether to use the xy off-diagonal elements
+
+        yz : bool
+            Whether to use the yz off-diagonal elements
+
+        xz : bool
+            Whether to use the xz off-diagonal elements
+
+        Returns: 2-tuple (times, C)
+            ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the viscosity (in mPa*s) integral. It should converge to the viscosity values as the time increases.
+
+        """
+        from ...trajectories.analysis import autocorrelation
+        from ...tools.units import Units
+        from scipy.integrate import cumtrapz
+        nEntries = self.readrkf('MDHistory', 'nEntries')
+        time_step = self.get_time_step()
+        start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
+        data = self.get_history_property('PressureTensor', 'MDHistory')
+        data = np.array(data)[start_step:end_step:every]
+
+        components = []
+        if yz:
+            components += [3]
+        if xz:
+            components += [4]
+        if xy:
+            components += [5]
+
+        data = data[:, components]
+        acf = autocorrelation(data, max_dt=max_dt)
+        times = np.arange(len(acf)) * time_step * every 
+
+        integrated_acf = cumtrapz(acf, times)
+        integrated_times = np.arange(len(integrated_acf)) * time_step * every
+
+        V = self.get_main_molecule().unit_cell_volume()
+
+        T = self.get_history_property('Temperature', 'MDHistory')
+        T = np.array(T)[start_step:end_step:every]
+        mean_T = np.mean(T)
+
+        k_B = Units.constants['k_B']
+
+        au2Pa = Units.convert(1.0, 'hartree/bohr^3', 'Pa')
+
+        viscosity = (V*1e-30)/(k_B*mean_T) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
+
+        return integrated_times, viscosity
+
+    def get_density_along_axis(self, axis:str='z', density_type:str='mass', start_fs=0, end_fs=None, every_fs=None, bin_width=0.1, atom_indices=None):
+        """
+        Calculates the density of atoms along a Cartesian coordinate axis.
+        
+        This only works if the axis is perpendicular to the other two axes. The
+        system must be 3D-periodic and the number of atoms cannot change during
+        the trajectory.
+
+        axis : str
+            'x', 'y', or 'z'
+
+        density_type : str
+            'mass' gives the density in g/cm^3. 'number' gives the number density in ang^-3, 'histogram' gives the number of atoms per frame (so the number depends on the bin size)
+
+        start_fs : float
+            Start time in fs
+
+        end_fs : float
+            End time in fs
+
+        every_fs : float
+            Use data every every_fs timesteps
+
+        bin_width : float
+            Bin width of the returned coordinates (in angstrom).
+
+        atom_indices: list of int
+            Indices (starting with 1) for the atoms to use for calculating the density.
+
+        Returns: 2-tuple (coordinates, density)
+            ``coordinates`` is a 1D array with the coordinates (in angstrom). ``density`` is a 1D array with the densities (in g/cm^3 or ang^-3 depending on ``density_type``).
+
+        """
+        assert axis in ['x', 'y', 'z'], f"Unknown axis: {axis}. Must be 'x', 'y', or 'z'"
+        assert density_type in ['mass', 'number', 'histogram'], f"Unknown density_type: {density_type}. Must be 'mass' or 'number'"
+
+        main_mol = self.get_main_molecule()
+
+        histogram = density_type == 'histogram'
+
+        bohr2ang = Units.convert(1.0, 'bohr', 'angstrom')
+
+        start_step, end_step, every, _ = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, None)
+        nEntries = self.readrkf('History', 'nEntries')
+        coords = np.array(self.get_history_property('Coords')).reshape(nEntries, -1, 3)
+        coords = coords[start_step:end_step:every]
+
+        axis2index = {'x': 0, 'y': 1, 'z': 2}
+        index = axis2index[axis]
+
+        if not histogram:
+            other_indices = [0,1,2]
+            other_indices.remove(index)
+
+            assert len(main_mol.lattice) == 3, f"get_density_along_axis with density_type='mass' or 'number' can only be called for 3d-periodic systems. Current periodicity: {len(main_mol.lattice)}. Use density_type='histogram' instead."
+            assert np.abs(np.dot(main_mol.lattice[other_indices[0]], main_mol.lattice[index])) < 1e-6, f"Axis {axis} must be perpendicular to the other two axes"
+            assert np.abs(np.dot(main_mol.lattice[other_indices[1]], main_mol.lattice[index])) < 1e-6, f"Axis {axis} must be perpendicular to the other two axes"
+            assert np.abs(main_mol.lattice[index][other_indices[0]]) < 1e-6, f"Density along {axis} requires that lattice vector {index+1} has only 1 non-zero component (along {axis}). The vector is {main_mol.lattice[index]}"
+            assert np.abs(main_mol.lattice[index][other_indices[1]]) < 1e-6, f"Density along {axis} requires that lattice vector {index+1} has only 1 non-zero component (along {axis}). The vector is {main_mol.lattice[index]}"
+
+            lattice_vectors = np.array(self.get_history_property('LatticeVectors')).reshape(-1,3,3)
+            lattice_vectors = lattice_vectors[start_step:end_step:every] * bohr2ang
+
+            vec1s = lattice_vectors[:, other_indices[0], :]
+            vec2s = lattice_vectors[:, other_indices[1], :]
+            cross_products = np.cross(vec1s, vec2s)
+            areas = np.linalg.norm(cross_products, axis=1)
+            mean_area = np.mean(areas)
+
+        coords = coords[:, :, index]
+
+        if atom_indices is not None:
+            zero_based_atom_indices = [x-1 for x in atom_indices]
+            coords = coords[:, zero_based_atom_indices]
+
+        coords *=  bohr2ang
+
+        avogadro = Units.constants['NA']
+
+        min_c = np.min(coords)
+        max_c = np.max(coords)
+        num_bins = round((max_c-min_c) / bin_width + 1)
+        bins = np.linspace( min_c, max_c, num_bins, endpoint=True )
+
+        if density_type == 'mass':
+            masses = np.array(self.readrkf('Molecule', 'AtomMasses'))
+            if atom_indices is not None:
+                masses = masses[zero_based_atom_indices]
+            masses_broadcasted = np.broadcast_to(masses, coords.shape)
+            hist, bin_edges = np.histogram(coords, weights=masses_broadcasted, bins=bins)
+            volume_slice_ang3 = mean_area * (bin_edges[1]-bin_edges[0])
+            volume_slice_cm3 = volume_slice_ang3*1e-24
+            density = (1.0 / nEntries) * (hist / avogadro) / volume_slice_cm3
+        elif density_type == 'number':
+            hist, bin_edges = np.histogram(coords, bins=bins)
+            volume_slice_ang3 = mean_area * (bin_edges[1]-bin_edges[0])
+            density = (1.0 / nEntries) * hist / volume_slice_ang3
+        elif density_type == 'histogram':
+            hist, bin_edges = np.histogram(coords, bins=bins)
+            density = (1.0 / nEntries) * hist
+
+        z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+        return z, density
 
 
 
@@ -736,7 +1048,8 @@ class AMSResults(Results):
     class EnergyLandscape:
 
         class State:
-            def __init__(self, landscape, engfile, energy, mol, count, isTS, reactantsID=None, productsID=None):
+            def __init__(self, landscape, engfile, energy, mol, count, isTS, reactantsID=None, productsID=None,
+                            prefactorsFromReactant=None, prefactorsFromProduct=None):
                 self._landscape = landscape
                 self.engfile = engfile
                 self.energy = energy
@@ -745,6 +1058,8 @@ class AMSResults(Results):
                 self.isTS = isTS
                 self.reactantsID = reactantsID
                 self.productsID = productsID
+                self.prefactorsFromReactant = prefactorsFromReactant
+                self.prefactorsFromProduct = prefactorsFromProduct
 
             @property
             def id(self):
@@ -760,14 +1075,71 @@ class AMSResults(Results):
 
             def __str__(self):
                 if self.isTS:
-                    lines  = [f"State {self.id}: transition state @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
-                    if self.reactantsID is not None: lines += [f"|- Reactants: {self.reactants}"]
-                    if self.productsID is not None: lines += [f"+- Products:  {self.products}"]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
+                    if self.reactantsID is not None: lines += [f"  +- Reactants: {self.reactants}"]
+                    if self.productsID is not None:  lines += [f"     Products:  {self.products}"]
+                    if self.reactantsID is not None: lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E}"]
                 else:
-                    lines  = [f"State {self.id}: local minimum @ {self.energy} Hartree (found {self.count} times, results on {self.engfile})"]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
                 return "\n".join(lines)
 
+
+        class Fragment:
+            def __init__(self, landscape, engfile, energy, mol):
+                self._landscape = landscape
+                self.engfile = engfile
+                self.energy = energy
+                self.molecule = mol
+
+            @property
+            def id(self):
+                return self._landscape._fragments.index(self)+1
+
+            def __str__(self):
+                lines  = [f"Fragment {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (results on {self.engfile})"]
+                return "\n".join(lines)
+
+
+        class FragmentedState:
+            def __init__(self, landscape, energy, composition, connections=None, adsorptionPrefactors=None, desorptionPrefactors=None):
+                self._landscape = landscape
+                self.energy = energy
+                self.composition = composition
+                self.connections = connections
+                self.adsorptionPrefactors = adsorptionPrefactors
+                self.desorptionPrefactors = desorptionPrefactors
+
+            @property
+            def id(self):
+                return self._landscape._fstates.index(self)+1
+
+            @property
+            def fragments(self):
+                return [ self._landscape._fragments[i] for i in self.composition ]
+
+            def __str__(self):
+                formula = ""
+                for i,id in enumerate(self.composition):
+                    formula += self._landscape._fragments[id].molecule.get_formula(False)
+                    if( i != len(self.composition)-1 ):
+                        formula += "+"
+                lines  = [f"FragmentedState {self.id}: {formula} local minimum @ {self.energy:.8f} Hartree (fragments {[i+1 for i in self.composition]})"]
+                for i,iState in enumerate(self.connections):
+                    lines += [f"  +- {self._landscape._states[iState]}"]
+
+                    if( i == len(self.connections)-1 ):
+                        lines += [f"     Prefactors: {self.adsorptionPrefactors[i]:.3E}:{self.desorptionPrefactors[i]:.3E}"]
+                    else:
+                        lines += [f"  |  Prefactors: {self.adsorptionPrefactors[i]:.3E}:{self.desorptionPrefactors[i]:.3E}"]
+                return "\n".join(lines)
+
+
         def __init__(self, results):
+            self._states = []
+            self._fragments = []
+            self._fstates = []
+            if results is None: return
+
             sec = results.read_rkf_section("EnergyLandscape")
 
             # If there is only 1 state in the 'EnergyLandscape' section, some variables that are normally lists are insted be build-in types (e.g. a 'float' instead of a 'list of floats').
@@ -777,7 +1149,6 @@ class AMSResults(Results):
                     sec[var] = [sec[var]]
 
             nStates = sec['nStates']
-            self._states = []
 
             for iState in range(nStates):
                 energy  = sec['energies'][iState]
@@ -789,20 +1160,68 @@ class AMSResults(Results):
                 else:
                     reactantsID = sec['reactants'][iState] if sec['reactants'][iState] > 0 else None
                     productsID  = sec['products'][iState] if sec['products'][iState] > 0 else None
-                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID))
+                    prefactorsFromReactant = sec['prefactorsFromReactant'][iState] if sec['products'][iState] > 0 else None
+                    prefactorsFromProduct  = sec['prefactorsFromProduct'][iState] if sec['products'][iState] > 0 else None
+                    self._states.append(AMSResults.EnergyLandscape.State(self, resfile, energy, mol, count, True, reactantsID, productsID,
+                                                                            prefactorsFromReactant, prefactorsFromProduct))
+
+            if( 'nFragments' not in sec ): return
+
+            nFragments = sec['nFragments']
+
+            for iFragment in range(nFragments):
+                energy  = sec['fragmentsEnergies'][iFragment]
+                resfile = os.path.splitext(sec['fragmentsFileNames'].split('\0')[iFragment])[0]
+                mol = results.get_molecule('Molecule',file=resfile)
+                self._fragments.append(AMSResults.EnergyLandscape.Fragment(self, resfile, energy, mol))
+
+            if( 'nFStates' not in sec ): return
+
+            nFragmentedStates = sec['nFStates']
+
+            for iFState in range(nFragmentedStates):
+                iEnergy = sec['fStatesEnergy('+str(iFState+1)+')']
+                iNFragments = sec['fStatesNFragments('+str(iFState+1)+')']
+
+                value = sec['fStatesComposition('+str(iFState+1)+')']
+                iComposition = [i-1 for i in value] if isinstance(value,list) else [value-1]
+
+                iNConnections = sec['fStatesNConnections('+str(iFState+1)+')']
+
+                value = sec['fStatesConnections('+str(iFState+1)+')']
+                iConnections = [i-1 for i in value] if isinstance(value,list) else [value-1]
+
+                value = sec['fStatesAdsorptionPrefactors('+str(iFState+1)+')']
+                iAdsorptionPrefactors = value if isinstance(value,list) else [value]
+
+                value = sec['fStatesDesorptionPrefactors('+str(iFState+1)+')']
+                iDesorptionPrefactors = value if isinstance(value,list) else [value]
+
+                self._fstates.append(AMSResults.EnergyLandscape.FragmentedState(self, iEnergy, iComposition, iConnections, iAdsorptionPrefactors, iDesorptionPrefactors))
 
         @property
         def minima(self):
-            return [s for s in self._states if not s.isTS ]
+            return [s for s in self._states if not s.isTS]
 
         @property
         def transition_states(self):
             return [s for s in self._states if s.isTS]
 
+        @property
+        def fragments(self):
+            return [f for f in self._fragments]
+
+        @property
+        def fragmented_states(self):
+            return [fs for fs in self._fstates]
+
         def __str__(self):
-            return 'All stationary points:\n'+\
-                   '======================\n'+\
-                   '\n'.join(str(s) for s in self._states)
+            lines  = ['All stationary points:']
+            lines += ['======================']
+            for s in self._states: lines += [ str(s) ]
+            for f in self._fragments: lines += [ str(f) ]
+            for fs in self._fstates: lines += [ str(fs) ]
+            return "\n".join(lines)
 
         def __getitem__(self, i):
             return self._states[i-1]
@@ -900,50 +1319,6 @@ class AMSJob(SingleJob):
     _command = 'ams'
 
 
-    @classmethod
-    def from_input(cls, text_input, name=None, molecule=None):
-        """
-        Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError). 
-
-        text_input : a multi-line string
-
-        Returns: An AMSJob instance
-
-        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the ``text_input``, then it will be read into the returned job's settings.
-
-        Example::
-
-           text = '''
-           Task GeometryOptimization
-           Engine DFTB
-               Model GFN1-xTB
-           EndEngine
-           '''
-
-           job = AMSJob.from_input(text)
-        """
-        from scm.input_parser import InputParser
-        sett = Settings()
-        with InputParser() as parser:
-            sett.input = parser.to_settings('ams', text_input)
-        return cls(settings=sett, name=name, molecule=molecule)
-
-    @classmethod
-    def from_runfile(cls, path, name=None, molecule=None):
-        """
-        path : path to an AMS .run or .in file. Note: for AMS jobs generated with PLAMS, you should pass the path to the .in file to this function.
-
-        Returns an AMSJob based on the text input in the .run or .in file.
-
-        Note: The ``name`` and ``molecule`` of the returned AMSJob will not be set. If there is a System block in the run file, then it will be read into the returned job's settings.
-        """
-        with open(path) as f:
-            run = f.read()
-        if '<<' in run:
-            delimiter = re.findall(r"<<.*?(\w+)", run)[0]
-            run = ''.join(re.findall(rf"(?s)(?:{delimiter})(.*)(?:[\r\n]{delimiter})", run))
-        return cls.from_input(run, name, molecule)
-
     def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs):
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
 
@@ -1007,6 +1382,18 @@ class AMSJob(SingleJob):
         """
         ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
         ret += 'unset SCM_LOGFILE\n'
+        if 'nnode' in self.settings.runscript and config.slurm:
+            # Running as a SLURM job step and user specified the number of nodes explicitly.
+            ret += f'export SCM_SRUN_OPTIONS="$SCM_SRUN_OPTIONS -N {self.settings.runscript.nnode}"\n'
+        elif 'nproc' in self.settings.runscript and config.slurm:
+            # Running as a SLURM job step and user asked for a specific number of tasks.
+            # Make sure to use as few nodes as possible to avoid distributing jobs needlessly across nodes.
+            # See: https://stackoverflow.com/questions/71382578
+            for nnode in range(1,len(config.slurm.tasks_per_node)+1):
+                if sum(config.slurm.tasks_per_node[0:nnode]) >= self.settings.runscript.nproc:
+                    break
+            if nnode > 1: nnode = f"1-{nnode}"
+            ret += f'export SCM_SRUN_OPTIONS="$SCM_SRUN_OPTIONS -N {nnode}"\n'
         if 'preamble_lines' in self.settings.runscript:
             for line in self.settings.runscript.preamble_lines:
                 ret += f'{line}\n'
@@ -1017,7 +1404,7 @@ class AMSJob(SingleJob):
         if self.settings.runscript.stdout_redirect:
             ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
-        return AMSJob._slurm_env(self.settings) + ret
+        return ret
 
 
     def check(self):
@@ -1028,10 +1415,10 @@ class AMSJob(SingleJob):
             return False
         if 'NORMAL TERMINATION' in status:
             if 'errors' in status:
-                log('Job {} reported errors. Please check the the output'.format(self._full_name()), 1)
+                log('Job {} reported errors. Please check the output'.format(self._full_name()), 1)
                 return False
             if 'warnings' in status:
-                log('Job {} reported warnings. Please check the the output'.format(self._full_name()), 1)
+                log('Job {} reported warnings. Please check the output'.format(self._full_name()), 1)
             return True
         return False
 
@@ -1130,7 +1517,7 @@ class AMSJob(SingleJob):
 
             elif isinstance(value, list):
                 for el in value:
-                    ret += serialize(key, el, indent)
+                    ret += serialize(key, el, indent, end)
             elif value == '' or value is True:
                 ret += ' '*indent + key + '\n'
             elif value is False or value is None:
@@ -1204,21 +1591,26 @@ class AMSJob(SingleJob):
                 log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self._full_name()), 3)
 
             newsystem.Atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
-                    suffix=(atom.properties.suffix if 'suffix' in atom.properties else '')) for atom in molecule]
+                                           suffix=self._atom_suffix(atom)) for atom in molecule]
 
             if molecule.lattice:
                 newsystem.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
 
             if len(molecule.bonds)>0:
-                newsystem.BondOrders._1 = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
+                lines = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
+                # Add bond properties if they are defined
+                newsystem.BondOrders._1 = ['{} {}'.format(text,molecule.bonds[i].properties.suffix) if 'suffix' in molecule.bonds[i].properties else text for i,text in enumerate(lines)]
 
             if 'charge' in molecule.properties:
                 newsystem.Charge = molecule.properties.charge
 
+            if 'regions' in molecule.properties :
+                #newsystem.Region = [Settings({'_h':name, '_1':['%s=%s'%(k,str(v)) for k,v in data.items()]}) for name, data in molecule.properties.regions.items()]
+                newsystem.Region = [Settings({'_h':name, 'Properties':Settings({'_1':[line for line in data]})}) for name, data in molecule.properties.regions.items() if isinstance(data,list)]
+
             ret.append(newsystem)
 
         return ret
-
 
     #=========================================================================
 
@@ -1227,6 +1619,52 @@ class AMSJob(SingleJob):
         if isinstance(self.settings, Settings) and 'input' in self.settings and 'ams' in self.settings.input and 'task' in self.settings.input.ams:
             return self.settings.input.ams.task
         return None
+
+
+    @staticmethod
+    def _atom_suffix(atom):
+        """Return the suffix of an atom. Combines both ``properties.suffix`` as well as the other properties in a format that is suitable for inclusion in the AMSuite input."""
+
+        # Build key-value dictionary from properties
+        keyval_dict = {}
+        def serialize(sett, prefix=''):
+            for key, val in sett.items():
+                if prefix == '' and key.lower() in ['suffix', 'ghost', 'name']:
+                    # Special atomic properties that are handled by _atom_symbol() already.
+                    # Suffix handled explicitly below ...
+                    continue
+                if isinstance(val, Settings):
+                    # Recursively serialize nested Settings object
+                    serialize(val, prefix+key+'.')
+                    continue
+                elif isinstance(val, list):
+                    # Lists are converted to a comma separated string of elements
+                    val = ",".join( str(v) for v in val )
+                elif isinstance(val, set):
+                    # Sets are converted to a *sorted* comma separated string of elements
+                    val = ",".join( str(v) for v in sorted(val) )
+                key = prefix+key
+                if not isinstance(val, str): val = str(val)
+                if '\n' in val:
+                    raise ValueError(f"String representation of atomic property {key} may not include line breaks")
+                if '{' in val or '}' in val:
+                    raise ValueError(f"String representation of atomic property {key} may not include curly brackets: {val}")
+                if ' ' in val:
+                    # Ensure that space containing values are quoted
+                    if   '"' not in val:
+                        val = '"'+val+'"'
+                    elif "'" not in val:
+                        val = "'"+val+"'"
+                    else:
+                        raise ValueError(f"Atomic property {key} can not include both single and double quotes: {val}")
+                keyval_dict[key] = str(val)
+        serialize(atom.properties)
+
+        # Assemble and return complete suffix string
+        ret = " ".join( f"{key}={val}" for key,val in keyval_dict.items() )
+        if 'suffix' in atom.properties:
+            ret += " "+str(atom.properties.suffix)
+        return ret.strip()
 
 
     @staticmethod
@@ -1335,37 +1773,61 @@ class AMSJob(SingleJob):
 
 
     @classmethod
-    def from_inputfile(cls, filename: str, heredoc_delimit: str = 'eor', **kwargs) -> 'AMSJob':
-        """Construct an :class:`AMSJob` instance from an ADF inputfile or runfile.
+    def from_input(cls, text_input:str, **kwargs) -> 'AMSJob':
+        """
+        Creates an AMSJob from AMS-style text input. This function requires that the SCM Python package is installed (if not, it will raise an ImportError).
 
-        If a runscript is provide than this method will attempt to extract the input file based
-        on the heredoc delimiter (see *heredoc_delimit*).
+        text_input : a multi-line string
 
+        Returns: An AMSJob instance
+
+        Example::
+
+           text = '''
+           Task GeometryOptimization
+           Engine DFTB
+               Model GFN1-xTB
+           EndEngine
+           '''
+
+           job = AMSJob.from_input(text)
+
+        .. note::
+
+            If *molecule* is included in the keyword arguments to this method, the *text_input* may not contain any System blocks. In other words, the molecules to be used either need to come from the *text_input*, or the keyword argument, but not both.
+
+            If *settings* is included in the keyword arguments to this method, the |Settings| created from the *text_input* will be soft updated with the settings from the keyword argument. In other word, the *text_input* takes precedence over the *settings* keyword argument.
         """
         try:
             from scm.input_parser import InputParser
         except ImportError:  # Try to load the parser from $AMSHOME/scripting
             with UpdateSysPath():
                 from scm.input_parser import InputParser
+        sett = Settings()
+        with InputParser() as parser:
+            sett.input = parser.to_settings(cls._command, text_input)
+        mol = cls.settings_to_mol(sett)
+        if mol:
+            if 'molecule' in kwargs:
+                raise JobError('AMSJob.from_input(): molecule passed in both text_input and as keyword argument')
+        else:
+            mol = kwargs.pop('molecule', None)
+        if 'settings' in kwargs:
+            sett.soft_update(kwargs.pop('settings'))
+        return cls(molecule=mol, settings=sett, **kwargs)
 
-        s = Settings()
+
+    @classmethod
+    def from_inputfile(cls, filename:str, heredoc_delimit:str='eor', **kwargs) -> 'AMSJob':
+        """Construct an :class:`AMSJob` instance from an AMS inputfile or runfile.
+
+        If a runscript is provide than this method will attempt to extract the input file based
+        on the heredoc delimiter (see *heredoc_delimit*).
+
+        """
         with open(filename, 'r') as f:
             inp_file = parse_heredoc(f.read(), heredoc_delimit)
-
-        with InputParser() as parser:
-            s.input = parser.to_settings(cls._command, inp_file)
-        if not s.input:
-            raise JobError(f"from_inputfile: failed to parse '{filename}'")
-
-        # Extract a molecule from the input settings
-        mol = cls.settings_to_mol(s)
-
-        # Create and return the Job instance
-        if mol is not None:
-            return cls(molecule=mol, settings=s, **kwargs)
-        else:
-            s.ignore_molecule = True
-            return cls(settings=s, **kwargs)
+        return cls.from_input(inp_file, **kwargs)
 
 
     @staticmethod
@@ -1377,42 +1839,64 @@ class AMSJob(SingleJob):
         The existing `s.input.ams.system` block is removed in the process, assuming it was present in the first place.
 
         """
+        def get_list(s):
+            if '_1' in s and not '_2' in s and  isinstance(s._1, list):
+                return s._1
+            else:
+                i = 1
+                l = []
+                while '_' + str(i) in s:
+                    l.append(s['_' + str(i)])
+                    i += 1
+                return l
+
         def read_mol(settings_block: Settings) -> Molecule:
             """Retrieve single molecule from a single `s.input.ams.system` block."""
             if 'geometryfile' in settings_block:
                 mol = Molecule(settings_block.geometryfile)
             else:
                 mol = Molecule()
-                for atom in settings_block.atoms._1:
+                for atom in get_list(settings_block.atoms):
                     # Extract arguments for Atom()
-                    symbol, x, y, z, *comment = atom.split(maxsplit=4)
-                    kwargs = {} if not comment else {'suffix': comment[0]}
+                    symbol, x, y, z, *suffix = atom.split(maxsplit=4)
                     coords = float(x), float(y), float(z)
 
                     try:
-                        at = Atom(symbol=symbol, coords=coords, **kwargs)
+                        at = Atom(symbol=symbol, coords=coords)
                     except PTError:  # It's either a ghost atom and/or an atom with a custom name
+                        kwargs = {}
                         if symbol.startswith('Gh.'):  # Ghost atom
-                            kwargs['ghost'], symbol = symbol.split('.', maxsplit=1)
+                            kwargs['ghost'] = True
+                            _, symbol = symbol.split('.', maxsplit=1)
                         if '.' in symbol:  # Atom with a custom name
                             symbol, kwargs['name'] = symbol.split('.', maxsplit=1)
                         at = Atom(symbol=symbol, coords=coords, **kwargs)
-
+                    if suffix: at.properties.soft_update(AMSJob._atom_suffix_to_settings(suffix[0]))
                     mol.add_atom(at)
 
                 # Set the lattice vector if applicable
-                if settings_block.lattice._1:
-                    mol.lattice = [tuple(float(j) for j in i.split()) for i in settings_block.lattice._1]
+                if get_list(settings_block.lattice):
+                    mol.lattice = [tuple(float(j) for j in i.split()) for i in get_list(settings_block.lattice)]
 
             # Add bonds
-            for bond in settings_block.bondorders._1:
-                _at1, _at2, _order, *_ = bond.split()
+            for bond in get_list(settings_block.bondorders):
+                _at1, _at2, _order, *suffix = bond.split(maxsplit=3)
                 at1, at2, order = mol[int(_at1)], mol[int(_at2)], float(_order)
-                mol.add_bond(at1, at2, order)
+                plams_bond = Bond(at1,at2,order=order)
+                if suffix: plams_bond.properties.suffix = suffix[0]
+                mol.add_bond(plams_bond)
 
             # Set the molecular charge
             if settings_block.charge:
-                mol.properties.charge = float(settings_block.charge)
+                mol.properties.charge = settings_block.charge
+
+            # Set the region info (used in ACErxn)
+            if settings_block.region :
+                for s_reg in settings_block.region :
+                    if not '_h' in s_reg.keys() :
+                        raise JobError ('Region block requires a header!')
+                    if s_reg.properties :
+                        mol.properties.regions[s_reg._h] = s_reg.properties._1
 
             mol.properties.name = str(settings_block._h)
             return mol
@@ -1421,6 +1905,8 @@ class AMSJob(SingleJob):
         with s.suppress_missing():
             try:
                 settings_list = s.input.ams.pop('system')
+                if not isinstance(settings_list, list):
+                    settings_list = [settings_list]
             except KeyError:  # The block s.input.ams.system is absent
                 return None
 
@@ -1436,25 +1922,68 @@ class AMSJob(SingleJob):
 
 
     @staticmethod
-    def _slurm_env(settings):
-        """Produce a string with environment variables declaration needed for running AMS on a SLURM managed system.
+    def _atom_suffix_to_settings(suffix) -> Settings:
 
-        If the key ``slurm`` is present in ``settings.run`` and it's ``True`` the returned string is of the form:
+        def is_int(s):
+            if '.' in s:
+                return False
+            try:
+                return int(s) == float(s)
+            except ValueError:
+                return False
 
-        ``export SCM_MPIOPTIONS="-n X -N Y\n"
+        def is_float(s):
+            try:
+                float(s)
+                return True
+            except ValueError:
+                return False
 
-        ``X`` is taken from ``settings.run.cores`` (if not present, falls back to ``settings.runscript.nproc``).
-        ``Y`` is taken from ``settings.run.nodes``
-        """
+        import shlex
+        tokens = shlex.split(suffix)
 
-        if 'slurm' in settings.run and settings.run.slurm is True:
-            slurmenv = ''
-            if 'cores' in settings.run:
-                slurmenv += f'-n {settings.run.cores} '
-            elif 'nproc' in settings.runscript:
-                slurmenv += f'-n {settings.runscript.nproc} '
-            if 'nodes' in settings.run:
-                slurmenv += f'-N {settings.run.nodes} '
-            if slurmenv:
-                return f'export SCM_MPIOPTIONS="{slurmenv}"\n'
-        return ''
+        # Remove possible spaces around = signs
+        i = 0
+        while i < len(tokens):
+            if tokens[i].endswith('='):
+                tokens[i] += tokens.pop(i+1)
+            elif tokens[i].startswith('='):
+                tokens[i-1] += tokens.pop(i)
+            else:
+                i += 1
+
+        properties = Settings()
+        for i,t in enumerate(tokens):
+            key, _, val = t.partition('=')
+            if not val:
+                # Token that is not a key=value pair? Let's accumulate those in the plain text suffix.
+                if 'suffix' in properties:
+                    properties.suffix += ' '+key
+                else:
+                    properties.suffix = key
+                continue
+            else:
+                # We have a value. Let's make an educated guess for its type.
+                if val.lower() == 'true':
+                    val = True
+                elif val.lower() == 'false':
+                    val = False
+                elif is_int(val):
+                    val = int(val)
+                elif is_float(val):
+                    val = float(val)
+                elif ',' in val:
+                    elem = val.split(',')
+                    if key.lower() == 'region':
+                        # For regions we will output a set instead of a list
+                        val = set(elem)
+                    elif all(is_int(i) for i in elem):
+                        val = [ int(i) for i in elem ]
+                    elif all(is_float(f) for f in elem):
+                        val = [ float(f) for f in elem ]
+                    else:
+                        # Anything else will come out as a list of strings
+                        val = elem
+            properties.set_nested(key.split('.'), val)
+
+        return properties

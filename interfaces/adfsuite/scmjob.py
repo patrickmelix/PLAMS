@@ -232,7 +232,7 @@ class SCMJob(SingleJob):
         if s.stdout_redirect:
             ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
-        return AMSJob._slurm_env(self.settings) + ret
+        return ret
 
 
     def check(self):
@@ -243,10 +243,10 @@ class SCMJob(SingleJob):
             return False
         if 'NORMAL TERMINATION' in status:
             if 'errors' in status:
-                log('Job {} reported errors. Please check the the output'.format(self.name), 1)
+                log('Job {} reported errors. Please check the output'.format(self.name), 1)
                 return False
             if 'warnings' in status:
-                log('Job {} reported warnings. Please check the the output'.format(self.name), 1)
+                log('Job {} reported warnings. Please check the output'.format(self.name), 1)
             return True
         return False
 
