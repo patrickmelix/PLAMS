@@ -134,7 +134,7 @@ class ORCAResults(Results):
         """Get Hirshfeld Analysis from Output
 
         Uses :meth:`~ORCAResults.get_dipole_vector` to calculate the total dipole.
-	All options are passed on.
+        All options are passed on.
         """
         vec = self.get_dipole_vector(**kwargs)
         if isinstance(vec, np.ndarray):
@@ -151,7 +151,7 @@ class ORCAResults(Results):
 
         - `method`: Can be any one that is available in the output, e.g. mulliken or loewdin.
         - `match`: Select occurence in the output to use. E.g. when running multiple structures at once.
-	Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+                   Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
         """
         block = self.get_output_chunk(begin="{} ATOMIC CHARGES".format(method.upper()),end="-"*25, match=match)
         ret = []
@@ -173,9 +173,9 @@ class ORCAResults(Results):
 
         - `return_spin`: Return a tuple of (charge, spin) instead of just charge.
         - `match`: Select occurence in the output to use. E.g. when running multiple structures at once.
-	Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+                   Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
         - `skip`: Number of lines after the keyword in the outputfile to be skipped.
-	Don't touch if you don't have trouble with your ORCA versions output.
+                  Don't touch if you don't have trouble with your ORCA versions output.
         """
         block = self.get_output_chunk(begin="HIRSHFELD ANALYSIS",end="TOTAL", match=match)
         ret = []
@@ -204,7 +204,7 @@ class ORCAResults(Results):
 
         - Set `return_occupancy` to *True* to recieve a tuple (Energy, Occupation) for each MO.
         - `match`: Select occurence in the output to use. E.g. when running multiple structures at once.
-        Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+                   Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
         """
         conv = Units.conversion_ratio('a.u.', unit)
         block = self.get_output_chunk(begin="  NO   OCC          E(Eh)            E(eV) ", end="--", match=match)
