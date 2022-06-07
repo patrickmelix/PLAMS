@@ -63,7 +63,7 @@ def test_Properties():
     s.runscript.nproc = 1
     s.input.ams.Properties.Gradients = True
     job = AMSCalculator(s, name = 'Properties')
-    job.calculate(co)
+    job.calculate(co, properties=['forces'])
     print('found forces:', 'forces' in job.results )
 
 
