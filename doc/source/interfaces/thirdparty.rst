@@ -10,3 +10,4 @@ Other programs
     mopac
     orca
     raspa
+    vasp
