@@ -328,16 +328,18 @@ class Cp2kResults(Results):
                 continue
             if line.startswith(' MD|'): #new file format
                 newFormat = True
-            if newFormat and ('-'*74 in line): #separator line
-                continue
-            if newFormat and ('Instantaneous' in line): #separator line
-                continue
-            elif (not newFormat) and (not '=' in line): #old format uses =
-                continue
             if newFormat:
+                if ('-'*74 in line): #separator line
+                    continue
+                elif 'Instantaneous' in line: #separator line
+                    continue
+                elif not line.startswith(' MD|'): #empty line
+                    continue
                 line = line.replace('MD|','')
                 l = [line[0:36], line[36:]] #split by length
-            else:
+            else: #old format
+                if not '=' in line: #old format uses = as separator
+                    continue
                 l = line.strip().split('=')
             l = [ x.strip() for x in l ]
             frames[-1].append(l)
