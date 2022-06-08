@@ -317,23 +317,36 @@ class Cp2kResults(Results):
         delimiter = '*'*10
         chunk = self.get_file_chunk(file, begin=delimiter, end=delimiter, match=0, inc_begin=True)
         frames = [[]]
+        newFormat = False #Older Format
         for line in chunk:
-            if not line:
+            if not line: #skip empty
                 continue
             if delimiter in line:
                 if len(frames[-1]) == 0:
-                    continue
-                frames.append([])
+                    continue #first exists
+                frames.append([]) #next timestep
                 continue
-            if not '=' in line:
+            if line.startswith(' MD|'): #new file format
+                newFormat = True
+            if newFormat and ('-'*74 in line): #separator line
                 continue
-            l = line.strip().split('=')
+            if newFormat and ('Instantaneous' in line): #separator line
+                continue
+            elif (not newFormat) and (not '=' in line): #old format uses =
+                continue
+            if newFormat:
+                line = line.replace('MD|','')
+                l = [line[0:36], line[36:]] #split by length
+            else:
+                l = line.strip().split('=')
             l = [ x.strip() for x in l ]
             frames[-1].append(l)
 
         ret = []
         for frame in frames:
-            if any('INITIAL' in x[0].upper() for x in frame):
+            if any('INITIAL' in x[0].upper() for x in frame): #old format
+                continue
+            elif any('MD_INI' in x[0].upper() for x in frame): #new format
                 continue
             elif len(frame) == 0:
                 continue
