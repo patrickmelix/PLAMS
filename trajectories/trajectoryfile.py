@@ -216,7 +216,10 @@ class TrajectoryFile (object) :
                 if bonds is not None :
                         plamsmol.delete_all_bonds()
                         for bond in bonds :
-                                b = Bond(plamsmol[bond[0]],plamsmol[bond[1]])
+                                order = 1.
+                                if len(bond) == 3 :
+                                        order = bond[2]
+                                b = Bond(plamsmol[bond[0]],plamsmol[bond[1]],order)
                                 plamsmol.add_bond(b)
 
         def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], energy=0., step=None, conect=None) :
@@ -258,12 +261,21 @@ class TrajectoryFile (object) :
                 # Get the connection table
                 plamsmol.set_atoms_id()
                 conect = {}
-                for iat,atom in enumerate(plamsmol.atoms) :
-                        neighbors = plamsmol.neighbors(atom)
-                        if len(neighbors) > 0 :
-                                conect[iat+1] = [neighbor.id for neighbor in neighbors]
+                for bond in plamsmol.bonds :
+                        iat1 = plamsmol.index(bond.atom1)
+                        iat2 = plamsmol.index(bond.atom2)
+                        order = float(bond.order)
+                        if not iat1 in conect.keys() :
+                                conect[iat1] = []
+                        conect[iat1].append((iat2,order))
+                        if not iat2 in conect.keys() :
+                                conect[iat2] = []
+                        conect[iat2].append((iat1,order))
                 # Get the properties
-                props = [at.properties.suffix if 'suffix' in at.properties else '' for at in plamsmol.atoms]
+                #props = [at.properties.suffix if 'suffix' in at.properties else '' for at in plamsmol.atoms]
+                from ..interfaces.adfsuite.ams import AMSJob
+                props = [AMSJob._atom_suffix(at) for at in plamsmol.atoms]
+                #props = [at.properties if len(at.properties)>0 else None for at in plamsmol.atoms]
                 if sum([len(s) for s in props]) == 0 : props = None
                 return coords, cell, elements, conect, props
 

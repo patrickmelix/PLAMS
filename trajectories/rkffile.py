@@ -629,8 +629,16 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Write the bond data into the history section
                 """
+                # Get the bond orders out of the connection table
+                connections = {}
+                orders = {}
+                for k in conect.keys() :
+                    connections[k] = [t[0] if isinstance(t,tuple) else t for t in conect[k]]
+                    orders[k] = [t[1] if isinstance(t,tuple) else 1. for t in conect[k]]
+
                 # Create the index list (correct for double counting)
-                connection_table = [[at for at in conect[i+1] if at>i+1] if i+1 in conect else [] for i in range(nats)]
+                connection_table = [[at for at in connections[iat+1] if at>iat+1] if iat+1 in connections else [] for iat in range(nats)]
+                orders = [[o for o,at in zip(orders[iat+1],connections[iat+1]) if at>iat+1] if iat+1 in connections else [] for iat in range(nats)]
                 numbonds = [len(neighbors) for neighbors in connection_table]
 
                 indices = [sum(numbonds[:i])+1 for i in range(nats+1)]
@@ -644,7 +652,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.file_object.write('History','ItemName(%i)'%(counter),'%s'%('Bonds.Atoms'))
                 counter += 1
 
-                bond_orders = [1.0 for bond in connection_table]
+                # Flatten the bond orders
+                bond_orders = [order for i in range(nats) for order in orders[i]]
+                #bond_orders = [1.0 for bond in connection_table]
                 self.file_object.write('History','Bonds.Orders(%i)'%(self.position+1),bond_orders)
                 self.file_object.write('History','ItemName(%i)'%(counter),'%s'%('Bonds.Orders'))
                 counter += 1
@@ -842,6 +852,7 @@ def compute_lattice_displacements (molecule) :
         Determine which bonds are displaced along the periodic lattice, so that they are not at their closest distance
         """
         cell = numpy.array(molecule.lattice)
+        nvecs = len(cell)
 
         # Get the difference vectors for the bonds
         nbonds = len(molecule.bonds)
@@ -851,12 +862,12 @@ def compute_lattice_displacements (molecule) :
         
         # Project the vectors onto the lattice vectors
         celldiameters_sqrd = (cell**2).sum(axis=1)
-        proj = (vectors.reshape((nbonds,1,3)) * cell.reshape(1,3,3)).sum(axis=2)
-        proj = proj / celldiameters_sqrd.reshape((1,3))
+        proj = (vectors.reshape((nbonds,1,3)) * cell.reshape(1,nvecs,3)).sum(axis=2)
+        proj = proj / celldiameters_sqrd.reshape((1,nvecs))
         
         # Now see what multiple they are of 0.5
         lattice_displacements = numpy.round(proj).astype(int)
-        lattice_displacements = lattice_displacements.reshape((3*nbonds)).tolist()
+        lattice_displacements = lattice_displacements.reshape((nvecs*nbonds)).tolist()
         return lattice_displacements
 
                                 
