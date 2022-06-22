@@ -20,7 +20,7 @@ class ParAMSJob(SCMJob):
 
     To set training set, validation set, job collection, engine collection, and parameter interface, use the special attributes
 
-    * ``training_set`` and ``validation_set`` : these map to the first and second ``DataSet`` in the job settings. Usage: ``job.training_set.Path = os.path.abspath('path/to/training_set.yaml')``.
+    * ``training_set`` and ``validation_set`` : these map to the first and second ``DataSet`` in the job settings. Note that when assigning to this variable you can use a str which will set the Path in the settings. Usage: ``job.training_set = 'path/to/training_set.yaml'``, OR ``job.training_set.Path = os.path.abspath('path/to/training_set.yaml')``, OR ``job.training_set = {'Path': os.path.abspath('training_set.yaml'), 'LoggerFrequency': {...}}``. In the former case the path is automatically converted to an absolute path.
 
     * ``job_collection``, ``engine_collection``, ``parameter_interface`` maps directly to the yaml file. Usage: ``job.job_collection = 'path/to/training_set.yaml'``. Here the path is automatically converted to an absolute path.
 
@@ -41,23 +41,51 @@ class ParAMSJob(SCMJob):
     _subblock_end = 'End'
     _top = ['task', 'parameterinterface', 'dataset', 'jobcollection', 'enginecollection']
 
-    def __init__(self, **kwargs):
-        SCMJob.__init__(self,**kwargs)
-        self.settings.ignore_molecule = True
+    def _ensure_training_set_in_settings(self):
         if 'DataSet' not in self.settings.input: #DataSet is already set if using .from_inputfile()
             self.settings.input.DataSet = [
                 Settings({'Name': 'training_set'}),
             ]
+    def _ensure_validation_set_in_settings(self):
+        self._ensure_training_set_in_settings()
+        if len(self.settings.input.DataSet) < 2:
+            self.settings.input.DataSet.append(Settings({'Name': 'validation_set'}))
+
+    def __init__(self, **kwargs):
+        SCMJob.__init__(self,**kwargs)
+        self.settings.ignore_molecule = True
+        self._ensure_training_set_in_settings()
 
     @property
     def training_set(self):
+        self._ensure_training_set_in_settings()
         return self.settings.input.DataSet[0]
+
+    @training_set.setter
+    def training_set(self, value):
+        self._ensure_training_set_in_settings()
+        if isinstance(value, str):
+            self.settings.input.DataSet[0].path = self._abspath(value)
+        elif isinstance(value, dict):
+            self.settings.input.DataSet[0] = value
+        else:
+            raise TypeError(f"When assigning training set can only accept str (for the path) or a Settings instance. Tried {value} of type {type(value)}")
 
     @property
     def validation_set(self):
-        if len(self.settings.input.DataSet) < 2:
-            self.settings.input.DataSet.append(Settings({'Name': 'validation_set'}))
+        self._ensure_validation_set_in_settings()
         return self.settings.input.DataSet[1]
+
+    @validation_set.setter
+    def validation_set(self, value):
+        self._ensure_validation_set_in_settings()
+        if isinstance(value, str):
+            self.settings.input.DataSet[1].path = self._abspath(value)
+        elif isinstance(value, dict):
+            self.settings.input.DataSet[1] = value
+        else:
+            raise TypeError(f"When assigning validation set can only accept str (for the path) or a Settings instance. Tried {value} of type {type(value)}")
+
 
     @staticmethod
     def _abspath(value):
@@ -90,6 +118,20 @@ class ParAMSJob(SCMJob):
         self.settings.input.EngineCollection = self._abspath(value)
 
     def _add_repeated_block(self, block, key, value):
+        """
+            Adds a repeated block to self.settings.input.
+
+            Example: block='ExitCondition', key='MaxOptimizersConverged', value=1
+
+            will give the following in the input file
+
+            ```
+            ExitCondition
+                Type MaxOptimizersConverged
+                MaxOptimizersConverged 1
+            End
+            ```
+        """
         my_value = Settings(value) if isinstance(value, dict) else value
         if block in self.settings.input and not isinstance(self.settings.input[block], list):
             self.settings.input[block] = [self.settings.input[block]]
@@ -166,25 +208,43 @@ class ParAMSJob(SCMJob):
         pass
 
     @classmethod
+    def from_inputfile(cls, path):
+        """
+            Initializes a ParAMSJob with settings taken from an input file (e.g. params.in)
+
+            Paths are replaced with absolute paths to enable the running of new jobs
+        """
+
+        job = super().from_inputfile(path)
+        sett_dir = os.path.abspath(os.path.dirname(path))
+        if 'DataSet' in job.settings.input:
+            # I hope that the Path is required when specifying a data set and doesn't have default value
+            if not os.path.isabs(job.training_set.Path):
+                job.training_set.Path = os.path.join(sett_dir, job.training_set.Path).replace('\\', '/')
+            if len(job.settings.input.DataSet) >= 2:
+                if not os.path.isabs(job.validation_set.Path):
+                    job.validation_set.Path = os.path.join(sett_dir, job.validation_set.Path).replace('\\', '/')
+        if 'EngineCollection' in job.settings.input and not os.path.isabs(job.engine_collection):
+            job.engine_collection = os.path.join(sett_dir, job.engine_collection).replace('\\', '/')
+        if 'JobCollection' in job.settings.input and not os.path.isabs(job.job_collection):
+            job.job_collection = os.path.join(sett_dir, job.job_collection).replace('\\', '/')
+        if 'ParameterInterface' in job.settings.input and not os.path.isabs(job.parameter_interface):
+            job.parameter_interface = os.path.join(sett_dir, job.parameter_interface).replace('\\', '/')
+
+        return job
+
+    @classmethod
     def load_external(cls, path, name=None):
         assert os.path.isdir(path), f"Path {path} does not exist or is not a directory"
         path = os.path.abspath(path)
         sett_dir = os.path.join(path, 'settings_and_initial_data')
+        assert os.path.isdir(sett_dir), f"Directory {sett_dir} does not exist. settings_and_initial_data needs to be a subdirectory of {path}"
         params_in = os.path.join(sett_dir,  'params.in')
         if os.path.exists(params_in):
             job = ParAMSJob.from_inputfile(params_in)
-            if 'DataSet' in job.settings.input:
-                job.training_set.path = os.path.join(sett_dir, job.training_set.path)
-                if len(job.settings.input.DataSet) >= 2:
-                    job.validation_set.path = os.path.join(sett_dir, job.validation_set.path)
-            if 'EngineCollection' in job.settings.input:
-                job.engine_collection = os.path.join(sett_dir, job.engine_collection)
-            if 'JobCollection' in job.settings.input:
-                job.job_collection = os.path.join(sett_dir, job.job_collection)
-            if 'ParameterInterface' in job.settings.input:
-                job.parameter_interface = os.path.join(sett_dir, job.parameter_interface)
         else:
             job = ParAMSJob()
+
         if name:
             job.name = name
 
