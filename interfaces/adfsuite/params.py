@@ -12,6 +12,9 @@ class ParAMSResults(SCMResults):
     def get_molecule(self, *args, **kwargs):
         raise PlamsError('ParAMSResults do not support get_molecule() method.')
 
+    def collect(self):
+        pass
+
 
 class ParAMSJob(SCMJob):
     """A class for running ParAMS jobs.
@@ -250,7 +253,10 @@ class ParAMSJob(SCMJob):
 
         return job
 
-
+    def check(self):
+        if os.path.isdir(os.path.join(self.path, 'results', 'optimization', 'training_set_results', 'best')):
+            return True
+        return False
 
 
 
