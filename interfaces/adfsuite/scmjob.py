@@ -194,6 +194,7 @@ class SCMJob(SingleJob):
     _result_type = SCMResults
     _top = ['title','units','define']
     _command = ''
+    _json_definitions = _command
     _subblock_end = 'subend'
     _legacy = ['band', 'dftb', 'uff']
 
@@ -378,8 +379,8 @@ class SCMJob(SingleJob):
         with open(filename, 'r') as f:
             inp_file = parse_heredoc(f.read(), heredoc_delimit)
 
-        with InputParser as parser:
-            s.input = parser.to_settings(cls._command, inp_file)
+        with InputParser() as parser:
+            s.input = parser.to_settings(cls._json_definitions or cls._command, inp_file)
         if not s.input:
             raise JobError(f"from_inputfile: failed to parse '{filename}'")
 
