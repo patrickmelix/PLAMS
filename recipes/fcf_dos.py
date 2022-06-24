@@ -9,6 +9,7 @@ class FCFDOS:
     A class for calculating the convolution of two FCF spectra
     """
 
+    # Conversion factor to cm-1 == ( me^2 * c * alpha^2 ) / ( 100 * 2pi * amu * hbar )
     G2F = 120.399494933
     J2Ha = 1.0 / (scipy.constants.m_e * scipy.constants.speed_of_light**2 * 0.0072973525693**2)
 
@@ -16,8 +17,8 @@ class FCFDOS:
         """
         absrkf : KFFile from an FCF absorption calculation for the acceptor, as name, path, or KFFile object
         emirkf : KFFile from an FCF emission calculation for the donor, as name, path, or KFFile object
-        absele : Binding energy of the acceptor in cm-1
-        emiele : Binding energy of the donor in cm-1
+        absele : Acceptor absorption electronic energy cm-1
+        emiele : Donor emission electronic energy in cm-1
         """
         if isinstance(absrkf, str):
             self.absrkf = KFFile(absrkf)
@@ -93,13 +94,10 @@ class FCFDOS:
         # Integrate
         absint = self.trapezoid(absspc)
         emiint = self.trapezoid(emispc)
-        print(f'Integral of the absorption spectrum: {absint}')
-        print(f'Integral of the emission   spectrum: {emiint}')
         # Calculate DOS
         self.spc[:, 1] = absspc[:, 1] * emispc[:, 1]
         dos = self.trapezoid(self.spc)
-        print(f'Density of States (DOS) : {dos}')
-        return self
+        return dos
 
     def newspc(self, spcmin, spcmax, spclen=1000):
         # Dimensions of the spectrum
@@ -160,14 +158,14 @@ class FCFDOS:
         """
         Integrate spectrum using the trapezoid rule
         """
-        value = spc[0, 1] / 2
+        value = ( spc[0, 1] + spc[-1, 1] ) / 2
         value = value + sum(spc[1:-1, 1])
-        value = value + spc[-1, 1] / 2
         # The abscissas must be equally spaced for this to work
         value = value * ( spc[1, 0] - spc[0, 0] )
         return value
 
     def __str__(self):
-        return f'Absorption from {self.absrkf.path}, Emission from {self.emirkf.path}'
+        string = f"Absorption from {self.absrkf.path}\nEmission from {self.emirkf.path}\nAcceptor absorption electronic energy = {self.absele} cm-1\nDonor emission electronic energy = {self.emiele} cm-1"
+        return string
 
 
