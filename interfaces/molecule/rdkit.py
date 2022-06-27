@@ -362,10 +362,10 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     :return: A molecule with hydrogens and 3D coordinates or a list of molecules if nconfs > 1
     :rtype: |Molecule| or list of PLAMS Molecules
     """
-    if not mol.bonds:
-        mol.guess_bonds()
         
     if isinstance(mol, Molecule):
+        if not mol.bonds:
+            mol.guess_bonds()
         rdkit_mol = to_rdmol(mol,assignChirality=enforceChirality)
     else:
         rdkit_mol = mol
