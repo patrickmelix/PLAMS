@@ -809,7 +809,7 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
         charge = 0.
         if molecule is not None :
                 if 'charge' in molecule.properties :
-                        charge = molecule.properties.charge
+                        charge = float(molecule.properties.charge)
         element_numbers = [PeriodicTable.get_atomic_number(el) for el in elements]
 
         rkf.write(section,'nAtoms',len(elements))

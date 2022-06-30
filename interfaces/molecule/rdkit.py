@@ -30,6 +30,8 @@ from ...mol.bond import Bond
 from ...mol.atom import Atom
 from ...mol.molecule import Molecule
 from ...core.functions import add_to_class
+from ...core.functions import log
+from ...core.errors import PlamsError
 
 
 def from_rdmol(rdkit_mol, confid=-1, properties=True):
@@ -185,7 +187,8 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
                 for rdprop in plams_mol.properties.rdkit:
                     prop_to_rdmol(rdmol, rdprop, plams_mol.properties.rdkit.get(rdprop))
             else :
-                prop_dic[prop] = {'plams':plams_mol.properties.get(prop)}
+                #prop_dic[prop] = {'plams':plams_mol.properties.get(prop)}
+                prop_dic[prop] = plams_mol.properties.get(prop)
         if len(prop_dic) > 0 : prop_to_rdmol(rdmol, 'plams', prop_dic)
         prop_dic = {}
         for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
@@ -199,7 +202,17 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
         if len(prop_dic) > 0 : prop_to_rdmol(rd_bond, 'plams', prop_dic)
 
     if sanitize:
-        Chem.SanitizeMol(rdmol)
+        try:
+            Chem.SanitizeMol(rdmol)
+        except ValueError as exc:
+            #rdkit_flag = Chem.SanitizeMol(rdmol,catchErrors=True)
+            #log ('RDKit Sanitization Error. Failed Operation Flag = %s'%(rdkit_flag))
+            log ('RDKit Sanitization Error.')
+            text = 'Most likely this is a problem with the assigned bond orders: '
+            text += 'Use chemical insight to adjust them.'
+            log (text)
+            log ('Note that the atom indices below start at zero, while the AMS-GUI indices start at 1.')
+            raise exc
     conf = Chem.Conformer()
     for i, atom in enumerate(plams_mol.atoms):
         xyz = Geometry.Point3D(atom._getx(), atom._gety(), atom._getz())
