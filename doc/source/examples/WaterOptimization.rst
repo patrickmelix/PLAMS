@@ -1,3 +1,5 @@
+.. _GeoOptWaterExample:
+
 Geometry optimization of water
 ==============================
 
