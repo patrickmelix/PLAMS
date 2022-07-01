@@ -29,8 +29,7 @@ def singlepoint():
     atoms = get_atoms()
     atoms.calc = AMSCalculator(settings=settings, name='SinglePoint')
     print("Singlepoint through the ASE calculator")
-    print("Energy (eV):")
-    print(atoms.get_potential_energy())
+    print(f"Energy (eV): {atoms.get_potential_energy()}")
     print("Forces (eV/ang):")
     print(atoms.get_forces())
     print("Stress (eV/ang^3):")
@@ -45,8 +44,7 @@ def ams_geoopt():
     settings.runscript.nproc = 1
     atoms = get_atoms()
     atoms.calc = AMSCalculator(settings=settings, name='AMS_GeoOpt')
-    print("Optimized energy (eV):")
-    print(atoms.get_potential_energy())
+    print(f"Optimized energy (eV): {atoms.get_potential_energy()}")
 
 def ase_geoopt():
     print("ASE geo opt (ase.optimize.BGFGS) in normal mode: One results dir is saved for every step")
@@ -55,8 +53,7 @@ def ase_geoopt():
     atoms.calc = AMSCalculator(settings=settings, name='ASE_GeoOpt')
     dyn = BFGS(atoms)
     dyn.run(fmax=0.27)
-    print("Optimized energy (eV):")
-    print(atoms.get_potential_energy())
+    print(f"Optimized energy (eV): {atoms.get_potential_energy()}")
 
 def ase_geoopt_workermode():
     print("ASE geo opt (ase.optimize.FGS) in AMSWorker mode: no output files are saved, minimal overhead")
@@ -65,8 +62,7 @@ def ase_geoopt_workermode():
     atoms.calc = AMSCalculator(settings=settings, name='ASE_WorkerGeoOpt', amsworker=True)
     dyn = BFGS(atoms)
     dyn.run(fmax=0.27)
-    print("Optimized energy (eV):")
-    print(atoms.get_potential_energy())
+    print(f"Optimized energy (eV): {atoms.get_potential_energy()}")
 
     
 def main():
