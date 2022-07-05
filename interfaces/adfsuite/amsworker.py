@@ -271,7 +271,7 @@ class AMSWorkerResults:
         return self._main_ase_atoms
 
 
-class AMSMDState:
+class AMSWorkerMDState:
     """A specialized class encapsulating the MD states from calls to an |AMSWorker|.
     """
 
@@ -279,7 +279,6 @@ class AMSMDState:
         self._name           = name
         self.error           = error
         self._state          = state
-        self._main_molecule  = None
 
     @property
     def name(self):
@@ -980,7 +979,7 @@ class AMSWorker:
             states = []
             for state in _states:
                 state = self._unflatten_arrays(state['state'])
-                states.append(AMSMDState(name, state))
+                states.append(AMSWorkerMDState(name, state))
 
             return states
 
@@ -1011,11 +1010,13 @@ class AMSWorker:
             self._start_subprocess()
             raise
 
-    def GenerateVelocities(self, name, randomvelocitiestemperature, randomvelocitiesmethod=None):
+    def GenerateVelocities(self, name, randomvelocitiestemperature, randomvelocitiesmethod=None,
+                           setsteptozero=False):
         try:
             args = {
                 "title": str(name),
                 "randomVelocitiesTemperature": float(randomvelocitiestemperature),
+                "setStepToZero": bool(setsteptozero)
             }
             if randomvelocitiesmethod is not None:
                 args['randomVelocitiesMethod'] = str(randomvelocitiesmethod)
@@ -1023,7 +1024,7 @@ class AMSWorker:
             state = self._call("GenerateVelocities", args)
 
             state = self._unflatten_arrays(state[0]['state'])
-            state = AMSMDState(name, state)
+            state = AMSWorkerMDState(name, state)
 
             return state
 
