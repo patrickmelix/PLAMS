@@ -7,7 +7,7 @@ import re
 import os
 import tempfile
 
-__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'rkf_to_ase_xyz']
+__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'rkf_to_ase_traj']
 
 def traj_to_rkf(trajfile,  rkftrajectoryfile):
     """
@@ -326,13 +326,17 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
     return wdir
 
 
-def rkf_to_ase_xyz(rkf_file, out_xyz):
+def rkf_to_ase_traj(rkf_file, out_file):
     """
+        Convert an ams.rkf trajectory to an ASE trajectory.
+
         rkf_file: str
             Path to an ams.rkf file
 
-        out_xyz: str
-            Path to the .xyz file that will be created. If the file exists it will be overwritten.
+        out_file: str
+            Path to the .traj or .xyz file that will be created. If the file exists it will be overwritten. If a .xyz file is specified it will use the normal ASE format (not the AMS format).
+
+        Returns: a list of all the ASE Atoms objects.
     """
     from ase import Atoms
     from ase.calculators.singlepoint import SinglePointCalculator
@@ -355,7 +359,7 @@ def rkf_to_ase_xyz(rkf_file, out_xyz):
             n = len(stress)
             if n == 9:
                 stress = np.array(stress).reshape(3,3)*hartree2eV/bohr2angstrom**3
-                atoms.calc.results['stress'] = [stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]]
+                atoms.calc.results['stress'] = np.array([stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]])
 
         return atoms
 
@@ -382,4 +386,6 @@ def rkf_to_ase_xyz(rkf_file, out_xyz):
         atoms = amsjob.results.get_main_ase_atoms()
         all_atoms = [atoms]
 
-    write(out_xyz, all_atoms)
+    write(out_file, all_atoms)
+
+    return all_atoms
