@@ -1,12 +1,13 @@
 from .units import Units
 from ..trajectories.rkffile import RKFTrajectoryFile
+from ..trajectories.rkfhistoryfile import RKFHistoryFile
 from ..core.private import saferun
 from .kftools import KFFile
 import re
 import os
 import tempfile
 
-__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams']
+__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'rkf_to_ase_xyz']
 
 def traj_to_rkf(trajfile,  rkftrajectoryfile):
     """
@@ -324,3 +325,61 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
 
     return wdir
 
+
+def rkf_to_ase_xyz(rkf_file, out_xyz):
+    """
+        rkf_file: str
+            Path to an ams.rkf file
+
+        out_xyz: str
+            Path to the .xyz file that will be created. If the file exists it will be overwritten.
+    """
+    from ase import Atoms
+    from ase.calculators.singlepoint import SinglePointCalculator
+    from ase.io import write
+    import numpy as np
+    bohr2angstrom = Units.convert(1.0, 'bohr', 'angstrom')
+    hartree2eV = Units.convert(1.0, 'hartree', 'eV')
+    def get_ase_atoms(elements, crd, cell, energy, forces, stress):
+
+        atoms = Atoms(symbols=elements, positions=np.array(crd).reshape(-1,3)*bohr2angstrom, cell=np.array(cell).reshape(-1,3)*bohr2angstrom, pbc=['T']*len(cell)+['F']*(3-len(cell)))
+        calculator = SinglePointCalculator(atoms)
+        atoms.set_calculator(calculator)
+
+        if energy:
+            atoms.calc.results['energy'] = energy*hartree2eV
+        if forces:
+            forces = np.array(forces).reshape(-1,3)*hartree2eV/bohr2angstrom
+            atoms.calc.results['forces'] = forces
+        if stress:
+            n = len(stress)
+            if n == 9:
+                stress = np.array(stress).reshape(3,3)*hartree2eV/bohr2angstrom**3
+                atoms.calc.results['stress'] = [stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]]
+
+        return atoms
+
+    rkf_filename = rkf_file
+    kf = KFFile(rkf_filename)
+    if 'History' in kf.keys():
+        if 'ChemicalSystem(1)' in kf.keys():
+            rkf = RKFHistoryFile(rkf_filename)
+        else:
+            rkf = RKFTrajectoryFile(rkf_filename)
+
+        rkf.store_historydata()
+        all_atoms = []
+        for crd, cell in rkf:
+            energy = rkf.historydata.get('Energy', None)
+            forces = rkf.historydata.get('EngineGradients', None)
+            if not forces:
+                forces = rkf.historydata.get('Gradients', None)
+            stress = rkf.historydata.get('StressTensor', None)
+            atoms = get_ase_atoms(rkf.elements, crd, cell, energy, forces, stress)
+            all_atoms.append(atoms)
+    else:
+        amsjob = AMSJob.load_external(rkf_filename)
+        atoms = amsjob.results.get_main_ase_atoms()
+        all_atoms = [atoms]
+
+    write(out_xyz, all_atoms)
