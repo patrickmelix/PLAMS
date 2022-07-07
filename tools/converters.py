@@ -3,6 +3,8 @@ from ..trajectories.rkffile import RKFTrajectoryFile
 from ..trajectories.rkfhistoryfile import RKFHistoryFile
 from ..core.private import saferun
 from .kftools import KFFile
+from ..interfaces.molecule.ase import toASE
+from ..mol.molecule import Molecule
 import re
 import os
 import tempfile
@@ -382,8 +384,7 @@ def rkf_to_ase_traj(rkf_file, out_file):
             atoms = get_ase_atoms(rkf.elements, crd, cell, energy, forces, stress)
             all_atoms.append(atoms)
     else:
-        amsjob = AMSJob.load_external(rkf_filename)
-        atoms = amsjob.results.get_main_ase_atoms()
+        atoms = toASE(Molecule(rkf_filename)) 
         all_atoms = [atoms]
 
     write(out_file, all_atoms)
