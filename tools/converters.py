@@ -348,7 +348,7 @@ def rkf_to_ase_traj(rkf_file, out_file):
     hartree2eV = Units.convert(1.0, 'hartree', 'eV')
     def get_ase_atoms(elements, crd, cell, energy, forces, stress):
 
-        atoms = Atoms(symbols=elements, positions=np.array(crd).reshape(-1,3)*bohr2angstrom, cell=np.array(cell).reshape(-1,3)*bohr2angstrom, pbc=['T']*len(cell)+['F']*(3-len(cell)))
+        atoms = Atoms(symbols=elements, positions=np.array(crd).reshape(-1,3), cell=np.array(cell).reshape(-1,3), pbc=['T']*len(cell)+['F']*(3-len(cell)))
         calculator = SinglePointCalculator(atoms)
         atoms.set_calculator(calculator)
 
