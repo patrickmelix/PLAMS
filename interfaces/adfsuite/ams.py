@@ -208,14 +208,39 @@ class AMSResults(Results):
         """
         return self.get_molecule('Molecule', 'ams')
 
-    def get_main_ase_atoms(self):
+    def get_main_ase_atoms(self, get_results=False):
         """Return an ase.Atoms instance with the final coordinates.
 
         An alternative is to call toASE(results.get_main_molecule()) to convert a Molecule to ASE Atoms.
 
-        All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+        get_results : bool
+            If True, the returned Atoms will have a SinglePointCalculator as their calculator, allowing you to call .get_potential_energy(), .get_forces(), and .get_stress() on the returned Atoms object.
+
         """
-        return self.get_ase_atoms('Molecule', 'ams')
+        from ase.calculators.singlepoint import SinglePointCalculator
+        atoms = self.get_ase_atoms('Molecule', 'ams')
+        if get_results:
+            atoms.set_calculator(SinglePointCalculator(atoms))
+            try:
+                energy = self.get_energy(unit='eV')
+                atoms.calc.results['energy'] = energy
+            except KeyError:
+                pass
+            try:
+                forces = (-1) * np.array(self.get_gradients(dist_unit='angstrom', energy_unit='eV')).reshape(-1,3)
+                atoms.calc.results['forces'] = forces
+            except KeyError:
+                pass
+
+            try:
+                stress = np.array(self.get_stresstensor()).ravel() * Units.convert(1.0, 'hartree/bohr^3', 'eV/ang^3')
+                if len(stress) == 9:
+                    stress = stress.reshape(3,3)
+                    atoms.calc.results['stress'] = np.array([stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]])
+            except KeyError:
+                pass
+
+        return atoms
 
 
     def get_history_molecule(self, step):
@@ -1503,10 +1528,10 @@ class AMSJob(SingleJob):
 
                 for el in value:
                     if not el.startswith('_'):
-                        if key.lower().startswith('engine') and el.lower() == 'input':
+                        if key.lower().split()[0] == 'engine' and el.lower() == 'input':
                             ret += serialize(el, value[el], indent+2, 'EndInput')
                         # REB: For the hybrid engine. How todeal with the space in el (Engine DFTB)? Replace by underscore?
-                        elif key.lower().startswith('engine') and el.lower().startswith('engine') :
+                        elif el.lower().split()[0] == 'engine':
                             engine = ' '.join(el.split('_'))
                             ret += serialize(engine, value[el], indent+2, end='EndEngine') + '\n'
                         else:
