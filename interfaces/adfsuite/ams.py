@@ -1528,10 +1528,12 @@ class AMSJob(SingleJob):
 
                 for el in value:
                     if not el.startswith('_'):
-                        if key.lower().split()[0] == 'engine' and el.lower() == 'input':
+                        split_key = key.lower().split()
+                        split_el = el.lower().split()
+                        if len(split_key) > 0 and split_key[0] == 'engine' and el.lower() == 'input':
                             ret += serialize(el, value[el], indent+2, 'EndInput')
                         # REB: For the hybrid engine. How todeal with the space in el (Engine DFTB)? Replace by underscore?
-                        elif el.lower().split()[0] == 'engine':
+                        elif len(split_el) > 0 and split_el[0] == 'engine':
                             engine = ' '.join(el.split('_'))
                             ret += serialize(engine, value[el], indent+2, end='EndEngine') + '\n'
                         else:
