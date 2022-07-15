@@ -328,7 +328,7 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
     return wdir
 
 
-def rkf_to_ase_traj(rkf_file, out_file):
+def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
     """
         Convert an ams.rkf trajectory to an ASE trajectory.
 
@@ -349,19 +349,20 @@ def rkf_to_ase_traj(rkf_file, out_file):
     def get_ase_atoms(elements, crd, cell, energy, forces, stress):
 
         atoms = Atoms(symbols=elements, positions=np.array(crd).reshape(-1,3), cell=np.array(cell).reshape(-1,3), pbc=['T']*len(cell)+['F']*(3-len(cell)))
-        calculator = SinglePointCalculator(atoms)
-        atoms.set_calculator(calculator)
+        if get_results:
+            calculator = SinglePointCalculator(atoms)
+            atoms.set_calculator(calculator)
 
-        if energy:
-            atoms.calc.results['energy'] = energy*hartree2eV
-        if forces:
-            forces = np.array(forces).reshape(-1,3)*hartree2eV/bohr2angstrom
-            atoms.calc.results['forces'] = forces
-        if stress:
-            n = len(stress)
-            if n == 9:
-                stress = np.array(stress).reshape(3,3)*hartree2eV/bohr2angstrom**3
-                atoms.calc.results['stress'] = np.array([stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]])
+            if energy:
+                atoms.calc.results['energy'] = energy*hartree2eV
+            if forces:
+                forces = np.array(forces).reshape(-1,3)*hartree2eV/bohr2angstrom
+                atoms.calc.results['forces'] = forces
+            if stress:
+                n = len(stress)
+                if n == 9:
+                    stress = np.array(stress).reshape(3,3)*hartree2eV/bohr2angstrom**3
+                    atoms.calc.results['stress'] = np.array([stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]])
 
         return atoms
 
@@ -376,11 +377,13 @@ def rkf_to_ase_traj(rkf_file, out_file):
         rkf.store_historydata()
         all_atoms = []
         for crd, cell in rkf:
-            energy = rkf.historydata.get('Energy', None)
-            forces = rkf.historydata.get('EngineGradients', None)
-            if not forces:
-                forces = rkf.historydata.get('Gradients', None)
-            stress = rkf.historydata.get('StressTensor', None)
+            energy, forces, stress = None, None, None
+            if get_results:
+                energy = rkf.historydata.get('Energy', None)
+                forces = rkf.historydata.get('EngineGradients', None)
+                if not forces:
+                    forces = rkf.historydata.get('Gradients', None)
+                stress = rkf.historydata.get('StressTensor', None)
             atoms = get_ase_atoms(rkf.elements, crd, cell, energy, forces, stress)
             all_atoms.append(atoms)
     else:
