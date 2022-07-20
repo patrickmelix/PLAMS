@@ -433,7 +433,7 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
         param_obj.useExpTorsionAnglePrefs = True
     if constraint_ats is not None :
         coordMap = {}
-        for i,iat in enumerate(atoms) :
+        for i,iat in enumerate(constraint_ats) :
             coordMap[iat] = rdkit_mol.GetConformer(0).GetAtomPosition(iat)
         param_obj.coordMap = coordMap
     try:
