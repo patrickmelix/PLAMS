@@ -28,6 +28,8 @@ All possible input keywords and options are covered, as well as extraction of ar
     postadf
     kffiles
     crs
+    params
     conformers
+    zacros
     adf
     reaxff
