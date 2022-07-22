@@ -21,7 +21,7 @@ except ImportError:
         def __init__(self, *args, **kwargs):
             raise NotImplementedError('AMSCalculator can not be used without ASE')
     all_changes = []
-    Hartree = Bohr = 1
+    Hartree = Bohr = 0
 
 
 class BasePropertyExtractor:
@@ -35,15 +35,26 @@ class BasePropertyExtractor:
         pass
 
     def check_settings(self, settings):
-        s = settings.copy()
-        self.set_settings(s)
-        return s == settings
+        return True
 
 
 class EnergyExtractor(BasePropertyExtractor):
     name = 'energy'
     def extract(self, ams_results, atoms):
         return ams_results.get_energy() * Hartree
+
+
+def canonicalize_string(possible_string):
+    try:
+        return possible_string.lower().strip()
+    except (AttributeError,TypeError):
+        return possible_string
+
+def is_ams_true(value):
+    return canonicalize_string(value) in [True, 'true', 'yes']
+
+def is_ams_false(value):
+    return not is_ams_true(value)
 
 
 class ForceExtractor(BasePropertyExtractor):
@@ -53,6 +64,10 @@ class ForceExtractor(BasePropertyExtractor):
 
     def set_settings(self, settings):
         settings.input.ams.Properties.Gradients = "Yes"
+        return settings
+
+    def check_settings(self, settings):
+        return is_ams_true(settings.copy().input.ams.Properties.Gradients)
 
 
 class StressExtractor(BasePropertyExtractor):
@@ -75,6 +90,10 @@ class StressExtractor(BasePropertyExtractor):
 
     def set_settings(self, settings):
         settings.input.ams.Properties.StressTensor = "Yes"
+        return settings
+
+    def check_settings(self, settings):
+        return is_ams_true(settings.copy().input.ams.Properties.StressTensor)
 
 
 class AMSCalculator(Calculator):
@@ -154,9 +173,6 @@ class AMSCalculator(Calculator):
     def set_counter(self, value = 0):
         self._counter[self.name] = value
 
-    #def __getnewargs__(self):
-    #    return self.settings, self.name, self.amsworker, self.restart, self.molecule, self.extractors
-
     @property
     def implemented_properties(self):
         """Returns the list of properties that this calculator has implemented"""
@@ -164,8 +180,6 @@ class AMSCalculator(Calculator):
 
     def calculate(self, atoms=None, properties=['energy'], system_changes=all_changes):
         """Calculate the requested properties. If atoms is not set, it will reuse the last known Atoms object."""
-        log("I was asked to compute "+str( properties)+ " for the following system", 0)
-        log(str(atoms), 0)
         if atoms is not None:
             #no need to redo the calculation, we already have everything.
             if self.atoms == atoms and all([p in self.results for p in properties]):
@@ -212,8 +226,11 @@ class AMSPipeCalculator(AMSCalculator):
         super().__init__(settings, name, amsworker, restart, molecule, extractors)
 
         worker_settings = self.settings.copy()
-        del worker_settings.input.ams.Task
-
+        if 'Task' in worker_settings.input.ams:
+            del worker_settings.input.ams.Task
+        if 'Properties' in worker_settings.input.ams:
+            del worker_settings.input.ams.Properties
+        
         self.worker = AMSWorker(worker_settings, use_restart_cache = self.restart)
 
     def _get_ams_results(self, molecule, properties):
