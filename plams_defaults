@@ -43,6 +43,7 @@ config.jobmanager.remove_empty_directories = True
 
 #After a job execution is finished, pickle the whole job object to [jobname].dill
 config.job.pickle = True
+config.job.pickle_protocol = -1
 
 #Define which files produced by the executed job should be kept on the disk
 #See the documentation (Components overview -> Results -> Cleaning job folder) for details and possible values
