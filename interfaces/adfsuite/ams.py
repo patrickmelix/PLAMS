@@ -723,10 +723,10 @@ class AMSResults(Results):
             
     def _get_integer_start_end_every_max(self, start_fs, end_fs, every_fs, max_dt_fs):
         time_step = self.get_time_step()
-        start_step = int( start_fs / time_step )
-        end_step = int( end_fs / time_step ) if end_fs is not None else None
-        every = int ( every_fs / time_step) if every_fs is not None else 1
-        max_dt = int( max_dt_fs / time_step) if max_dt_fs is not None else None
+        start_step = round( start_fs / time_step )
+        end_step = round( end_fs / time_step ) if end_fs is not None else None
+        every = round ( every_fs / time_step) if every_fs is not None else 1
+        max_dt = round( (max_dt_fs / time_step) / every) if max_dt_fs is not None else None
 
         return start_step, end_step, every, max_dt
 
@@ -882,8 +882,9 @@ class AMSResults(Results):
         time_step = self.get_time_step()
         start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
         data = self.get_history_property('PressureTensor', 'MDHistory')
+        data = [x for x in data if x is not None] # None might appear in currently running trajectories if the job was loaded with load_external
         data = np.array(data)[start_step:end_step:every]
-
+        
         components = []
         if yz:
             components += [3]
@@ -901,9 +902,12 @@ class AMSResults(Results):
 
         V = self.get_main_molecule().unit_cell_volume()
 
-        T = self.get_history_property('Temperature', 'MDHistory')
-        T = np.array(T)[start_step:end_step:every]
-        mean_T = np.mean(T)
+        try:
+            T = self.get_history_property('Temperature', 'MDHistory')
+            T = np.array(T)[start_step:end_step:every]
+            mean_T = np.mean(T)
+        except KeyError:  # might be triggered for currently running trajectories, then just use the first temperature
+            mean_T = self.get_property_at_step(1, 'Temperature', 'MDHistory')
 
         k_B = Units.constants['k_B']
 
@@ -1403,7 +1407,7 @@ class AMSJob(SingleJob):
             unset AMS_SWITCH_LOGFILE_AND_STDOUT
             AMS_JOBNAME=jobname AMS_RESULTSDIR=. $AMSBIN/ams [-n nproc] <jobname.in [>jobname.out]
 
-        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS.
+        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS. If ``settings.runscript.postamble_lines`` exists, those lines will be added to the runscript verbatim after the execution of AMS.
         """
         ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
         ret += 'unset SCM_LOGFILE\n'
@@ -1429,6 +1433,10 @@ class AMSJob(SingleJob):
         if self.settings.runscript.stdout_redirect:
             ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
+        if 'postamble_lines' in self.settings.runscript:
+            for line in self.settings.runscript.postamble_lines:
+                ret += f'{line}\n'
+            ret += '\n'
         return ret
 
 
