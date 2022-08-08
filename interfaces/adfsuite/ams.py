@@ -849,7 +849,7 @@ class AMSResults(Results):
 
         return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
 
-    def get_green_kubo_viscosity(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True):
+    def get_green_kubo_viscosity(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True, pressuretensor=None):
         """
         Calculates the viscosity using the Green-Kubo relation (integrating the off-diagonal pressure tensor autocorrelation function).
 
@@ -871,6 +871,9 @@ class AMSResults(Results):
         xz : bool
             Whether to use the xz off-diagonal elements
 
+        pressuretensor : np.array shape (N,6)
+            Pressure tensor in atomic units. If not specified, it will be read from the ams.rkf file.
+
         Returns: 2-tuple (times, C)
             ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the viscosity (in mPa*s) integral. It should converge to the viscosity values as the time increases.
 
@@ -881,8 +884,10 @@ class AMSResults(Results):
         nEntries = self.readrkf('MDHistory', 'nEntries')
         time_step = self.get_time_step()
         start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
-        data = self.get_history_property('PressureTensor', 'MDHistory')
-        data = [x for x in data if x is not None] # None might appear in currently running trajectories if the job was loaded with load_external
+        data = pressuretensor
+        if data is None:
+            data = self.get_history_property('PressureTensor', 'MDHistory')
+            data = [x for x in data if x is not None] # None might appear in currently running trajectories if the job was loaded with load_external
         data = np.array(data)[start_step:end_step:every]
         
         components = []
