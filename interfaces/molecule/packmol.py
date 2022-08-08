@@ -1,14 +1,14 @@
 #!/usr/bin/env amspython
 import os
 import numpy as np
-from typing import List
+from typing import List, Union
 from ...core.private import saferun
 from ...mol.molecule import Molecule
 from ...core.settings import Settings
 import tempfile
 import subprocess
 
-__all__ = ['PackMolStructure', 'PackMol', 'packmol_liquid', 'packmol_solid_liquid', 'packmol_solid_liquid_mixture', 'packmol_mixture']
+__all__ = ['PackMolStructure', 'PackMol', 'packmol_liquid', 'packmol_solid_liquid', 'packmol_solid_liquid_mixture', 'packmol_mixture', 'packmol', 'packmol_on_slab']
 
 class PackMolStructure:
     def __init__(self, molecule : Molecule, n_molecules:int=None, n_atoms:int=None, box_bounds:List[float]=None, density:float=None, fixed:bool=False):
@@ -185,21 +185,21 @@ class PackMol:
 
         return output_molecule
 
-def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:List[int]=None, executable:str=None):
+def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:Union[List[int],int]=None, return_details:bool=False, executable:str=None):
     """
 
-        Create a mixture of the given ``molecules``. The function will use the
+        Create a fluid of the given ``molecules``. The function will use the
         given input parameters and try to obtain good values others. You *must*
         specify ``density`` and/or ``box_bounds``.
 
-        molecules : list of Molecule
+        molecules : Molecule or list of Molecule
             The molecules to pack
 
         mole_fractions : list of float
-            The mole fractions (in the same order as ``molecules``). Cannot be combined with ``n_molecules``
+            The mole fractions (in the same order as ``molecules``). Cannot be combined with ``n_molecules``. If not given, an equal (molar) mixture of all components will be created.
 
         density: float
-            The total density (in g/cm^3) of the mixture
+            The total density (in g/cm^3) of the fluid
 
         n_atoms: int
             The (approximate) number of atoms in the final mixture
@@ -207,8 +207,11 @@ def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, d
         box_bounds: list of float (length 6)
             The box in which to pack the molecules. The box is orthorhombic and should be specified as [xmin, ymin, zmin, xmax, ymax, zmax]. The minimum values should all be set to 0, i.e. set box_bounds=[0., 0., 0., xmax, ymax, zmax]. If not specified, a cubic box of appropriate dimensions will be used.
 
-        n_molecules : list of int
+        n_molecules : int or list of int
             The (exact) number of molecules for each component (in the same order as ``molecules``). Cannot be combined with ``mole_fractions``.
+
+        return_details : bool
+            Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', etc. They contain the actual details of the returned molecule, which may differ slightly from the requested quantities.
 
         executable : str
             The path to the packmol executable. If not specified, ``$AMSBIN/packmol.exe`` will be used (which is the correct path for the Amsterdam Modeling Suite).
@@ -232,12 +235,25 @@ def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, d
                             density=0.8, 
                             n_atoms=100)
 
+        Returns: a Molecule or tuple (Molecule, dict)
+            If return_details=False, return a Molecule. If return_details=True, return a tuple.
+
 
     """
     assert(not (n_atoms and n_molecules))
     assert(n_atoms or n_molecules or density)
     assert(density or box_bounds)
     assert(not (mole_fractions and n_molecules))
+
+    def tolist(x):
+        return x if isinstance(x, list) else [x]
+
+    molecules = tolist(molecules)
+    if mole_fractions is None:
+        mole_fractions = [1.0/len(molecules)] * len(molecules)
+
+    if n_molecules:
+        n_molecules = tolist(n_molecules)
 
     
     xs = np.array(mole_fractions)
@@ -251,7 +267,7 @@ def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, d
     elif n_atoms:
         coeff_0 = n_atoms / np.dot(xs, atoms_per_mol)
         coeffs_floats = xs * coeff_0
-        coeffs = np.int_(coeffs_floats)
+        coeffs = np.int_(np.round(coeffs_floats))
 
     if (n_atoms or n_molecules) and density and not box_bounds:
         mass = np.dot(coeffs, masses)
@@ -264,7 +280,7 @@ def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, d
         mass_g = volume_cm3 * density
         coeffs = mass_g / np.dot(xs, masses)
         coeffs = xs * coeffs
-        coeffs = np.int_(coeffs)
+        coeffs = np.int_(np.round(coeffs))
 
     if coeffs is None:
         raise ValueError(f"Illegal combination of options: n_atoms={n_atoms}, n_molecules={n_molecules}, box_bounds={box_bounds}, density={density}")
@@ -274,34 +290,25 @@ def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, d
         pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds))
 
     out = pm.run()
-    return out
+    if return_details:
+        details = {
+            'n_molecules': coeffs.tolist(),
+            'mole_fractions': (coeffs/np.sum(coeffs)).tolist(),
+            'density': out.get_density()*1e-3,
+            'n_atoms': len(out)
+        }
+        return out, details
+    else:
+        return out
+
+def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:List[int]=None, executable:str=None):
+    """ Deprecated """
+    return packmol(molecules=molecules, mole_fractions=mole_fractions, density=density, n_atoms=n_atoms, box_bounds=box_bounds, n_molecules=n_molecules, executable=executable)
 
 
 def packmol_liquid(molecule:Molecule, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:int=None, executable:str=None):
-    """
-
-    Creates a liquid/gas of the provided ``molecule``. Returns: a Molecule.
-    
-    molecule : Molecule
-        The molecule to pack
-
-    The other arguments are described for ``packmol_mixture``.
-
-    Examples:
-
-    .. code-block:: python
-
-        packmol_liquid(molecule=from_smiles('O'), density=1.0, n_atoms=100)
-        packmol_liquid(molecule=from_smiles('O'), n_molecules=64, box_bounds=[0., 0., 0., 12.2, 12.2, 12.2])
-
-    """
-
-    if n_molecules:
-        n_molecules = [n_molecules]
-        mole_fractions = None
-    else:
-        mole_fractions = [1.0]
-    return packmol_mixture([molecule], mole_fractions=mole_fractions, n_atoms=n_atoms, density=density, box_bounds=box_bounds, n_molecules=n_molecules, executable=executable)
+    """ Deprecated """
+    return packmol(molecules=molecule, density=density, n_atoms=n_atoms, box_bounds=box_bounds, n_molecules=n_molecules, executable=executable)
 
 def get_packmol_solid_liquid_box_bounds(slab:Molecule):
     slab_max_z = max(at.coords[2] for at in slab)
@@ -311,7 +318,7 @@ def get_packmol_solid_liquid_box_bounds(slab:Molecule):
     box_bounds = [0., 0., liquid_min_z+1.5, slab.lattice[0][0], slab.lattice[1][1], liquid_max_z-1.5]
     return box_bounds
 
-def packmol_solid_liquid_mixture(slab:Molecule, molecules:List[Molecule], mole_fractions:List[float], density:float, executable:str=None):
+def packmol_on_slab(slab:Molecule, molecules:Union[List[Molecule],Molecule], density:float, mole_fractions:List[float]=None, executable:str=None):
     """
 
     Creates a solid/liquid interface with an approximately correct density. The
@@ -337,7 +344,7 @@ def packmol_solid_liquid_mixture(slab:Molecule, molecules:List[Molecule], mole_f
     """
     out = slab.copy()
     box_bounds = get_packmol_solid_liquid_box_bounds(out)
-    liquid = packmol_mixture(molecules=molecules, mole_fractions=mole_fractions, density=density, box_bounds=box_bounds, executable=executable)
+    liquid = packmol(molecules=molecules, mole_fractions=mole_fractions, density=density, box_bounds=box_bounds, executable=executable)
     out.add_molecule(liquid)
 
     for at in out:
@@ -345,24 +352,11 @@ def packmol_solid_liquid_mixture(slab:Molecule, molecules:List[Molecule], mole_f
             at.translate([0, 0, -out.lattice[2][2]])
     return out
 
+def packmol_solid_liquid_mixture(slab:Molecule, molecules:List[Molecule], mole_fractions:List[float], density:float, executable:str=None):
+    """ Deprecated """
+    return packmol_on_slab(slab=slab, molecules=molecules, mole_fractions=mole_fractions, density=density, executable=executable)
+
 def packmol_solid_liquid(slab:Molecule, molecule:Molecule, density:float, executable:str=None): 
-    """
-
-    Creates a solid/liquid interface with an approximately correct density. The
-    density is calculated for the volume not occupied by the slab (+ 1.5
-    angstrom buffer at each side of the slab).
-
-    Returns: a Molecule
-
-    For details, see ``packmol_solid_liquid_mixture`` and ``packmol_mixture``
-
-    Example:
-
-    .. code-block:: python
-
-        packmol_solid_liquid(slab=slab_3d_with_vacuum_gap, molecule=from_smiles('O'), density=1.0)
-
-    """
-
-    return packmol_solid_liquid_mixture(slab, [molecule], mole_fractions=[1.0], density=density, executable=executable)
+    """ Deprecated """
+    return packmol_on_slab(slab=slab, molecules=molecule, mole_fractions=[1.0], density=density, executable=executable)
 
