@@ -163,9 +163,10 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.mode == 'rb' :
                         self._read_header()
                 elif self.mode == 'wb' :
-                        sections = self.file_object.sections()
-                        if len(sections) > 0 : 
-                                raise PlamsError ('RKF file %s already exists'%(filename))
+                        pass
+                        # sections = self.file_object.sections()
+                        # if len(sections) > 0 : 
+                        #         raise PlamsError ('RKF file %s already exists'%(filename))
                 else :
                         raise PlamsError ('Mode %s is invalid. Only "rb" and "wb" are allowed.'%(self.mode))
 
@@ -265,7 +266,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                write_general_section(self.file_object,self.program)
+                if "General" not in self.file_object:
+                        write_general_section(self.file_object,self.program)
 
                 # Then write the input molecule
                 self._update_celldata(cell)
