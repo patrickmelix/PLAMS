@@ -1,5 +1,7 @@
 # Perform a geometry optimization of a water molecule and compute
-# the vibrational normal modes using GFN1-xTB.
+# the vibrational normal modes using GFN1-xTB. If you do not have
+# a DFTB license, remove the line with DFTB settings and instead set
+# settings.input.ForceField.Type = 'UFF'
 
 # You could also load the geometry from an xyz file: 
 # molecule = Molecule('path/my_molecule.xyz')
