@@ -213,6 +213,16 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
         return_details : bool
             Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', etc. They contain the actual details of the returned molecule, which may differ slightly from the requested quantities.
 
+            Returned keys:
+
+             * 'n_molecules': list of integer with actually added number of molecules
+             * 'mole_fractions': list of float with actually added mole fractions
+             * 'density': float, gives the density in g/cm^3
+             * 'n_atoms': int, the number of atoms in the returned molecule
+             * 'molecule_type_indices': list of int of length n_atoms. For each atom, give an integer index for which TYPE of molecule it belongs to.
+             * 'molecule_indices': list of int of length n_atoms. For each atom, give an integer index for which molecule it belongs to
+             * 'atom_indices_in_molecule': list of int of length n_atoms. For each atom, give an integer index for which position in the molecule it is.
+
         executable : str
             The path to the packmol executable. If not specified, ``$AMSBIN/packmol.exe`` will be used (which is the correct path for the Amsterdam Modeling Suite).
 
@@ -291,11 +301,30 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
 
     out = pm.run()
     if return_details:
+        # packmol returns the molecules sorted
+        molecule_type_indices = [] # [0,0,0,...,1,1,1] # two different molecules with 3 and 5 atoms
+        molecule_indices = [] # [0,0,0,1,1,1,2,2,2,....,58,58,58,58,58,59,59,59,59,59] # two different molecules with 3 and 5 atoms
+        atom_indices_in_molecule = [] # [0,1,2,0,1,2,...,0,1,2,3,4,0,1,2,3,4] 
+        current = 0
+        for i, (mol, n_mol) in enumerate(zip(molecules, coeffs)):
+            molecule_type_indices += [i]*n_mol*len(mol)
+            atom_indices_in_molecule += list(range(len(mol)))*n_mol
+
+            temp = list(range(current, current+n_mol))
+            molecule_indices += list(np.repeat(temp, len(mol)))
+            current += n_mol
+        assert len(molecule_type_indices) == len(out)
+        assert len(molecule_indices) == len(out)
+        assert len(atom_indices_in_molecule) == len(out)
+
         details = {
             'n_molecules': coeffs.tolist(),
-            'mole_fractions': (coeffs/np.sum(coeffs)).tolist(),
+            'mole_fractions': (coeffs/np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else 0,
             'density': out.get_density()*1e-3,
-            'n_atoms': len(out)
+            'n_atoms': len(out),
+            'molecule_type_indices': molecule_type_indices, # for each atom, indicate which type of molecule it belongs to by an integer index (starts with 0)
+            'molecule_indices': molecule_indices, # for each atoms, indicate which molecule it belongs to by an integer index (starts with 0)
+            'atom_indices_in_molecule': atom_indices_in_molecule,
         }
         return out, details
     else:
