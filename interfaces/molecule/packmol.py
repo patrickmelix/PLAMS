@@ -319,7 +319,7 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
 
         details = {
             'n_molecules': coeffs.tolist(),
-            'mole_fractions': (coeffs/np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else 0,
+            'mole_fractions': (coeffs/np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else [0.0]*len(coeffs),
             'density': out.get_density()*1e-3,
             'n_atoms': len(out),
             'molecule_type_indices': molecule_type_indices, # for each atom, indicate which type of molecule it belongs to by an integer index (starts with 0)
