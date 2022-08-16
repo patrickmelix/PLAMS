@@ -25,6 +25,7 @@ Examples
    PackMolExample
    ConformersGeneration
    BasicMDPostanalysis
+   UseLowestEnergy
    ASECalculator
 
 
