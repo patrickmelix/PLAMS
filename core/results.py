@@ -119,7 +119,7 @@ def _restrict(func):
 
 class _MetaResults(type):
     """Metaclass for |Results|. During new |Results| instance creation it wraps all methods with :func:`_restrict` decorator ensuring proper synchronization and thread safety. Methods listed in ``_dont_restrict`` as well as "magic methods" are not wrapped."""
-    _dont_restrict = ['refresh', 'collect', '_clean', 'get_errormsg']
+    _dont_restrict = ['refresh', 'collect', '_clean', 'get_errormsg', 'collect_rkfs']
     def __new__(meta, name, bases, dct):
         for attr in dct:
             if not (attr.endswith('__') and attr.startswith('__')) and not type(dct[attr]) is type and callable(dct[attr]) and (attr not in _MetaResults._dont_restrict):

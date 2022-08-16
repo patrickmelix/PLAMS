@@ -74,7 +74,10 @@ class AMSResults(Results):
         This method is called automatically during the final part of the job execution and there is no need to call it manually.
         """
         Results.collect(self)
+        self.collect_rkfs()
 
+
+    def collect_rkfs(self):
         rkfname = 'ams.rkf'
         if rkfname in self.files:
             main = KFFile(opj(self.job.path, rkfname))
@@ -89,6 +92,12 @@ class AMSResults(Results):
 
         else:
             log('WARNING: Main KF file {} not present in {}'.format(rkfname, self.job.path), 1)
+
+
+    def _copy_to(self, newresults):
+        super()._copy_to(newresults)
+        newresults.rkfs = {}
+        newresults.collect_rkfs()
 
 
     def refresh(self):
