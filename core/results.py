@@ -159,6 +159,7 @@ class Results(metaclass=_MetaResults):
 
         All functions and methods defined in PLAMS that could change the state of the job folder refresh the ``files`` list, so there is no need to manually call :meth:`~Results.refresh` after, for example, :meth:`~Results.rename`. If you are implementing a new method of that kind, please don't forget about refreshing.
         """
+        if self.job.path is None: return
         self.files = []
         for pth, dirs, files in os.walk(self.job.path):
             relpath = os.path.relpath(pth, self.job.path)
