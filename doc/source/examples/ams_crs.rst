@@ -3,7 +3,12 @@
 ADF and COSMO-RS workflow
 -------------------------
 
-(*contributed by* `Bas van Beek <https://www.researchgate.net/profile/Bas_Beek>`_\)
+**Example usage**: (:download:`ams_crs.py <../../../examples/ams_crs.py>`)
+
+.. literalinclude:: ../../../examples/ams_crs.py
+
+
+The run_crs_ams() function was contributed by `Bas van Beek <https://www.researchgate.net/profile/Bas_Beek>`_. It is implemented as follows:
 
 .. autofunction:: scm.plams.recipes.ams_crs.run_crs_ams
 
