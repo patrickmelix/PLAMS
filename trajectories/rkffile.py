@@ -190,7 +190,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 self.include_historydata = True
 
-        def close (self) :
+        def close (self, override_molecule_section_with_last_frame=True) :
                 """
                 Execute all prior commands and cleanly close and garbage collect the RKF file
                 """
@@ -204,8 +204,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Write to file
                 if self.mode == 'wb' :
-                        # First write the last frame into the Molecule section  
-                        self._rewrite_molecule()
+                        if override_molecule_section_with_last_frame:
+                                # First write the last frame into the Molecule section  
+                                self._rewrite_molecule()
                         # Then write to file
                         self.file_object.save()
                 del(self)
