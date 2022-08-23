@@ -23,8 +23,8 @@ def main():
     eq.run()
 
     # Launch NVE simulation from some frames (structures+velocities) of the previous NVT simulation (still using GAFF)
-    nvejobs = [NVEJob.restart_from(eq, name=f'nve{frame}', frame=frame, nsteps=10, samplingfreq=1) for frame in range(1, 10, 3)]
-    for nvejob in nvejobs:
+    for frame in [1,4,7]:
+        nvejob = NVEJob.restart_from(eq, name=f'nve{frame}', frame=frame, nsteps=10, samplingfreq=1)
         assert 'Thermostat' not in nvejob.settings.input.ams.MolecularDynamics
         nvejob.run()
 
@@ -45,6 +45,10 @@ def main():
     assert 'Thermostat' not in nve_from_npt.settings.input.ams.MolecularDynamics
     assert nve_from_npt.settings.input.ams.MolecularDynamics.NSteps == 50 # inherited
     nve_from_npt.run()
+
+    # NVE with random initial velocities
+    nve_clean = NVEJob(name='nve_clean', settings=s, molecule=mol, velocities=200, nsteps=20)
+    nve_clean.run()
 
 if __name__ == '__main__':
     init()
