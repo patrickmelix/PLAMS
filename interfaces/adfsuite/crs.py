@@ -329,6 +329,21 @@ class CRSJob(SCMJob):
         self.settings.ignore_molecule = True
 
     @staticmethod
+    def database() -> str:
+        cmd = ["sh", os.path.expandvars("$AMSBIN/amspackages"), "loc", "adfcrs"]
+        completed_process = subprocess.run(cmd, stdout=subprocess.PIPE)
+        database_path = os.path.join(completed_process.stdout.decode().strip('\n'), 'ADFCRS-2018')
+        if not os.path.isdir(database_path):
+            raise FileNotFoundError("The ADFCRS-2018 databse does not seem to be installed")
+        return database_path
+
+    @staticmethod
+    def coskf_from_database(name: str) -> str:
+        if not name.endswith('.coskf'):
+            name += '.coskf'
+        return os.path.join(CRSJob.database(), name)
+
+    @staticmethod
     def cos_to_coskf(filename: str) -> str:
         """Convert a .cos file into a .coskf file with the :code:`$AMSBIN/cosmo2kf` command.
 
