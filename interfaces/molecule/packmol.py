@@ -215,13 +215,13 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
 
             Returned keys:
 
-             * 'n_molecules': list of integer with actually added number of molecules
-             * 'mole_fractions': list of float with actually added mole fractions
-             * 'density': float, gives the density in g/cm^3
-             * 'n_atoms': int, the number of atoms in the returned molecule
-             * 'molecule_type_indices': list of int of length n_atoms. For each atom, give an integer index for which TYPE of molecule it belongs to.
-             * 'molecule_indices': list of int of length n_atoms. For each atom, give an integer index for which molecule it belongs to
-             * 'atom_indices_in_molecule': list of int of length n_atoms. For each atom, give an integer index for which position in the molecule it is.
+            * 'n_molecules': list of integer with actually added number of molecules
+            * 'mole_fractions': list of float with actually added mole fractions
+            * 'density': float, gives the density in g/cm^3
+            * 'n_atoms': int, the number of atoms in the returned molecule
+            * 'molecule_type_indices': list of int of length n_atoms. For each atom, give an integer index for which TYPE of molecule it belongs to.
+            * 'molecule_indices': list of int of length n_atoms. For each atom, give an integer index for which molecule it belongs to
+            * 'atom_indices_in_molecule': list of int of length n_atoms. For each atom, give an integer index for which position in the molecule it is.
 
         executable : str
             The path to the packmol executable. If not specified, ``$AMSBIN/packmol.exe`` will be used (which is the correct path for the Amsterdam Modeling Suite).
