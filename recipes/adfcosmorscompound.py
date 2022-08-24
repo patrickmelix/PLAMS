@@ -36,8 +36,10 @@ class ADFCOSMORSCompoundResults(Results):
         """
             Returns the input molecule
         """
-        return self.job.children['gas'].results.get_input_molecule()
-
+        try: 
+            return self.job.children['preoptimization'].results.get_input_molecule()
+        except KeyError:
+            return self.job.children['gas'].results.get_input_molecule()
 
 
 class ADFCOSMORSCompoundJob(MultiJob):
