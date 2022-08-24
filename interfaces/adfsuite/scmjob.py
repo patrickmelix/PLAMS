@@ -308,7 +308,7 @@ class SCMJob(SingleJob):
             elif isinstance(value, list):
                 for el in value:
                     ret += serialize(key, el, indent)
-            elif value is '' or value is True:
+            elif value == '' or value is True:
                 ret += ' '*indent + key + '\n'
             elif value is False:
                 pass
