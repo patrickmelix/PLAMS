@@ -111,6 +111,11 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                         if len(line) == 0 :
                                 end = True
                                 break
+                for i in range(self.nveclines):
+                        line = self.file_object.readline()
+                        if len(line) == 0 :
+                                end = True
+                                break
                 return end
 
         def _read_coordinates (self, molecule) :
@@ -156,6 +161,15 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                                         molecule.add_atom(atom)
                 else :
                         self.coords[:] = coords
+
+                # Possibly read lattice
+                lattice = []
+                for i in range(self.nveclines):
+                        line = self.file_object.readline()
+                        words = line.split()
+                        lattice.append([float(w) for w in words[1:]])
+                if cell is None:
+                        cell = lattice
 
                 # Assign the data to the molecule object
                 if isinstance(molecule,Molecule) :

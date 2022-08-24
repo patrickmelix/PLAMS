@@ -314,7 +314,7 @@ class TrajectoryFile (object) :
                 Get the number of frames in the file
                 """
                 oldposition = self.position
-                while 1 :
+                while True :
                         crd,cell = self.read_next(read=False)
                         if crd is None :
                                 break
@@ -333,7 +333,7 @@ class TrajectoryFile (object) :
                 Reads the last frame from the file
                 """
                 step = 0
-                while 1 :
+                while True :
                         crd,cell = self.read_next(read=False)
                         if crd is None :
                                 break

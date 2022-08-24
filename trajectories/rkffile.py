@@ -696,7 +696,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Make sure that the variable is a Python 1D list (not numpy)
                 """
-                while(1) :
+                while True :
                         if isinstance(var,list) or isinstance(var,numpy.ndarray) :
                                 if len(var) == 0 : break
                                 if isinstance(var[0],list) or isinstance(var[0],numpy.ndarray) :

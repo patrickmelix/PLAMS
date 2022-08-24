@@ -129,7 +129,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                 """
                 # Read the first molecule
                 lines = []
-                while 1 :
+                while True :
                         line = self.file_object.readline()
                         if len(line) == 0 :
                                 raise Exception('End not found')
@@ -176,7 +176,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                 """
                 # Read lines until the end
                 lines = []
-                while 1 :
+                while True :
                         line = self.file_object.readline()
                         if len(line) == 0 :
                                 return None, None           # End of file is reached
@@ -228,7 +228,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                 If the end of file is reached, return coords and cell as None
                 """
                 end = False
-                while 1 :
+                while True :
                         line = self.file_object.readline()
                         if len(line) == 0 :
                                 end = True
