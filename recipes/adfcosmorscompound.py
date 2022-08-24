@@ -39,7 +39,7 @@ class ADFCOSMORSCompoundResults(Results):
         try: 
             return self.job.children['preoptimization'].results.get_input_molecule()
         except KeyError:
-            return self.job.children['gas'].results.get_input_molecule()
+            return self.job.children['dft_preoptimization'].results.get_input_molecule()
 
 
 class ADFCOSMORSCompoundJob(MultiJob):
@@ -57,9 +57,10 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
             Initialize two or three jobs:
 
-            (optional): Preoptimization
-            1. Gasphase optimization
-            2. Take optimized structure and run singlepoint with implicit solvation
+            (optional): Preoptimization with force field or semi-empirical method
+            1. Gasphase optimization (BP86, DZP)
+            2. Gasphase optimization (BP86, TZP, BeckeGrid Quality Good)
+            3. Take optimized structure and run singlepoint with implicit solvation
 
             Access the result .coskf file with ``job.results.coskfpath()``.
             Note: this file will be called jobname.coskf, where jobname is the
@@ -91,29 +92,41 @@ class ADFCOSMORSCompoundJob(MultiJob):
             preoptimization_job = AMSJob(settings=preoptimization_s, name='preoptimization', molecule=molecule)
             self.children['preoptimization'] = preoptimization_job
 
+        dft_preoptimization_s = Settings()
+        dft_preoptimization_s.input.ams.Task = 'GeometryOptimization'
+        dft_preoptimization_s.input.adf.XC.GGA = 'BP86'
+        dft_preoptimization_s.input.adf.Basis.Type = 'DZP'
+        dft_preoptimization_job = AMSJob(settings=dft_preoptimization_s, name='dft_preoptimization', molecule=molecule)
+        if preoptimization:
+            @add_to_instance(dft_preoptimization_job)
+            def prerun(self):
+                self.molecule = self.parent.children['preoptimization'].results.get_main_molecule()
+        self.children['dft_preoptimization'] = dft_preoptimization_job
+
         gas_s = Settings()
         gas_s.input.ams.Task = 'GeometryOptimization'
         gas_s += self.adf_settings(solvation=False)
-        gas_job = AMSJob(settings=gas_s, name='gas', molecule=molecule)
-
-        if preoptimization:
-            @add_to_instance(gas_job)
-            def prerun(self):
-                self.molecule = self.parent.children['preoptimization'].results.get_main_molecule()
-
+        gas_job = AMSJob(settings=gas_s, name='gas')
+        @add_to_instance(gas_job)
+        def prerun(self):
+            self.molecule = self.parent.children['dft_preoptimization'].results.get_main_molecule()
         self.children['gas'] = gas_job
 
         solv_s = Settings()
         solv_s.input.ams.Task = 'SinglePoint'
-        solv_s.input.ams.EngineRestart = 'gasphase-adf.rkf'
-        solv_s.input.ams.LoadSystem.File = 'gasphase-ams.rkf'
         solv_s += self.adf_settings(solvation=True)
         solv_job = AMSJob(settings=solv_s, name='solv')
 
         @add_to_instance(solv_job)
         def prerun(self):
-            shutil.copyfile(gas_job.results.rkfpath(file='ams'), os.path.join(self.path, 'gasphase-ams.rkf'))
-            shutil.copyfile(gas_job.results.rkfpath(file='adf'), os.path.join(self.path, 'gasphase-adf.rkf'))
+            gas_job.results.wait()
+            self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
+            self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
+            #self.settings.input.ams.EngineRestart = self.parent.children['gas'].results.rkfpath(file='adf') # this doesn't work with PLAMS restart since the file will refer to the .res directory (so the job is rerun needlessly)
+            #self.settings.input.ams.LoadSystem.File = self.parent.children['gas'].results.rkfpath(file='ams')
+            # cannot copy to gasphase-ams.rkf etc. because that conflicts with PLAMS restarts
+            #shutil.copyfile(gas_job.results.rkfpath(file='ams'), os.path.join(self.path, 'gasphase-ams.rkf'))
+            #shutil.copyfile(gas_job.results.rkfpath(file='adf'), os.path.join(self.path, 'gasphase-adf.rkf'))
 
         @add_to_instance(solv_job)
         def postrun(self):
