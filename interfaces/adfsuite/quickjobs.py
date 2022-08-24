@@ -195,12 +195,18 @@ def model_to_settings(model:str):
     Returns Settings
     """
     settings = Settings()
-    if model == 'UFF':
+    model = model.lower()
+    if model == 'uff':
         settings.input.ForceField.Type = 'UFF'
-    elif model == 'GFNFF':
+    elif model == 'gaff':
+        settings.input.ForceField.Type = 'GAFF'
+        settings.input.ForceField.AnteChamberIntegration = 'Yes'
+    elif model == 'gfnff':
         settings.input.GFNFF
-    elif model == 'ANI-2x':
+    elif model == 'ani-2x' or model == 'ani2x':
         settings.input.MLPotential.Model = 'ANI-2x'
+    elif model == 'gfn1xtb' or model == 'gfn1-xtb':
+        settings.input.DFTB.Model = 'GFN1-xTB'
     else:
         raise ValueError("Unknown model: {}".format(model))
 
