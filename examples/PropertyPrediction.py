@@ -11,9 +11,18 @@ The output is written to table.csv
 """
 
 def main():
-    smiles_list = ['CCO', 'CCOC', 'OCCCN', 'C', 'C1=CC=C(C=C1)COCC2=CC=CC=C2']
+    smiles_list = [
+        'CCO', 
+        'CCOC', 
+        'OCCCN', 
+        'C', 
+        'C1=CC=C(C=C1)COCC2=CC=CC=C2'
+    ]
+    write_csv("table.csv", smiles_list)
 
-    f = open("table.csv", "w")
+
+def write_csv(filename, smiles_list):
+    f = open(filename, "w")
 
     # print header
     header = "SMILES"
