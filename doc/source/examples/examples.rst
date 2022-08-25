@@ -27,6 +27,7 @@ Examples
    BasicMDPostanalysis
    UseLowestEnergy
    ASECalculator
+   PropertyPrediction
 
 
 .. _recipes:
