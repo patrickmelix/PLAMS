@@ -174,6 +174,11 @@ class AMSMDJob(AMSJob):
         return s
 
     def get_velocities_from(self, other_job, frame=None, update_molecule=True):
+        """
+        Function to update the InitialVelocities block in self. It is normally not needed, instead use the e.g. AMSNVEJob.restart_from() function.
+        
+        This function can be called in prerun() methods for MultiJobs
+        """
         _, velocities, molecule, _ = self._get_restart_job_velocities_molecule(other_job, frame=frame)
         del self.settings.input.ams.MolecularDynamics.InitialVelocities
         self.settings += self._velocities2settings(velocities)

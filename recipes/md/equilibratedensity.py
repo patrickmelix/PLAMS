@@ -45,6 +45,7 @@ class EquilibrateDensityJob(MultiJob):
             settings=self.settings,
             scan_density_upper=self.scan_density_upper, 
             molecule = initial_molecule,
+            temperature = self.temperature,
         )
 
         return self.children[name]
