@@ -28,6 +28,7 @@ Examples
    UseLowestEnergy
    ASECalculator
    PropertyPrediction
+   ams_crs
 
 
 .. _recipes:
@@ -42,7 +43,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
 
 .. toctree::
 
-    ams_crs
+    ADFCOSMORSCompound
     adffragment
     ReorganizationEnergy
     adfnbo
