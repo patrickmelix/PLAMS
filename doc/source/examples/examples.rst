@@ -9,26 +9,58 @@ The example scripts use computational engines from the Amsterdam Modeling Suite,
 
 In order to run the examples, the ``AMSBIN`` environment variable should be properly set. You can test this by typing ``$AMSBIN/plams -h`` in a terminal: this should print PLAMS' help message. If this is not the case (e.g. you get 'No such file or directory'), you need to set up the environmental variable ``$AMSBIN`` (see the `Linux Quickstart guide <../../Installation/Linux_Quickstart_Guide.html>`__ for details).
 
-Examples
---------
+Getting Started
+----------------
 
 .. toctree::
  
-   He2DissociationCurve
    WaterOptimization
+   He2DissociationCurve
    ManyJobsInParallel
+
+Benchmarks
+-----------------
+
+.. toctree::
+
    BasisSetBenchmark
    ReactionEnergyBenchmark
+
+Workflows
+------------------
+
+.. toctree::
+
    ExcitationsWorkflow
    ChargeTransferIntegralsADF
    gammascan
-   PackMolExample
    ConformersGeneration
-   BasicMDPostanalysis
-   UseLowestEnergy
-   ASECalculator
+
+COSMO-RS and property prediction
+-----------------------------------
+
+For more examples, see the `COSMO-RS documentation <../../COSMO-RS/Advanced_scripting.html>`__.
+
+.. toctree::
+
    PropertyPrediction
    ams_crs
+
+Packmol and AMS-ASE interfaces
+-------------------------------
+
+.. toctree::
+
+   PackMolExample
+   ASECalculator
+
+Other AMS calculations
+------------------------
+
+.. toctree::
+
+   BasicMDPostanalysis
+   UseLowestEnergy
 
 
 .. _recipes:
