@@ -5,7 +5,7 @@ from ...tools.units import Units
 from typing import Union
 import numpy as np
 
-__all__ = ['NVEJob', 'NVTJob', 'NPTJob']
+__all__ = ['AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
 
 class AMSMDJob(AMSJob):
     default_nsteps = 1000
@@ -86,7 +86,7 @@ class AMSMDJob(AMSJob):
         calcpressure : bool
             Whether to calculate pressure for each frame. 
 
-        The below arguments are read only for **NVTJob** or **NPTJob**:
+        The below arguments are read only for **AMSNVTJob** or **AMSNPTJob**:
 
         thermostat : str
             'Berendsen' or 'NHC'
@@ -97,7 +97,7 @@ class AMSMDJob(AMSJob):
         temperature : float
             Temperature (K)
 
-        The below arguments are read only for **NPTJob**:
+        The below arguments are read only for **AMSNPTJob**:
 
         barostat : str
             'Berendsen' or 'MTK'
@@ -217,7 +217,7 @@ class AMSMDJob(AMSJob):
         self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume = str(constantvolume) if constantvolume is not None else self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume or self.default_constantvolume
         return s
 
-class NVEJob(AMSMDJob):
+class AMSNVEJob(AMSMDJob):
     def __init__( self, **kwargs):
         AMSMDJob.__init__(self, **kwargs)
         self.remove_blocks(['thermostat', 'barostat', 'deformation'])
@@ -258,7 +258,7 @@ class NVEJob(AMSMDJob):
             **kwargs)
 
 
-class NVTJob(AMSMDJob):
+class AMSNVTJob(AMSMDJob):
 
     def __init__(self, 
         temperature=None,
@@ -284,7 +284,7 @@ class NVTJob(AMSMDJob):
         return cls(molecule=molecule, settings=extra_settings, velocities=velocities, thermostat=thermostat, temperature=temperature, tau=tau, **kwargs)
 
 
-class NPTJob(NVTJob):
+class AMSNPTJob(AMSNVTJob):
     def __init__(self,
         pressure=None,
         barostat=None,
