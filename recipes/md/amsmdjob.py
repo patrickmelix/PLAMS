@@ -11,13 +11,14 @@ class AMSMDJob(AMSJob):
     default_nsteps = 1000
     default_timestep = 0.25
     default_samplingfreq = 100
+    default_checkpointfrequency = 1000000
 
     default_thermostat = 'NHC'
     default_temperature = 300
     default_tau_multiplier = 400
 
     default_barostat = 'MTK'
-    default_pressure = '1.0 [bar]'
+    default_pressure = 1e5
     default_barostat_tau_multiplier = 4000
     default_scale = 'XYZ'
     default_equal = 'None'
@@ -106,7 +107,7 @@ class AMSMDJob(AMSJob):
             Barostat time constant (fs)
 
         pressure : float
-            Barostat pressure (bar)
+            Barostat pressure (pascal)
 
         equal : str
             'XYZ' etc.
@@ -140,6 +141,7 @@ class AMSMDJob(AMSJob):
         mdsett.Trajectory.WriteMolecules = str(writemolecules) if writemolecules is not None else mdsett.Trajectory.WriteMolecules or self.default_writemolecules
         mdsett.Trajectory.WriteEngineGradients = str(writeenginegradients) if writeenginegradients is not None else mdsett.Trajectory.WriteEngineGradients or self.default_writeenginegradients
         mdsett.CalcPressure = str(calcpressure) if calcpressure is not None else mdsett.CalcPressure or self.default_calcpressure
+        mdsett.Checkpoint.Frequency = checkpointfrequency or mdsett.Checkpoint.Frequency or self.default_checkpointfrequency
         self.settings += self._velocities2settings(velocities)
 
     def remove_blocks(self, blocks=None):
@@ -171,6 +173,13 @@ class AMSMDJob(AMSJob):
             s.input.ams.MolecularDynamics.InitialVelocities.File = velocities
         return s
 
+    def get_velocities_from(self, other_job, frame=None, update_molecule=True):
+        _, velocities, molecule, _ = self._get_restart_job_velocities_molecule(other_job, frame=frame)
+        del self.settings.input.ams.MolecularDynamics.InitialVelocities
+        self.settings += self._velocities2settings(velocities)
+
+        if update_molecule:
+            self.molecule = molecule
 
     @staticmethod
     def _get_restart_job_velocities_molecule(other_job, frame=None, settings=None):
@@ -210,7 +219,7 @@ class AMSMDJob(AMSJob):
     def _get_barostat_settings(self, pressure, barostat, barostat_tau, scale, equal, constantvolume):
         s = Settings()
         self.settings.input.ams.MolecularDynamics.Barostat.Type = barostat or self.settings.input.ams.MolecularDynamics.Barostat.Type or self.default_barostat
-        self.settings.input.ams.MolecularDynamics.Barostat.Pressure = str(pressure) + ' [bar]' if pressure is not None else self.settings.input.ams.MolecularDynamics.Barostat.Pressure or self.default_pressure
+        self.settings.input.ams.MolecularDynamics.Barostat.Pressure = pressure if pressure is not None else self.settings.input.ams.MolecularDynamics.Barostat.Pressure or self.default_pressure
         self.settings.input.ams.MolecularDynamics.Barostat.Tau = barostat_tau or self.settings.input.ams.MolecularDynamics.Barostat.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_barostat_tau_multiplier
         self.settings.input.ams.MolecularDynamics.Barostat.Scale = scale or self.settings.input.ams.MolecularDynamics.Barostat.Scale or self.default_scale
         self.settings.input.ams.MolecularDynamics.Barostat.Equal = equal or self.settings.input.ams.MolecularDynamics.Barostat.Equal or self.default_equal 
@@ -283,8 +292,34 @@ class AMSNVTJob(AMSMDJob):
         other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings)
         return cls(molecule=molecule, settings=extra_settings, velocities=velocities, thermostat=thermostat, temperature=temperature, tau=tau, **kwargs)
 
+class AMSNPTResults(AMSResults):
+    def get_equilibrated_molecule(self, equilibration_fraction=0.667, return_index=False):
+        """
+
+            Discards the first equilibration_fraction of the trajectory.
+            Calculates the average density of the rest. Returns the molecule
+            with the closest density to the average density among the remaining
+            trajectory.
+
+        """
+        densities = self.job.results.get_history_property('Density', 'MDHistory')
+        analyze_from = int(len(densities)*equilibration_fraction)
+        # take structure closest to the target density
+        avg_density = np.mean(densities[analyze_from:]) # amu/bohr^3
+        delta = np.array(densities[analyze_from:]) - avg_density
+        delta = np.abs(delta)
+        min_index = np.argmin(delta)
+        min_index += analyze_from
+        mol = self.job.results.get_history_molecule(min_index+1)
+
+        if return_index:
+            return mol, min_index+1
+
+        return mol
 
 class AMSNPTJob(AMSNVTJob):
+    _result_type = AMSNPTResults
+
     def __init__(self,
         pressure=None,
         barostat=None,
