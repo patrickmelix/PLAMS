@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from ...core.functions import add_to_instance
 from ...core.basejob import MultiJob
 from ...core.results import Results
@@ -11,7 +11,7 @@ from ...tools.units import Units
 from .amsmdjob import AMSNVEJob
 import numpy as np
 
-__all__ = ['AMSMSDJob', 'AMSMSDResults']
+__all__ = ['AMSMSDJob', 'AMSMSDResults', 'AMSMSDPerRegionJob', 'AMSMSDPerRegionResults']
 
 class AMSMSDResults(AMSAnalysisResults):
     """Results class for AMSMSDJob
@@ -56,7 +56,7 @@ class AMSMSDResults(AMSAnalysisResults):
         Returns D in m^2/s
         """
         result, _, _ = self.get_linear_fit(start_time_fit_fs=start_time_fit_fs, end_time_fit_fs=end_time_fit_fs)
-        D = result.slope * 1e-20 / (6 * 1e-15) # convert from ang^2/fs to m^2/s
+        D = result.slope * 1e-20 / (6 * 1e-15) # convert from ang^2/fs to m^2/s, divide by 6 because 3-dimensional (2d)
         return D
 
         
@@ -103,4 +103,55 @@ class AMSMSDJob(AMSAnalysisJob):
         self.settings.input.MeanSquareDisplacement.StartTimeSlope = self.start_time_fit_fs
         self.settings.input.MeanSquareDisplacement.MaxStep = max_dt_frames
         if self.atom_indices:
-            self.settings.input.MeanSquareDisplacement.Atoms.Atom = atom_indices
+            self.settings.input.MeanSquareDisplacement.Atoms.Atom = self.atom_indices
+
+class AMSMSDPerRegionResults(Results):
+    def get_D(self, start_time_fit_fs=2000, end_time_fit_fs=10000):
+        """
+        Returns a dictionary of region_name: D (m^2)
+        """
+        ret = {}
+        for name, job in self.job.children.items():
+            ret[name] = job.results.get_D()
+        return ret
+
+class AMSMSDPerRegionJob(MultiJob):
+    _result_type = AMSMSDPerRegionResults
+
+    def __init__(self, 
+                    previous_job:AMSJob,
+                    max_correlation_time_fs:float=10000,
+                    start_time_fit_fs:float=2000,
+                    **kwargs):
+
+        """
+            Creates an AMSAnalysisJob for every Region in previous_job
+        """
+
+        MultiJob.__init__(self, children=OrderedDict(), **kwargs)
+
+        self.previous_job = previous_job
+        self.max_correlation_time_fs = max_correlation_time_fs
+        self.start_time_fit_fs = start_time_fit_fs
+
+
+    def prerun(self):
+        timestep = self.previous_job.results.get_time_step()
+        mol = self.previous_job.results.get_main_molecule()
+        regions_dict = defaultdict(lambda: [])
+        for i, at in enumerate(mol, 1):
+            regions = set([at.properties.region]) if isinstance(at.properties.region, str) else at.properties.region
+            if len(regions) == 0:
+                regions_dict['NoRegion'].append(i)
+            for region in regions:
+                regions_dict[region].append(i)
+
+        for region in regions_dict:
+            self.children[region] = AMSMSDJob(
+                previous_job=self.previous_job,
+                name=region,
+                max_correlation_time_fs=self.max_correlation_time_fs,
+                start_time_fit_fs=self.start_time_fit_fs,
+                atom_indices = regions_dict[region]
+            )
+
