@@ -133,6 +133,12 @@ class SCMResults(Results):
         raise PlamsError('Trying to run an abstract method SCMResults._atomic_numbers_input_order()')
 
 
+    def kfpath(self):
+        """kfpath()
+        Return the absolute path to the main KF file.
+        """
+        return self._kfpath()
+
     def _kfpath(self):
         """_kfpath()
         Return the absolute path to the main KF file.

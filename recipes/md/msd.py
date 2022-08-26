@@ -37,8 +37,12 @@ class AMSMSDResults(AMSAnalysisResults):
         """
         from scipy.stats import linregress
         time, y = self.get_msd()
-        start_time_fit_fs = start_time_fit_fs or self.job.start_time_fit_fs or 0
         end_time_fit_fs = end_time_fit_fs or max(time)
+        start_time_fit_fs = start_time_fit_fs or self.job.start_time_fit_fs
+
+        if start_time_fit_fs >= end_time_fit_fs:
+            start_time_fit_fs = end_time_fit_fs / 2
+
 
         y = y[time >= start_time_fit_fs]
         time = time[time >= start_time_fit_fs] 
@@ -122,10 +126,16 @@ class AMSMSDPerRegionJob(MultiJob):
                     previous_job:AMSJob,
                     max_correlation_time_fs:float=10000,
                     start_time_fit_fs:float=2000,
+                    regions=None,
+                    per_element=False,
                     **kwargs):
 
         """
             Creates an AMSAnalysisJob for every Region in previous_job
+
+            regions : dict
+                ``{ 'region-name': [1, 4, 8] }`` to create "new" regions with atom indices. If not given, it will use the regions from the previous_job.
+
         """
 
         MultiJob.__init__(self, children=OrderedDict(), **kwargs)
@@ -133,18 +143,31 @@ class AMSMSDPerRegionJob(MultiJob):
         self.previous_job = previous_job
         self.max_correlation_time_fs = max_correlation_time_fs
         self.start_time_fit_fs = start_time_fit_fs
+        self.regions_dict = regions
+        self.per_element = per_element
 
+
+    @staticmethod
+    def get_regions_dict(molecule, per_element:bool=False):
+        regions_dict = defaultdict(lambda: [])
+        for i, at in enumerate(molecule, 1):
+            regions = set([at.properties.region]) if isinstance(at.properties.region, str) else at.properties.region
+            if len(regions) == 0:
+                region_name = 'NoRegion' if not per_element else f'NoRegion_{at.symbol}'
+                regions_dict[region_name].append(i)
+            for region in regions:
+                region_name = region if not per_element else f'{region}_{at.symbol}'
+                regions_dict[region_name].append(i)
+            regions_dict['All'].append(i)
+            if per_element:
+                regions_dict[f'All_{at.symbol}'].append(i)
+
+        return regions_dict
 
     def prerun(self):
         timestep = self.previous_job.results.get_time_step()
         mol = self.previous_job.results.get_main_molecule()
-        regions_dict = defaultdict(lambda: [])
-        for i, at in enumerate(mol, 1):
-            regions = set([at.properties.region]) if isinstance(at.properties.region, str) else at.properties.region
-            if len(regions) == 0:
-                regions_dict['NoRegion'].append(i)
-            for region in regions:
-                regions_dict[region].append(i)
+        regions_dict = self.regions_dict or self.get_regions_dict(mol, per_element=self.per_element)
 
         for region in regions_dict:
             self.children[region] = AMSMSDJob(

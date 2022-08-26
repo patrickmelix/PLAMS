@@ -33,7 +33,7 @@ class AMSNVESpawnerJob(MultiJob):
     def __init__(self, 
                  previous_job,  # needs to be finished
                  n_nve=1,
-                 name=None,
+                 name='nvespawnerjob',
                  **kwargs):
         """
         previous_job: AMSJob

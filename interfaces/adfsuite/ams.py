@@ -724,7 +724,7 @@ class AMSResults(Results):
         return ret
 
     def get_time_step(self):
-        """ Returns the time step in femtoseconds for MD simulation jobs """
+        """ Returns the time step between adjacent frames (NOT the TimeStep in the settings, but Timestep*SamplingFreq) in femtoseconds for MD simulation jobs """
         time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory') 
         time2 = self.get_property_at_step(2, 'Time', history_section='MDHistory') 
         time_step = time2 - time1

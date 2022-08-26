@@ -311,7 +311,7 @@ class AMSNVTJob(AMSMDJob):
         use_prerun:bool=False,
         **kwargs):
 
-        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_from=not use_prerun)
+        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
         job = cls(molecule=molecule, settings=extra_settings, velocities=velocities, thermostat=thermostat, temperature=temperature, tau=tau, **kwargs)
 
         if use_prerun:
