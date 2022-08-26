@@ -2,6 +2,7 @@ from ...interfaces.adfsuite.ams import AMSJob, AMSResults
 from ...core.settings import Settings
 from ...tools.kftools import KFFile
 from ...tools.units import Units
+from ...core.functions import add_to_instance
 from typing import Union
 import numpy as np
 
@@ -187,20 +188,27 @@ class AMSMDJob(AMSJob):
             self.molecule = molecule
 
     @staticmethod
-    def _get_restart_job_velocities_molecule(other_job, frame=None, settings=None):
+    def _get_restart_job_velocities_molecule(other_job, frame=None, settings=None, get_velocities_molecule=True):
         """
             other_job: str or some AMSMdJob
+
+            get_velocities_molecule : bool
+                Whether to get the velocities and molecule right now. Set to False to not access other_job.results (for use with MultiJob prerun() methods)
 
             Returns: (other_job [AMSJob], velocities, molecule, extra_settings [Settings])
         """
         if isinstance(other_job, str):
             other_job = AMSJob.load_external(other_job)
-        if frame:
-            velocities = (other_job.results.rkfpath(), frame)
-            molecule = other_job.results.get_history_molecule(frame)
+        if get_velocities_molecule:
+            if frame:
+                velocities = (other_job.results.rkfpath(), frame)
+                molecule = other_job.results.get_history_molecule(frame)
+            else:
+                velocities = other_job
+                molecule = other_job.results.get_main_molecule()
         else:
-            velocities = other_job
-            molecule = other_job.results.get_main_molecule()
+            velocities = None
+            molecule = None
 
         extra_settings = other_job.settings.copy()
         if settings:
@@ -252,10 +260,11 @@ class AMSNVEJob(AMSMDJob):
         writeenginegradients=None,
         calcpressure=None,
         molecule=None,
+        use_prerun=False,
         **kwargs
     ):
-        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings)
-        return cls(
+        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
+        job = cls(
             settings=extra_settings, 
             velocities=velocities, 
             molecule=molecule, 
@@ -270,6 +279,13 @@ class AMSNVEJob(AMSMDJob):
             writeenginegradients=writeenginegradients,
             calcpressure=calcpressure,
             **kwargs)
+
+        if use_prerun:
+            @add_to_instance(job)
+            def prerun(self):
+                self.get_velocities_from(other_job, frame=frame, update_molecule=True)
+
+        return job
 
 
 class AMSNVTJob(AMSMDJob):
@@ -292,10 +308,19 @@ class AMSNVTJob(AMSMDJob):
         thermostat=None,
         tau=None,
         frame=None,
+        use_prerun:bool=False,
         **kwargs):
 
-        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings)
-        return cls(molecule=molecule, settings=extra_settings, velocities=velocities, thermostat=thermostat, temperature=temperature, tau=tau, **kwargs)
+        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_from=not use_prerun)
+        job = cls(molecule=molecule, settings=extra_settings, velocities=velocities, thermostat=thermostat, temperature=temperature, tau=tau, **kwargs)
+
+        if use_prerun:
+            @add_to_instance(job)
+            def prerun(self):
+                self.get_velocities_from(other_job, frame=frame, update_molecule=True)
+
+        return job
+
 
 class AMSNPTResults(AMSResults):
     def get_equilibrated_molecule(self, equilibration_fraction=0.667, return_index=False):
@@ -366,12 +391,13 @@ class AMSNPTJob(AMSNVTJob):
         temperature=None,
         thermostat=None,
         tau=None,
+        use_prerun:bool=False,
         **kwargs
     ):
         
-        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings)
+        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
 
-        return cls(
+        job = cls(
             molecule=molecule,
             velocities=velocities,
             settings=extra_settings,
@@ -386,5 +412,12 @@ class AMSNPTJob(AMSNVTJob):
             constantvolume=constantvolume,
             **kwargs
         )
+
+        if use_prerun:
+            @add_to_instance(job)
+            def prerun(self):
+                self.get_velocities_from(other_job, frame=frame, update_molecule=True)
+
+        return job
 
 
