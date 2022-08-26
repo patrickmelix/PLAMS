@@ -185,7 +185,7 @@ class PackMol:
 
         return output_molecule
 
-def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:Union[List[int],int]=None, return_details:bool=False, executable:str=None):
+def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:Union[List[int],int]=None, region_names:List[str]=None, return_details:bool=False, executable:str=None):
     """
 
         Create a fluid of the given ``molecules``. The function will use the
@@ -209,6 +209,9 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
 
         n_molecules : int or list of int
             The (exact) number of molecules for each component (in the same order as ``molecules``). Cannot be combined with ``mole_fractions``.
+
+        region_names : str or list of str
+            Populate the region information for each atom. Should have the same length and order as ``molecules``. My default the regions are named ``mol0``, ``mol1``, etc.
 
         return_details : bool
             Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', etc. They contain the actual details of the returned molecule, which may differ slightly from the requested quantities.
@@ -300,35 +303,45 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
         pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds))
 
     out = pm.run()
-    if return_details:
-        # packmol returns the molecules sorted
-        molecule_type_indices = [] # [0,0,0,...,1,1,1] # two different molecules with 3 and 5 atoms
-        molecule_indices = [] # [0,0,0,1,1,1,2,2,2,....,58,58,58,58,58,59,59,59,59,59] # two different molecules with 3 and 5 atoms
-        atom_indices_in_molecule = [] # [0,1,2,0,1,2,...,0,1,2,3,4,0,1,2,3,4] 
-        current = 0
-        for i, (mol, n_mol) in enumerate(zip(molecules, coeffs)):
-            molecule_type_indices += [i]*n_mol*len(mol)
-            atom_indices_in_molecule += list(range(len(mol)))*n_mol
 
-            temp = list(range(current, current+n_mol))
-            molecule_indices += list(np.repeat(temp, len(mol)))
-            current += n_mol
-        assert len(molecule_type_indices) == len(out)
-        assert len(molecule_indices) == len(out)
-        assert len(atom_indices_in_molecule) == len(out)
+    # packmol returns the molecules sorted
+    molecule_type_indices = [] # [0,0,0,...,1,1,1] # two different molecules with 3 and 5 atoms
+    molecule_indices = [] # [0,0,0,1,1,1,2,2,2,....,58,58,58,58,58,59,59,59,59,59] # two different molecules with 3 and 5 atoms
+    atom_indices_in_molecule = [] # [0,1,2,0,1,2,...,0,1,2,3,4,0,1,2,3,4] 
+    current = 0
+    for i, (mol, n_mol) in enumerate(zip(molecules, coeffs)):
+        molecule_type_indices += [i]*n_mol*len(mol)
+        atom_indices_in_molecule += list(range(len(mol)))*n_mol
 
-        details = {
-            'n_molecules': coeffs.tolist(),
-            'mole_fractions': (coeffs/np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else [0.0]*len(coeffs),
-            'density': out.get_density()*1e-3,
-            'n_atoms': len(out),
-            'molecule_type_indices': molecule_type_indices, # for each atom, indicate which type of molecule it belongs to by an integer index (starts with 0)
-            'molecule_indices': molecule_indices, # for each atoms, indicate which molecule it belongs to by an integer index (starts with 0)
-            'atom_indices_in_molecule': atom_indices_in_molecule,
-        }
-        return out, details
+        temp = list(range(current, current+n_mol))
+        molecule_indices += list(np.repeat(temp, len(mol)))
+        current += n_mol
+    assert len(molecule_type_indices) == len(out)
+    assert len(molecule_indices) == len(out)
+    assert len(atom_indices_in_molecule) == len(out)
+
+    details = {
+        'n_molecules': coeffs.tolist(),
+        'mole_fractions': (coeffs/np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else [0.0]*len(coeffs),
+        'density': out.get_density()*1e-3,
+        'n_atoms': len(out),
+        'molecule_type_indices': molecule_type_indices, # for each atom, indicate which type of molecule it belongs to by an integer index (starts with 0)
+        'molecule_indices': molecule_indices, # for each atoms, indicate which molecule it belongs to by an integer index (starts with 0)
+        'atom_indices_in_molecule': atom_indices_in_molecule,
+    }
+
+    if region_names:
+        region_names = tolist(region_names)
     else:
-        return out
+        region_names = [f'mol{i}' for i in range(len(molecules))]
+
+    for at, molindex in zip(out, molecule_type_indices):
+        at.properties.suffix = f'region={region_names[molindex]}'
+
+    if return_details:
+        return out, details
+
+    return out
 
 def packmol_mixture(molecules:List[Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:List[int]=None, executable:str=None):
     """ Deprecated """
