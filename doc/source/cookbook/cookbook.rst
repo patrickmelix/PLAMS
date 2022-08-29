@@ -66,6 +66,34 @@ will generate the following text input when used for an |AMSJob|:
     End
 
 
+Repeating input block
+---------------------
+
+These |Settings|
+
+.. code-block:: python
+
+    block_1 = Settings()
+    block_1.SomeOption = 1
+
+    block_2 = Settings()
+    block_2.SomeOption = 7
+
+    sett = Settings()
+    sett.input.ams.SomeInputBlock = [block_1, block_2]
+
+will generate the following text input when used for an |AMSJob|:
+
+::
+
+    SomeInputBlock
+      SomeOption 1
+    End
+    SomeInputBlock
+      SomeOption 7
+    End
+
+
 Convert an AMS text input into an AMS job
 -----------------------------------------
 
