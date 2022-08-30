@@ -11,7 +11,7 @@ from ...tools.units import Units
 from .amsmdjob import AMSNVEJob
 import numpy as np
 
-__all__ = ['AMSMSDJob', 'AMSMSDResults', 'AMSMSDPerRegionJob', 'AMSMSDPerRegionResults']
+__all__ = ['AMSMSDJob', 'AMSMSDResults', 'AMSConvenientAnalysisPerRegionResults', 'AMSConvenientAnalysisPerRegionJob']
 
 class AMSMSDResults(AMSAnalysisResults):
     """Results class for AMSMSDJob
@@ -55,7 +55,7 @@ class AMSMSDResults(AMSAnalysisResults):
 
         return result, fit_x, fit_y
 
-    def get_D(self, start_time_fit_fs=None, end_time_fit_fs=None):
+    def get_diffusion_coefficient(self, start_time_fit_fs=None, end_time_fit_fs=None):
         """
         Returns D in m^2/s
         """
@@ -131,43 +131,37 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.settings.input.MeanSquareDisplacement.StartTimeSlope = self.start_time_fit_fs
         self.settings.input.MeanSquareDisplacement.MaxStep = max_dt_frames
 
-class AMSMSDPerRegionResults(Results):
-    def get_D(self, start_time_fit_fs=2000, end_time_fit_fs=10000):
-        """
-        Returns a dictionary of region_name: D (m^2)
-        """
+class AMSConvenientAnalysisPerRegionResults(Results):
+    def _getter(self, analysis_job_type, method, kwargs):
+        assert self.job.analysis_job_type is analysis_job_type, f"{method}() can only be called for {analysis_job_type}, tried for type {self.job.analysis_job_type}"
         ret = {}
         for name, job in self.job.children.items():
-            ret[name] = job.results.get_D()
+            ret[name] = getattr(job.results, method)(**kwargs)
         return ret
 
-class AMSMSDPerRegionJob(MultiJob):
-    _result_type = AMSMSDPerRegionResults
-
-    def __init__(self, 
-                    previous_job:AMSJob,
-                    max_correlation_time_fs:float=10000,
-                    start_time_fit_fs:float=2000,
-                    regions=None,
-                    per_element=False,
-                    **kwargs):
+    def get_diffusion_coefficient(self, **kwargs):
+        return self._getter(AMSMSDJob, 'get_diffusion_coefficient', kwargs)
 
         """
-            Creates an AMSAnalysisJob for every Region in previous_job
-
-            regions : dict
-                ``{ 'region-name': [1, 4, 8] }`` to create "new" regions with atom indices. If not given, it will use the regions from the previous_job.
-
+        Returns a dictionary of region_name: D (m^2/s)
         """
+    
+    def get_msd(self, **kwargs):
+        return self._getter(AMSMSDJob, 'get_msd', kwargs)
 
+    def get_linear_fit(self, **kwargs):
+        return self._getter(AMSMSDJob, 'get_linear_fit', kwargs)
+
+class AMSConvenientAnalysisPerRegionJob(MultiJob):
+    _result_type = AMSConvenientAnalysisPerRegionResults
+
+    def __init__(self, previous_job, analysis_job_type, name=None, regions=None, per_element=False, **kwargs):
         MultiJob.__init__(self, children=OrderedDict(), **kwargs)
-
         self.previous_job = previous_job
-        self.max_correlation_time_fs = max_correlation_time_fs
-        self.start_time_fit_fs = start_time_fit_fs
+        self.analysis_job_type = analysis_job_type
+        self.analysis_job_kwargs = kwargs
         self.regions_dict = regions
         self.per_element = per_element
-
 
     @staticmethod
     def get_regions_dict(molecule, per_element:bool=False):
@@ -187,16 +181,13 @@ class AMSMSDPerRegionJob(MultiJob):
         return regions_dict
 
     def prerun(self):
-        timestep = self.previous_job.results.get_time_step()
-        mol = self.previous_job.results.get_main_molecule()
-        regions_dict = self.regions_dict or self.get_regions_dict(mol, per_element=self.per_element)
+        regions_dict = self.regions_dict or self.get_regions_dict(self.previous_job.results.get_main_molecule(), per_element=self.per_element)
 
         for region in regions_dict:
-            self.children[region] = AMSMSDJob(
+            self.children[region] = self.analysis_job_type(
                 previous_job=self.previous_job,
                 name=region,
-                max_correlation_time_fs=self.max_correlation_time_fs,
-                start_time_fit_fs=self.start_time_fit_fs,
-                atom_indices = regions_dict[region]
+                atom_indices = regions_dict[region],
+                **self.analysis_job_kwargs
             )
 
