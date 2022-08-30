@@ -63,9 +63,42 @@ class AMSMSDResults(AMSAnalysisResults):
         D = result.slope * 1e-20 / (6 * 1e-15) # convert from ang^2/fs to m^2/s, divide by 6 because 3-dimensional (2d)
         return D
 
-        
+class AMSConvenientAnalysisJob(AMSAnalysisJob):
+    def __init__(self, 
+                 previous_job,  # needs to be finished
+                 atom_indices=None,
+                 **kwargs):
+        """
+        previous_job: AMSJob
+            An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
 
-class AMSMSDJob(AMSAnalysisJob):
+        All other settings can be set as for AMS
+
+        """
+        AMSAnalysisJob.__init__(self, **kwargs)
+
+        self.previous_job = previous_job
+        self.atom_indices = atom_indices
+
+    def _get_max_dt_frames(self, max_correlation_time_fs):
+        if max_correlation_time_fs is None:
+            return None
+
+        historylength = self.previous_job.results.readrkf('History', 'nEntries')
+        max_dt_frames = int(max_correlation_time_fs / self.previous_job.results.get_time_step())
+        max_dt_frames = min(max_dt_frames, historylength // 2)
+        return max_dt_frames
+
+    def _parent_prerun(self):
+
+        # use previously run previous_job
+        assert self.previous_job.status != 'created', "You can only pass in a finished AMSJob"
+
+        self.settings.input.TrajectoryInfo.Trajectory.KFFileName = self.previous_job.results.rkfpath()
+        if self.atom_indices:
+            self.settings.input.MeanSquareDisplacement.Atoms.Atom = self.atom_indices
+    
+class AMSMSDJob(AMSConvenientAnalysisJob):
     """A class for equilibrating the density at a certain temperature and pressure
     """
 
@@ -85,29 +118,18 @@ class AMSMSDJob(AMSAnalysisJob):
         All other settings can be set as for AMS
 
         """
-        AMSAnalysisJob.__init__(self, **kwargs)
+        AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
 
-        self.previous_job = previous_job
         self.max_correlation_time_fs = max_correlation_time_fs
         self.start_time_fit_fs = start_time_fit_fs
-        self.atom_indices = atom_indices
 
     def prerun(self):
-
-        # use previously run previous_job
-        assert self.previous_job.status != 'created', "You can only pass in a finished AMSJob"
-
-        historylength = self.previous_job.results.readrkf('History', 'nEntries')
-        max_dt_frames = int(self.max_correlation_time_fs / self.previous_job.results.get_time_step())
-        max_dt_frames = min(max_dt_frames, historylength // 2)
-
+        self._parent_prerun() # trajectory and atom_indices handled
+        max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
         self.settings.input.Task = 'MeanSquareDisplacement'
         self.settings.input.MeanSquareDisplacement.Property = 'DiffusionCoefficient'
-        self.settings.input.TrajectoryInfo.Trajectory.KFFileName = self.previous_job.results.rkfpath()
         self.settings.input.MeanSquareDisplacement.StartTimeSlope = self.start_time_fit_fs
         self.settings.input.MeanSquareDisplacement.MaxStep = max_dt_frames
-        if self.atom_indices:
-            self.settings.input.MeanSquareDisplacement.Atoms.Atom = self.atom_indices
 
 class AMSMSDPerRegionResults(Results):
     def get_D(self, start_time_fit_fs=2000, end_time_fit_fs=10000):

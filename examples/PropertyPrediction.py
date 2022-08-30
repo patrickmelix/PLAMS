@@ -4,13 +4,34 @@ from scm.plams import *
 """
 
 This example uses the Property Prediction tool to estimate some properties for
-a list of molecules given as SMILES strings.
+a molecule represented by a SMILES string.
 
-The output is written to table.csv
+You can also use the PropertyPredictionList class to run predictions on a list of
+SMILES strings and print the results to csv files.
+
+The vapor pressures are handled separately from other properties vapor pressures are temperature-dependent.
+
+The output is written to vaporpressures.csv and properties.csv
+
+Run this script using
+$AMSBIN/amspython PropertyPrediction.py
 
 """
 
 def main():
+    single_compound_example()
+    multi_compound_example()
+
+def single_compound_example():
+    print("Single compound example for SMILES CCO")
+    p = PropertyPrediction('CCO')
+    print("Boiling point: {} {}".format(p.results['boilingpoint'], p.units['boilingpoint']))
+    print("Available properties: {}".format(p.properties))
+    # vapor pressures are handled separately
+    print("Temperatures ({}): {}".format('K', p.temperatures))
+    print("Vapor pressures ({}): {}".format(p.units['vaporpressure'], p.vaporpressures))
+
+def multi_compound_example():
     smiles_list = [
         'CCO', 
         'CCOC', 
@@ -18,40 +39,11 @@ def main():
         'C', 
         'C1=CC=C(C=C1)COCC2=CC=CC=C2'
     ]
-    write_csv("table.csv", smiles_list)
+    pp = PropertyPredictionList(smiles_list, temperatures=(280,340), n_temperatures=8)
+    print("Writing info about SMILES {} to properties.csv and vaporpressures.csv".format(smiles_list))
+    pp.write_csv("properties.csv")
+    pp.write_vaporpressures_csv("vaporpressures.csv")
 
-
-def write_csv(filename, smiles_list):
-    f = open(filename, "w")
-
-    # print header
-    header = "SMILES"
-    for k in PropertyPrediction.properties:
-        # the vapor pressure is temperature-dependent, so let's ignore it in this example
-        if k == 'vaporpressure': 
-            continue
-        unit = PropertyPrediction.units[k]
-        header += f",{k} [{unit}]"
-    print(header, file=f)
-
-    for smiles in smiles_list:
-        # run the property prediction 
-        results = PropertyPrediction(smiles).results
-
-        # print all properties in the same order as the header
-        line = smiles
-        for k in PropertyPrediction.properties:
-            if k == 'vaporpressure':
-                continue
-            value = results.get(k, None) 
-            # if the value is exactly 0 then it is unreliable
-            if value:
-                line += ",{:.3f}".format(value)
-            else:
-                line += ",N/A"
-        print(line, file=f)
-
-    f.close()
 
 if __name__ == '__main__':
     main()
