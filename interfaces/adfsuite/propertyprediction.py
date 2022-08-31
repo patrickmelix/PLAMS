@@ -5,7 +5,12 @@ try:
 except ImportError:
     has_rdkit = False
 
-from scm.utils.runsubprocess import RunSubprocess
+try:
+    from scm.utils.runsubprocess import RunSubprocess
+    has_scm = True
+except ImportError:
+    has_scm = False
+
 from ...mol.molecule import Molecule
 from ...tools.kftools import KFFile
 from ..molecule.rdkit import to_rdmol
@@ -118,7 +123,7 @@ class PropertyPrediction:
 
 
         executable = os.path.join( os.path.expandvars("$AMSBIN") , "prop_prediction" )
-        if not os.path.isfile(executable):
+        if not has_scm or not os.path.isfile(executable):
             raise RuntimeError("ERROR: cannot find prop_prediction ... has amsbashrc been executed?")
 
         if isinstance(molecule, str):
