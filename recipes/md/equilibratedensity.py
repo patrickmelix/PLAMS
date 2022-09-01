@@ -42,6 +42,7 @@ class EquilibrateDensityJob(MultiJob):
         name = 'scan_density'
         self.children[name] = AMSMDScanDensityJob(
             name=name, 
+            nsteps=self.nsteps[name],
             settings=self.settings,
             scan_density_upper=self.scan_density_upper, 
             molecule = initial_molecule,
@@ -105,6 +106,7 @@ class EquilibrateDensityJob(MultiJob):
     def __init__(self, 
                  molecule, 
                  settings=None, 
+                 name='equilibrate_density',
                  nsteps=None, 
                  temperature=300, 
                  pressure=1.0, 
@@ -137,7 +139,7 @@ class EquilibrateDensityJob(MultiJob):
 
         kwargs: other options to be passed to the MultiJob constructor (for example the name)
         """
-        MultiJob.__init__(self, children=OrderedDict(), **kwargs)
+        MultiJob.__init__(self, children=OrderedDict(), name=name, **kwargs)
 
         self.scan_density_upper = scan_density_upper
         self.timestep = 1.0
@@ -151,7 +153,7 @@ class EquilibrateDensityJob(MultiJob):
         if nsteps:
             self.nsteps.update(nsteps)
 
-        self.settings = settings.copy() or self._default_settings()
+        self.settings = settings.copy() if settings is not None else self._default_settings()
 
         if scan_density:
             scan_density_job = self._create_scan_density_job(molecule)

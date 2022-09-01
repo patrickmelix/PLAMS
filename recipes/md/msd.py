@@ -11,7 +11,7 @@ from ...tools.units import Units
 from .amsmdjob import AMSNVEJob
 import numpy as np
 
-__all__ = ['AMSMSDJob', 'AMSMSDResults', 'AMSConvenientAnalysisPerRegionResults', 'AMSConvenientAnalysisPerRegionJob']
+__all__ = ['AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults', 'AMSConvenientAnalysisPerRegionResults', 'AMSConvenientAnalysisPerRegionJob']
 
 class AMSMSDResults(AMSAnalysisResults):
     """Results class for AMSMSDJob
@@ -89,17 +89,17 @@ class AMSConvenientAnalysisJob(AMSAnalysisJob):
         max_dt_frames = min(max_dt_frames, historylength // 2)
         return max_dt_frames
 
-    def _parent_prerun(self):
+    def _parent_prerun(self, section):
 
         # use previously run previous_job
         assert self.previous_job.status != 'created', "You can only pass in a finished AMSJob"
 
         self.settings.input.TrajectoryInfo.Trajectory.KFFileName = self.previous_job.results.rkfpath()
         if self.atom_indices:
-            self.settings.input.MeanSquareDisplacement.Atoms.Atom = self.atom_indices
+            self.settings.input[section].Atoms.Atom = self.atom_indices
     
 class AMSMSDJob(AMSConvenientAnalysisJob):
-    """A class for equilibrating the density at a certain temperature and pressure
+    """A convenient class wrapping around the trajectory analysis MSD tool
     """
 
     _result_type = AMSMSDResults
@@ -124,12 +124,84 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.start_time_fit_fs = start_time_fit_fs
 
     def prerun(self):
-        self._parent_prerun() # trajectory and atom_indices handled
+        self._parent_prerun('MeanSquareDisplacement') # trajectory and atom_indices handled
         max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
         self.settings.input.Task = 'MeanSquareDisplacement'
         self.settings.input.MeanSquareDisplacement.Property = 'DiffusionCoefficient'
         self.settings.input.MeanSquareDisplacement.StartTimeSlope = self.start_time_fit_fs
         self.settings.input.MeanSquareDisplacement.MaxStep = max_dt_frames
+
+    def postrun(self):
+        time, msd = self.results.get_msd()
+        with open(self.path+'/msd.txt', 'w') as f:
+            f.write("#Time(fs) MSD(ang^2)")
+            for x,y in zip(time, msd):
+                f.write(f'{x} {y}\n')
+
+        _, fit_x, fit_y = self.results.get_linear_fit()
+        with open(self.path+'/fit_msd.txt', 'w') as f:
+            f.write("#Time(fs), LinearFitToMSD(ang^2)")
+            for x, y in zip(fit_x, fit_y):
+                f.write(f'{x} {y}\n')
+
+        D = self.results.get_diffusion_coefficient()
+        with open(self.path+'/D.txt', 'w') as f:
+            f.write(f'{D}\n')
+        
+
+class AMSVACFResults(AMSAnalysisResults):
+    """Results class for AMSVACFJob
+    """
+    def get_vacf(self):
+        xy = self.get_xy()
+        time = np.array(xy.x[0]) # fs
+        y = np.array(xy.y) 
+
+        return time, y
+
+    def get_power_spectrum(self, max_freq=None):
+        max_freq = max_freq or self.job.max_freq or 5000
+        xy = self.get_xy('Spectrum')
+        freq = np.array(xy.x[0])
+        y = np.array(xy.y)
+
+        y = y[freq < max_freq]
+        freq = freq[freq < max_freq]
+
+        return freq, y
+
+class AMSVACFJob(AMSConvenientAnalysisJob):
+    """A class for equilibrating the density at a certain temperature and pressure
+    """
+
+    _result_type = AMSVACFResults
+
+    def __init__(self, 
+                 previous_job,  # needs to be finished
+                 max_correlation_time_fs=5000, # fs
+                 max_freq=5000, # cm^-1
+                 atom_indices=None,
+
+                 **kwargs):
+        """
+        previous_job: AMSJob
+            An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
+
+        All other settings can be set as for AMS
+
+        """
+        AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
+
+        self.max_correlation_time_fs = max_correlation_time_fs
+        self.max_freq = max_freq
+
+    def prerun(self):
+        self._parent_prerun('AutoCorrelation') # trajectory and atom_indices handled
+        max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
+        self.settings.input.Task = 'AutoCorrelation'
+        self.settings.input.AutoCorrelation.Property = 'Velocities'
+        self.settings.input.AutoCorrelation.MaxStep = max_dt_frames
+
 
 class AMSConvenientAnalysisPerRegionResults(Results):
     def _getter(self, analysis_job_type, method, kwargs):
@@ -141,10 +213,6 @@ class AMSConvenientAnalysisPerRegionResults(Results):
 
     def get_diffusion_coefficient(self, **kwargs):
         return self._getter(AMSMSDJob, 'get_diffusion_coefficient', kwargs)
-
-        """
-        Returns a dictionary of region_name: D (m^2/s)
-        """
     
     def get_msd(self, **kwargs):
         return self._getter(AMSMSDJob, 'get_msd', kwargs)
@@ -152,11 +220,17 @@ class AMSConvenientAnalysisPerRegionResults(Results):
     def get_linear_fit(self, **kwargs):
         return self._getter(AMSMSDJob, 'get_linear_fit', kwargs)
 
+    def get_vacf(self, **kwargs):
+        return self._getter(AMSVACFJob, 'get_vacf', kwargs)
+
+    def get_power_spectrum(self, **kwargs):
+        return self._getter(AMSVACFJob, 'get_power_spectrum', kwargs)
+
 class AMSConvenientAnalysisPerRegionJob(MultiJob):
     _result_type = AMSConvenientAnalysisPerRegionResults
 
     def __init__(self, previous_job, analysis_job_type, name=None, regions=None, per_element=False, **kwargs):
-        MultiJob.__init__(self, children=OrderedDict(), **kwargs)
+        MultiJob.__init__(self, children=OrderedDict(), name=name or 'analysis_per_region')
         self.previous_job = previous_job
         self.analysis_job_type = analysis_job_type
         self.analysis_job_kwargs = kwargs
@@ -190,4 +264,50 @@ class AMSConvenientAnalysisPerRegionJob(MultiJob):
                 atom_indices = regions_dict[region],
                 **self.analysis_job_kwargs
             )
+
+    @staticmethod
+    def get_mean_std_per_region(list_of_jobs, function_name, **kwargs):
+        """
+            list_of_jobs: List[AMSConvenientAnalysisPerRegionJob]
+                List of jobs over which to average
+
+            function_name: str
+                e.g. 'get_msd', 'get_power_spectrum'
+
+        """
+
+        if isinstance(list_of_jobs, dict):
+            list_of_jobs = [x for x in list_of_jobs.values()]
+
+        frequencies = None # same for all jobs
+        all_x = defaultdict(lambda: [])
+        all_y = defaultdict(lambda: [])
+        for vacfjob in list_of_jobs:
+            # let's calculate mean and std for each region
+            results_dict = getattr(vacfjob.results, function_name)(**kwargs)
+            for region_name, ret_value in results_dict.items():
+                if np.isscalar(ret_value):
+                    all_x[region_name].append(np.atleast_1d(ret_value))
+                elif len(ret_value) == 2:
+                    all_x[region_name].append(np.atleast_1d(ret_value[0]))
+                    all_y[region_name].append(np.atleast_1d(ret_value[1]))
+
+        mean_x = {}
+        std_x = {}
+        mean_y = {}
+        std_y = {}
+        for region_name, values in all_x.items():
+            mean_x[region_name] = np.mean(values, axis=0)
+            std_x[region_name] = np.std(values, axis=0)
+
+            if len(all_y) > 0:
+                mean_y[region_name] = np.mean(all_y[region_name], axis=0)
+                std_y[region_name] = np.std(all_y[region_name], axis=0)
+
+        if len(mean_y) > 0:
+            return mean_x, std_x, mean_y, std_y
+        else:
+            return mean_x, std_x
+
+
 
