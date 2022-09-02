@@ -55,6 +55,8 @@ class AMSMDJob(AMSJob):
         scale=None,
         equal=None,
         constantvolume=None,
+        _enforce_thermostat=False,
+        _enforce_barostat=False,
         **kwargs
     ):
         """
@@ -155,10 +157,10 @@ class AMSMDJob(AMSJob):
 
         self.settings += self._velocities2settings(velocities)
 
-        if temperature or thermostat:
+        if temperature or thermostat or _enforce_thermostat:
             self.settings.update(self._get_thermostat_settings(thermostat=thermostat, temperature=temperature, tau=tau))
 
-        if pressure or barostat:
+        if pressure or barostat or _enforce_barostat:
             self.settings.update(self._get_barostat_settings(
                 pressure=pressure,
                 barostat=barostat,
@@ -264,6 +266,24 @@ class AMSMDJob(AMSJob):
 
     @classmethod
     def restart_from(cls, other_job, frame=None, settings=None, use_prerun=False, **kwargs):
+        """
+
+            other_job: AMSJob
+                The job to restart from.
+
+            frame: int
+                Which frame to read the structure and velocities from. If None, the final structure and end velocities will be used (section Molecule and MDResults%EndVelocities)
+
+            settings: Settings
+                Settings that override any other settings. All settings from other_job (e.g. the engine settings) are inherited by default but they can be overridden here.
+
+            use_prerun: bool
+                If True, the molecule and velocities will only be read from other_job inside the prerun() method. Set this to True to prevent PLAMS from waiting for other_job to finish as soon as the new job is defined.
+
+            kwargs: many options
+                See the docstring for AMSMDJob.
+
+        """
         other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
         job = cls(settings=extra_settings, velocities=velocities, molecule=molecule, **kwargs)
 
@@ -279,10 +299,9 @@ class AMSNVEJob(AMSMDJob):
         AMSMDJob.__init__(self, **kwargs)
         self.remove_blocks(['thermostat', 'barostat', 'deformation'])
 
-
 class AMSNVTJob(AMSMDJob):
     def __init__(self, **kwargs):
-        AMSMDJob.__init__(self, **kwargs)
+        AMSMDJob.__init__(self, _enforce_thermostat=True, **kwargs)
         self.remove_blocks(['barostat', 'deformation'])
 
 class AMSNPTResults(AMSResults):
@@ -310,11 +329,11 @@ class AMSNPTResults(AMSResults):
 
         return mol
 
-class AMSNPTJob(AMSNVTJob):
+class AMSNPTJob(AMSMDJob):
     _result_type = AMSNPTResults
 
     def __init__(self, **kwargs):
-        AMSMDJob.__init__(self, **kwargs)
+        AMSMDJob.__init__(self, _enforce_thermostat=True, _enforce_barostat=True, **kwargs)
         self.settings.input.ams.MolecularDynamics.CalcPressure = 'True'
         self.remove_blocks(['deformation'])
 

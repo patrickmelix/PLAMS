@@ -46,7 +46,7 @@ class EquilibrateDensityJob(MultiJob):
             settings=self.settings,
             scan_density_upper=self.scan_density_upper, 
             molecule = initial_molecule,
-            temperature = self.temperature,
+            **self.kwargs,
         )
 
         return self.children[name]
@@ -57,14 +57,7 @@ class EquilibrateDensityJob(MultiJob):
             name=name,
             settings=self.settings, 
             nsteps=self.nsteps[name],
-            timestep=self.timestep,
-            tau = 10,
-            thermostat = 'Berendsen',
-            temperature = self.temperature,
-            velocities = self.temperature,
-            writevelocities = False,
-            writebonds = True,
-            writemolecules = False,
+            **self.kwargs
         )
 
         if scan_density_job is not None:
@@ -79,26 +72,18 @@ class EquilibrateDensityJob(MultiJob):
 
     def _create_npt_job(self, nvt_pre_eq_job):
         name = 'npt'
-        job = AMSNPTJob(
+        job = AMSNPTJob.restart_from(
+            nvt_pre_eq_job,
             name=name,
+            use_prerun=True,
             settings=self.settings,
             nsteps=self.nsteps[name],
-            timestep=self.timestep,
-            tau=100,
-            thermostat='NHC',
-            temperature=self.temperature,
-            barostat='MTK',
-            pressure=self.pressure,
-            barostat_tau=1000,
-            equal='XYZ',
-            writevelocities=False,
-            writebonds=True,
-            writecharges=False
+            **self.kwargs,
         )
 
-        @add_to_instance(job)
-        def prerun(self):
-            self.get_velocities_from(nvt_pre_eq_job, update_molecule=True)
+        #@add_to_instance(job)
+        #def prerun(self):
+            #self.get_velocities_from(nvt_pre_eq_job, update_molecule=True)
 
         self.children[name] = job
         return self.children[name]
@@ -108,8 +93,6 @@ class EquilibrateDensityJob(MultiJob):
                  settings=None, 
                  name='equilibrate_density',
                  nsteps=None, 
-                 temperature=300, 
-                 pressure=1.0, 
                  scan_density=True, 
                  scan_density_upper=1.5, 
                  **kwargs):
@@ -131,20 +114,14 @@ class EquilibrateDensityJob(MultiJob):
                     'npt': 100000,
                 }
 
-        temperature: float
-            Temperature in K.
+        kwargs: various options
+            Other options for AMSMDJob (e.g. temperature, pressure, timestep)
 
-        pressure: float
-            The pressure in bar.
-
-        kwargs: other options to be passed to the MultiJob constructor (for example the name)
         """
-        MultiJob.__init__(self, children=OrderedDict(), name=name, **kwargs)
+        MultiJob.__init__(self, children=OrderedDict(), name=name)
 
         self.scan_density_upper = scan_density_upper
         self.timestep = 1.0
-        self.temperature = temperature
-        self.pressure = pressure
         self.nsteps = {
             'scan_density': 5000,
             'nvt_pre_eq': 1000,
@@ -154,6 +131,8 @@ class EquilibrateDensityJob(MultiJob):
             self.nsteps.update(nsteps)
 
         self.settings = settings.copy() if settings is not None else self._default_settings()
+
+        self.kwargs = kwargs
 
         if scan_density:
             scan_density_job = self._create_scan_density_job(molecule)
