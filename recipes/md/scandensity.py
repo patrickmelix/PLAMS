@@ -50,7 +50,7 @@ class AMSMDScanDensityJob(AMSNVTJob):
 
         s = Settings()
         s.input.ams.MolecularDynamics.Deformation.TargetLength = ' '.join([str(x) for x in new_length]) 
-        s.input.ams.MolecularDynamics.Deformation.StartStep = eq_nsteps
+        s.input.ams.MolecularDynamics.Deformation.StartStep = self.eq_nsteps
 
         self.settings += s
 

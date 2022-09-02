@@ -6,7 +6,7 @@ from ...core.functions import add_to_instance
 from typing import Union
 import numpy as np
 
-__all__ = ['AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
+__all__ = ['AMSMDJob', 'AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
 
 class AMSMDJob(AMSJob):
     default_nsteps = 1000
@@ -46,6 +46,15 @@ class AMSMDJob(AMSJob):
         writeenginegradients=None,
         calcpressure=None,
         molecule=None,
+        temperature=None,
+        thermostat=None,
+        tau=None,
+        pressure=None,
+        barostat=None,
+        barostat_tau=None,
+        scale=None,
+        equal=None,
+        constantvolume=None,
         **kwargs
     ):
         """
@@ -143,7 +152,21 @@ class AMSMDJob(AMSJob):
         mdsett.Trajectory.WriteEngineGradients = str(writeenginegradients) if writeenginegradients is not None else mdsett.Trajectory.WriteEngineGradients or self.default_writeenginegradients
         mdsett.CalcPressure = str(calcpressure) if calcpressure is not None else mdsett.CalcPressure or self.default_calcpressure
         mdsett.Checkpoint.Frequency = checkpointfrequency or mdsett.Checkpoint.Frequency or self.default_checkpointfrequency
+
         self.settings += self._velocities2settings(velocities)
+
+        if temperature or thermostat:
+            self.settings.update(self._get_thermostat_settings(thermostat=thermostat, temperature=temperature, tau=tau))
+
+        if pressure or barostat:
+            self.settings.update(self._get_barostat_settings(
+                pressure=pressure,
+                barostat=barostat,
+                barostat_tau=barostat_tau,
+                scale=scale,
+                equal=equal,
+                constantvolume=constantvolume
+            ))
 
     def remove_blocks(self, blocks=None):
         if blocks:
@@ -239,88 +262,28 @@ class AMSMDJob(AMSJob):
         self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume = str(constantvolume) if constantvolume is not None else self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume or self.default_constantvolume
         return s
 
+    @classmethod
+    def restart_from(cls, other_job, frame=None, settings=None, use_prerun=False, **kwargs):
+        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
+        job = cls(settings=extra_settings, velocities=velocities, molecule=molecule, **kwargs)
+
+        if use_prerun:
+            @add_to_instance(job)
+            def prerun(self):
+                self.get_velocities_from(other_job, frame=frame, update_molecule=True)
+
+        return job
+
 class AMSNVEJob(AMSMDJob):
     def __init__( self, **kwargs):
         AMSMDJob.__init__(self, **kwargs)
         self.remove_blocks(['thermostat', 'barostat', 'deformation'])
 
-    @classmethod
-    def restart_from(cls, 
-        other_job, 
-        frame=None, 
-        settings=None, 
-        timestep=None,
-        samplingfreq=None,
-        nsteps=None,
-        checkpointfrequency=None,
-        writevelocities=None,
-        writebonds=None,
-        writemolecules=None,
-        writecharges=None,
-        writeenginegradients=None,
-        calcpressure=None,
-        molecule=None,
-        use_prerun=False,
-        **kwargs
-    ):
-        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
-        job = cls(
-            settings=extra_settings, 
-            velocities=velocities, 
-            molecule=molecule, 
-            timestep=timestep,
-            samplingfreq=samplingfreq,
-            nsteps=nsteps,
-            checkpointfrequency=checkpointfrequency,
-            writevelocities=writevelocities,
-            writebonds=writebonds,
-            writemolecules=writemolecules,
-            writecharges=writecharges,
-            writeenginegradients=writeenginegradients,
-            calcpressure=calcpressure,
-            **kwargs)
-
-        if use_prerun:
-            @add_to_instance(job)
-            def prerun(self):
-                self.get_velocities_from(other_job, frame=frame, update_molecule=True)
-
-        return job
-
 
 class AMSNVTJob(AMSMDJob):
-
-    def __init__(self, 
-        temperature=None,
-        velocities=None,
-        thermostat=None,
-        tau=None,
-        **kwargs):
-        AMSMDJob.__init__(self, velocities = velocities or temperature or AMSMDJob.default_temperature, **kwargs)
-        self.settings.update(self._get_thermostat_settings(thermostat, temperature, tau))
+    def __init__(self, **kwargs):
+        AMSMDJob.__init__(self, **kwargs)
         self.remove_blocks(['barostat', 'deformation'])
-
-
-    @classmethod
-    def restart_from(cls, other_job, 
-        settings=None,
-        temperature=None,
-        thermostat=None,
-        tau=None,
-        frame=None,
-        use_prerun:bool=False,
-        **kwargs):
-
-        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
-        job = cls(molecule=molecule, settings=extra_settings, velocities=velocities, thermostat=thermostat, temperature=temperature, tau=tau, **kwargs)
-
-        if use_prerun:
-            @add_to_instance(job)
-            def prerun(self):
-                self.get_velocities_from(other_job, frame=frame, update_molecule=True)
-
-        return job
-
 
 class AMSNPTResults(AMSResults):
     def get_equilibrated_molecule(self, equilibration_fraction=0.667, return_index=False):
@@ -350,74 +313,9 @@ class AMSNPTResults(AMSResults):
 class AMSNPTJob(AMSNVTJob):
     _result_type = AMSNPTResults
 
-    def __init__(self,
-        pressure=None,
-        barostat=None,
-        barostat_tau=None,
-        scale=None,
-        equal=None,
-        constantvolume=None,
-        velocities=None,
-        thermostat=None,
-        temperature=None,
-        tau=None,
-        **kwargs
-    ):
-        AMSMDJob.__init__(self, velocities=velocities or temperature or AMSMDJob.default_temperature, **kwargs)
-        self.settings.update(self._get_thermostat_settings(thermostat=thermostat, temperature=temperature, tau=tau))
-        self.settings.update(self._get_barostat_settings(
-            pressure=pressure,
-            barostat=barostat,
-            barostat_tau=barostat_tau,
-            scale=scale,
-            equal=equal,
-            constantvolume=constantvolume
-        ))
+    def __init__(self, **kwargs):
+        AMSMDJob.__init__(self, **kwargs)
         self.settings.input.ams.MolecularDynamics.CalcPressure = 'True'
-
         self.remove_blocks(['deformation'])
-
-    @classmethod
-    def restart_from(cls,
-        other_job, 
-        frame=None, 
-        settings=None,
-        pressure=None,
-        barostat=None,
-        barostat_tau=None,
-        scale=None,
-        equal=None,
-        constantvolume=None,
-        temperature=None,
-        thermostat=None,
-        tau=None,
-        use_prerun:bool=False,
-        **kwargs
-    ):
-        
-        other_job, velocities, molecule, extra_settings = cls._get_restart_job_velocities_molecule(other_job, frame, settings, get_velocities_molecule=not use_prerun)
-
-        job = cls(
-            molecule=molecule,
-            velocities=velocities,
-            settings=extra_settings,
-            thermostat=thermostat,
-            temperature=temperature,
-            tau=tau,
-            pressure=pressure,
-            barostat=barostat,
-            barostat_tau=barostat_tau,
-            scale=scale,
-            equal=equal,
-            constantvolume=constantvolume,
-            **kwargs
-        )
-
-        if use_prerun:
-            @add_to_instance(job)
-            def prerun(self):
-                self.get_velocities_from(other_job, frame=frame, update_molecule=True)
-
-        return job
 
 
