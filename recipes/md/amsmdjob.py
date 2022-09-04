@@ -9,27 +9,107 @@ import numpy as np
 __all__ = ['AMSMDJob', 'AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
 
 class AMSMDJob(AMSJob):
+    """
+
+        molecule: Molecule
+            The initial structure
+
+        name: str
+            The name of the job
+
+        settings: Settings
+            Settings for the job. You should normally not populate neither settings.input.ams.MolecularDynamics nor settings.input.ams.Task
+
+        velocities: float or AMSJob or str (path/to/ams.rkf) or 2-tuple (path/to/ams.rkf, frame-number)
+            If float, it is taken as the temperature. If AMSJob or str, the velocities are taken from the EndVelocities section of the corresponding ams.rkf file. If 2-tuple, the first item must be a path to an ams.rkf, and the second item an integer specifying the frame number - the velocities are then read from History%Velocities(framenumber).
+
+        timestep: float
+            Timestep
+
+        samplingfreq: int
+            Sampling frequency
+
+        nsteps: int
+            Length of simulation
+
+        **Trajectory options**:
+
+        checkpointfrequency: int
+            How frequently to write MDStep*.rkf checkpoint files
+
+        writevelocities : bool
+            Whether to save velocities to ams.rkf (needed for example to restart from individual frames or to calculate velocity autocorrelation functions)
+
+        writebonds: bool
+            Whether to save bonds to ams.rkf
+
+        writemolecules: bool
+            Whether to write molecules to ams.rkf
+
+        writeenginegradients: bool
+            Whether to save engine gradients (negative of atomic forces) to ams.rkf
+
+        **Thermostat (NVT, NPT) options**:
+
+        thermostat: str
+            'Berendsen' or 'NHC'
+
+        tau: float
+            Thermostat time constant (fs)
+
+        temperature: float
+            Temperature (K)
+
+        **Barostat (NPT) options**:
+
+        barostat: str
+            'Berendsen' or 'MTK'
+
+        barostat_tau: float
+            Barostat time constant (fs)
+
+        pressure: float
+            Barostat pressure (pascal)
+
+        equal: str
+            'XYZ' etc.
+
+        scale: str
+            'XYZ' etc.
+
+        constantvolume: bool
+            Constant volume?
+
+        **Other options**:
+
+        calcpressure: bool
+            Whether to calculate pressure for each frame. 
+
+
+
+    """
     default_nsteps = 1000
     default_timestep = 0.25
     default_samplingfreq = 100
-    default_checkpointfrequency = 1000000
 
     default_thermostat = 'NHC'
     default_temperature = 300
-    default_tau_multiplier = 400
+    default_tau_multiplier = 400 # get tau by multiplying the timestep with this number
 
     default_barostat = 'MTK'
     default_pressure = 1e5
-    default_barostat_tau_multiplier = 4000
+    default_barostat_tau_multiplier = 4000 # get barostat_tau by multiplying the timestep with this number
     default_scale = 'XYZ'
     default_equal = 'None'
     default_constantvolume = 'False'
 
+    default_checkpointfrequency = 1000000
     default_writevelocities = 'True'
     default_writebonds = 'True'
     default_writecharges = 'True'
     default_writemolecules = 'True'
     default_writeenginegradients = 'False'
+
     default_calcpressure = 'False'
 
     def __init__(
@@ -60,77 +140,6 @@ class AMSMDJob(AMSJob):
         **kwargs
     ):
         """
-        molecule : Molecule
-            The initial structure
-
-        name : str
-            The name of the job
-
-        settings : Settings
-            Settings for the job. You should normally not populate neither settings.input.ams.MolecularDynamics nor settings.input.ams.Task
-
-        velocities : float or AMSJob or str (path/to/ams.rkf) or 2-tuple (path/to/ams.rkf, frame-number)
-            If float, it is taken as the temperature. If AMSJob or str, the velocities are taken from the EndVelocities section of the corresponding ams.rkf file. If 2-tuple, the first item must be a path to an ams.rkf, and the second item an integer specifying the frame number - the velocities are then read from History%Velocities(framenumber).
-
-        timestep: float
-            Timestep
-
-        samplingfreq: int
-            Sampling frequency
-
-        nsteps: int
-            Length of simulation
-
-        checkpointfrequency: int
-            How frequently to write MDStep*.rkf checkpoint files
-
-        writevelocities : bool
-            Whether to save velocities to ams.rkf (needed for example to restart from individual frames or to calculate velocity autocorrelation functions)
-
-        writebonds : bool
-            Whether to save bonds to ams.rkf
-
-        writemolecules : bool
-            Whether to write molecules to ams.rkf
-
-        writeenginegradients : bool
-            Whether to save engine gradients (negative of atomic forces) to ams.rkf
-
-        calcpressure : bool
-            Whether to calculate pressure for each frame. 
-
-        The below arguments are read only for **AMSNVTJob** or **AMSNPTJob**:
-
-        thermostat : str
-            'Berendsen' or 'NHC'
-
-        tau : float
-            Thermostat time constant (fs)
-
-        temperature : float
-            Temperature (K)
-
-        The below arguments are read only for **AMSNPTJob**:
-
-        barostat : str
-            'Berendsen' or 'MTK'
-
-        barostat_tau : float
-            Barostat time constant (fs)
-
-        pressure : float
-            Barostat pressure (pascal)
-
-        equal : str
-            'XYZ' etc.
-
-        scale : str
-            'XYZ' etc.
-
-        constantvolume : bool
-            Constant volume?
-
-
 
         """
 

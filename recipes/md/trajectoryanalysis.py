@@ -11,7 +11,42 @@ from ...tools.units import Units
 from .amsmdjob import AMSNVEJob
 import numpy as np
 
-__all__ = ['AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults', 'AMSConvenientAnalysisPerRegionResults', 'AMSConvenientAnalysisPerRegionJob']
+__all__ = ['AMSRDFJob', 'AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults', 'AMSConvenientAnalysisPerRegionResults', 'AMSConvenientAnalysisPerRegionJob']
+
+class AMSConvenientAnalysisJob(AMSAnalysisJob):
+    def __init__(self, 
+                 previous_job,  # needs to be finished
+                 atom_indices=None,
+                 **kwargs):
+        """
+        previous_job: AMSJob
+            An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
+
+        All other settings can be set as for AMS
+
+        """
+        AMSAnalysisJob.__init__(self, **kwargs)
+
+        self.previous_job = previous_job
+        self.atom_indices = atom_indices
+
+    def _get_max_dt_frames(self, max_correlation_time_fs):
+        if max_correlation_time_fs is None:
+            return None
+
+        historylength = self.previous_job.results.readrkf('History', 'nEntries')
+        max_dt_frames = int(max_correlation_time_fs / self.previous_job.results.get_time_step())
+        max_dt_frames = min(max_dt_frames, historylength // 2)
+        return max_dt_frames
+
+    def _parent_prerun(self, section):
+
+        # use previously run previous_job
+        assert self.previous_job.status != 'created', "You can only pass in a finished AMSJob"
+
+        self.settings.input.TrajectoryInfo.Trajectory.KFFileName = self.previous_job.results.rkfpath()
+        if self.atom_indices and self._parent_write_atoms:
+            self.settings.input[section].Atoms.Atom = self.atom_indices
 
 class AMSMSDResults(AMSAnalysisResults):
     """Results class for AMSMSDJob
@@ -63,46 +98,12 @@ class AMSMSDResults(AMSAnalysisResults):
         D = result.slope * 1e-20 / (6 * 1e-15) # convert from ang^2/fs to m^2/s, divide by 6 because 3-dimensional (2d)
         return D
 
-class AMSConvenientAnalysisJob(AMSAnalysisJob):
-    def __init__(self, 
-                 previous_job,  # needs to be finished
-                 atom_indices=None,
-                 **kwargs):
-        """
-        previous_job: AMSJob
-            An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
-
-        All other settings can be set as for AMS
-
-        """
-        AMSAnalysisJob.__init__(self, **kwargs)
-
-        self.previous_job = previous_job
-        self.atom_indices = atom_indices
-
-    def _get_max_dt_frames(self, max_correlation_time_fs):
-        if max_correlation_time_fs is None:
-            return None
-
-        historylength = self.previous_job.results.readrkf('History', 'nEntries')
-        max_dt_frames = int(max_correlation_time_fs / self.previous_job.results.get_time_step())
-        max_dt_frames = min(max_dt_frames, historylength // 2)
-        return max_dt_frames
-
-    def _parent_prerun(self, section):
-
-        # use previously run previous_job
-        assert self.previous_job.status != 'created', "You can only pass in a finished AMSJob"
-
-        self.settings.input.TrajectoryInfo.Trajectory.KFFileName = self.previous_job.results.rkfpath()
-        if self.atom_indices:
-            self.settings.input[section].Atoms.Atom = self.atom_indices
-    
 class AMSMSDJob(AMSConvenientAnalysisJob):
     """A convenient class wrapping around the trajectory analysis MSD tool
     """
 
     _result_type = AMSMSDResults
+    _parent_write_atoms = True
 
     def __init__(self, 
                  previous_job,  # needs to be finished
@@ -148,7 +149,6 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         with open(self.path+'/D.txt', 'w') as f:
             f.write(f'{D}\n')
         
-
 class AMSVACFResults(AMSAnalysisResults):
     """Results class for AMSVACFJob
     """
@@ -175,6 +175,7 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
     """
 
     _result_type = AMSVACFResults
+    _parent_write_atoms = True
 
     def __init__(self, 
                  previous_job,  # needs to be finished
@@ -201,6 +202,74 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         self.settings.input.Task = 'AutoCorrelation'
         self.settings.input.AutoCorrelation.Property = 'Velocities'
         self.settings.input.AutoCorrelation.MaxStep = max_dt_frames
+
+    def postrun(self):
+        try:
+            time, vacf = self.results.get_vacf()
+            with open(self.path+'/vacf.txt', 'w') as f:
+                f.write("#Time(fs) VACF")
+                for x,y in zip(time, vacf):
+                    f.write(f'{x} {y}\n')
+
+            freq, intens = self.results.get_power_spectrum()
+            with open(self.path+'/power_spectrum.txt', 'w') as f:
+                f.write("#Frequency(cm^-1) Intensity(arb.units)")
+                for x,y in zip(freq, intens):
+                    f.write(f'{x} {y}\n')
+        except:
+            pass
+
+class AMSRDFResults(AMSAnalysisResults):
+    """Results class for AMSRDFJob
+    """
+    def get_rdf(self):
+        xy = self.get_xy()
+        r = np.array(xy.x[0]) 
+        y = np.array(xy.y) 
+
+        return r, y
+
+class AMSRDFJob(AMSConvenientAnalysisJob):
+    _result_type = AMSRDFResults
+    _parent_write_atoms = False
+
+    def __init__(self,
+                 previous_job,
+                 atom_indices=None,
+                 atom_indices_to=None,
+                 rmin=0.5,
+                 rmax=6,
+                 rstep=0.1,
+                 **kwargs
+                 ):
+        AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
+        self.atom_indices_to = atom_indices_to
+        self.rmin = rmin
+        self.rmax = rmax
+        self.rstep = rstep
+
+    def prerun(self):
+        self._parent_prerun('RadialDistribution')
+        self.settings.input.Task = 'RadialDistribution'
+        main_mol = self.previous_job.results.get_main_molecule()
+        if not self.atom_indices:
+            self.atom_indices = list(range(1, len(main_mol)+1))
+        if not self.atom_indices_to:
+            self.atom_indices_to = list(range(1, len(main_mol)+1))
+        self.settings.input.RadialDistribution.AtomsFrom.Atom = self.atom_indices
+        self.settings.input.RadialDistribution.AtomsTo.Atom = self.atom_indices_to
+        self.settings.input.RadialDistribution.Range = f'{self.rmin} {self.rmax} {self.rstep}'
+
+    def postrun(self):
+        try:
+            r, gr = self.results.get_rdf()
+            with open(self.path+'/rdf.txt', 'w') as f:
+                f.write("#r(angstrom) g(r)")
+                for x,y in zip(r, gr):
+                    f.write(f'{x} {y}\n')
+        except:
+            pass
+
 
 
 class AMSConvenientAnalysisPerRegionResults(Results):
