@@ -548,6 +548,15 @@ class AMSResults(Results):
 
         return ret
 
+    def get_forcefield_params (self, engine=None):
+        """
+        Read all force field data from a forcefield.rkf file into self
+
+        * ``filename`` -- Name of the RKF file that contains ForceField data
+        """
+        from .forcefieldparams import forcefield_params_from_kf
+        return self._process_engine_results(forcefield_params_from_kf, engine)
+
     def get_poissonratio(self, engine=None):
         return self._process_engine_results(lambda x: x.read('AMSResults', 'PoissonRatio'), engine)
 

@@ -5,7 +5,7 @@ to be pased as input to an AMSJob.
 This class can do that.
 """
 
-__all__ = ['ForceFieldPatch']
+__all__ = ['ForceFieldPatch', 'forcefield_params_from_kf']
 
 class ForceFieldPatch :
     """
@@ -48,6 +48,8 @@ class ForceFieldPatch :
         Create the full patch text
         """
         block = ''
+        if len(self.types) == 0 :
+            return block
         block += self.comment
         block += ''.join(self.typelines)
         block += '\n\n'
@@ -86,6 +88,12 @@ class ForceFieldPatch :
         ret.ljlines = self.ljlines.copy()
 
         return ret
+
+    def __str__ (self) :
+        """
+        Returns the patch as text
+        """
+        return self.get_text()
 
     def __add__ (self, other) :
         """
@@ -218,4 +226,24 @@ class ForceFieldPatch :
                 ljtypes.append(words[0])
                 ljlines.append(line)
         return ljtypes, ljlines
+
+
+def forcefield_params_from_kf(kf):
+    """
+    Read the parameters from kf
+    """
+    charges = kf.read("AMSResults", "Charges")
+    alltypes = kf.read("AMSResults", "AtomTyping.atomTypes").split("\x00")
+    indices = kf.read("AMSResults", "AtomTyping.atomIndexToType")
+    types = [alltypes[i - 1] for i in indices]
+
+    # Read the force field patch
+    npatches = kf.read("AMSResults","Config.nPatches")
+    patch = ForceFieldPatch()
+    if npatches > 0 :
+        patchtext = kf.read("AMSResults","Config.FFPatch(1)")
+        patch += ForceFieldPatch(patchtext)
+    else :
+        patch = None
+    return charges, types, patch
 

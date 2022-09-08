@@ -2536,24 +2536,14 @@ class Molecule:
 
         * ``filename`` -- Name of the RKF file that contains ForceField data
         """
-        from ..interfaces.adfsuite.forcefieldparams import ForceFieldPatch
+        from ..interfaces.adfsuite.forcefieldparams import ForceFieldPatch, forcefield_params_from_kf
         from ..interfaces.adfsuite.ams import AMSJob
 
         # Read atom types and charges
         kf = KFFile(filename)
         if not 'AMSResults' in kf.sections() :
             raise FileError('filename has to be a forcefield.rkf file from a GAFF atomtyping calculation.')
-        charges = kf.read("AMSResults", "Charges")
-        alltypes = kf.read("AMSResults", "AtomTyping.atomTypes").split("\x00")
-        indices = kf.read("AMSResults", "AtomTyping.atomIndexToType")
-        types = [alltypes[i - 1] for i in indices]
-    
-        # Read the force field patch
-        npatches = kf.read("AMSResults","Config.nPatches")
-        patch = ForceFieldPatch()
-        if npatches > 0 :
-            patchtext = kf.read("AMSResults","Config.FFPatch(1)")
-            patch += ForceFieldPatch(patchtext)  
+        charges, types, patch = forcefield_params_from_kf(kf)
 
         # Place the data into self (any force field parameter data already there will be overwritten)
         suffixes = [at.properties.suffix if "suffix" in at.properties else "" for at in self]
@@ -2561,7 +2551,8 @@ class Molecule:
         for i,at in enumerate(self.atoms):
             suffix = suffixes[i] + "forcefield.type=%s forcefield.charge=%f"%(types[i],charges[i]) 
             at.properties.soft_update(AMSJob._atom_suffix_to_settings(suffix))
-        self.properties.forcefieldpatch = patch
+        if patch is not None:
+            self.properties.forcefieldpatch = patch
 
     def readrkf(self, filename, section='Molecule', **other):
         kf = KFFile(filename)
