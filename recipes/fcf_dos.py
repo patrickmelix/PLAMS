@@ -1,5 +1,5 @@
 #from .scmjob import SCMJob, SCMResults
-import os, numpy, math, scipy
+import os, numpy, math
 from scm.plams import KFFile
 
 __all__ = ['FCFDOS']
@@ -11,7 +11,8 @@ class FCFDOS:
 
     # Conversion factor to cm-1 == ( me^2 * c * alpha^2 ) / ( 100 * 2pi * amu * hbar )
     G2F = 120.399494933
-    J2Ha = 1.0 / (scipy.constants.m_e * scipy.constants.speed_of_light**2 * 0.0072973525693**2)
+    #J2Ha = 1.0 / (scipy.constants.m_e * scipy.constants.speed_of_light**2 * 0.0072973525693**2)
+    J2Ha = 2.293712278400752e+17
 
     def __init__(self, absrkf, emirkf, absele=0.0, emiele=0.0):
         """
@@ -46,8 +47,10 @@ class FCFDOS:
         frq1 = numpy.array(source.read('Fcf', 'gamma1')) * self.G2F
         frq2 = numpy.array(source.read('Fcf', 'gamma2')) * self.G2F
         # Calculate energy in Joules
-        viben1 = sum(frq1) * scipy.constants.pi * scipy.constants.hbar * scipy.constants.speed_of_light * 100.0
-        viben2 = sum(frq2) * scipy.constants.pi * scipy.constants.hbar * scipy.constants.speed_of_light * 100.0
+        #factor = scipy.constants.pi * scipy.constants.hbar * scipy.constants.speed_of_light * 100.0
+        factor = 9.932229285744643e-24
+        viben1 = sum(frq1) * factor
+        viben2 = sum(frq2) * factor
         # Convert to Hartree
         viben1 = viben1 * self.J2Ha
         viben2 = viben2 * self.J2Ha
@@ -123,7 +126,9 @@ class FCFDOS:
             # Gaussian lineshape
             idline = 1
             # This includes the Gaussian prefactor and the factor to account for the reduced lineshape width
-            factA = math.sqrt(numpy.log(2.0)/math.pi) / HWHM /scipy.special.erf(2*math.sqrt(math.log(2)))
+            #factor = 1. / scipy.special.erf(2*math.sqrt(math.log(2)))
+            factor = 1.0188815852036244
+            factA = math.sqrt(numpy.log(2.0)/math.pi) * factor / HWHM
             factB = -numpy.log(2.0) / HWHM**2
             # We only convolute between -2HWHM and +2HWHM which accounts for 98.1% of the area
             ishft = math.floor( 2 * HWHM / delta )
