@@ -36,10 +36,8 @@ class ADFCOSMORSCompoundResults(Results):
         """
             Returns the input molecule
         """
-        try: 
-            return self.job.children['preoptimization'].results.get_input_molecule()
-        except KeyError:
-            return self.job.children['dft_preoptimization'].results.get_input_molecule()
+        for job in self.job.children.values():
+            return job.results.get_input_molecule()
 
 
 class ADFCOSMORSCompoundJob(MultiJob):
@@ -48,7 +46,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
     _result_type = ADFCOSMORSCompoundResults
 
-    def __init__(self, molecule:Molecule, preoptimization=None, **kwargs):
+    def __init__(self, molecule:Molecule, preoptimization=None, singlepoint=False, settings=None, **kwargs):
         """
 
             Class for running the equivalent of "COSMO-RS Compound" in the AMS
@@ -72,6 +70,12 @@ class ADFCOSMORSCompoundJob(MultiJob):
             preoptimization : str or None
                 If None, do not preoptimize with a fast engine (then initial optimization is done with ADF). Otherwise, can be one of 'UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x'. Note that you need valid licenses for ForceField or DFTB or MLPotential to use these preoptimizers.
 
+            singlepoint : bool
+                Only run a singlepoint with solvation to generate the .coskf file on the given Molecule. (no geometry optimization)
+
+            settings : settings
+                settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
+
             Usage:
 
             .. code-block:: python
@@ -83,50 +87,52 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         """
         MultiJob.__init__(self, children=OrderedDict(), **kwargs)
+        self.input_molecule = molecule
+        self.settings = settings or Settings()
 
-        if preoptimization:
-            preoptimization_s = Settings()
-            preoptimization_s.runscript.nproc = 1
-            preoptimization_s.input.ams.Task = 'GeometryOptimization'
-            preoptimization_s += model_to_settings(preoptimization)
-            preoptimization_job = AMSJob(settings=preoptimization_s, name='preoptimization', molecule=molecule)
-            self.children['preoptimization'] = preoptimization_job
+        if not singlepoint:
+            if preoptimization:
+                preoptimization_s = Settings()
+                preoptimization_s.runscript.nproc = 1
+                preoptimization_s.input.ams.Task = 'GeometryOptimization'
+                preoptimization_s += model_to_settings(preoptimization)
+                preoptimization_job = AMSJob(settings=preoptimization_s, name='preoptimization', molecule=molecule)
+                self.children['preoptimization'] = preoptimization_job
 
-        dft_preoptimization_s = Settings()
-        dft_preoptimization_s.input.ams.Task = 'GeometryOptimization'
-        dft_preoptimization_s.input.adf.XC.GGA = 'BP86'
-        dft_preoptimization_s.input.adf.Basis.Type = 'DZP'
-        dft_preoptimization_job = AMSJob(settings=dft_preoptimization_s, name='dft_preoptimization', molecule=molecule)
-        if preoptimization:
-            @add_to_instance(dft_preoptimization_job)
-            def prerun(self):
-                self.molecule = self.parent.children['preoptimization'].results.get_main_molecule()
-        self.children['dft_preoptimization'] = dft_preoptimization_job
+            gas_s = Settings()
+            gas_s.input.ams.Task = 'GeometryOptimization'
+            gas_s += self.adf_settings(solvation=False, settings=self.settings)
+            gas_job = AMSJob(settings=gas_s, name='gas')
 
-        gas_s = Settings()
-        gas_s.input.ams.Task = 'GeometryOptimization'
-        gas_s += self.adf_settings(solvation=False)
-        gas_job = AMSJob(settings=gas_s, name='gas')
-        @add_to_instance(gas_job)
-        def prerun(self):
-            self.molecule = self.parent.children['dft_preoptimization'].results.get_main_molecule()
-        self.children['gas'] = gas_job
+            if preoptimization:
+                @add_to_instance(gas_job)
+                def prerun(self):
+                    self.molecule = self.parent.children['preoptimization'].results.get_main_molecule()
+            else:
+                gas_job.molecule = molecule
+
+            self.children['gas'] = gas_job
 
         solv_s = Settings()
         solv_s.input.ams.Task = 'SinglePoint'
-        solv_s += self.adf_settings(solvation=True)
+        solv_s += self.adf_settings(solvation=True, settings=self.settings)
         solv_job = AMSJob(settings=solv_s, name='solv')
 
-        @add_to_instance(solv_job)
-        def prerun(self):
-            gas_job.results.wait()
-            self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
-            self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
-            #self.settings.input.ams.EngineRestart = self.parent.children['gas'].results.rkfpath(file='adf') # this doesn't work with PLAMS restart since the file will refer to the .res directory (so the job is rerun needlessly)
-            #self.settings.input.ams.LoadSystem.File = self.parent.children['gas'].results.rkfpath(file='ams')
-            # cannot copy to gasphase-ams.rkf etc. because that conflicts with PLAMS restarts
-            #shutil.copyfile(gas_job.results.rkfpath(file='ams'), os.path.join(self.path, 'gasphase-ams.rkf'))
-            #shutil.copyfile(gas_job.results.rkfpath(file='adf'), os.path.join(self.path, 'gasphase-adf.rkf'))
+        if singlepoint:
+            @add_to_instance(solv_job)
+            def prerun(self):
+                self.molecule = self.parent.input_molecule
+        else:
+            @add_to_instance(solv_job)
+            def prerun(self):
+                gas_job.results.wait()
+                self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
+                self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
+                #self.settings.input.ams.EngineRestart = self.parent.children['gas'].results.rkfpath(file='adf') # this doesn't work with PLAMS restart since the file will refer to the .res directory (so the job is rerun needlessly)
+                #self.settings.input.ams.LoadSystem.File = self.parent.children['gas'].results.rkfpath(file='ams')
+                # cannot copy to gasphase-ams.rkf etc. because that conflicts with PLAMS restarts
+                #shutil.copyfile(gas_job.results.rkfpath(file='ams'), os.path.join(self.path, 'gasphase-ams.rkf'))
+                #shutil.copyfile(gas_job.results.rkfpath(file='adf'), os.path.join(self.path, 'gasphase-adf.rkf'))
 
         @add_to_instance(solv_job)
         def postrun(self):
@@ -135,59 +141,51 @@ class ADFCOSMORSCompoundJob(MultiJob):
         self.children['solv'] = solv_job
 
     @staticmethod
-    def adf_settings(solvation:bool) -> Settings:
+    def solvation_settings() -> Settings:
+        sett = Settings()
+        sett.input.adf.solvation = {
+            'surf': 'Delley',
+            'solv': 'name=CRS cav0=0.0 cav1=0.0',
+            'charged': 'method=Conj corr',
+            'c-mat': 'Exact',
+            'scf': 'Var All',
+            'radii': {
+                'H': 1.30,
+                'C': 2.00,
+                'N': 1.83,
+                'O': 1.72,
+                'F': 1.72,
+                'Si': 2.48,
+                'P': 2.13,
+                'S': 2.16,
+                'Cl': 2.05,
+                'Br': 2.16,
+                'I': 2.32
+            }
+        }
+        return sett
+
+
+    @staticmethod
+    def adf_settings(solvation:bool, settings=None) -> Settings:
         """
         Returns ADF settings with or without solvation
 
         If solvation == True, then also include the solvation block.
         """
         
-        s = """
-        Engine ADF
-            Basis
-                Type TZP
-                Core Small
-            End
-            XC
-                GGA BP86
-            End
-            Symmetry NOSYM
-        """
+
+        s = Settings()
+        if settings:
+            s = settings.copy()
+        if 'adf' not in s.input:
+            s.input.adf.Basis.Type = 'TZP'
+            s.input.adf.Basis.Core = 'Small'
+            s.input.adf.XC.GGA = 'BP86'
+            s.input.adf.Symmetry = 'NOSYM'
+            s.input.adf.BeckeGrid.Quality = 'Good'
         if solvation:
-            s += """
-
-            Solvation
-                Radii
-                    Br       2.16
-                    C        2.0
-                    Cl       2.05
-                    F        1.72
-                    H        1.3
-                    I        2.32
-                    N        1.83
-                    O        1.72
-                    P        2.13
-                    S        2.16
-                    Si       2.48
-                End
-                Surf Delley
-                Solv name=CRS cav0=0.0 cav1=0.0
-                Charged method=CONJ corr
-                C-Mat EXACT
-                SCF VAR ALL
-                CSMRSP
-            End
-
-            """
-        s += """
-
-            BeckeGrid
-                Quality Good
-            End
-        EndEngine
-        """
-
-        s = AMSJob.from_input(s).settings
+            s += ADFCOSMORSCompoundJob.solvation_settings()
 
         return s
 
