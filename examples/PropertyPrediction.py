@@ -1,5 +1,6 @@
 #!/usr/bin/env amspython
 from scm.plams import *
+import matplotlib.pyplot as plt
 
 """
 
@@ -44,7 +45,25 @@ def multi_compound_example():
     pp.write_csv("properties.csv")
     pp.write_vaporpressures_csv("vaporpressures.csv")
 
+    print("Writing vapor pressure plot to vaporpressures.png")
+    plot_vapor_pressures(pp, "vaporpressures.png")
+
+def plot_vapor_pressures(pp:PropertyPredictionList, filename:str):
+    n = 2 # only show the first two
+
+    plt.clf()
+    for smiles in pp.smiles_list[:n]:
+        p = pp.predictions[smiles]
+        temperatures = p.temperatures.tolist()
+        vaporpressures = p.vaporpressures
+        plt.plot(temperatures, vaporpressures, label=smiles)
+    plt.legend()
+    plt.xlabel("Temperature (K)")
+    plt.ylabel("Vapor pressure (bar)")
+    plt.title("Estimated vapor pressures")
+    plt.plot()
+    plt.savefig(filename)
+
 
 if __name__ == '__main__':
     main()
-
