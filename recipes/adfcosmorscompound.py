@@ -116,19 +116,20 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         solv_s = Settings()
         solv_s.input.ams.Task = 'SinglePoint'
-        solv_s += self.adf_settings(solvation=True, settings=self.settings, elements=list(set(at.symbol for at in self.input_molecule)))
         solv_job = AMSJob(settings=solv_s, name='solv')
 
         if singlepoint:
             @add_to_instance(solv_job)
             def prerun(self):
                 self.molecule = self.parent.input_molecule
+                self.settings += self.parent.adf_settings(solvation=True, settings=self.parent.settings, elements=list(set(at.symbol for at in self.parent.input_molecule)))
         else:
             @add_to_instance(solv_job)
             def prerun(self):
                 gas_job.results.wait()
                 self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
                 self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
+                self.settings += self.parent.adf_settings(solvation=True, settings=self.parent.settings, elements=list(set(at.symbol for at in self.parent.input_molecule)))
                 #self.settings.input.ams.EngineRestart = self.parent.children['gas'].results.rkfpath(file='adf') # this doesn't work with PLAMS restart since the file will refer to the .res directory (so the job is rerun needlessly)
                 #self.settings.input.ams.LoadSystem.File = self.parent.children['gas'].results.rkfpath(file='ams')
                 # cannot copy to gasphase-ams.rkf etc. because that conflicts with PLAMS restarts
