@@ -832,6 +832,11 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
                 suffixes = [ AMSJob._atom_suffix(at) for at in molecule ]
                 if any(s != '' for s in suffixes):
                     rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                # Add region sections
+                if 'regions' in molecule.properties.keys():
+                    region_names = molecule.properties.regions.keys()
+                    rkf.write(section,'RegionNames','\x00'.join(region_names))
+                    rkf.write(section,'RegionProperties','\x00'.join(['\n'.join(molecule.properties.regions[k]) for k in region_names]))
                 # Also add a bond section
                 if len(molecule.bonds) > 0 :
                         bond_indices = [sorted([iat for iat in molecule.index(bond)]) for bond in molecule.bonds]
