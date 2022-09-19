@@ -147,7 +147,7 @@ class PropertyPrediction:
         subprocess_string = " --smiles '" + smiles + "' "
         try:
             subprocess_string += f' --temperature {temperatures[0]} --temperature {temperatures[1]} --n {n_temperatures}'
-            self.temperatures = np.linspace(temperatures[0], temperatures[1], n_temperatures)
+            self.temperatures = np.linspace(temperatures[0], temperatures[1], n_temperatures+1)
         except TypeError:
             subprocess_string += f' --temperature {temperatures}'
             self.temperatures = np.array([temperatures]).flatten()
