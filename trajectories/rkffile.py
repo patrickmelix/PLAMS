@@ -832,6 +832,11 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
                 suffixes = [ AMSJob._atom_suffix(at) for at in molecule ]
                 if any(s != '' for s in suffixes):
                     rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                # Add atomic charges
+                charges = [at.properties.forcefield for at in molecule.atoms if 'forcefield' in at.properties.keys()]
+                charges = [float(s.charge) for s in charges if 'charge' in s.keys()]
+                if len(charges) == len(molecule):
+                    rkf.write(section,'Charges',charges)
                 # Add region sections
                 if 'regions' in molecule.properties.keys():
                     region_names = molecule.properties.regions.keys()
