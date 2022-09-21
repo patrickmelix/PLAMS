@@ -197,7 +197,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
         s = Settings()
         if settings:
             s = settings.copy()
-        if 'adf' not in s.input:
+        if 'basis' not in s.input.adf and 'xc' not in s.input.adf:
             s.input.adf.Basis.Type = 'TZP'
             s.input.adf.Basis.Core = 'Small'
             s.input.adf.XC.GGA = 'BP86'
