@@ -42,11 +42,15 @@ from collections import OrderedDict
 
     ``settings`` should be set to the engine settings, excluding spin polarization and implicit solvation.
 
+    Requires an ADF license.
+
     AMSRedoxThermodynamicCycleJob
     -----------------------------
 
     Sometimes more efficient (and less accurate) alternative to AMSRedoxDirectJob. Can be
     useful if the molecule is large and if ``vibrations=True``. For small molecules just use AMSRedoxDirectJob.
+
+    Requires an ADF license.
 
     AMSRedoxScreeningJob
     -----------------------
@@ -58,6 +62,8 @@ from collections import OrderedDict
     Note: you must supply ``solvent_coskf``, a path to the solvent .coskf file.
     If you do not have one, you can generate one with the
     ``ADFCOSMORSCompoundJob`` recipe.
+
+    Requires DFTB, ADF, and COSMO-RS licenses.
 
 """
 
