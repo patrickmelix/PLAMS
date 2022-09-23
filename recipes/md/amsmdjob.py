@@ -164,6 +164,8 @@ class AMSMDJob(AMSJob):
         mdsett.CalcPressure = str(calcpressure) if calcpressure is not None else mdsett.CalcPressure or self.default_calcpressure
         mdsett.Checkpoint.Frequency = checkpointfrequency or mdsett.Checkpoint.Frequency or self.default_checkpointfrequency
 
+        if velocities is None and temperature is not None:
+            velocities = temperature
         self.settings += self._velocities2settings(velocities)
 
         if temperature or thermostat or _enforce_thermostat:
