@@ -17,6 +17,7 @@ Getting Started
    WaterOptimization
    He2DissociationCurve
    ManyJobsInParallel
+   MoleculesFromRKFTrajectory
 
 Benchmarks
 -----------------
