@@ -384,14 +384,14 @@ class AMSRedoxScreeningJob(AMSRedoxParentJob):
 class AMSRedoxThermodynamicCycleResults(AMSRedoxParentResults):
     def get_oxidation_potential(self, vibrations=True, unit='eV'):
         Greact  = self._get_energy(self.job.children['go_0_vacuum'], vibrations=vibrations) \
-                + self._get_solvation_energy(self.job.children['go_0_vacuum_sp_solvated']) \
+                + self._get_energy(self.job.children['go_0_vacuum_sp_solvated'], vibrations=False) \
                 + self._get_energy(self.job.children['go_0_solvated_sp_vacuum'], vibrations=False) \
-                - self._get_energy(self.job.children['go_0_vacuum'], vibrations=False) 
+                - 2*self._get_energy(self.job.children['go_0_vacuum'], vibrations=False) 
 
         Gprod   = self._get_energy(self.job.children['go_ox_vacuum'], vibrations=vibrations) \
-                + self._get_solvation_energy(self.job.children['go_ox_vacuum_sp_solvated']) \
+                + self._get_energy(self.job.children['go_ox_vacuum_sp_solvated'], vibrations=False) \
                 + self._get_energy(self.job.children['go_ox_solvated_sp_vacuum'], vibrations=False) \
-                - self._get_energy(self.job.children['go_ox_vacuum'], vibrations=False) \
+                - 2*self._get_energy(self.job.children['go_ox_vacuum'], vibrations=False) \
                 + self.Gelectron
 
         ret = (Gprod - Greact) * Units.convert(1.0, 'hartree', unit)
@@ -399,15 +399,15 @@ class AMSRedoxThermodynamicCycleResults(AMSRedoxParentResults):
 
     def get_reduction_potential(self, vibrations=True, unit='eV'):
         Greact  = self._get_energy(self.job.children['go_0_vacuum'], vibrations=vibrations) \
-                + self._get_solvation_energy(self.job.children['go_0_vacuum_sp_solvated']) \
+                + self._get_energy(self.job.children['go_0_vacuum_sp_solvated'], vibrations=False) \
                 + self._get_energy(self.job.children['go_0_solvated_sp_vacuum'], vibrations=False) \
-                - self._get_energy(self.job.children['go_0_vacuum'], vibrations=False)  \
+                - 2*self._get_energy(self.job.children['go_0_vacuum'], vibrations=False)  \
                 + self.Gelectron
 
         Gprod   = self._get_energy(self.job.children['go_red_vacuum'], vibrations=vibrations) \
-                + self._get_solvation_energy(self.job.children['go_red_vacuum_sp_solvated']) \
+                + self._get_energy(self.job.children['go_red_vacuum_sp_solvated'], vibrations=False) \
                 + self._get_energy(self.job.children['go_red_solvated_sp_vacuum'], vibrations=False) \
-                - self._get_energy(self.job.children['go_red_vacuum'], vibrations=False) 
+                - 2*self._get_energy(self.job.children['go_red_vacuum'], vibrations=False) 
 
         ret = (Gprod - Greact) * Units.convert(1.0, 'hartree', unit)
         ret *= -1 # deltaG = -nFE

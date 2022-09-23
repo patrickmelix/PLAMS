@@ -31,7 +31,9 @@ Workflows
 ------------------
 
 .. toctree::
+   :maxdepth: 1
 
+   RedoxPotential
    ExcitationsWorkflow
    ChargeTransferIntegralsADF
    gammascan
@@ -84,5 +86,4 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     numhess
     molecule_gun
     global_minimum
-    RedoxPotential
 
