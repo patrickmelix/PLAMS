@@ -1,3 +1,5 @@
+""" Deprecated, do not use """
+
 from scm.plams import Settings
 
 

@@ -65,6 +65,9 @@ from collections import OrderedDict
 
     Requires DFTB, ADF, and COSMO-RS licenses.
 
+    Note: The functional used is different from Belic et al. This class uses the
+    settings that are meant to be used for generating .coskf files.
+
 """
 
 __all__ = [

@@ -18,6 +18,10 @@ There are three PLAMS recipes for calculating one-electron reduction or oxidatio
 
 The ``AMSRedoxScreeningJob`` workflow was developed by `Belic et al., Phys. Chem. Chem. Phys. 24, 197–210 (2022) <https://pubs.rsc.org/en/content/articlehtml/2021/cp/d1cp04218a>`__ for calculating oxidation potentials. The paper also describes the other workflows in detail. 
 
+.. note::
+
+    The ``AMSRedoxScreeningJob`` uses the recommended ADF settings for generating .coskf files. Belic et al. used a different density functional. Using the class will give slightly different results compared to Belic et al.
+
 The **free energy of the electron** is set to be –0.0375 eV (see Belic et al.).
 
 In this example the above three workflows are used to evaluate the **reduction potential of benzoquinone in water**.
