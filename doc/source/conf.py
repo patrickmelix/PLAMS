@@ -247,6 +247,7 @@ rst_epilog = """
 .. |XYZTrajectoryFile| replace:: :class:`~scm.plams.trajectories.xyzfile.XYZTrajectoryFile`
 .. |XYZHistoryFile| replace:: :class:`~scm.plams.trajectories.xyzhistoryfile.XYZHistoryFile`
 .. |DCDTrajectoryFile| replace:: :class:`~scm.plams.trajectories.dcdfile.DCDTrajectoryFile`
+.. |Trajectory| replace:: :class:`~scm.plams.trajectories.trajectory.Trajectory`
 
 .. |JobManager| replace:: :class:`~scm.plams.core.jobmanager.JobManager`
 .. |load_job| replace:: :meth:`~scm.plams.core.jobmanager.JobManager.load_job`
@@ -262,6 +263,7 @@ rst_epilog = """
 
 .. |AMSJob| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSJob`
 .. |AMSResults| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSResults`
+.. |AMSAnalysisJob| replace:: :class:`~scm.plams.interfaces.adfsuite.amsanalysis.AMSAnalysisJob`
 
 .. |AMSWorker| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorker`
 .. |AMSWorkerPool| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerPool`

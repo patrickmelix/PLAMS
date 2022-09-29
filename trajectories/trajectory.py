@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from weakref import WeakValueDictionary
 from ..core.settings import Settings
 from ..core.errors import PlamsError
 from ..tools.kftools import KFFile
@@ -13,7 +14,80 @@ class Trajectory :
         """
         Class representing an AMS trajectory
 
-        It creates molecule objects along the trajectory, and it performs analysis
+        It creates molecule objects along the trajectory in a list-like fashion.
+        It can also perform analysis tasks.
+
+        Basic use of the |Trajectory| class works as follows:
+
+            >>> from scm.plams import Trajectory
+
+            >>> trajec = Trajectory('ams.rkf')
+            >>> nsteps = len(trajec)
+
+            >>> mol100 = trajec[100]
+            >>> for i,mol in enumerate(trajec):
+            ...     if i == 100:
+            ...         print (mol is mol100)
+            ...
+            True
+
+        As with a regular list, accessing the same element twice yields the same instance of the molecule.
+
+        A trajectory may consist of multiple RKF files, for instance after a restarted MD run.
+
+            >>> trajec = Trajectory(['md1.results/ams.rkf','md2.results/ams.rkf'])
+            >>> nsteps = len(trajec)
+            >>> print ('NSteps in each file: ',trajec.lengths)
+            NSteps in each file:  [181, 19]
+
+        Otherwise the object behaves the same, and iteration occurs over the concatenated files.
+
+        .. note::
+
+                It is possible to change the molecule objects once they are loaded, but this will not change the underlying files.
+                When the altered molecule objects have been garbage collected, and the same frame is read anew, this frame
+                will have the original molecule attributes.
+
+                    >>> import gc
+                    >>> from scm.plams import Trajectory
+
+                    >>> trajec = Trajectory('ams.rkf')
+                    >>> mol = trajec[100]
+                    >>> print (mol.properties.charge)
+                    0.0
+                    >>> mol.properties.charge = 10000.
+                    >>> print (trajec[100].properties.charge)
+                    1000.0
+        
+                    >>> # remove the reference
+                    >>> mol = None
+                    >>> gc.collect()
+                    >>> print (trajec[100].properties.charge)
+                    0.
+
+        The |Trajectory| object can also be used to perform analysis, using |AMSAnalysisJob| behind the scenes.
+       
+            >>> from scm.plams import Settings, Trajectory
+            >>> from scm.plams import init, finish
+ 
+            >>> trajec = Trajectory('ams.rkf')
+
+            >>> # Define the type of analysis
+            >>> settings = Settings()
+            >>> settings.input.Task = 'RadialDistribution'
+            >>> settings.input.RadialDistribution.AtomsFrom.Element = ['O']
+            >>> settings.input.RadialDistribution.AtomsTo.Element = ['O']
+
+            >>> # Run the analysis
+            >>> init()
+            >>> plots = trajec.run_analysis(settings)
+            >>> finish()
+
+            >>> # Store the plot in human readable format
+            >>> for plot in plots :
+            ...     plot.write('%s'%(plot.name+'.txt'))
+
+        This results in a text file named RadialDistribution_1.txt, which contains data organized in columns.
         """
         def __init__ (self, filenames) :
                 """
@@ -21,7 +95,10 @@ class Trajectory :
 
                 * ``filenames`` -- List of filepaths of RKF trajectory files or single filepath for RKF file
 
-                Note: The corresponding file needs to remain on disc
+                .. note::
+
+                        The corresponding file needs to remain on disc while the object is alive
+
                 """
                 if isinstance(filenames,str):
                         filenames = [filenames]
@@ -47,6 +124,9 @@ class Trajectory :
                 self.molecules = [rkf.get_plamsmol() for rkf in self.files]
                 self.lengths = [len(rkf) for rkf in self.files]
 
+                # Store the items that have been read as a weak reference
+                self.weakrefs = WeakValueDictionary()
+
         def __len__ (self) :
                 """
                 Magic method that returns the length of the trajectory
@@ -59,9 +139,15 @@ class Trajectory :
                 """
                 for irkf,rkf in enumerate(self.files) :
                         mol = self.molecules[irkf]
-                        for i in range(self.lengths[irkf]) :
-                                crd,cell = rkf.read_frame(i,molecule=mol)
-                                yield mol.copy()
+                        for istep in range(self.lengths[irkf]) :
+                                i = self._get_index(irkf,istep)
+                                if i in self.weakrefs.keys() :
+                                        yield self.weakrefs[i]
+                                        continue
+                                crd,cell = rkf.read_frame(istep,molecule=mol)
+                                m = mol.copy()
+                                self.weakrefs[i] = m
+                                yield m
 
         def __getitem__ (self, s) :
                 """
@@ -80,10 +166,14 @@ class Trajectory :
                         indices = range(start,stop,step)
                 mols = []
                 for i in indices :
-                        irkf, istep = self._get_filenum_and_stepnum(i)
-                        # This is always the first molecule
-                        mol = self.molecules[irkf].copy()
-                        crd,cell = self.files[irkf].read_frame(istep,molecule=mol)
+                        if i in self.weakrefs.keys() :
+                                mol = self.weakrefs[i]
+                        else :
+                            irkf, istep = self._get_filenum_and_stepnum(i)
+                            # This is always the first molecule
+                            mol = self.molecules[irkf].copy()
+                            crd,cell = self.files[irkf].read_frame(istep,molecule=mol)
+                            self.weakrefs[i] = mol
                         mols.append(mol)
                 if not is_slice :
                         mols = mols[0]
@@ -91,24 +181,27 @@ class Trajectory :
 
         def run_analysis (self, settings, steprange=None) :
                 """
-                Calls the AMS analysis tool behind the scene
+                Calls the AMS analysis tool behind the scenes
 
                 * ``settings``  -- PLAMS Settings object
-                                   Example :
-                                   settings = Settings()
-                                   settings.input.Task = 'AutoCorrelation' 
-                                   settings.input.AutoCorrelation.Property = 'Velocities'
-                                   settings.input.AutoCorrelation.MaxStep = 2000
-                * ``steprange`` -- Not implemented yet
+                  Example :
+
+                    >>> settings = Settings()
+                    >>> settings.input.Task = 'AutoCorrelation' 
+                    >>> settings.input.AutoCorrelation.Property = 'Velocities'
+                    >>> settings.input.AutoCorrelation.MaxStep = 2000
+
+                * ``steprange`` -- Start frame, end frame, and stepsize. The default (None) corresponds to all frames in the object
 
                 Returns a list of AMSAnalysisPlot objects.
                 Main attributes of the AMSAnalysisPlot objects are :
-                        * ``name``    -- The name of the plot
-                        * ``x``       -- A list of lists containing the values of the coordinate system
-                                         If the coordinate system is 1D, then it is a list containing a single list of values
-                                         x = [[x1,x2,x3,x4,...,xn]]
-                        * ``y``       -- A list containing the function values
-                        * ``write()`` -- A method returning a string containing all plot info
+
+                * ``name``    -- The name of the plot
+                * ``x``       -- A list of lists containing the values of the coordinate system
+                  If the coordinate system is 1D, then it is a list containing a single list of values
+                  x = [[x1,x2,x3,x4,...,xn]]
+                * ``y``       -- A list containing the function values
+                * ``write()`` -- A method returning a string containing all plot info
                 """
                 #First get all the indices
                 s = slice(steprange)
@@ -162,6 +255,12 @@ class Trajectory :
                 if irkf < 0 :
                         raise KeyError('Index out of range')
                 return irkf, istep
+
+        def _get_index (self, irkf, istep) :
+                """
+                Connects the index i to a filenumber and a stepnumber
+                """
+                return sum([l for l in self.lengths[:irkf]]) + istep
 
 def make_recursively_immutable (obj,verbose=False) :
         """
