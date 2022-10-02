@@ -346,17 +346,21 @@ def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
     import numpy as np
     bohr2angstrom = Units.convert(1.0, 'bohr', 'angstrom')
     hartree2eV = Units.convert(1.0, 'hartree', 'eV')
-    def get_ase_atoms(elements, crd, cell, energy, forces, stress):
+    def get_ase_atoms(elements, crd, cell, energy, gradients, stress):
 
-        atoms = Atoms(symbols=elements, positions=np.array(crd).reshape(-1,3), cell=np.array(cell).reshape(-1,3), pbc=['T']*len(cell)+['F']*(3-len(cell)))
+        pbc = None
+        if cell is not None:
+            cell = np.array(cell).reshape(-1,3)
+            pbc = ['T']*len(cell)+['F']*(3-len(cell))
+        atoms = Atoms(symbols=elements, positions=np.array(crd).reshape(-1,3), cell=cell, pbc=pbc)
         if get_results:
             calculator = SinglePointCalculator(atoms)
             atoms.set_calculator(calculator)
 
             if energy:
                 atoms.calc.results['energy'] = energy*hartree2eV
-            if forces:
-                forces = np.array(forces).reshape(-1,3)*hartree2eV/bohr2angstrom
+            if gradients:
+                forces = -np.array(gradients).reshape(-1,3)*hartree2eV/bohr2angstrom
                 atoms.calc.results['forces'] = forces
             if stress:
                 n = len(stress)
@@ -380,11 +384,11 @@ def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
             energy, forces, stress = None, None, None
             if get_results:
                 energy = rkf.historydata.get('Energy', None)
-                forces = rkf.historydata.get('EngineGradients', None)
-                if not forces:
-                    forces = rkf.historydata.get('Gradients', None)
+                gradients = rkf.historydata.get('EngineGradients', None)
+                if not gradients:
+                    gradients = rkf.historydata.get('Gradients', None)
                 stress = rkf.historydata.get('StressTensor', None)
-            atoms = get_ase_atoms(rkf.elements, crd, cell, energy, forces, stress)
+            atoms = get_ase_atoms(rkf.elements, crd, cell, energy, gradients, stress)
             all_atoms.append(atoms)
     else:
         atoms = toASE(Molecule(rkf_filename)) 
