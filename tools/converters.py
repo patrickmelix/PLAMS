@@ -96,6 +96,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
     kf = KFFile(rkftrajectoryfile)
     kf['EngineResults%nEntries'] = 0
     kf['General%user input'] = '\xFF'.join(['Engine External','EndEngine'])
+    kf['General%program'] = 'ams'
     if len(traj) == 1:
         kf['General%task'] = 'singlepoint'
     elif kinetic_energy is None or kinetic_energy == 0:
@@ -140,6 +141,7 @@ def _write_engine_rkf(kffile, enginefile):
         secdict = kf.read_section(sec)
         for k, v in secdict.items():
             enginerkf[sec+'%'+k] = v
+    enginerkf['General%program'] = 'plams'
     nEntries = kf['History%nEntries']
     suffix='({})'.format(nEntries)
     if ('History', 'Energy'+suffix) in kf: enginerkf['AMSResults%Energy'] = kf['History%Energy'+suffix]
@@ -261,7 +263,7 @@ def _postprocess_gaussian_amsrkf(kffile, gaussian_outfile):
         kf['EngineResults%nEntries'] = 1
         kf['EngineResults%Title(1)'] = 'gaussian'
         kf['EngineResults%Description(1)'] = 'Standalone Gaussian. Data from {}'.format(os.path.abspath(gaussian_outfile))
-        kf['EngineResults%Files(1)'] = 'gaussian'
+        kf['EngineResults%Files(1)'] = 'gaussian.rkf'
 
         userinput = ['!Gaussian',
                      'Engine External',
@@ -354,6 +356,7 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
     """
     wdir = text_out_file_to_ams(qe_outfile, wdir, overwrite=overwrite, write_engine_rkf=write_engine_rkf, enginename='qe')
     _postprocess_qe_amsrkf(os.path.join(wdir, 'ams.rkf'), qe_outfile)
+    return wdir
 
 def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf=True):
     """
@@ -372,6 +375,7 @@ def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf
     """
     wdir = text_out_file_to_ams(outfile, wdir, overwrite=overwrite, write_engine_rkf=write_engine_rkf, enginename='gaussian')
     _postprocess_gaussian_amsrkf(os.path.join(wdir, 'ams.rkf'), outfile)
+    return wdir
 
 
 def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
