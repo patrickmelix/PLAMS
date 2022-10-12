@@ -9,7 +9,7 @@ import re
 import os
 import tempfile
 
-__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'rkf_to_ase_traj']
+__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'gaussian_output_to_ams', 'rkf_to_ase_traj']
 
 def traj_to_rkf(trajfile,  rkftrajectoryfile):
     """
@@ -254,22 +254,32 @@ def _postprocess_qe_amsrkf(kffile, qe_outfile):
     finally:
         kf.save()
 
-def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=True):
+def _postprocess_gaussian_amsrkf(kffile, gaussian_outfile):
+    # add extra info to the kffile
+    kf = KFFile(kffile, autosave=False)
+    try:
+        kf['EngineResults%nEntries'] = 1
+        kf['EngineResults%Title(1)'] = 'gaussian'
+        kf['EngineResults%Description(1)'] = 'Standalone Gaussian. Data from {}'.format(os.path.abspath(gaussian_outfile))
+        kf['EngineResults%Files(1)'] = 'gaussian'
+
+        userinput = ['!Gaussian',
+                     'Engine External',
+                     '  Input',
+                     '    Unknown Gaussian input',
+                     '  EndInput',
+                     'EndEngine']
+        kf['General%user input'] = '\xFF'.join(userinput)
+
+    finally:
+        kf.save()
+
+def text_out_file_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=True, enginename='qe'):
     """
-    Converts a qe .out file to ams.rkf and qe.rkf.
+        Converts a qe .out or gaussian .out file to ams.rkf and qe.rkf/gaussian.rkf
 
-    Returns: a string containing the directory where ams.rkf was written
-
-    If the filename ends in .out, check if a .results directory exists. In that case, place
-    the AMSJob subdirectory in the .results directory.
-
-    Otherwise, create a new directory called filename.AMSJob
-
-    qe_outfile : str
-        path to the qe output file
-
+        Do not use this function directly, instaead call qe_output_to_ams or gaussian_output_to_ams
     """
-
     if not os.path.exists(qe_outfile) or os.path.isdir(qe_outfile):
         raise FileNotFoundError(qe_outfile)
 
@@ -307,14 +317,13 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
 
     # remove the target files first if overwrite
     kffile = os.path.join(wdir, 'ams.rkf')
-    enginefile = os.path.join(wdir, 'qe.rkf')
+    enginefile = os.path.join(wdir, f'{enginename}.rkf')
     _remove_or_raise(kffile, overwrite)
     _remove_or_raise(enginefile, overwrite)
 
     # convert the .traj file to ams.rkf
     traj_to_rkf(trajfile, kffile)
 
-    _postprocess_qe_amsrkf(kffile, qe_outfile)
     if write_engine_rkf:
         # here one could also run $AMSBIN/tokf to get things like the DOS
         # $AMSBIN/tokf qe qe_outfile enginefile
@@ -326,6 +335,43 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
         os.remove(trajfile)
 
     return wdir
+
+
+def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=True):
+    """
+    Converts a qe .out file to ams.rkf and qe.rkf.
+
+    Returns: a string containing the directory where ams.rkf was written
+
+    If the filename ends in .out, check if a .results directory exists. In that case, place
+    the AMSJob subdirectory in the .results directory.
+
+    Otherwise, create a new directory called filename.AMSJob
+
+    qe_outfile : str
+        path to the qe output file
+
+    """
+    wdir = text_out_file_to_ams(qe_outfile, wdir, overwrite=overwrite, write_engine_rkf=write_engine_rkf, enginename='qe')
+    _postprocess_qe_amsrkf(os.path.join(wdir, 'ams.rkf'), qe_outfile)
+
+def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf=True):
+    """
+    Converts a Gaussian .out file to ams.rkf and gaussian.rkf.
+
+    Returns: a string containing the directory where ams.rkf was written
+
+    If the filename ends in .out, check if a .results directory exists. In that case, place
+    the AMSJob subdirectory in the .results directory.
+
+    Otherwise, create a new directory called filename.AMSJob
+
+    outfile : str
+        path to the gaussian output file
+
+    """
+    wdir = text_out_file_to_ams(outfile, wdir, overwrite=overwrite, write_engine_rkf=write_engine_rkf, enginename='gaussian')
+    _postprocess_gaussian_amsrkf(os.path.join(wdir, 'ams.rkf'), outfile)
 
 
 def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
