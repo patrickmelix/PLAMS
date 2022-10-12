@@ -18,7 +18,7 @@ from ...mol.bond import Bond
 from ...tools.kftools import KFFile
 from ...tools.units import Units
 from ...trajectories.rkffile import RKFTrajectoryFile
-from ...tools.converters import vasp_output_to_ams, qe_output_to_ams
+from ...tools.converters import vasp_output_to_ams, qe_output_to_ams, gaussian_output_to_ams
 
 try:
     from watchdog.observers import Observer
@@ -1798,16 +1798,24 @@ class AMSJob(SingleJob):
             preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
         elif os.path.exists(path):
-            # check if path is a Quantum ESPRESSO .out file
-            # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
-            # they do not exist)
-            if fmt =='qe' or (fmt == 'any' and not path.endswith('rkf')):
-                try:
+            from ase.io.formats import filetype
+            try:
+                ft = filetype(path)
+                # check if path is a Quantum ESPRESSO .out file
+                # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
+                # they do not exist)
+                if fmt == 'qe':
+                    assert ft == 'espresso-out', f"The file {path} does not seem to be a Quantum ESPRESSO output file"
+                if fmt == 'gaussian':
+                    assert ft == 'gaussian-out', f"The file {path} does not seem to be a Gaussian output file"
+                if fmt =='qe' or (fmt == 'any' and not path.endswith('rkf')):
                     path = qe_output_to_ams(path, overwrite=False)
-                except:
-                    # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
-                    # assume that any exception means that the file was not a QE output file
-                    pass
+                elif fmt == 'gaussian' or (fmt == 'any' and not path.endswith('rkf')):
+                    path = gaussian_output_to_ams(path, overwrite=False)
+            except Exception as e:
+                # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
+                # assume that any exception means that the file was not a QE output file
+                pass
 
         if not os.path.isdir(path):
             if os.path.exists(path):
