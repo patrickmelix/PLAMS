@@ -1808,9 +1808,9 @@ class AMSJob(SingleJob):
                     assert ft == 'espresso-out', f"The file {path} does not seem to be a Quantum ESPRESSO output file"
                 if fmt == 'gaussian':
                     assert ft == 'gaussian-out', f"The file {path} does not seem to be a Gaussian output file"
-                if fmt =='qe' or (fmt == 'any' and not path.endswith('rkf')):
+                if ft == 'espresso-out' and (fmt =='qe' or (fmt == 'any' and not path.endswith('rkf'))):
                     path = qe_output_to_ams(path, overwrite=False)
-                elif fmt == 'gaussian' or (fmt == 'any' and not path.endswith('rkf')):
+                elif ft == 'gaussian-out' and (fmt == 'gaussian' or (fmt == 'any' and not path.endswith('rkf'))):
                     path = gaussian_output_to_ams(path, overwrite=False)
             except Exception as e:
                 # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
