@@ -1547,29 +1547,50 @@ class AMSJob(SingleJob):
             """
             ret = ''
             if isinstance(value, Settings):
+                # Open block ...
                 ret += ' '*indent + key
+                # ... with potential header
                 if '_h' in value:
                     ret += ' ' + unspec(value['_h'])
                 ret += '\n'
 
+                # Free block, or explicitly placed lines with _1, _2, ...
                 i = 1
                 while ('_'+str(i)) in value:
                     ret += serialize('', value['_'+str(i)], indent+2)
                     i += 1
 
-                for el in value:
-                    if not el.startswith('_'):
-                        split_key = key.lower().split()
-                        split_el = el.lower().split()
-                        if len(split_key) > 0 and split_key[0] == 'engine' and el.lower() == 'input':
-                            ret += serialize(el, value[el], indent+2, 'EndInput')
-                        # REB: For the hybrid engine. How todeal with the space in el (Engine DFTB)? Replace by underscore?
-                        elif len(split_el) > 0 and split_el[0] == 'engine':
-                            engine = ' '.join(el.split('_'))
-                            ret += serialize(engine, value[el], indent+2, end='EndEngine') + '\n'
+                # Figure out the order in which we should serialize the entries in the block
+                if "_o" in value:
+                    # Ordered block: we need to serialize the contents in the order given by "_o"
+                    children = []
+                    for v in value["_o"]:
+                        ckey, _, idx = v.partition('[')
+                        if idx:
+                            # Child is a recurring entry, e.g. SubBlock[5]
+                            idx = int(idx.rstrip("]"))
+                            children.append((ckey,value[ckey][idx-1]))
                         else:
-                            ret += serialize(el, value[el], indent+2)
+                            # Child is a unique entry
+                            children.append((ckey,value[ckey]))
+                else:
+                    # Unordered block: normal Python order when iterating over a dict/Settings
+                    children = [(ckey,value[ckey]) for ckey in value if not ckey.startswith('_')]
 
+                # Serialize all children
+                for ckey, cvalue in children:
+                    split_key = key.lower().split()
+                    split_ckey = ckey.lower().split()
+                    if len(split_key) > 0 and split_key[0] == 'engine' and ckey.lower() == 'input':
+                        ret += serialize(ckey, cvalue, indent+2, 'EndInput')
+                    # REB: For the hybrid engine. How to deal with the space in ckey (Engine DFTB)? Replace by underscore?
+                    elif len(split_ckey) > 0 and split_ckey[0] == 'engine':
+                        engine = ' '.join(ckey.split('_'))
+                        ret += serialize(engine, cvalue, indent+2, end='EndEngine') + '\n'
+                    else:
+                        ret += serialize(ckey, cvalue, indent+2)
+
+                # Close block
                 if key.lower() == 'input': end='endinput'
                 ret += ' '*indent + end+'\n'
 
