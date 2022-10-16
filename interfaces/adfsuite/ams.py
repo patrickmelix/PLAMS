@@ -604,9 +604,12 @@ class AMSResults(Results):
 
             'HistoryIndices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
 
+            'ConstrainedAtoms': set of int, all atom indices (1-based) that were part of of any constraints
+
             'Properties': list of dict. The dictionary keys are what can be found on the AMSResults section of the engine .rkf file. These will only be populated if "CalcPropertiesAtPESPoints" is set to Yes when running the PES scan.
 
         """
+        import re
         def tolist(x):
             if isinstance(x, list):
                 return x
@@ -648,8 +651,18 @@ class AMSResults(Results):
 
         raveled_scancoords = [x[i] for x in scancoords for i in range(len(x))] # 1d list
         raveled_units = [x[i] for x in units for i in range(len(x))] # 1d list
+
+        constrained_atoms = []
+        for sc in raveled_scancoords:
+            constrained_atoms.extend(re.findall(r"\((\d+)\)", sc))
+        try:
+            constrained_atoms = set(int(x) for x in constrained_atoms)
+        except ValueError:
+            constrained_atoms = set()
+
         ret['RaveledScanCoords'] = raveled_scancoords
         ret['nRaveledScanCoords'] = len(raveled_scancoords)
+        ret['ConstrainedAtoms'] = constrained_atoms
         ret['ScanCoords'] = scancoords
         ret['nScanCoords'] = len(scancoords)
         ret['OrigScanCoords'] = origscancoords #newline delimiter for joint scan coordinates
