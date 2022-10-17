@@ -604,7 +604,7 @@ class AMSResults(Results):
 
             'HistoryIndices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
 
-            'ConstrainedAtoms': set of int, all atom indices (1-based) that were part of of any constraints
+            'ConstrainedAtoms': set of int, all atom indices (1-based) that were part of any PESScan scan coordinates (other constrained atoms are not included)
 
             'Properties': list of dict. The dictionary keys are what can be found on the AMSResults section of the engine .rkf file. These will only be populated if "CalcPropertiesAtPESPoints" is set to Yes when running the PES scan.
 
