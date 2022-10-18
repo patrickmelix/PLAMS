@@ -1567,10 +1567,14 @@ class AMSJob(SingleJob):
                     ret += ' ' + unspec(value['_h'])
                 ret += '\n'
 
-                # Free block, or explicitly placed lines with _1, _2, ...
+                # Free block, or explicitly placed entries with _1, _2, ...
                 i = 1
-                while ('_'+str(i)) in value:
-                    ret += serialize('', value['_'+str(i)], indent+2)
+                while f'_{i}' in value:
+                    if isinstance(value[f'_{i}'], Settings):
+                        for ckey in value[f'_{i}']:
+                            ret += serialize(ckey, value[f'_{i}'][ckey], indent+2)
+                    else:
+                        ret += serialize('', value['_'+str(i)], indent+2)
                     i += 1
 
                 # Figure out the order in which we should serialize the entries in the block
