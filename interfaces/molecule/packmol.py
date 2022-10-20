@@ -5,7 +5,7 @@ from typing import List, Union
 from ...core.private import saferun
 from ...mol.molecule import Molecule
 from ...core.settings import Settings
-from .ase import toASE, fromASE
+from ...tools.geometry import distance_array
 import tempfile
 import subprocess
 
@@ -445,35 +445,20 @@ def get_n_from_density_and_box_bounds(molecule, box_bounds, density):
     return n_molecules
 
 def packmol_microsolvation(solute:Molecule, solvent:Molecule, density:float=1.0, threshold:float=3.0, executable:str=None):
-    ase_solute = toASE(solute)
-    com = np.mean(ase_solute.get_positions(), axis=0)
-    ase_solute.set_positions(ase_solute.get_positions() - com)
-    box_bounds = [0, 0, 0] + list(np.max(ase_solute.get_positions(), axis=0) - np.min(ase_solute.get_positions(), axis=0) + 3*threshold)
+    solute_coords = solute.as_array()
+    com = np.mean(solute_coords, axis=0)
+    plams_solute = solute.copy()
+    plams_solute.translate(-com)
+    solute_coords = plams_solute.as_array()
+    box_bounds = [0, 0, 0] + list(np.max(solute_coords, axis=0) - np.min(solute_coords, axis=0) + 3*threshold)
 
-    plams_solute = fromASE(ase_solute)
     n_solvent = get_n_from_density_and_box_bounds(solvent, box_bounds, density=density)
 
     plams_solvated = packmol([plams_solute, solvent], n_molecules=[1, n_solvent], box_bounds=box_bounds, sphere=True)
 
     plams_solvated.guess_bonds()
-    molecule_indices = plams_solvated.get_molecule_indices() # [[0,1,2],[3,4],[5,6],...]
+    newmolecule = plams_solvated.get_complete_molecules_within_threshold(slice(0, len(solute)), threshold=threshold)
 
-    ase_solvated = toASE(plams_solvated)
-    D = ase_solvated.get_all_distances()[:len(solute)]
-    less_equal = np.less_equal(D, threshold)
-    within_threshold = np.any(less_equal, axis=0)
-    good_indices = [i for i, value in enumerate(within_threshold) if value]
-
-    complete_indices = set()
-    for indlist in molecule_indices:
-        for ind in good_indices:
-            if ind in indlist:
-                complete_indices = complete_indices.union(indlist)
-                break
-    complete_indices = sorted(list(complete_indices))
-
-    newatoms = ase_solvated[complete_indices]
-    newmolecule = fromASE(newatoms)
 
     return newmolecule
 

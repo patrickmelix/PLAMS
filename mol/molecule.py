@@ -1139,6 +1139,40 @@ class Molecule:
 
         return ret
 
+    def get_complete_molecules_within_threshold(self, atom_indices, threshold:float):
+        """
+            Returns a new molecule containing complete submolecules for any molecules
+            that are closer than ``threshold`` to any of the atoms in ``atom_indices``.
+
+            Note: This only works for nonperiodic systems.
+
+            atom_indices: list of int
+                Zero-based indices of the atoms
+
+            threshold : float
+                Distance threshold for whether to include molecules
+        """
+        if self.lattice:
+            raise ValueError("Cannot run get_complete_molecules_within_threshold() on a Molecule with a lattice")
+        molecule_indices = self.get_molecule_indices() # [[0,1,2],[3,4],[5,6],...]
+
+        solvated_coords = self.as_array()
+        D = distance_array(solvated_coords, solvated_coords)[atom_indices]
+        less_equal = np.less_equal(D, threshold)
+        within_threshold = np.any(less_equal, axis=0)
+        good_indices = [i for i, value in enumerate(within_threshold) if value]
+
+        complete_indices = set()
+        for indlist in molecule_indices:
+            for ind in good_indices:
+                if ind in indlist:
+                    complete_indices = complete_indices.union(indlist)
+                    break
+        complete_indices = sorted(list(complete_indices))
+
+        newmolecule = self.get_fragment([i for i in complete_indices])
+        return newmolecule
+
     def locate_rings (self) :
         """
         Find the rings in the structure
