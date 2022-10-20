@@ -15,7 +15,7 @@ class PackMolFailedException(Exception):
 
 
 class PackMolStructure:
-    def __init__(self, molecule : Molecule, n_molecules:int=None, n_atoms:int=None, box_bounds:List[float]=None, density:float=None, fixed:bool=False):
+    def __init__(self, molecule : Molecule, n_molecules:int=None, n_atoms:int=None, box_bounds:List[float]=None, density:float=None, fixed:bool=False, sphere:bool=False):
         """
 
         Class representing a packmol structure.
@@ -38,11 +38,14 @@ class PackMolStructure:
         fixed: bool
             Whether the structure should be fixed at its original coordinates.
 
+        sphere: bool
+            Whether the molecules should be packed in a sphere. The radius is determined by getting the volume from the box bounds! Cannot be combined with ``fixed`` (``fixed`` takes precedence).
+
         """
         self.molecule = molecule
         if fixed:
-            assert(n_molecules is None)
-            assert(box_bounds is None)
+            assert(n_molecules is None or n_molecules == 1)
+            #assert(box_bounds is None)
             assert(density is None)
             self.n_molecules = 1
             if molecule.lattice and len(molecule.lattice) == 3:
@@ -50,6 +53,7 @@ class PackMolStructure:
             else:
                 self.box_bounds = None
             self.fixed = True
+            self.sphere = False
         else:
             if box_bounds and density:
                 if n_molecules or n_atoms:
@@ -60,6 +64,7 @@ class PackMolStructure:
             assert(box_bounds or density)
             self.box_bounds = box_bounds or self._get_box_bounds(self.molecule, self.n_molecules, density)
             self.fixed = False
+            self.sphere = sphere
 
     def _get_n_molecules_from_density_and_box_bounds(self, molecule:Molecule, box_bounds:List[float], density:float):
         """ density in g/cm^3 """ 
@@ -91,6 +96,17 @@ class PackMolStructure:
             number 1
             fixed 0. 0. 0. 0. 0. 0.
             avoid_overlap yes
+            end structure
+            '''
+        elif self.sphere:
+            vol = self.get_volume()
+            # vol = 4*pi*r^3 /3 
+            # radius = (3*vol/(4*pi))**0.33333
+            radius = (3*vol/(4*3.14159))**0.3333
+            ret = f'''
+            structure {fname}
+              number {self.n_molecules}
+              inside sphere 0. 0. 0. {radius}
             end structure
             '''
         else:
@@ -136,12 +152,12 @@ class PackMol:
         self.structures.append(structure)
 
     def _get_complete_box_bounds(self):
-        min_x = min(s.box_bounds[0] for s in self.structures)
-        min_y = min(s.box_bounds[1] for s in self.structures)
-        min_z = min(s.box_bounds[2] for s in self.structures)
-        max_x = min(s.box_bounds[3] for s in self.structures)
-        max_y = min(s.box_bounds[4] for s in self.structures)
-        max_z = min(s.box_bounds[5] for s in self.structures)
+        min_x = min(s.box_bounds[0] for s in self.structures if s.box_bounds is not None)
+        min_y = min(s.box_bounds[1] for s in self.structures if s.box_bounds is not None)
+        min_z = min(s.box_bounds[2] for s in self.structures if s.box_bounds is not None)
+        max_x = min(s.box_bounds[3] for s in self.structures if s.box_bounds is not None)
+        max_y = min(s.box_bounds[4] for s in self.structures if s.box_bounds is not None)
+        max_z = min(s.box_bounds[5] for s in self.structures if s.box_bounds is not None)
 
         #return min_x, min_y, min_z, max_x+self.tolerance, max_y+self.tolerance, max_z+self.tolerance
         return min_x, min_y, min_z, max_x, max_y, max_z
@@ -150,6 +166,8 @@ class PackMol:
         """
             returns a 3x3 list using the smallest and largest x/y/z box_bounds for all structures
         """
+        if any(s.sphere for s in self.structures):
+            return []
         min_x, min_y, min_z, max_x, max_y, max_z = self._get_complete_box_bounds()
         return [[max_x-min_x, 0., 0.], [0., max_y-min_y, 0.], [0., 0., max_z-min_z]]
 
@@ -191,7 +209,7 @@ class PackMol:
 
         return output_molecule
 
-def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:Union[List[int],int]=None, region_names:List[str]=None, return_details:bool=False, executable:str=None):
+def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]=None, density:float=None, n_atoms:int=None, box_bounds:List[float]=None, n_molecules:Union[List[int],int]=None, sphere:bool=False, region_names:List[str]=None, return_details:bool=False, executable:str=None):
     """
 
         Create a fluid of the given ``molecules``. The function will use the
@@ -305,8 +323,14 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
         raise ValueError(f"Illegal combination of options: n_atoms={n_atoms}, n_molecules={n_molecules}, box_bounds={box_bounds}, density={density}")
 
     pm = PackMol(executable=executable)
-    for mol, n_mol in zip(molecules, coeffs):
-        pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds))
+    for i, (mol, n_mol) in enumerate(zip(molecules, coeffs)):
+        if sphere:
+            if i == 0:
+                pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, fixed=True, sphere=False))
+            else:
+                pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, fixed=False, sphere=True))
+        else:
+            pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds))
 
     out = pm.run()
 
@@ -329,12 +353,16 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
     details = {
         'n_molecules': coeffs.tolist(),
         'mole_fractions': (coeffs/np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else [0.0]*len(coeffs),
-        'density': out.get_density()*1e-3,
         'n_atoms': len(out),
         'molecule_type_indices': molecule_type_indices, # for each atom, indicate which type of molecule it belongs to by an integer index (starts with 0)
         'molecule_indices': molecule_indices, # for each atoms, indicate which molecule it belongs to by an integer index (starts with 0)
         'atom_indices_in_molecule': atom_indices_in_molecule,
     }
+    try:
+        details['density']  = out.get_density()*1e-3,
+    except ValueError:
+        details['density'] = None
+        pass # if not periodict
 
     if region_names:
         region_names = tolist(region_names)
