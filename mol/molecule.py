@@ -1147,7 +1147,7 @@ class Molecule:
             Note: This only works for nonperiodic systems.
 
             atom_indices: list of int
-                Zero-based indices of the atoms
+                One-based indices of the atoms
 
             threshold : float
                 Distance threshold for whether to include molecules
@@ -1157,7 +1157,8 @@ class Molecule:
         molecule_indices = self.get_molecule_indices() # [[0,1,2],[3,4],[5,6],...]
 
         solvated_coords = self.as_array()
-        D = distance_array(solvated_coords, solvated_coords)[atom_indices]
+        zero_based_indices = [x-1 for x in atom_indices]
+        D = distance_array(solvated_coords, solvated_coords)[zero_based_indices]
         less_equal = np.less_equal(D, threshold)
         within_threshold = np.any(less_equal, axis=0)
         good_indices = [i for i, value in enumerate(within_threshold) if value]

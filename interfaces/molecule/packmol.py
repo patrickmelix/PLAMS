@@ -457,7 +457,8 @@ def packmol_microsolvation(solute:Molecule, solvent:Molecule, density:float=1.0,
     plams_solvated = packmol([plams_solute, solvent], n_molecules=[1, n_solvent], box_bounds=box_bounds, sphere=True)
 
     plams_solvated.guess_bonds()
-    newmolecule = plams_solvated.get_complete_molecules_within_threshold(slice(0, len(solute)), threshold=threshold)
+    atom_indices = [i for i,at in enumerate(plams_solvated, 1) if i <= len(solute)]
+    newmolecule = plams_solvated.get_complete_molecules_within_threshold(atom_indices, threshold=threshold)
 
 
     return newmolecule
