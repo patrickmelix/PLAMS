@@ -8,7 +8,11 @@ from ...core.settings import Settings
 import tempfile
 import subprocess
 
-__all__ = ['PackMolStructure', 'PackMol', 'packmol_liquid', 'packmol_solid_liquid', 'packmol_solid_liquid_mixture', 'packmol_mixture', 'packmol', 'packmol_on_slab']
+__all__ = ['PackMolStructure', 'PackMol', 'packmol_liquid', 'packmol_solid_liquid', 'packmol_solid_liquid_mixture', 'packmol_mixture', 'packmol', 'packmol_on_slab', 'PackMolFailedException']
+
+class PackMolFailedException(Exception):
+    pass
+
 
 class PackMolStructure:
     def __init__(self, molecule : Molecule, n_molecules:int=None, n_atoms:int=None, box_bounds:List[float]=None, density:float=None, fixed:bool=False):
@@ -180,6 +184,8 @@ class PackMol:
             saferun(self.executable, stdin=my_input, stdout=subprocess.DEVNULL)
             my_input.close()
 
+            if not os.path.exists(output_fname):
+                raise PackMolFailedException("Packmol failed. It may work if you try a lower density.")
             output_molecule = Molecule(output_fname) # without periodic boundary conditions
             output_molecule.lattice = self._get_complete_lattice()
 
