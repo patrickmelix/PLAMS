@@ -2091,3 +2091,23 @@ class AMSJob(SingleJob):
             properties.set_nested(key.split('.'), val)
 
         return properties
+
+    @staticmethod
+    def _add_region(atom:Atom, name:str):
+        """
+            Converts atom.properties.region to a set if it isn't already a set.
+
+            Adds the name to the set.
+
+            If name is None, then only the conversion of atom.properties.region is performed.
+        """
+        if 'region' not in atom.properties:
+            atom.properties.region = set()
+        if isinstance(atom.properties.region, str):
+            atom.properties.region = set([atom.properties.region])
+        if not isinstance(atom.properties.region, set):
+            atom.properties.region = set(atom.properties.region)
+        if name is None:
+            return
+        atom.properties.region.add(name)
+
