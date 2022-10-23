@@ -9,7 +9,7 @@ import re
 import os
 import tempfile
 
-__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'gaussian_output_to_ams', 'rkf_to_ase_traj']
+__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'gaussian_output_to_ams', 'rkf_to_ase_traj', 'rkf_to_ase_atoms']
 
 def traj_to_rkf(trajfile,  rkftrajectoryfile):
     """
@@ -378,9 +378,9 @@ def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf
     return wdir
 
 
-def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
+def rkf_to_ase_atoms(rkf_file, get_results=True):
     """
-        Convert an ams.rkf trajectory to an ASE trajectory.
+        Convert an ams.rkf trajectory to a list of ASE atoms 
 
         rkf_file: str
             Path to an ams.rkf file
@@ -392,7 +392,6 @@ def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
     """
     from ase import Atoms
     from ase.calculators.singlepoint import SinglePointCalculator
-    from ase.io import write
     import numpy as np
     bohr2angstrom = Units.convert(1.0, 'bohr', 'angstrom')
     hartree2eV = Units.convert(1.0, 'hartree', 'eV')
@@ -444,6 +443,10 @@ def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
         atoms = toASE(Molecule(rkf_filename)) 
         all_atoms = [atoms]
 
-    write(out_file, all_atoms)
+    return all_atoms
 
+def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
+    from ase.io import write
+    all_atoms = rkf_to_ase_atoms(rkf_file, get_results=get_results)
+    write(out_file, all_atoms)
     return all_atoms

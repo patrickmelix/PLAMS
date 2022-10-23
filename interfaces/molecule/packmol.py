@@ -6,6 +6,7 @@ from ...core.private import saferun
 from ...mol.molecule import Molecule
 from ...core.settings import Settings
 from ...tools.geometry import distance_array
+from ...interfaces.adfsuite.ams import AMSJob
 import tempfile
 import subprocess
 
@@ -371,7 +372,7 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
         region_names = [f'mol{i}' for i in range(len(molecules))]
 
     for at, molindex in zip(out, molecule_type_indices):
-        at.properties.suffix = f'region={region_names[molindex]}'
+        AMSJob._add_region(at, region_names[molindex]) 
 
     if return_details:
         return out, details
@@ -460,6 +461,11 @@ def packmol_microsolvation(solute:Molecule, solvent:Molecule, density:float=1.0,
     atom_indices = [i for i,at in enumerate(plams_solvated, 1) if i <= len(solute)]
     newmolecule = plams_solvated.get_complete_molecules_within_threshold(atom_indices, threshold=threshold)
 
+    for i, at in enumerate(newmolecule, 1):
+        region_name = 'solvent'
+        if i <= len(solute):
+            region_name = 'solute'
+        AMSJob._add_region(at, region_name)
 
     return newmolecule
 
