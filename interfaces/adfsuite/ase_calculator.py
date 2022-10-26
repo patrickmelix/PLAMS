@@ -2,6 +2,7 @@
 
 """
 import numpy as np
+from copy import deepcopy
 
 from .amsworker import AMSWorker
 from .ams import AMSJob
@@ -248,6 +249,19 @@ class AMSPipeCalculator(AMSCalculator):
                                                 molecule = molecule,
                                                 settings = job_settings
                                                )
+
+    def __deepcopy__(self, memo):
+        """The AMSWorker instance is not copied, but instead, all the copies use the same worker"""
+        memo[id(self.worker)] = self.worker
+        try:
+            this_method = self.__deepcopy__
+            self.__deepcopy__ = None
+            copy = deepcopy(self, memo)
+            self.__deepcopy__ = this_method
+            return copy
+        except Exception as e:
+            self.__deepcopy__ = this_method
+            raise e
 
 
 class AMSJobCalculator(AMSCalculator):
