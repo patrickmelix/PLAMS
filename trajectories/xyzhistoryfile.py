@@ -168,7 +168,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                         line = self.file_object.readline()
                         words = line.split()
                         lattice.append([float(w) for w in words[1:]])
-                if cell is None:
+                if cell is None and len(lattice)>0:
                         cell = lattice
 
                 # Assign the data to the molecule object
