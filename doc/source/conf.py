@@ -272,6 +272,8 @@ rst_epilog = """
 .. |AMSPipeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeError`
 .. |AMSPipeRuntimeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeRuntimeError`
 
+.. |AMSCalculator| replace:: :class:`~scm.plams.interfaces.adfsuite.ase_calculator.AMSCalculator`
+
 .. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
 .. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`
 
