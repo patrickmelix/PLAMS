@@ -171,16 +171,14 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 self.removed_atoms = {} 
                 self.chemical_systems = {0:1} 
                 secname = 'ChemicalSystem(1)'
-                if self.file_object.reader._sections is None :
-                        self.file_object.reader._create_index()
-                if not 'SystemVersionHistory' in self.file_object.reader._sections :
+                if not 'SystemVersionHistory' in self.file_object.sections() :
                         secname = 'InputMolecule'
                 RKFTrajectoryFile._read_header (self, molecule_section=secname)
 
                 # Now store the added and removed atoms along the trajectory
                 # (This might be slow?)
                 # I could also do it on the fly, but that may be messy when we move back and forth through the file
-                if not 'SystemVersionHistory' in self.file_object.reader._sections :
+                if not 'SystemVersionHistory' in self.file_object.sections() :
                         return
                 #version = 0
                 version = 1
@@ -312,8 +310,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         coords = self.coords.reshape((len(elements)*3))
                         # Rebuild the molecule (bonds will disappear for now)
                         if isinstance(molecule,Molecule) :
-                                self.props = props
+                                #self.props = props
                                 secname = 'ChemicalSystem(%i)'%(self.chemical_systems[ifr])
+                                if not 'SystemVersionHistory' in self.file_object.sections():
+                                        secname = 'InputMolecule'
                                 section_dict = self.file_object.read_section(secname)
                                 new_mol = Molecule._mol_from_rkf_section(section_dict)
                                 for at in reversed(molecule.atoms) :
@@ -323,6 +323,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                         atom = new_mol.atoms[iel]
                                         #atom = Atom(PT.get_atomic_number(el))
                                         molecule.add_atom(atom)
+                                _, _, _, _, self.props = self._read_plamsmol(molecule)
                                 # Now what if the elements found in this ChemicalSystem section
                                 # do not match the expected elements (self.elements)?
                                 new_elements = [at.symbol for at in molecule.atoms]
