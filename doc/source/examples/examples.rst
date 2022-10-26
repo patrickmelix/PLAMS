@@ -56,6 +56,7 @@ Packmol and AMS-ASE interfaces
 
    PackMolExample
    ASECalculator
+   i-PI-AMS
 
 Other AMS calculations
 ------------------------

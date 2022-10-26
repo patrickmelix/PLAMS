@@ -110,7 +110,10 @@ class AMSCalculator(Calculator):
                 is appended to the name for every calculation.
     amsworker : bool , optional
                 If True, use the AMSWorker to set up an interactive session. Otherwise
-                use AMSJob to set up an io session.
+                use AMSJob to set up an io session. The AMSWorker will spawn a seperate
+                process (an amsdriver). In order to make sure this process is closed,
+                either use AMSCalculator as a context manager or ensure that 
+                AMSCalculator.stop_worker() is called before python is finished.
     restart   : bool , optional
                 Allow the engine to restart based on previous calculations.
     molecule  : Molecule , optional
@@ -219,6 +222,20 @@ class AMSCalculator(Calculator):
             if extractor.name in properties:
                 extractor.set_settings(settings)
         return settings
+
+    def stop_worker(self):
+        """Stops the amsworker if it exists"""
+        if hasattr(self,'worker') and self.worker:
+            return self.worker.stop()
+        else:
+            #this is what AMSWorker.stop() would return if it was already stopped previously
+            return (None, None)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.stop_worker()
 
 
 class AMSPipeCalculator(AMSCalculator):
