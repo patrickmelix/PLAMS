@@ -70,8 +70,13 @@ if ase_present:
 
 
 
-def toASE(molecule):
-    """Convert a PLAMS |Molecule| to an ASE molecule (``ase.Atoms`` instance). Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved."""
+def toASE(molecule, set_atomic_charges=False):
+    """Convert a PLAMS |Molecule| to an ASE molecule (``ase.Atoms`` instance). Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved.
+    
+    
+    set_atomic_charges: bool
+        If True, set_initial_charges() will be called with the average atomic charge (taken from molecule.properties.charge). The purpose is to preserve the total charge, not to set any reasonable initial charges.
+    """
     aseMol = aseAtoms()
 
     #iterate over PLAMS atoms
@@ -101,11 +106,20 @@ def toASE(molecule):
         aseMol.set_pbc(pbc)
         aseMol.set_cell(lattice)
 
+    if set_atomic_charges:
+        charge = molecule.properties.get('charge', 0)
+        if not charge:
+            atomic_charges = [0]*len(molecule)
+        else:
+            atomic_charges = [float(charge)/len(molecule)]*len(molecule) 
+
+        aseMol.set_initial_charges(atomic_charges)
+
     return aseMol
 
 
 
-def fromASE(molecule, properties=None):
+def fromASE(molecule, properties=None, set_charge=False):
     """Convert an ASE molecule to a PLAMS |Molecule|. Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved.
 
     Pass a |Settings| instance through the ``properties`` option to inherit them to the returned molecule.
@@ -130,4 +144,6 @@ def fromASE(molecule, properties=None):
 
     if properties:
         plamsMol.properties.update(properties)
+    if (properties and 'charge' not in properties  or not properties) and set_charge:
+        plamsMol.properties.charge = sum(molecule.get_initial_charges())
     return plamsMol

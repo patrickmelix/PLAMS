@@ -192,7 +192,7 @@ class AMSCalculator(Calculator):
         if len(system_changes) == 0:
             return
 
-        molecule = fromASE(self.atoms)
+        molecule = fromASE(self.atoms, set_charge=True)
         ams_results = self._get_ams_results(molecule, properties)
         if not ams_results.ok():
             self.results = dict()
