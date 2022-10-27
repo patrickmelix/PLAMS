@@ -231,6 +231,10 @@ class AMSCalculator(Calculator):
             #this is what AMSWorker.stop() would return if it was already stopped previously
             return (None, None)
 
+    def clean_exit(self):
+        """ Function called by ASEPipeWorker to tell the Calculator to stop and clean up """
+        self.stop_worker()
+
     def __enter__(self):
         return self
 
