@@ -1,6 +1,8 @@
 #!/usr/bin/env amspython
 from scm.plams import *
 from ase.optimize import BFGS
+import os
+from ase.calculators.calculator import Calculator
 
 def get_atoms():
     # water in a box
@@ -90,6 +92,23 @@ def ase_deepcopy_worker():
         print(f"Energy (eV) for H2O at 0.9A: {e1}")
         print(f"Energy (eV) for H2O at 1.0A: {e2}")
     
+def ams_with_custom_ase_calculator():
+    atoms = get_atoms()
+    s = Settings()
+    s.input.ams.task = 'GeometryOptimization'
+    s.input.ams.GeometryOptimization.Convergence.Gradients = 0.01 # hartree/ang
+    s.input.MLPotential.backend = 'ASE'
+    s.input.MLPotential.ASECalculatorFile = os.path.abspath(__file__)   # get it from the current file's get_calculator() method
+    s.runscript.nproc = 1
+    job = AMSJob(settings=s, molecule=fromASE(atoms), name='ams_with_custom_ase_calculator')
+    job.run()
+    print(f"AMS with custom ASE calculator (MLPotential Backend%ASE), EMT potential: final energy {job.results.get_energy(unit='eV')} eV")
+
+def get_calculator(**kwargs):
+    """ Return an ASE calculator for use with the MLPotential%Backend = ASE. The function must be called "get_calculator" """
+    from ase.calculators.emt import EMT
+    return EMT()
+
 def main():
     init()
     singlepoint()
@@ -97,6 +116,7 @@ def main():
     ase_geoopt()
     ase_geoopt_workermode()
     ase_deepcopy_worker()
+    ams_with_custom_ase_calculator()
     finish()
 
 if __name__ == '__main__':
