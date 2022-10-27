@@ -7,11 +7,13 @@ Packmol (`Packmol website <http://leandro.iqm.unicamp.br/m3g/packmol/home.shtml>
 
 * uniform mixtures
 * solid/liquid interfaces
+* microsolvation
 
-There are two main functions:
+There are three main functions:
 
 * ``packmol`` (for fluids with 1 or more components)
 * ``packmol_on_slab`` (for solid/liquid or solid/gas interfaces with 1 or more components in the fluid)
+* ``packmol_microsolvation`` (for microsolvation of a solute with a solvent)
 
 See the :ref:`Packmol example <PackMolExample>` for all the ways these functions can be used.
 
@@ -25,4 +27,4 @@ the packmol program included with the Amsterdam Modeling Suite will be used.
 
 .. autofunction:: packmol_on_slab
 
-
+.. autofunction:: packmol_microsolvation

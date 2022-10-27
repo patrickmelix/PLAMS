@@ -1,5 +1,5 @@
 #!/usr/bin/env amspython
-from scm.plams import from_smiles, packmol, packmol_on_slab, fromASE, refine_lattice
+from scm.plams import from_smiles, packmol, packmol_on_slab, packmol_microsolvation, fromASE, refine_lattice
 from ase.build import fcc111
 
 def printsummary(mol, details=None):
@@ -88,6 +88,12 @@ def main():
     out = packmol_on_slab(slab, [water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], density=density)
     printsummary(out)
     out.write('al-water-acetonitrile.xyz')
+
+    print('\nMICROSOLVATION\n')
+    out = packmol_microsolvation(solute=acetonitrile, solvent=water, density=1.5, threshold=3.5)
+    # for microsolvation it's a good idea to have a higher density than normal to get enough solvent molecules
+    print(f"Microsolvated structure: {len(out)} atoms.")
+    out.write('acetonitrile-microsolvated.xyz')
 
 if __name__ == '__main__':
     main()

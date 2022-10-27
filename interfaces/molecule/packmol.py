@@ -446,6 +446,25 @@ def get_n_from_density_and_box_bounds(molecule, box_bounds, density):
     return n_molecules
 
 def packmol_microsolvation(solute:Molecule, solvent:Molecule, density:float=1.0, threshold:float=3.0, executable:str=None):
+    """
+    Microsolvation of a ``solute`` with a ``solvent`` with an approximate ``density``. 
+
+    solute: Molecule
+        The solute to be surrounded by solvent molecules
+
+    solvent: Molecule
+        The solvent molecule
+
+    density: float
+        Approximate density in g/cm^3
+
+    threshold: float
+        Distance in angstrom. Any solvent molecule for which at least 1 atom is within this threshold to the solute molecule will be kept
+
+    executable: str
+        Path to packmol executable.
+    """
+
     solute_coords = solute.as_array()
     com = np.mean(solute_coords, axis=0)
     plams_solute = solute.copy()
