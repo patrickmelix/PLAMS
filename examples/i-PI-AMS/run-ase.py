@@ -27,25 +27,20 @@ To run this example,
 """
 
 def main():
-    use_stress = True
+    use_stress = False
     atoms = read('firstframe.xyz')
 
     sett = Settings()
     sett.input.ams.Task = 'SinglePoint'
     sett.input.ams.Properties.Gradients = 'True'
     sett.input.ams.Properties.StressTensor = str(use_stress)
-    sett.input.ForceField.Type = 'UFF'
+    sett.input.forcefield.type = 'UFF'
     sett.runscript.nproc = 1
 
-    calc = AMSCalculator(settings=sett, amsworker=True)
-    atoms.set_calculator(calc)
-
-    client = SocketClient(unixsocket='driver-irpmd-16')
-
-    try:
+    with AMSCalculator(settings=sett, amsworker=True) as calc:
+        atoms.set_calculator(calc)
+        client = SocketClient(unixsocket='driver-irpmd-16') # socket should match the one given in input.xml
         client.run(atoms, use_stress=use_stress)
-    finally:
-        calc.worker.stop()
 
 if __name__ == '__main__':
     main()

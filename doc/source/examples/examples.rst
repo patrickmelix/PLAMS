@@ -57,6 +57,7 @@ Packmol and AMS-ASE interfaces
    PackMolExample
    ASECalculator
    i-PI-AMS
+   SellaTransitionStateSearch
 
 Other AMS calculations
 ------------------------
