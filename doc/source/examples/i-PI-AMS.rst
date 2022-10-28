@@ -14,6 +14,10 @@ For more information about i-PI, refer to the i-PI documentation and examples.
 
 The below example only runs on Linux as it uses a unix socket.
 
+.. important::
+
+    i-PI is not included with AMS and is not supported by SCM. 
+
 **Example usage:** (:download:`Download run-ase.py <../../../examples/i-PI-AMS/run-ase.py>` and auxiliary files :download:`input.xml <../../../examples/i-PI-AMS/input.xml>`, :download:`firstframe.xyz <../../../examples/i-PI-AMS/firstframe.xyz>`, :download:`run-server.sh <../../../examples/i-PI-AMS/run-server.sh>`)
 
 .. literalinclude:: ../../../examples/i-PI-AMS/run-ase.py

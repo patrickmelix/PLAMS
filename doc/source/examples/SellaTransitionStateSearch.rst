@@ -15,6 +15,14 @@ AMS also internally implements several methods. The example compares
 
 For more information about Sella, refer to the Sella documentation and examples.
 
+.. important::
+
+    Sella is not included with AMS and not supported by SCM. To install it into the AMS python environment, run
+
+    .. code-block:: none
+        
+        $AMSBIN/amspython -m pip install sella
+
 **Example usage:** (:download:`Download SellaTransitionStateSearch.py <../../../examples/SellaTransitionStateSearch.py>`)
 
 .. literalinclude:: ../../../examples/SellaTransitionStateSearch.py

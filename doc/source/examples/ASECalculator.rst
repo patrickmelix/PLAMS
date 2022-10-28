@@ -1,4 +1,5 @@
 .. _ASECalculatorExample:
+.. _AMSCalculatorExample:
 
 ASE Calculator for AMS
 ======================
@@ -29,7 +30,16 @@ The example shows
 
 * **ase_geoopt_workermode**: A geometry optimization through ASE (``ase.optimize.BFGS``) using the "AMSworker" mode. In AMSworker mode, AMS is only launched at the start. No output is stored on disk. This minimizes the overhead. See also the :ref:`iPIExample` and :ref:`SellaExample` examples.
 
-* **ams_with_custom_ase_calculator**: An AMS geometry optimization job (``Task GeometryOptimization``) using a custom ASE calculator as the engine. The job is run in the normal PLAMS way (``job.run()`` - all the above examples instead run the jobs by calling ``atoms.get_potential_energy()``).
+.. note::
+
+    In this example, the AMS *driver* is replaced by ASE tools, that use the
+    AMS *engines* (ADF, BAND, DFTB, ForceField, ...) to calculate energies and
+    forces.
+
+    In the :ref:`CustomASECalculatorExample` example, the AMS *engines* are
+    instead replaced with external ASE calculators, that can be coupled to AMS
+    *driver* tasks (GeometryOptimization, TransitionStateSearch,
+    MolecularDynamics, ...).
 
 
 **Example usage:** (:download:`Download ASECalculator.py <../../../examples/ASECalculator.py>`)
