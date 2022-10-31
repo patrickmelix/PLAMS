@@ -105,6 +105,9 @@ class AMSCalculator(Calculator):
 
     settings  : Settings
                 A Settings object representing the input for an AMSJob or AMSWorker.
+                This also determines which `implemented_properties` are available:
+                `properties.gradients`: `force`
+                `properties.stresstensor`: `stress`
     name      : str, optional
                 Name of the rundir of calculations done by this calculator. A counter 
                 is appended to the name for every calculation.
@@ -165,6 +168,7 @@ class AMSCalculator(Calculator):
 
         self.prev_ams_results = None
         self.results = dict()
+        self.properties_updated = False
 
     @property
     def counter(self):
@@ -180,21 +184,18 @@ class AMSCalculator(Calculator):
     @property
     def implemented_properties(self):
         """Returns the list of properties that this calculator has implemented"""
-        return [ extractor.name for extractor in self.extractors ]
+        return [ extractor.name for extractor in self.extractors if extractor.check_settings(self.settings)]
 
     def calculate(self, atoms=None, properties=['energy'], system_changes=all_changes):
         """Calculate the requested properties. If atoms is not set, it will reuse the last known Atoms object."""
         if atoms is not None:
             #no need to redo the calculation, we already have everything.
-            if self.atoms == atoms and all([p in self.results for p in properties]):
+            if self.atoms == atoms and system_changes == [] and all([p in self.results for p in properties]) and not self.properties_updated:
                 return
             self.atoms = atoms.copy()
-
+        self.properties_updated = False
         if self.atoms is None:
             raise ValueError("No atoms object was set.")
-
-        if len(system_changes) == 0:
-            return
 
         molecule = fromASE(self.atoms, set_charge=True)
         ams_results = self._get_ams_results(molecule, properties)
@@ -205,6 +206,20 @@ class AMSCalculator(Calculator):
         self.results_from_ams_results(ams_results, self._get_job_settings(properties))
         self.prev_ams_results = ams_results
 
+    def set_property(self, properties):
+        """A list of ASE properties that the calculator will ensure are available from AMS or it gives an error."""
+        if isinstance(properties, str):
+            properties = [properties]
+        for prop in properties:
+            property_found = False
+            for extractor in self.extractors:
+                if prop == extractor.name:
+                    self.settings = extractor.set_settings(self.settings.copy())
+                    self.properties_updated = True
+                property_found = True
+            if not property_found:        
+                raise NotImplemented(f'No extractor known for property {prop}')
+        
     def results_from_ams_results(self, ams_results, job_settings):
         """Populates the self.results dictionary by having extractors act on an AMSResults object."""
         for extractor in self.extractors:
@@ -217,11 +232,7 @@ class AMSCalculator(Calculator):
     def _get_job_settings(self, properties):
         """Returns a Settings object which ensures that an AMS calculation is run from which all requested
         properties can be extracted"""
-        settings = self.settings.copy()
-        for extractor in self.extractors:
-            if extractor.name in properties:
-                extractor.set_settings(settings)
-        return settings
+        return self.settings.copy()
 
     def stop_worker(self):
         """Stops the amsworker if it exists"""
@@ -244,7 +255,7 @@ class AMSCalculator(Calculator):
 
 class AMSPipeCalculator(AMSCalculator):
     """This class should be instantiated through AMSCalculator with settings.Calculator.Pipe defined"""
-    def __init__(self, settings = None, name = '', amsworker = False, restart = True, molecule = None, extractors = []):
+    def __init__(self, settings = None, name = '', amsworker = True, restart = True, molecule = None, extractors = []):
         super().__init__(settings, name, amsworker, restart, molecule, extractors)
 
         worker_settings = self.settings.copy()
