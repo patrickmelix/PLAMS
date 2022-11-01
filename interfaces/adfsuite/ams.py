@@ -747,11 +747,11 @@ class AMSResults(Results):
 
     def get_time_step(self):
         """ Returns the time step between adjacent frames (NOT the TimeStep in the settings, but Timestep*SamplingFreq) in femtoseconds for MD simulation jobs """
-        time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory') 
-        time2 = self.get_property_at_step(2, 'Time', history_section='MDHistory') 
+        time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory')
+        time2 = self.get_property_at_step(2, 'Time', history_section='MDHistory')
         time_step = time2 - time1
         return time_step
-            
+
     def _get_integer_start_end_every_max(self, start_fs, end_fs, every_fs, max_dt_fs):
         time_step = self.get_time_step()
         start_step = round( start_fs / time_step )
@@ -822,7 +822,7 @@ class AMSResults(Results):
 
         vacf = autocorrelation(data, max_dt=max_dt, normalize=normalize) * n_dimensions # multiply by n_dimensions to undo the averaging per component and instead average per atom
 
-        times = np.arange(len(vacf)) * time_step * every 
+        times = np.arange(len(vacf)) * time_step * every
 
         return times, vacf
 
@@ -920,7 +920,7 @@ class AMSResults(Results):
             data = self.get_history_property('PressureTensor', 'MDHistory')
             data = [x for x in data if x is not None] # None might appear in currently running trajectories if the job was loaded with load_external
         data = np.array(data)[start_step:end_step:every]
-        
+
         components = []
         if yz:
             components += [3]
@@ -931,7 +931,7 @@ class AMSResults(Results):
 
         data = data[:, components]
         acf = autocorrelation(data, max_dt=max_dt)
-        times = np.arange(len(acf)) * time_step * every 
+        times = np.arange(len(acf)) * time_step * every
 
         integrated_acf = cumtrapz(acf, times)
         integrated_times = np.arange(len(integrated_acf)) * time_step * every
@@ -956,7 +956,7 @@ class AMSResults(Results):
     def get_density_along_axis(self, axis:str='z', density_type:str='mass', start_fs=0, end_fs=None, every_fs=None, bin_width=0.1, atom_indices=None):
         """
         Calculates the density of atoms along a Cartesian coordinate axis.
-        
+
         This only works if the axis is perpendicular to the other two axes. The
         system must be 3D-periodic and the number of atoms cannot change during
         the trajectory.
@@ -1140,12 +1140,12 @@ class AMSResults(Results):
 
             def __str__(self):
                 if self.isTS:
-                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times"+(f", results on {self.engfile})" if self.engfile is not None else ")")]
                     if self.reactantsID is not None: lines += [f"  +- Reactants: {self.reactants}"]
                     if self.productsID is not None:  lines += [f"     Products:  {self.products}"]
                     if self.reactantsID is not None: lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E}"]
                 else:
-                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times"+(f", results on {self.engfile})" if self.engfile is not None else ")")]
                 return "\n".join(lines)
 
 
