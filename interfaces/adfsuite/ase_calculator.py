@@ -145,7 +145,12 @@ class AMSCalculator(Calculator):
         return obj
 
     def __init__(self, settings = None, name='', amsworker = False, restart = True, molecule = None, extractors = []):
-        settings = settings.copy()
+
+        if not isinstance(settings, Settings):
+            settings = Settings.from_dict(settings)
+        else:
+            settings = settings.copy()
+
         self.settings = settings.copy()
         self.amsworker = amsworker
         self.name = name
