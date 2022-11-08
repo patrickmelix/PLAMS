@@ -528,6 +528,57 @@ class AMSResults(Results):
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleGradients'), engine)).reshape(-1,3)
 
 
+    def get_orbital_energies(self, unit='Hartree', engine=None):
+        """Return the orbital energies in a numpy array of shape [nOrbitals,nSpin] (nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted)
+        
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+
+        return Units.convert(np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'orbitalEnergies'), engine)), 'Hartree', unit)
+
+
+    def get_orbital_occupations(self, engine=None):
+        """Return the orbital occupations in a numpy array of shape [nOrbitals,nSpin]. For spin restricted calculations, the occupations will be between 0 and 2. For spin unrestricted or spin-orbit coupling the values will be between 0 and 1.
+        
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'orbitalOccupations'), engine))
+
+
+    def get_homo_energies(self, unit='Hartree', engine=None):
+        """
+        Return the homo energies as a list of lenght nSpin. nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        homo = self._process_engine_results(lambda x: x.read('AMSResults', 'HOMOEnergy'), engine)
+        if not isinstance(homo, list):
+            homo = [homo]
+        return Units.convert(homo,"Hartree", unit)
+
+
+    def get_lumo_energies(self, unit='Hartree', engine=None):
+        """
+        Return the lumo energies as a list of lenght nSpin. nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        lumo = self._process_engine_results(lambda x: x.read('AMSResults', 'LUMOEnergy'), engine)
+        if not isinstance(lumo, list):
+            lumo = [lumo]
+        return Units.convert(lumo,"Hartree", unit)
+
+
+    def get_smallest_HOMO_LUMO_gap(self, unit='Hartree', engine=None):
+        """
+        Returns a float containing the smallest HOMO-LUMO gap irrespective of spin (i.e. min(LUMO) - max(HOMO)).
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'SmallestHOMOLUMOGap'), engine) * Units.conversion_ratio('Hartree', unit)
+
+
     def get_timings(self):
         """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds.
         """
