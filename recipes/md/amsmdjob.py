@@ -57,8 +57,8 @@ class AMSMDJob(AMSJob):
         tau: float
             Thermostat time constant (fs)
 
-        temperature: float
-            Temperature (K)
+        temperature: float or tuple of floats
+            Temperature (K). If a tuple/list of floats, the Thermostat.Duration option will be set to evenly divided intervals.
 
         **Barostat (NPT) options**:
 
@@ -165,11 +165,11 @@ class AMSMDJob(AMSJob):
         mdsett.Checkpoint.Frequency = checkpointfrequency or mdsett.Checkpoint.Frequency or self.default_checkpointfrequency
 
         if velocities is None and temperature is not None:
-            velocities = temperature
+            velocities = self._get_initial_temperature(temperature)
         self.settings += self._velocities2settings(velocities)
 
         if temperature or thermostat or _enforce_thermostat:
-            self.settings.update(self._get_thermostat_settings(thermostat=thermostat, temperature=temperature, tau=tau))
+            self.settings.update(self._get_thermostat_settings(thermostat=thermostat, temperature=temperature, tau=tau, nsteps=int(mdsett.NSteps)))
 
         if pressure or barostat or _enforce_barostat:
             self.settings.update(self._get_barostat_settings(
@@ -186,6 +186,13 @@ class AMSMDJob(AMSJob):
             for block in blocks:
                 if block in self.settings.input.ams.MolecularDynamics:
                     del self.settings.input.ams.MolecularDynamics[block]
+
+    @staticmethod
+    def _get_initial_temperature(temperature):
+        try:
+            return temperature[0]
+        except TypeError:
+            return temperature
 
     @staticmethod
     def _velocities2settings(velocities):
@@ -258,10 +265,19 @@ class AMSMDJob(AMSJob):
 
         return other_job, velocities, molecule, extra_settings
 
-    def _get_thermostat_settings(self, thermostat, temperature, tau):
+    def _get_thermostat_settings(self, thermostat, temperature, tau, nsteps:int):
         s= Settings()
         s.input.ams.MolecularDynamics.Thermostat.Type = thermostat or self.settings.input.ams.MolecularDynamics.Thermostat.Type or self.default_thermostat
-        s.input.ams.MolecularDynamics.Thermostat.Temperature = temperature or self.settings.input.ams.MolecularDynamics.Thermostat.Temperature or self.default_temperature
+        try:
+            n_temperatures = len(temperature)
+            my_temperature = " ".join(str(x) for x in temperature)
+            if n_temperatures > 1:
+                nsteps_per_temperature = nsteps // (len(temperature)-1)
+                s.input.ams.MolecularDynamics.Thermostat.Duration = " ".join( [str(nsteps_per_temperature)]*(n_temperatures-1) )
+        except TypeError:
+            my_temperature = temperature
+
+        s.input.ams.MolecularDynamics.Thermostat.Temperature = my_temperature or self.settings.input.ams.MolecularDynamics.Thermostat.Temperature or self.default_temperature
         s.input.ams.MolecularDynamics.Thermostat.Tau = tau or self.settings.input.ams.MolecularDynamics.Thermostat.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_tau_multiplier
         return s
 
@@ -308,12 +324,12 @@ class AMSMDJob(AMSJob):
 class AMSNVEJob(AMSMDJob):
     def __init__( self, **kwargs):
         AMSMDJob.__init__(self, **kwargs)
-        self.remove_blocks(['thermostat', 'barostat', 'deformation'])
+        self.remove_blocks(['thermostat', 'barostat', 'deformation', 'nanoreactor'])
 
 class AMSNVTJob(AMSMDJob):
     def __init__(self, **kwargs):
         AMSMDJob.__init__(self, _enforce_thermostat=True, **kwargs)
-        self.remove_blocks(['barostat', 'deformation'])
+        self.remove_blocks(['barostat', 'deformation', 'nanoreactor'])
 
 class AMSNPTResults(AMSResults):
     def get_equilibrated_molecule(self, equilibration_fraction=0.667, return_index=False):
@@ -346,6 +362,6 @@ class AMSNPTJob(AMSMDJob):
     def __init__(self, **kwargs):
         AMSMDJob.__init__(self, _enforce_thermostat=True, _enforce_barostat=True, **kwargs)
         self.settings.input.ams.MolecularDynamics.CalcPressure = 'True'
-        self.remove_blocks(['deformation'])
+        self.remove_blocks(['deformation', 'nanoreactor'])
 
 
