@@ -1136,7 +1136,7 @@ class AMSWorker:
         if len(buf) == n:
             return buf
         else:
-            raise EOFError("Message truncated")
+            raise EOFError("Message truncated to "+str(len(buf)))
 
     def _call(self, method, args={}):
         msg = ubjson.dumpb({method: self._flatten_arrays(args)})
@@ -1147,7 +1147,7 @@ class AMSWorker:
                 return None
             self.callpipe.flush()
         except OSError as exc:
-            raise AMSWorkerError('Error while sending a message') from exc
+            raise AMSWorkerError('Error while sending a message '+method+' '+str(len(msg))) from exc
         if method == "Exit":
             return None
 
