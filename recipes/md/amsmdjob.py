@@ -267,7 +267,10 @@ class AMSMDJob(AMSJob):
 
     def _get_thermostat_settings(self, thermostat, temperature, tau, nsteps:int):
         s= Settings()
-        s.input.ams.MolecularDynamics.Thermostat.Type = thermostat or self.settings.input.ams.MolecularDynamics.Thermostat.Type or self.default_thermostat
+        prev_thermostat_settings = self.settings.input.ams.MolecularDynamics.Thermostat
+        if isinstance(prev_thermostat_settings, list):
+            prev_thermostat_settings = prev_thermostat_settings[0]
+        s.input.ams.MolecularDynamics.Thermostat.Type = thermostat or prev_thermostat_settings.Type or self.default_thermostat
         try:
             n_temperatures = len(temperature)
             my_temperature = " ".join(str(x) for x in temperature)
@@ -277,8 +280,8 @@ class AMSMDJob(AMSJob):
         except TypeError:
             my_temperature = temperature
 
-        s.input.ams.MolecularDynamics.Thermostat.Temperature = my_temperature or self.settings.input.ams.MolecularDynamics.Thermostat.Temperature or self.default_temperature
-        s.input.ams.MolecularDynamics.Thermostat.Tau = tau or self.settings.input.ams.MolecularDynamics.Thermostat.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_tau_multiplier
+        s.input.ams.MolecularDynamics.Thermostat.Temperature = my_temperature or prev_thermostat_settings.Temperature or self.default_temperature
+        s.input.ams.MolecularDynamics.Thermostat.Tau = tau or prev_thermostat_settings.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_tau_multiplier
         return s
 
     def _get_barostat_settings(self, pressure, barostat, barostat_tau, scale, equal, constantvolume):

@@ -18,6 +18,7 @@ Getting Started
    He2DissociationCurve
    ManyJobsInParallel
    MoleculesFromRKFTrajectory
+   MoleculesTable
 
 Benchmarks
 -----------------
