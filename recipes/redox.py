@@ -1,4 +1,5 @@
 import os
+import shutil
 from ..core.functions import add_to_instance
 from ..core.basejob import MultiJob
 from ..core.results import Results
@@ -170,16 +171,24 @@ class CRSActivityCoefficientResults(CRSResults):
 class CRSActivityCoefficientJob(CRSJob):
     _result_type = CRSActivityCoefficientResults
     
-    def __init__(self, solvent_coskf, solute_coskf, name=None, temperature=298.15):
+    def __init__(self, solvent_coskf, solute_coskf, name=None, temperature=298.15, copy_coskf=False):
         CRSJob.__init__(self, name=name)
         self.solvent_coskf = solvent_coskf
         self.solute_coskf = solute_coskf
         self.temperature = temperature
+        self.copy_coskf = copy_coskf
 
     def prerun(self):
         self._prerun()
 
     def _prerun(self):
+        if self.copy_coskf:
+            new_solvent = f'solvent_{os.path.basename(self.solvent_coskf)}'
+            new_solute  = f'solute_{os.path.basename(self.solute_coskf)}'
+            shutil.copy(self.solvent_coskf, os.path.join(self.path, new_solvent))
+            shutil.copy(self.solute_coskf, os.path.join(self.path, new_solute))
+            self.solvent_coskf =  new_solvent
+            self.solute_coskf = new_solute
         self.settings.input.property._h = 'ACTIVITYCOEF'
         compounds = [Settings(), Settings()]
         compounds[0]._h    = self.solvent_coskf;    compounds[1]._h    = self.solute_coskf
@@ -286,8 +295,13 @@ class AMSRedoxScreeningJob(AMSRedoxParentJob):
                  name:str=None, 
                  settings:Settings=None,
                  oxidation:bool=True, 
-                 reduction:bool=False):
+                 reduction:bool=False,
+                 copy_coskf=False):
 
+        """
+            copy_coskf: bool
+                Will copy the coskf files into the job's own directory before running.
+        """
         AMSRedoxParentJob.__init__(self, name=name, settings=settings, molecule=molecule, oxidation=oxidation, reduction=reduction)
 
         self.solvent_coskf = solvent_coskf
@@ -358,7 +372,7 @@ class AMSRedoxScreeningJob(AMSRedoxParentJob):
             
 
         # activitycoef_0
-        activitycoef_0 = CRSActivityCoefficientJob(name='activitycoef_0', solvent_coskf=self.solvent_coskf, solute_coskf=None)
+        activitycoef_0 = CRSActivityCoefficientJob(name='activitycoef_0', solvent_coskf=self.solvent_coskf, solute_coskf=None, copy_coskf=copy_coskf)
 
         @add_to_instance(activitycoef_0)
         def prerun(self):
@@ -367,7 +381,7 @@ class AMSRedoxScreeningJob(AMSRedoxParentJob):
         self.children['activitycoef_0'] = activitycoef_0
 
         if oxidation:
-            activitycoef_ox = CRSActivityCoefficientJob(name='activitycoef_ox', solvent_coskf=self.solvent_coskf, solute_coskf=None)
+            activitycoef_ox = CRSActivityCoefficientJob(name='activitycoef_ox', solvent_coskf=self.solvent_coskf, solute_coskf=None, copy_coskf=copy_coskf)
 
             @add_to_instance(activitycoef_ox)
             def prerun(self):
@@ -376,7 +390,7 @@ class AMSRedoxScreeningJob(AMSRedoxParentJob):
             self.children['activitycoef_ox'] = activitycoef_ox
 
         if reduction:
-            activitycoef_red = CRSActivityCoefficientJob(name='activitycoef_red', solvent_coskf=self.solvent_coskf, solute_coskf=None)
+            activitycoef_red = CRSActivityCoefficientJob(name='activitycoef_red', solvent_coskf=self.solvent_coskf, solute_coskf=None, copy_coskf=copy_coskf)
 
             @add_to_instance(activitycoef_red)
             def prerun(self):
