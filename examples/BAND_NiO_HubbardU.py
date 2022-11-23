@@ -1,7 +1,7 @@
-#!/usr/bin/env plams
+#!/usr/bin/env amspython
 from scm.plams import *
 
-""" Run as: $AMSBIN/plams BAND_NiO_Hubbardu.py """
+""" Run as: $AMSBIN/amspython BAND_NiO_HubbardU.py """
 
 def main():
     d =  2.085
@@ -36,5 +36,9 @@ def main():
     log(f"Band gap:                  {gap:.2f} eV")
 
 if __name__ == '__main__':
-    main()
+    init()
+    try:
+        main()
+    finally:
+        finish()
 
