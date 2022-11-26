@@ -160,6 +160,7 @@ class AMSMDJob(AMSJob):
         mdsett.Trajectory.WriteVelocities = str(writevelocities) if writevelocities is not None else mdsett.Trajectory.WriteVelocities or self.default_writevelocities
         mdsett.Trajectory.WriteBonds = str(writebonds) if writebonds is not None else mdsett.Trajectory.WriteBonds or self.default_writebonds
         mdsett.Trajectory.WriteMolecules = str(writemolecules) if writemolecules is not None else mdsett.Trajectory.WriteMolecules or self.default_writemolecules
+        mdsett.Trajectory.WriteCharges = str(writecharges) if writecharges is not None else mdsett.Trajectory.WriteCharges or self.default_writecharges
         mdsett.Trajectory.WriteEngineGradients = str(writeenginegradients) if writeenginegradients is not None else mdsett.Trajectory.WriteEngineGradients or self.default_writeenginegradients
         mdsett.CalcPressure = str(calcpressure) if calcpressure is not None else mdsett.CalcPressure or self.default_calcpressure
         mdsett.Checkpoint.Frequency = checkpointfrequency or mdsett.Checkpoint.Frequency or self.default_checkpointfrequency
