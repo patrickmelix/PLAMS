@@ -278,8 +278,11 @@ class AMSMDJob(AMSJob):
             if n_temperatures > 1:
                 nsteps_per_temperature = nsteps // (len(temperature)-1)
                 s.input.ams.MolecularDynamics.Thermostat.Duration = " ".join( [str(nsteps_per_temperature)]*(n_temperatures-1) )
+            else:
+                s.input.ams.MolecularDynamics.Thermostat.Duration = None
         except TypeError:
             my_temperature = temperature
+            s.input.ams.MolecularDynamics.Thermostat.Duration = None
 
         s.input.ams.MolecularDynamics.Thermostat.Temperature = my_temperature or prev_thermostat_settings.Temperature or self.default_temperature
         s.input.ams.MolecularDynamics.Thermostat.Tau = tau or prev_thermostat_settings.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_tau_multiplier

@@ -35,7 +35,7 @@ class AMSMDScanDensityJob(AMSNVTJob):
 
     _result_type = AMSMDScanDensityResults
 
-    def __init__(self, molecule, scan_density_upper=1.4, eq_nsteps=None, **kwargs):
+    def __init__(self, molecule, scan_density_upper=1.4, startstep=None, **kwargs):
         AMSNVTJob.__init__(self, molecule=molecule, **kwargs)
 
         from_density = self.molecule.get_density() * 1e-3
@@ -46,11 +46,11 @@ class AMSMDScanDensityJob(AMSNVTJob):
         nsteps = self.settings.input.ams.MolecularDynamics.NSteps
 
         self.scan_density_upper = scan_density_upper
-        self.eq_nsteps = eq_nsteps or min(2000, nsteps // 2)
+        self.startstep = startstep or 1
 
         s = Settings()
         s.input.ams.MolecularDynamics.Deformation.TargetLength = ' '.join([str(x) for x in new_length]) 
-        s.input.ams.MolecularDynamics.Deformation.StartStep = self.eq_nsteps
+        s.input.ams.MolecularDynamics.Deformation.StartStep = self.startstep
 
         self.settings += s
 

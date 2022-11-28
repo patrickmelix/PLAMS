@@ -18,11 +18,11 @@ from natsort import natsorted
 import os
 import time
 
-__all__ = ['GreenKuboViscosityJob', 'GreenKuboViscosityResults', 'PartialGreenKuboViscosityJob']
+__all__ = ['AMSGreenKuboViscosityJob', 'AMSGreenKuboViscosityResults', 'AMSPartialGreenKuboViscosityJob']
 
 def get_viscosity(job, max_dt_fs=50000, reuse=False):
     """
-        job: GreenKuboViscosityJob
+        job: AMSGreenKuboViscosityJob
             The job
 
         Returns the viscosity in mPa*s, and writes 
@@ -48,7 +48,7 @@ def get_viscosity(job, max_dt_fs=50000, reuse=False):
     if reuse and os.path.exists(job.path+'/viscosity.txt'):
         return float(np.loadtxt(job.path+'/viscosity.txt'))
 
-    GreenKuboViscosityResults._accumulate_results(job.path, previous_pressuretensors=job.previous_pressuretensors)
+    AMSGreenKuboViscosityResults._accumulate_results(job.path, previous_pressuretensors=job.previous_pressuretensors)
     pressuretensor_npy = job.path+'/concatenated_pressuretensor.npy'
 
     pressuretensor = np.load(pressuretensor_npy)
@@ -71,7 +71,7 @@ def get_viscosity(job, max_dt_fs=50000, reuse=False):
     A = np.stack((t, visc), axis=1)
     np.savetxt(job.path+"/green_kubo_viscosity.txt", A, header="Time(fs) Viscosity(mPa*s)")
 
-    window = min(10000, int(t[-1]/3))
+    window = min(5000, int(t[-1]/3))
     window = max(window, 1) #window must be greater than 0
     moving_avg_t = np.convolve(t, np.ones(window)/window, mode='valid')
     moving_avg_visc = np.convolve(visc, np.ones(window)/window, mode='valid')
@@ -111,13 +111,13 @@ def get_viscosity(job, max_dt_fs=50000, reuse=False):
     return popt[0]
 
 
-class PartialGreenKuboViscosityResults(AMSResults):
+class AMSPartialGreenKuboViscosityResults(AMSResults):
     def get_pressuretensor_history(self):
         pt = self.get_history_property('PressureTensor', 'MDHistory')
         return np.array(pt)
 
-class PartialGreenKuboViscosityJob(AMSNVTJob):
-    _result_type = PartialGreenKuboViscosityResults
+class AMSPartialGreenKuboViscosityJob(AMSNVTJob):
+    _result_type = AMSPartialGreenKuboViscosityResults
 
     def __init__(self, keep_trajectory:bool=False, max_dt_fs:float=50000, **kwargs):
         self.keep_trajectory = keep_trajectory
@@ -146,8 +146,8 @@ class PartialGreenKuboViscosityJob(AMSNVTJob):
 
         get_viscosity(self.parent, max_dt_fs=self.max_dt_fs, reuse=False)
 
-class GreenKuboViscosityResults(Results):
-    """Results class for GreenKuboViscosityJob
+class AMSGreenKuboViscosityResults(Results):
+    """Results class for AMSGreenKuboViscosityJob
     """
     def get_viscosity(self, max_dt_fs=50000, reuse=False):
         """
@@ -191,11 +191,11 @@ class GreenKuboViscosityResults(Results):
     def accumulate_results(self):
         return self._accumulate_results(path=self.job.path, previous_pressuretensors=self.job.previous_pressuretensors)
 
-class GreenKuboViscosityJob(MultiJob):
+class AMSGreenKuboViscosityJob(MultiJob):
     """A class for calculating the Green-Kubo viscosity of a liquid
     """
 
-    _result_type = GreenKuboViscosityResults
+    _result_type = AMSGreenKuboViscosityResults
 
 
     def __init__(self, 
@@ -260,7 +260,7 @@ class GreenKuboViscosityJob(MultiJob):
         if restart_from:
             if not isinstance(restart_from, AMSJob):
                 raise ValueError(f"restart_from must be AMSJob, got {type(restart_from)}")
-            self.children['step1'] = PartialGreenKuboViscosityJob(
+            self.children['step1'] = AMSPartialGreenKuboViscosityJob(
                 name='step1', 
                 keep_trajectory=self.keep_trajectory,
                 timestep=self.timestep, 
@@ -275,7 +275,7 @@ class GreenKuboViscosityJob(MultiJob):
                 self.get_velocities_from(restart_from, update_molecule=True)
 
         else:
-            self.children['step1'] = PartialGreenKuboViscosityJob(
+            self.children['step1'] = AMSPartialGreenKuboViscosityJob(
                 name='step1', 
                 molecule=molecule, 
                 keep_trajectory=self.keep_trajectory,
@@ -293,7 +293,7 @@ class GreenKuboViscosityJob(MultiJob):
             name = f'step{i}'
             previous_names[name] = previous_name
 
-            job = PartialGreenKuboViscosityJob(
+            job = AMSPartialGreenKuboViscosityJob(
                 name=name, 
                 keep_trajectory=keep_trajectory,
                 timestep=self.timestep, 
