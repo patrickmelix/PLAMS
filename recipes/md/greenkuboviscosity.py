@@ -250,12 +250,17 @@ class AMSGreenKuboViscosityJob(MultiJob):
         self.fragment_length = fragment_length
         self.keep_trajectory = keep_trajectory
         self.restart_from = restart_from
+
+        self.n_fragments = self.nsteps // self.fragment_length
+        self.n_fragments = max(1, self.n_fragments)  # at least 1 fragment
+
+        if self.n_fragments > 100:
+            # this check is here because you otherwise run into some maximum recursion error around n_fragments = 150
+            raise ValueError(f"AMSGreenKuboViscosityJob can be used with most 100 fragments/steps, current value: {self.n_fragments}. Either decrease nsteps (current: {self.nsteps}) or increase fragment_length (current: {self.fragment_length}).")
+
         self.previous_pressuretensors = previous_pressuretensors or []
         if isinstance(self.previous_pressuretensors, str):
             self.previous_pressuretensors = [np.load(self.previous_pressuretensors)]
-
-        n_fragments = self.nsteps // self.fragment_length
-        nsteps_per_fragment = n_fragments // nsteps
 
         if restart_from:
             if not isinstance(restart_from, AMSJob):
@@ -289,7 +294,7 @@ class AMSGreenKuboViscosityJob(MultiJob):
         previous_name = 'step1'
         previous_names = dict()
         kwargs.pop('velocities', None)
-        for i in range(2, n_fragments+1):
+        for i in range(2, self.n_fragments+1):
             name = f'step{i}'
             previous_names[name] = previous_name
 
