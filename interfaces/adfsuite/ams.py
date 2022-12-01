@@ -2,7 +2,6 @@ import os
 import subprocess
 import numpy as np
 import re
-from natsort import natsorted
 
 from os.path import join as opj
 
@@ -357,9 +356,8 @@ class AMSResults(Results):
         main = self.rkfs['ams']
         as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
-            import numpy
             blocksize = main.read(history_section,'blockSize')
-            iblock = int(numpy.ceil(step/blocksize))
+            iblock = int(np.ceil(step/blocksize))
             value = main.read(history_section,f"{varname}({iblock})")[(step%blocksize)-1]
         else :
             value = main.read(history_section,f"{varname}({step})")
@@ -369,6 +367,8 @@ class AMSResults(Results):
         """Determines wether the values of varname in a trajectory rkf file are stored in blocks"""
         nentries = main.read(history_section,'nEntries')
         as_block = False
+        # This is extremely slow, because looping over main is very slow.
+        # This is because the (sec,var) tuples are first stored in a set, then sorted, and only then yielded
         keylist = [var for sec,var in main if sec==history_section]
         if 'nBlocks' in keylist :
             if not f"{varname}({nentries})" in keylist :
@@ -670,6 +670,7 @@ class AMSResults(Results):
             'Properties': list of dict. The dictionary keys are what can be found on the AMSResults section of the engine .rkf file. These will only be populated if "CalcPropertiesAtPESPoints" is set to Yes when running the PES scan.
 
         """
+        from natsort import natsorted
         import re
         def tolist(x):
             if isinstance(x, list):

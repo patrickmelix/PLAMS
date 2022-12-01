@@ -633,6 +633,97 @@ class Molecule:
 
         cleanup_atom_list(atom_list)
 
+    def guess_system_charge (self):
+        """
+        Attempt to guess the charge of the full system based on connectivity
+        """
+        charge = sum(self.guess_atomic_charges(adjust_to_systemcharge=False))
+        return charge
+
+    def guess_atomic_charges (self, adjust_to_systemcharge=True, keep_hydrogen_charged=False) :
+        """
+        Assign charges to the atoms based on connectivity
+
+        Note: Fairly basic implementation that will not always yield reliable results
+        """
+        charges = [0. for atom in self.atoms]
+
+        # Negative charge to unsatureated electronegative atoms (C, N, O, P, S, etc)
+        # I am giving them all as negative a charge as their number of max connectors, then compensated by the neighbors.
+        # The exception is if the neighbor is also electro-negative. Then they cancel eachother out.
+        #electronegative = [PT.get_symbol(i) for i,values in enumerate(PT.data) if PT.get_electronegative(i) and (not PT.get_symbol(i)=='C')]
+        electronegative = [PT.get_symbol(i) for i,values in enumerate(PT.data) if PT.get_electronegative(i)]
+        # This will go very wrong for a lot of elements like P, Si, Al, 
+        # which appear to have a connectors value of 8
+        electronegative = [s for s in electronegative if not PT.get_connectors(PT.get_atomic_number(s))==8]
+        # First select the electronegative indices
+        en_indices = []
+        for i,atom in enumerate(self.atoms) :
+            if not atom.symbol in electronegative : continue
+            # MiHa made a similar adjustment in PLAMS for the valence of S bonded to an O (which is 6 instead of 2).
+            if 'O' in [at.symbol for at in atom.neighbors()] and atom.symbol == 'S' : continue
+            en_indices.append(i)
+        # Then assign the charges to these atoms and their neighbors
+        echarges = [0. for at in self.atoms]
+        for i in en_indices :
+            atom = self.atoms[i]
+            echarges[i] -= atom.connectors
+            for bond in atom.bonds :
+                other_at = bond.other_end(atom)
+                j = self.index(other_at)-1
+                # Here we make sure that C is only treated as electronegative towards non-electronegative neighbors
+                # If there was any relative eleectronegativity data, this could be generalized
+                if atom.symbol == 'C' and j in en_indices :
+                    echarges[i] += bond.order
+                else :
+                    echarges[j] += bond.order
+        charges = [q+echarges[i] for i,q in enumerate(charges)]
+
+        # Assign positive charge to H and Compensate charges to the rest (assumes that H-atoms have only single neighbor)
+        q_hydrogens = [1. if atom.symbol=='H' and charges[i]<1. else 0. for i,atom in enumerate(self.atoms)]
+        for i,atom in enumerate(self.atoms) :
+            if atom.symbol == 'H' :
+                continue
+            if i in en_indices :
+                continue
+            neighbors = atom.neighbors()
+            nhs = len([n for n in neighbors if n.symbol=='H'])
+            q = -nhs
+            q_hydrogens[i] += q
+        charges = [q+q_hydrogens[i] for i,q in enumerate(charges)]
+
+        # Formal charges are generally not on the H-atoms, so we will displace them all to their neighbors
+        if not keep_hydrogen_charged:
+            hydrogens = [i for i,at in enumerate(self.atoms) if at.symbol=='H']
+            for ih in hydrogens :
+                q = charges[ih]
+                neighbors = [at for at in self.neighbors(self.atoms[ih]) if not at.symbol=='H']
+                for at in neighbors :
+                    charges[self.index(at)-1] += q/(len(neighbors))
+                if len(neighbors)>0:
+                    charges[ih] -= q
+
+        # Check the assigned charges, and possibly adjust
+        if adjust_to_systemcharge:
+            if 'charge' in self.properties.keys():
+                molcharge = float(self.properties.charge)
+                if sum(charges) != molcharge :
+                    # If there is a problem with the charges, just take the highest charged atom, and change that
+                    log('Warning: Guessed atomic charges (%i) using PLAMS do not match assigned charge molecule (%i)'%(sum(charges),molcharge))
+                    dq = sum(charges) - molcharge
+                    if abs(dq) > 1 :
+                        log('Charges: %s'%(' '.join([str(q) for q in charges])))
+                        raise ChargeError('Guessed atomic charges (%i) using PLAMS do not match assigned charge molecule (%i)'%(sum(charges),molcharge))
+                    tmpcharges = charges.copy()
+                    if dq < 0 :
+                        tmpcharges = [-q for q in charges]
+                    ind = tmpcharges.index(max(tmpcharges))
+                    tmpcharges[ind] -= abs(dq)
+                    if dq < 0 :
+                        tmpcharges = [-q for q in tmpcharges]
+                    charges = tmpcharges
+
+        return charges
 
     def in_ring(self, arg):
         """Check if an atom or a bond belonging to this |Molecule| forms a ring. *arg* should be an instance of |Atom| or |Bond| belonging to this |Molecule|.
