@@ -163,10 +163,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.mode == 'rb' :
                         self._read_header()
                 elif self.mode == 'wb' :
-                        pass
-                        # sections = self.file_object.sections()
-                        # if len(sections) > 0 : 
-                        #         raise PlamsError ('RKF file %s already exists'%(filename))
+                         sections = self.file_object.sections()
+                         if len(sections) > 0 : 
+                                for secname in sections:
+                                        self.file_object.delete_section(secname)
+                         #       raise PlamsError ('RKF file %s already exists'%(filename))
                 else :
                         raise PlamsError ('Mode %s is invalid. Only "rb" and "wb" are allowed.'%(self.mode))
 

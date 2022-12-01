@@ -207,9 +207,13 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         #prevChemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(prev_version))
                         prevChemSysNum = self.chemical_systems[max(self.chemical_systems.keys())]
                         sectionname = 'ChemicalSystem(%i)'%(prevChemSysNum)
-                        prev_elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
+                        atnums = self.file_object.read(sectionname,'AtomicNumbers')
+                        if isinstance(atnums,int): atnums=[atnums]
+                        prev_elements = [PT.get_symbol(atnum) for atnum in atnums]
                         sectionname = 'ChemicalSystem(%i)'%(chemSysNum)
-                        elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
+                        atnums = self.file_object.read(sectionname,'AtomicNumbers')
+                        if isinstance(atnums,int): atnums=[atnums]
+                        elements = [PT.get_symbol(atnum) for atnum in atnums]
                         ################
                         # Read badly written files
                         diff = (len(added_atoms) - len(removed_atoms)) - (len(elements)-len(prev_elements))
@@ -567,7 +571,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 keys = [key for key in self.file_object.reader._sections.keys() if 'ChemicalSystem' in key]
                 nums = [int(k.split('(')[1].split(')')[0])-1 for k in keys]
                 for num,key in zip(nums,keys) :
-                        elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(key,'AtomicNumbers')]
+                        atnums = self.file_object.read(key,'AtomicNumbers')
+                        if isinstance(atnums,int): atnums = [atnums]
+                        elements = [PT.get_symbol(atnum) for atnum in atnums]
                         self.system_version_elements[num] = elements
 
 def molecules_to_rkf(molecules:List[Molecule], fname, overwrite=False):
