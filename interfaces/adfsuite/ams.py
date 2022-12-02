@@ -942,6 +942,36 @@ class AMSResults(Results):
 
         return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
 
+    @staticmethod
+    def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
+        from ...trajectories.analysis import autocorrelation
+        from ...tools.units import Units
+        from scipy.integrate import cumtrapz
+        data = np.array(pressuretensor)
+
+        components = []
+        if yz:
+            components += [3]
+        if xz:
+            components += [4]
+        if xy:
+            components += [5]
+
+        data = data[:, components]
+        acf = autocorrelation(data, max_dt=max_dt)
+        times = np.arange(len(acf)) * time_step 
+
+        integrated_acf = cumtrapz(acf, times)
+        integrated_times = np.arange(len(integrated_acf)) * time_step 
+
+        k_B = Units.constants['k_B']
+
+        au2Pa = Units.convert(1.0, 'hartree/bohr^3', 'Pa')
+
+        viscosity = (volume*1e-30)/(k_B*temperature) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
+
+        return integrated_times, viscosity
+
     def get_green_kubo_viscosity(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True, pressuretensor=None):
         """
         Calculates the viscosity using the Green-Kubo relation (integrating the off-diagonal pressure tensor autocorrelation function).
