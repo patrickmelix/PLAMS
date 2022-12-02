@@ -1,5 +1,6 @@
 #!/usr/bin/env amspython
 from scm.plams import *
+import os
 
 """
 Example illustrating how to run AMS MD with
