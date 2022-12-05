@@ -109,9 +109,9 @@ def toASE(molecule, set_atomic_charges=False):
     if set_atomic_charges:
         charge = molecule.properties.get('charge', 0)
         if not charge:
-            atomic_charges = [0]*len(molecule)
+            atomic_charges = [0.0]*len(molecule)
         else:
-            atomic_charges = [float(charge)/len(molecule)]*len(molecule) 
+            atomic_charges = [float(charge)] + [0.0]*(len(molecule)-1)
 
         aseMol.set_initial_charges(atomic_charges)
 
