@@ -1,6 +1,6 @@
 .. _MoleculeSubstitution:
 
-Molecule substitution: Attach ligands to subtrates
+Molecule substitution: Attach ligands to substrates
 ============================================================
 
 **Example usage:** (:download:`Download MoleculeSubstitution.py <../../../examples/MoleculeSubstitution.py>`)
