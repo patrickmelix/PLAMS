@@ -62,7 +62,8 @@ def main():
         print(ligand)
         mol = substitute(substrate, ligand)
         mol.delete_all_bonds()  # use engine bond guessing
-        mol = preoptimize(mol, model='UFF')
+        # the preoptimize() function requires AMS2023 or later
+        #mol = preoptimize(mol, model='UFF')
         fname = f'{substrate.name}--{ligand.name}.xyz'
         print("Writing to:")
         print(fname)

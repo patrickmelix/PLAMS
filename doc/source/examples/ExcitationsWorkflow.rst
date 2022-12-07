@@ -1,3 +1,5 @@
+.. _ExcitationsWorkflow:
+
 Workflow: filtering molecules based on excitation energies
 ==========================================================
 
