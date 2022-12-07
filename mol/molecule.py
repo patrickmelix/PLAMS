@@ -1949,7 +1949,7 @@ class Molecule:
 
         #remove 'go_lig' and all connected atoms from _ligand
         atoms_to_delete = {go_lig}
-        dfs(go, stay_lig, go_lig, atoms_to_delete, 'ligand_connector')
+        dfs(go_lig, stay_lig, go_lig, atoms_to_delete, 'ligand_connector')
         for atom in atoms_to_delete:
             _ligand.delete_atom(atom)
 
