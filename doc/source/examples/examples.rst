@@ -19,6 +19,7 @@ Getting Started
    ManyJobsInParallel
    MoleculesFromRKFTrajectory
    MoleculesTable
+   MoleculeSubstitution
 
 Benchmarks
 -----------------
