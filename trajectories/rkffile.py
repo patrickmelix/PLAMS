@@ -754,7 +754,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                         old_values = self.file_object.read(section,'%s(%i)'%(key,iblock))
                                         if not isinstance(old_values,list) :
                                                 old_values = [old_values]
-                                except AttributeError :
+                                except (AttributeError, KeyError) :
                                         old_values = []
                                 values = old_values + [values] # Values is a scalar
                         else :
