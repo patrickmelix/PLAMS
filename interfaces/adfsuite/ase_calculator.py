@@ -99,24 +99,44 @@ class StressExtractor(BasePropertyExtractor):
 
 class AMSCalculator(Calculator):
     """
-    ASE Calculator which runs the AMS Driver. 
+    ASE Calculator which can run any AMS engine (ADF, BAND, DFTB, ReaxFF, MLPotential, ForceField, ...).
+
+    The settings are specified with a PLAMS ``Settings`` object in the same way as when running AMS through PLAMS.
+
+    .. important::
+
+        Before initializing the AMSCalculator you need to call ``plams.init()``:
+
+        .. code-block:: python
+
+            from scm.plams import *
+            init()
+
 
     Parameters:
 
     settings  : Settings
                 A Settings object representing the input for an AMSJob or AMSWorker.
                 This also determines which `implemented_properties` are available:
-                `properties.gradients`: `force`
-                `properties.stresstensor`: `stress`
+                `settings.input.ams.properties.gradients`: `force`
+                `settings.input.ams.properties.stresstensor`: `stress`
     name      : str, optional
                 Name of the rundir of calculations done by this calculator. A counter 
                 is appended to the name for every calculation.
     amsworker : bool , optional
-                If True, use the AMSWorker to set up an interactive session. Otherwise
-                use AMSJob to set up an io session. The AMSWorker will spawn a seperate
+                If True, use the AMSWorker to set up an interactive session. 
+                The AMSWorker will spawn a seperate
                 process (an amsdriver). In order to make sure this process is closed,
                 either use AMSCalculator as a context manager or ensure that 
-                AMSCalculator.stop_worker() is called before python is finished.
+                AMSCalculator.stop_worker() is called before python is finished:
+
+                .. code-block:: python
+
+                    with AMSCalculator(settings=settings, amsworker=True) as calc:
+                        atoms.set_calculator(calc)
+                        atoms.get_potential_energy()
+                
+                If False, use AMSJob to set up an io session (a normal AMS calculation storing all output on disk). 
     restart   : bool , optional
                 Allow the engine to restart based on previous calculations.
     molecule  : Molecule , optional

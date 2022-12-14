@@ -14,6 +14,7 @@ import numpy as np
 import collections
 from typing import *
 from ..molecule.ase import toASE
+from ...core.private import retry
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -717,7 +718,10 @@ class AMSWorker:
                 if os.path.isdir(file_path):
                     shutil.rmtree(file_path)
                 else:
-                    os.unlink(file_path)
+                    @retry(maxtries=10)
+                    def retry_unlink(file_path):
+                        os.unlink(file_path)
+                    retry_unlink(file_path)
 
         return (stdout, stderr)
 
