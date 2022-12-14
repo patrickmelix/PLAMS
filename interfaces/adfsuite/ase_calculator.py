@@ -8,8 +8,7 @@ from .amsworker import AMSWorker
 from .ams import AMSJob
 from ...core.settings import Settings
 from ..molecule.ase import fromASE, toASE
-
-from scm.plams import log
+from ...core.functions import config, log
 __all__ = ['AMSCalculator', 'BasePropertyExtractor'] 
 
 try:
@@ -165,6 +164,9 @@ class AMSCalculator(Calculator):
         return obj
 
     def __init__(self, settings = None, name='', amsworker = False, restart = True, molecule = None, extractors = []):
+
+        if not config.init:
+            raise RuntimeError("Before initializing an AMSCalculator you need to call plams.init()")
 
         if not isinstance(settings, Settings):
             settings = Settings.from_dict(settings)
