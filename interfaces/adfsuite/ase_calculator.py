@@ -165,9 +165,6 @@ class AMSCalculator(Calculator):
 
     def __init__(self, settings = None, name='', amsworker = False, restart = True, molecule = None, extractors = []):
 
-        if not config.init:
-            raise RuntimeError("Before initializing an AMSCalculator you need to call plams.init()")
-
         if not isinstance(settings, Settings):
             settings = Settings.from_dict(settings)
         else:
@@ -224,6 +221,9 @@ class AMSCalculator(Calculator):
         if self.atoms is None:
             raise ValueError("No atoms object was set.")
 
+        if not config.init:
+            raise RuntimeError("Before AMSCalculator can calculate results you need to call plams.init()")
+
         molecule = fromASE(self.atoms, set_charge=True)
         ams_results = self._get_ams_results(molecule, properties)
         if not ams_results.ok():
@@ -264,9 +264,12 @@ class AMSCalculator(Calculator):
     def stop_worker(self):
         """Stops the amsworker if it exists"""
         if hasattr(self,'worker') and self.worker:
-            return self.worker.stop()
+            stop = self.worker.stop()
+            self.worker = None
+            return stop
         else:
             #this is what AMSWorker.stop() would return if it was already stopped previously
+            self.worker = None
             return (None, None)
 
     def clean_exit(self):
@@ -285,17 +288,17 @@ class AMSPipeCalculator(AMSCalculator):
     def __init__(self, settings = None, name = '', amsworker = True, restart = True, molecule = None, extractors = []):
         super().__init__(settings, name, amsworker, restart, molecule, extractors)
 
-        worker_settings = self.settings.copy()
-        if 'Task' in worker_settings.input.ams:
-            del worker_settings.input.ams.Task
+        self.worker_settings = self.settings.copy()
+        if 'Task' in self.worker_settings.input.ams:
+            del self.worker_settings.input.ams.Task
         if 'Properties' in worker_settings.input.ams:
-            del worker_settings.input.ams.Properties
+            del self.worker_settings.input.ams.Properties
         
-        self.worker = AMSWorker(worker_settings, use_restart_cache = self.restart)
 
     def _get_ams_results(self, molecule, properties):
         job_settings = self._get_job_settings(properties)
-        
+        if self.worker is None:
+            self.worker = AMSWorker(self.worker_settings, use_restart_cache = self.restart)
         #AMSWorker expects no engine definition at this point.
         s = Settings()
         s.input.ams = job_settings.input.ams
