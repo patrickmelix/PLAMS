@@ -12,10 +12,10 @@ ASE geometry optimizer with AMS forces
 
 Example illustrating how to use the :ref:`AMSCalculator`. The ``BFGS`` geometry optimizer from ASE is used together with AMS-calculated forces (negative gradients).
 
-.. note::
+In this example, the AMS **driver** is replaced by ASE tools, that use the AMS
+**engines** (ADF, BAND, DFTB, ForceField, ...) to calculate energies and forces.
 
-    In this example, the AMS *driver* is replaced by ASE tools, that use the AMS
-    *engines* (ADF, BAND, DFTB, ForceField, ...) to calculate energies and forces.
+.. seealso::
 
     In the :ref:`CustomASECalculatorExample` example, the AMS *engines* are
     instead replaced with external ASE calculators, that can be coupled to AMS
