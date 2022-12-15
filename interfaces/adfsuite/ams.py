@@ -2035,6 +2035,7 @@ class AMSJob(SingleJob):
         The existing `s.input.ams.system` block is removed in the process, assuming it was present in the first place.
 
         """
+        from ...tools.units import Units
         def get_list(s):
             if '_1' in s and not '_2' in s and  isinstance(s._1, list):
                 return s._1
@@ -2052,10 +2053,15 @@ class AMSJob(SingleJob):
                 mol = Molecule(settings_block.geometryfile)
             else:
                 mol = Molecule()
+
+                if "_h" in settings_block.atoms:
+                    conv = Units.conversion_ratio(settings_block.atoms._h.strip("[]"), "Angstrom")
+                else:
+                    conv = 1.0
                 for atom in get_list(settings_block.atoms):
                     # Extract arguments for Atom()
                     symbol, x, y, z, *suffix = atom.split(maxsplit=4)
-                    coords = float(x), float(y), float(z)
+                    coords = conv*float(x), conv*float(y), conv*float(z)
 
                     try:
                         at = Atom(symbol=symbol, coords=coords)
@@ -2072,7 +2078,11 @@ class AMSJob(SingleJob):
 
                 # Set the lattice vector if applicable
                 if get_list(settings_block.lattice):
-                    mol.lattice = [tuple(float(j) for j in i.split()) for i in get_list(settings_block.lattice)]
+                    if "_h" in settings_block.lattice:
+                        conv = Units.conversion_ratio(settings_block.lattice._h.strip("[]"), "Angstrom")
+                    else:
+                        conv = 1.0
+                    mol.lattice = [tuple(conv*float(j) for j in i.split()) for i in get_list(settings_block.lattice)]
 
             # Add bonds
             for bond in get_list(settings_block.bondorders):
