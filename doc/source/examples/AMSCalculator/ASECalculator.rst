@@ -14,6 +14,16 @@ Example illustrating how to use the :ref:`AMSCalculator`. The ``BFGS`` geometry 
 
 .. note::
 
+    In this example, the AMS *driver* is replaced by ASE tools, that use the AMS
+    *engines* (ADF, BAND, DFTB, ForceField, ...) to calculate energies and forces.
+
+    In the :ref:`CustomASECalculatorExample` example, the AMS *engines* are
+    instead replaced with external ASE calculators, that can be coupled to AMS
+    *driver* tasks (GeometryOptimization, TransitionStateSearch,
+    MolecularDynamics, …).
+
+.. note::
+
     This example launches AMS in "AMSworker" mode. This means that AMS is only started at the beginning of the calculation.
 
 To follow along, either
