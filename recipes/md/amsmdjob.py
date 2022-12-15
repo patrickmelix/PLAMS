@@ -60,6 +60,9 @@ class AMSMDJob(AMSJob):
         temperature: float or tuple of floats
             Temperature (K). If a tuple/list of floats, the Thermostat.Duration option will be set to evenly divided intervals.
 
+        thermostat_region: str
+            Region for which to apply the thermostat
+
         **Barostat (NPT) options**:
 
         barostat: str
@@ -95,6 +98,7 @@ class AMSMDJob(AMSJob):
     default_thermostat = 'NHC'
     default_temperature = 300
     default_tau_multiplier = 400 # get tau by multiplying the timestep with this number
+    default_thermostat_region = None
 
     default_barostat = 'MTK'
     default_pressure = 1e5
@@ -129,6 +133,7 @@ class AMSMDJob(AMSJob):
         temperature=None,
         thermostat=None,
         tau=None,
+        thermostat_region=None,
         pressure=None,
         barostat=None,
         barostat_tau=None,
@@ -170,7 +175,7 @@ class AMSMDJob(AMSJob):
         self.settings += self._velocities2settings(velocities)
 
         if temperature or thermostat or _enforce_thermostat:
-            self.settings.update(self._get_thermostat_settings(thermostat=thermostat, temperature=temperature, tau=tau, nsteps=int(mdsett.NSteps)))
+            self.settings.update(self._get_thermostat_settings(thermostat=thermostat, temperature=temperature, tau=tau, thermostat_region=thermostat_region, nsteps=int(mdsett.NSteps)))
 
         if pressure or barostat or _enforce_barostat:
             self.settings.update(self._get_barostat_settings(
@@ -266,7 +271,7 @@ class AMSMDJob(AMSJob):
 
         return other_job, velocities, molecule, extra_settings
 
-    def _get_thermostat_settings(self, thermostat, temperature, tau, nsteps:int):
+    def _get_thermostat_settings(self, thermostat, temperature, tau, thermostat_region, nsteps:int):
         s= Settings()
         prev_thermostat_settings = self.settings.input.ams.MolecularDynamics.Thermostat
         if isinstance(prev_thermostat_settings, list):
@@ -284,6 +289,7 @@ class AMSMDJob(AMSJob):
             my_temperature = temperature
             s.input.ams.MolecularDynamics.Thermostat.Duration = None
 
+        s.input.ams.MolecularDynamics.Thermostat.Region = thermostat_region or prev_thermostat_settings.get('Region', None) or self.default_thermostat_region
         s.input.ams.MolecularDynamics.Thermostat.Temperature = my_temperature or prev_thermostat_settings.Temperature or self.default_temperature
         s.input.ams.MolecularDynamics.Thermostat.Tau = tau or prev_thermostat_settings.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_tau_multiplier
         return s

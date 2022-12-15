@@ -1,3 +1,5 @@
+.. _AMSCalculator:
+
 ASE AMSCalculator
 -------------------
 

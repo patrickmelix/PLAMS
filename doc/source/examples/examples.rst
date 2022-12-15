@@ -57,7 +57,7 @@ Packmol and AMS-ASE interfaces
 .. toctree::
 
    PackMolExample
-   ASECalculator
+   AMSCalculator/ASECalculator
    CustomASECalculator
    i-PI-AMS
    SellaTransitionStateSearch
