@@ -361,7 +361,7 @@ def packmol(molecules:Union[List[Molecule],Molecule], mole_fractions:List[float]
         'atom_indices_in_molecule': atom_indices_in_molecule,
     }
     try:
-        details['density']  = out.get_density()*1e-3,
+        details['density']  = out.get_density()*1e-3
     except ValueError:
         details['density'] = None
         pass # if not periodict
