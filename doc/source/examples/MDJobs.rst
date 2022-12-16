@@ -1,6 +1,10 @@
 AMS Molecular Dynamics PLAMS jobs
 -------------------------------------
 
+.. seealso::
+
+    **Example**: `Molecular dynamics with Python tutorial <../../Tutorials/MolecularDynamicsAndMonteCarlo/MDintroPython/intro.html>`__
+
 .. currentmodule:: scm.plams.recipes.md.amsmdjob
 
 In AMS2023, the following special Jobs exist to simplify running MD simulations (and continuing/restarting MD simulations):
@@ -41,7 +45,6 @@ The following jobs help with the postanalysis:
 
 * ``AMSVACFJob`` for calculating velocity autocorrelation functions (VACF)
 
-For example usage see the `Molecular dynamics with Python tutorial <../../../Tutorials/MolecularDynamicsAndMonteCarlo/MDintroPython/intro.html>`__
 
 AMSMDJob API
 ~~~~~~~~~~~~~
