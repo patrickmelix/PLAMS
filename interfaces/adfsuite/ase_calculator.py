@@ -291,9 +291,9 @@ class AMSPipeCalculator(AMSCalculator):
         self.worker_settings = self.settings.copy()
         if 'Task' in self.worker_settings.input.ams:
             del self.worker_settings.input.ams.Task
-        if 'Properties' in worker_settings.input.ams:
+        if 'Properties' in self.worker_settings.input.ams:
             del self.worker_settings.input.ams.Properties
-        
+        self.worker = None
 
     def _get_ams_results(self, molecule, properties):
         job_settings = self._get_job_settings(properties)
