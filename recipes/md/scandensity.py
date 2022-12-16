@@ -25,8 +25,8 @@ class AMSMDScanDensityResults(AMSResults):
         minindex = np.argmin(energies) + 1
         return minindex
 
-    def get_lowest_energy_molecule(self):
-        return self.get_history_molecule(self.get_lowest_energy_index('TotalEnergy', 'MDHistory'))
+    def get_lowest_energy_molecule(self, variable='TotalEnergy'):
+        return self.get_history_molecule(self.get_lowest_energy_index(variable, 'MDHistory'))
         
 
 class AMSMDScanDensityJob(AMSNVTJob):
