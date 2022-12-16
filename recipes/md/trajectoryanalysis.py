@@ -10,8 +10,9 @@ from ...interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResult
 from ...tools.units import Units
 from .amsmdjob import AMSNVEJob
 import numpy as np
+from typing import List
 
-__all__ = ['AMSRDFJob', 'AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults', 'AMSConvenientAnalysisPerRegionResults', 'AMSConvenientAnalysisPerRegionJob']
+__all__ = ['AMSRDFJob', 'AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults']
 
 class AMSConvenientAnalysisJob(AMSAnalysisJob):
     def __init__(self, 
@@ -107,16 +108,25 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
 
     def __init__(self, 
                  previous_job,  # needs to be finished
-                 max_correlation_time_fs=10000,
-                 start_time_fit_fs=2000,
-                 atom_indices=None,
-
+                 max_correlation_time_fs:float=10000,
+                 start_time_fit_fs:float=2000,
+                 atom_indices:List[int]=None,
                  **kwargs):
         """
         previous_job: AMSJob
             An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
 
-        All other settings can be set as for AMS
+        max_correlation_time_fs: float
+            Maximum correlation time in femtoseconds
+
+        start_time_fit_fs : float
+            Smallest correlation time for the linear fit
+
+        atom_indices : List[int]
+            If None, use all atoms. Otherwise use the specified atom indices (starting with 1)
+
+        kwargs: dict
+            Other options to AMSAnalysisJob
 
         """
         AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
@@ -125,6 +135,9 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.start_time_fit_fs = start_time_fit_fs
 
     def prerun(self):
+        """
+        Constructs the final settings
+        """
         self._parent_prerun('MeanSquareDisplacement') # trajectory and atom_indices handled
         max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
         self.settings.input.Task = 'MeanSquareDisplacement'
@@ -133,6 +146,9 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.settings.input.MeanSquareDisplacement.MaxStep = max_dt_frames
 
     def postrun(self):
+        """
+        Creates msd.txt, fit_msd.txt, and D.txt
+        """
         time, msd = self.results.get_msd()
         with open(self.path+'/msd.txt', 'w') as f:
             f.write("#Time(fs) MSD(ang^2)")
@@ -171,7 +187,7 @@ class AMSVACFResults(AMSAnalysisResults):
         return freq, y
 
 class AMSVACFJob(AMSConvenientAnalysisJob):
-    """A class for equilibrating the density at a certain temperature and pressure
+    """A class for calculating the velocity autocorrelation function and its power spectrum
     """
 
     _result_type = AMSVACFResults
@@ -188,7 +204,14 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         previous_job: AMSJob
             An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
 
-        All other settings can be set as for AMS
+        max_correlation_time_fs: float
+            Maximum correlation time in femtoseconds
+        
+        max_freq: float
+            The maximum frequency for the power spectrum in cm^-1
+        
+        atom_indices: List[int]
+            Atom indices (starting with 1). If None, use all atoms.
 
         """
         AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
@@ -197,6 +220,9 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         self.max_freq = max_freq
 
     def prerun(self):
+        """
+        Creates final settings
+        """
         self._parent_prerun('AutoCorrelation') # trajectory and atom_indices handled
         max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
         self.settings.input.Task = 'AutoCorrelation'
@@ -204,6 +230,9 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         self.settings.input.AutoCorrelation.MaxStep = max_dt_frames
 
     def postrun(self):
+        """
+        Creates vacf.txt and power_spectrum.txt
+        """
         try:
             time, vacf = self.results.get_vacf()
             with open(self.path+'/vacf.txt', 'w') as f:
@@ -223,6 +252,12 @@ class AMSRDFResults(AMSAnalysisResults):
     """Results class for AMSRDFJob
     """
     def get_rdf(self):
+        """
+        Returns a 2-tuple r, rdf.
+
+        r: numpy array of float (angstrom)
+        rdf: numpy array of float
+        """
         xy = self.get_xy()
         r = np.array(xy.x[0]) 
         y = np.array(xy.y) 
@@ -242,6 +277,26 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
                  rstep=0.1,
                  **kwargs
                  ):
+        """
+        previous_job: AMSJob
+            AMSJob with finished MD trajectory.
+
+        atom_indices: List[int]
+            Atom indices (starting with 1). If None, calculate RDF *from* all atoms.
+
+        atom_indices_to: List[int]
+            Atom indices (starting with 1). If None, calculate RDF *to* all atoms.
+
+        rmin: float
+            Minimum distance (angstrom)
+
+        rmax: float
+            Maximum distance (angstrom)
+
+        rstep: float
+            Bin width for the histogram (angstrom)
+        """
+
         AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
         self.atom_indices_to = atom_indices_to
         self.rmin = rmin
@@ -249,6 +304,9 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
         self.rstep = rstep
 
     def prerun(self):
+        """
+        Creates the final settings. Do not call or override this method.
+        """
         self._parent_prerun('RadialDistribution')
         self.settings.input.Task = 'RadialDistribution'
         main_mol = self.previous_job.results.get_main_molecule()
@@ -261,6 +319,9 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
         self.settings.input.RadialDistribution.Range = f'{self.rmin} {self.rmax} {self.rstep}'
 
     def postrun(self):
+        """
+        Creates rdf.txt. Do not call or override this method.
+        """
         try:
             r, gr = self.results.get_rdf()
             with open(self.path+'/rdf.txt', 'w') as f:

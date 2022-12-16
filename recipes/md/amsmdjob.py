@@ -335,11 +335,17 @@ class AMSMDJob(AMSJob):
         return job
 
 class AMSNVEJob(AMSMDJob):
+    """
+    A class for running NVE MD simulations
+    """
     def __init__( self, **kwargs):
         AMSMDJob.__init__(self, **kwargs)
         self.remove_blocks(['thermostat', 'barostat', 'deformation', 'nanoreactor'])
 
 class AMSNVTJob(AMSMDJob):
+    """
+    A class for running NVT MD simulations
+    """
     def __init__(self, **kwargs):
         AMSMDJob.__init__(self, _enforce_thermostat=True, **kwargs)
         self.remove_blocks(['barostat', 'deformation', 'nanoreactor'])
@@ -370,6 +376,9 @@ class AMSNPTResults(AMSResults):
         return mol
 
 class AMSNPTJob(AMSMDJob):
+    """
+    A class for running NPT MD simulations
+    """
     _result_type = AMSNPTResults
 
     def __init__(self, **kwargs):

@@ -19,7 +19,7 @@ class AMSNVESpawnerResults(Results):
         
 
 class AMSNVESpawnerJob(MultiJob):
-    """A class for equilibrating the density at a certain temperature and pressure
+    """A class for running multiple NVE simulations with initial structures/velocities taken from an NVT trajectory. The NVT trajectory must contain the velocities!
     """
 
     _result_type = AMSNVESpawnerResults
@@ -53,6 +53,9 @@ class AMSNVESpawnerJob(MultiJob):
         self.nve_jobs = []
 
     def prerun(self):
+        """
+        Constructs the children jobs
+        """
 
         # use previously run previous_job
         assert self.previous_job.status != 'created', "You can only pass in a finished AMSJob"
