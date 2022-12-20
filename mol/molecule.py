@@ -2827,7 +2827,7 @@ class Molecule:
             det[-1]  = np.sign(np.linalg.det( Vt.dot(U) ))
             R        = np.einsum("ji,j,kj", Vt, det, U)
             y        = y@R
-            rmsd     = np.linalg.norm(x - y)
+            rmsd     = np.linalg.norm(x - y) * np.sqrt(1/len(x))
             return (rmsd, R) if rotmat is True else rmsd
 
         assert len(mol1) == len(mol2), "Can only calculate the RMSD of same-sized molecules"
