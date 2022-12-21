@@ -1,36 +1,31 @@
 #!/usr/bin/env amspython
 from scm.plams import *
 import matplotlib.pyplot as plt
+import pyCRS
 
 """
 
 This example uses the Property Prediction tool to estimate some properties for
 a molecule represented by a SMILES string.
 
-You can also use the PropertyPredictionList class to run predictions on a list of
-SMILES strings and print the results to csv files.
-
-The vapor pressures are handled separately from other properties vapor pressures are temperature-dependent.
-
-The output is written to vaporpressures.csv and properties.csv
+The vapor pressures are handled separately from other properties because vapor pressures are temperature-dependent.
 
 Run this script using
 $AMSBIN/amspython PropertyPrediction.py
 
 """
 
-def main():
-    single_compound_example()
-    multi_compound_example()
-
 def single_compound_example():
     print("Single compound example for SMILES CCO")
-    p = PropertyPrediction('CCO')
-    print("Boiling point: {} {}".format(p.results['boilingpoint'], p.units['boilingpoint']))
-    print("Available properties: {}".format(p.properties))
-    # vapor pressures are handled separately
-    print("Temperatures ({}): {}".format('K', p.temperatures))
-    print("Vapor pressures ({}): {}".format(p.units['vaporpressure'], p.vaporpressures))
+    mol = pyCRS.Input.read_smiles("CCO")
+    temperatures = [298.15,308.15,318.15]
+    pyCRS.PropPred.estimate(mol,temperatures=temperatures) 
+    print("Boiling point: {:.2f} {}".format(mol.properties['boilingpoint'],pyCRS.PropPred.units['boilingpoint'])) 
+    print("Available properties: {}".format(pyCRS.PropPred.available_properties))
+    # vapor pressures are handled separately -- as part of temperature-dependent properties
+    print(f'{"Temperature":>15} {"Vapor Pressure":>15}')
+    for i in range(len(temperatures)):
+        print(f'{mol.properties_tdep["vaporpressure"][i][0]:15.2f} {mol.properties_tdep["vaporpressure"][i][1]:15.6e} {pyCRS.PropPred.units["vaporpressure"]}')
 
 def multi_compound_example():
     smiles_list = [
@@ -40,23 +35,35 @@ def multi_compound_example():
         'C', 
         'C1=CC=C(C=C1)COCC2=CC=CC=C2'
     ]
-    pp = PropertyPredictionList(smiles_list, temperatures=(280,340), n_temperatures=8)
-    print("Writing info about SMILES {} to properties.csv and vaporpressures.csv".format(smiles_list))
-    pp.write_csv("properties.csv")
-    pp.write_vaporpressures_csv("vaporpressures.csv")
+    mols = [pyCRS.Input.read_smiles(s) for s in smiles_list]
+    for mol in mols:
+        pyCRS.PropPred.estimate(mol,temperatures=list(range(280,340,10))) 
 
-    print("Writing vapor pressure plot to vaporpressures.png")
-    plot_vapor_pressures(pp, "vaporpressures.png")
+    plot_vapor_pressures(mols, "vaporpressures.png")
 
-def plot_vapor_pressures(pp:PropertyPredictionList, filename:str):
+def property_list_example():
+    print("Using a specified list of properties only")
+    mol = pyCRS.Input.read_smiles("CCCCO")
+    pyCRS.PropPred.estimate(mol,["boilingpoint","criticaltemp","density","vaporpressure"],temperatures=[290,300,310,320,330])
+
+    print("Temperature-independent properties:")
+    for k,v in mol.properties.items():
+        print(f'{k:<15} {v:15.6e} {pyCRS.PropPred.units[k]}')
+    print("\nTemperature-dependent properties")
+    for k,vals in mol.properties_tdep.items():
+        print(k)
+        print(f'{"Temperature":>15} {"Vapor Pressure":>15}')
+        for temp, val in vals:
+            print(f'{temp:15.2f} {val:15.6e} {pyCRS.PropPred.units[k]}')
+
+def plot_vapor_pressures(mols, filename:str):
     n = 2 # only show the first two
 
     plt.clf()
-    for smiles in pp.smiles_list[:n]:
-        p = pp.predictions[smiles]
-        temperatures = p.temperatures.tolist()
-        vaporpressures = p.vaporpressures
-        plt.plot(temperatures, vaporpressures, label=smiles)
+    for mol in mols[:n]:
+        temperatures   = [x[0] for x in mol.properties_tdep["vaporpressure"]]
+        vaporpressures = [x[1] for x in mol.properties_tdep["vaporpressure"]]
+        plt.plot(temperatures, vaporpressures, label=mol.smiles)
     plt.legend()
     plt.xlabel("Temperature (K)")
     plt.ylabel("Vapor pressure (bar)")
@@ -66,4 +73,6 @@ def plot_vapor_pressures(pp:PropertyPredictionList, filename:str):
 
 
 if __name__ == '__main__':
-    main()
+    single_compound_example()
+    multi_compound_example()
+    property_list_example()
