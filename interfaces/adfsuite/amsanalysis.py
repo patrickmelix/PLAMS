@@ -78,6 +78,7 @@ class AMSAnalysisPlot:
             properties[propname] = kf.read(sec, propname)
             if isinstance(properties[propname],str) :
                 properties[propname] = properties[propname].strip()
+                properties[propname] = convert_to_unicode(properties[propname])
 
         # Now set the instance variables
         self.properties = properties
@@ -184,6 +185,7 @@ class AMSAnalysisResults(SCMResults):
         sections = self.get_sections()
         plots = []
         for section in sections :
+            if section == 'General': continue
             name_part = section.split('(')[0]
             num_part = int(section.split('(')[1].split(')')[0])
             outfilename = '%s_%i.dat'%(name_part,num_part)
