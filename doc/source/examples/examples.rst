@@ -48,7 +48,7 @@ For more examples, see the `COSMO-RS documentation <../../COSMO-RS/Advanced_scri
 
 .. toctree::
 
-   PropertyPrediction
+   PropertyPrediction/PropertyPrediction
    ams_crs
 
 Packmol and AMS-ASE interfaces
