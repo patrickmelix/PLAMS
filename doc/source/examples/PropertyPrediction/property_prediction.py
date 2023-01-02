@@ -36,7 +36,7 @@ for prop, value in mol.properties.items():
 
 prop = 'vaporpressure'
 unit = pyCRS.PropPred.units[prop]
-temperatures_K, vaporpressures = zip(*mol.properties_tdep[prop])
+temperatures_K, vaporpressures = mol.get_tdep_values(prop)
 temperatures_C = [t - 273.15 for t in temperatures_K]  # convert to Celsius
 
 plt.figure(figsize=(3,3))
