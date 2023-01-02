@@ -144,6 +144,8 @@ def fromASE(molecule, properties=None, set_charge=False):
 
     if properties:
         plamsMol.properties.update(properties)
-    if (properties and 'charge' not in properties  or not properties) and set_charge:
+    if (properties and 'charge' not in properties or not properties) and set_charge:
         plamsMol.properties.charge = sum(molecule.get_initial_charges())
+        if 'charge'  in molecule.info:
+            plamsMol.properties.charge += molecule.info['charge']
     return plamsMol

@@ -64,12 +64,28 @@ def ase_geoopt_workermode():
         dyn.run(fmax=0.27)
         print(f"Optimized energy (eV): {atoms.get_potential_energy()}")
 
+def charged_system():
+    print("Define the charge of a system through the ASE atoms object")
+    settings = get_settings()
+    atoms = get_atoms()
+    atoms.set_initial_charges([-0.3, 0.2, 0.2])
+    atoms.info['charge'] = 3
+    calc = AMSCalculator(settings, name = 'charge')
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    print(f'Charge is "{atoms.calc.amsresults.get_input_molecule().properties.charge}" for the first system.')
+    atoms = atoms*(1,1,2)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    print(f'Charge is "{atoms.calc.amsresults.get_input_molecule().properties.charge}" for the second system.')
+
 def main():
     init()
     singlepoint()
     ams_geoopt()
     ase_geoopt()
     ase_geoopt_workermode()
+    charged_system()
     finish()
 
 if __name__ == '__main__':

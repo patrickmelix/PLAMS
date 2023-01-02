@@ -282,6 +282,11 @@ class AMSCalculator(Calculator):
     def __exit__(self, *args, **kwargs):
         self.stop_worker()
 
+    @property
+    def amsresults(self):
+        if hasattr(self,'prev_ams_results'):
+            return self.prev_ams_results
+
 
 class AMSPipeCalculator(AMSCalculator):
     """This class should be instantiated through AMSCalculator with settings.Calculator.Pipe defined"""

@@ -28,21 +28,22 @@ A |Settings| object is used to set up the AMS settings in the same way as for no
 
     :ref:`Preparing input for AMS jobs in PLAMS <AMS_preparing_input>`
 
-In particular, if you want to be able to get the energy, forces, and stress tensor, you need
-to specify that in the ``settings`` argument in the constructor:
+ASE results
+...........
 
-.. list-table::
-   :widths: 15 25
-   :header-rows: 1
+Currently only the energy, forces and stress tensor are provided through the ASE interface.
+All other results can be accessed through ``AMSCalculator.ams_results``, which is an |AMSResults| object.
+Use ``AMSCalculator.ensure_property('forces')`` and ``AMSCalculator.ensure_property('stress')`` to ensure
+these ASE properties are computed regardless of whether it was originally requested in the |Settings| object.
 
-   * - ASE property
-     - AMS settings
-   * - `energy`
-     - always calculated
-   * - `forces`
-     - ``settings.input.ams.properties.gradients = 'Yes'``
-   * - `stress`
-     - ``settings.input.ams.properties.stresstensor = 'Yes'``
+Charge
+......
+
+There is currently no universal interface in ASE for the total charge of a system and is instead considered to be |Calculator| specific.
+The easiest way to set the charge a calculation with the |AMSCalculator| is to define ``Atoms.info['charge']``.
+Additionally, when the charge needs to be treated extensively w.r.t. manipulations of the |Atoms| object in ASE, the initial charge of each atom can also be set.
+The total charge is thus obtained as ``sum(Atoms.get_initial_charges())+Atoms.info['charge']``.
+See the ASE documentation for details on initial charges and info.
 
 AMS standalone and worker mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
