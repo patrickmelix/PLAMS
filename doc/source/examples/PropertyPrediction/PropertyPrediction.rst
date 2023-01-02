@@ -3,6 +3,12 @@
 Property Prediction
 =====================================
 
+This example shows how to quickly estimate properties of pure compounds in Python.
+
+.. seealso::
+
+    `Pure compounds property prediction documentation <../../../COSMO-RS/Property_Prediction.html>`__
+
 To follow along, either
 
 * Download :download:`property_prediction.py` (run as ``$AMSBIN/amspython property_prediction.py``).
