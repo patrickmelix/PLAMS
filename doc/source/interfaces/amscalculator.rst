@@ -39,9 +39,9 @@ these ASE properties are computed regardless of whether it was originally reques
 Charge
 ......
 
-There is currently no universal interface in ASE for the total charge of a system and is instead considered to be |Calculator| specific.
+There is currently no universal interface in ASE for the total charge of a system and is instead considered to be Calculator specific.
 The easiest way to set the charge a calculation with the |AMSCalculator| is to define ``Atoms.info['charge']``.
-Additionally, when the charge needs to be treated extensively w.r.t. manipulations of the |Atoms| object in ASE, the initial charge of each atom can also be set.
+Additionally, when the charge needs to be treated extensively w.r.t. manipulations of the ``Atoms`` object in ASE, the initial charge of each atom can also be set.
 The total charge is thus obtained as ``sum(Atoms.get_initial_charges())+Atoms.info['charge']``.
 See the ASE documentation for details on initial charges and info.
 
