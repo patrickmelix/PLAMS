@@ -51,6 +51,7 @@ Temperature-independent properties
     criticalpressure    : 38.243 bar
     criticaltemp        : 544.189 K
     criticalvol         : 0.271 L/mol
+    density             : 0.894 kg/L (298.15 K)
     dielectricconstant  : 6.834 
     entropygas          : 382.780 J/(mol K)
     flashpoint          : 265.005 K
@@ -98,9 +99,9 @@ Create .csv for multiple compounds
 Define a list of compounds by their SMILES strings. This example also
 shows how to only calculate a subset of all properties.
 
-Note: The SMILES string 'C' corresponds to methane which is too small to
+Note: The SMILES string ‘C’ corresponds to methane which is too small to
 be used with the property prediction tool, so the results are given as
-'nan' (not a number).
+‘nan’ (not a number).
 
 .. code:: ipython3
 
@@ -170,7 +171,7 @@ be used with the property prediction tool, so the results are given as
 Bar chart for multiple compounds
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Continuing from the previous example, you can also create e.g. a bar
+Continuing from the previous example, you can also create e.g. a bar
 chart with the boiling points:
 
 .. code:: ipython3
