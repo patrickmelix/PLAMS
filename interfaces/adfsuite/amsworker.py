@@ -15,6 +15,7 @@ import collections
 from typing import *
 from ..molecule.ase import toASE
 from ...core.private import retry
+from numbers import Integral
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -1111,9 +1112,13 @@ class AMSWorker:
         for key, val in d.items():
             if (isinstance(val, collections.abc.Sequence) or isinstance(val, np.ndarray)) and not isinstance(val, str):
                 array = np.asarray(val)
-                out[key] = array.flatten()
+                if array.dtype == np.float32:
+                    # Workaround py-ubjson not knowing how to encode float32 yet
+                    array = array.astype(np.float64)
+                out[key] = array.ravel()
                 out[key + "_dim_"] = array.shape[::-1]
-                if 'int' in str(out[key].dtype) :
+                if issubclass(out[key].dtype.type, Integral) or out[key].dtype.type == np.bool_:
+                    #ubjson does not know how to convert numpy arrays of int/bool, so convert back to a list here
                     out[key] = out[key].tolist()
             elif isinstance(val, collections.abc.Mapping):
                 out[key] = self._flatten_arrays(val)
