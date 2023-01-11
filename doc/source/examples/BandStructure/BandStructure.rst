@@ -3,6 +3,10 @@
 Band structure
 ===================
 
+.. seealso::
+
+    :ref:`PlottingTools`
+
 To follow along, either
 
 * Download :download:`BandStructureExample.py` (run as ``$AMSBIN/amspython BandStructureExample.py``).

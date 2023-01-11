@@ -45,8 +45,14 @@ A small module for converting VASP output to AMS-like output, and for converting
 
 .. automodule:: scm.plams.tools.converters
 
+.. _PlottingTools:
+
 Plotting tools
 ~~~~~~~~~~~~~~~~~~
+
+.. seealso::
+
+    * :ref:`BandStructureExample`
 
 Tools for creating plots with matplotlib.
 
