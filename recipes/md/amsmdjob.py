@@ -88,6 +88,12 @@ class AMSMDJob(AMSJob):
         calcpressure: bool
             Whether to calculate pressure for each frame. 
 
+        binlog_time: bool
+            Whether to log the time at every timestep in the BinLog section on ams.rkf
+
+        binlog_pressuretensor: bool
+            Whether to log the pressure tensor at every timestep in the BinLog section on ams.rkf
+
 
 
     """
@@ -115,6 +121,8 @@ class AMSMDJob(AMSJob):
     default_writeenginegradients = 'False'
 
     default_calcpressure = 'False'
+    default_binlog_time = 'False'
+    default_binlog_pressuretensor = 'False'
 
     def __init__(
         self, 
@@ -140,6 +148,8 @@ class AMSMDJob(AMSJob):
         scale=None,
         equal=None,
         constantvolume=None,
+        binlog_time=None,
+        binlog_pressuretensor=None,
         _enforce_thermostat=False,
         _enforce_barostat=False,
         **kwargs
@@ -169,6 +179,9 @@ class AMSMDJob(AMSJob):
         mdsett.Trajectory.WriteEngineGradients = str(writeenginegradients) if writeenginegradients is not None else mdsett.Trajectory.WriteEngineGradients or self.default_writeenginegradients
         mdsett.CalcPressure = str(calcpressure) if calcpressure is not None else mdsett.CalcPressure or self.default_calcpressure
         mdsett.Checkpoint.Frequency = checkpointfrequency or mdsett.Checkpoint.Frequency or self.default_checkpointfrequency
+
+        mdsett.BinLog.Time = str(binlog_time) if binlog_time is not None else mdsett.BinLog.Time or self.default_binlog_time
+        mdsett.BinLog.PressureTensor = str(binlog_pressuretensor) if binlog_pressuretensor is not None else mdsett.BinLog.PressureTensor or self.default_binlog_pressuretensor
 
         if velocities is None and temperature is not None:
             velocities = self._get_initial_temperature(temperature)
