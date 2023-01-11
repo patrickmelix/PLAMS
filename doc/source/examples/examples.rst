@@ -68,6 +68,7 @@ Other AMS calculations
 .. toctree::
 
    BAND_NiO_HubbardU
+   BandStructure/BandStructure
    AMSPlumedMD
    BasicMDPostanalysis
    UseLowestEnergy
