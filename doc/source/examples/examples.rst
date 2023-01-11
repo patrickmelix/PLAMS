@@ -104,6 +104,5 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     adfnbo
     numgrad
     numhess
-    molecule_gun
     global_minimum
 
