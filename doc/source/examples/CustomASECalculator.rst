@@ -1,7 +1,7 @@
 .. _CustomASECalculatorExample:
 
-Couple any ASE calculator to AMS Driver
-==============================================
+AMS geometry optimizer with forces from any ASE calculator 
+==========================================================================
 
 This example illustrates how set up an AMS calculation using any external ASE calculator as the engine.
 

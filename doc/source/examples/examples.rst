@@ -17,6 +17,12 @@ Getting Started
    WaterOptimization
    He2DissociationCurve
    ManyJobsInParallel
+
+Molecule analysis
+---------------------
+
+.. toctree::
+
    MoleculesFromRKFTrajectory
    MoleculesTable
    MoleculeSubstitution
@@ -61,6 +67,11 @@ Packmol and AMS-ASE interfaces
    CustomASECalculator
    i-PI-AMS
    SellaTransitionStateSearch
+
+ParAMS and pyZacros
+-----------------------
+
+See the `ParAMS <../../params/index.html>`__ and `pyZacros <../../pyzacros/index.html>`__ documentations.
 
 Other AMS calculations
 ------------------------
