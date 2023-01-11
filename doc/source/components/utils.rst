@@ -44,3 +44,10 @@ File format conversion tools
 A small module for converting VASP output to AMS-like output, and for converting ASE .traj trajectory files to the .rkf format.
 
 .. automodule:: scm.plams.tools.converters
+
+Plotting tools
+~~~~~~~~~~~~~~~~~~
+
+Tools for creating plots with matplotlib.
+
+.. automodule:: scm.plams.tools.plot

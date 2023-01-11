@@ -403,6 +403,84 @@ class AMSResults(Results):
         temperatures /= 3 * Units.constants['k_B']
         return temperatures
 
+    def get_band_structure(self, bands=None, unit='hartree', only_high_symmetry_points=False):
+        """
+        Extracts the electronic band structure from DFTB or BAND calculations. The returned data can be plotted with ``plot_band_structure``.
+
+        Returns: ``x``, ``y``, ``labels``, ``fermi_energy``
+
+        ``x``: 1D array of float
+
+        ``y``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``
+
+        ``labels``: 1D list of str of length len(x). If a point is not a high-symmetry point then the label is an empty string.
+
+        ``fermi_energy``: float. The Fermi energy (in units of ``unit``).
+
+        Arguments below.
+
+        bands: list of int or None
+            If None, all bands are returned. Note: the band indices start with 0.
+
+        unit: str
+            Unit of the returned band energies
+
+        only_high_symmetry_points: bool
+            Return only the first point of each edge.
+
+        """
+
+        read_labels = True
+
+        nBands= self.readrkf('band_curves', 'nBands', file='engine')
+
+        if bands is None:
+            bands = np.arange(nBands)
+
+        nEdges = self.readrkf('band_curves', 'nEdges', file='engine')
+
+        prevmaxx = 0
+        complete_data = []
+        labels = []
+        x = []
+
+        for i in range(nEdges):
+            my_x = self.readrkf('band_curves', f'Edge_{i+1}_xFor1DPlotting', file='engine')
+            my_x = np.array(my_x) + prevmaxx
+            prevmaxx = np.max(my_x)
+
+            if read_labels:
+                my_labels = self.readrkf('band_curves', f'Edge_{i+1}_labels', file='engine').split()
+                if len(my_labels) == 2:
+                    if only_high_symmetry_points:
+                        labels += [my_labels[0]]  # only the first point of the curve
+                    else:
+                        labels += [my_labels[0]] + ['']*(len(my_x)-2) + [my_labels[1]]
+
+            if only_high_symmetry_points:
+                x.append(my_x[0:1])
+            else:
+                x.append(my_x)
+
+            A = self.readrkf('band_curves', f'Edge_{i+1}_bands', file='engine')
+            A = np.array(A).reshape(-1, nBands) 
+            data = A[:, bands]
+
+            if only_high_symmetry_points:
+                data = np.reshape(data[0, :], (-1, len(bands)))
+
+            complete_data.append(data)
+
+        complete_data = np.concatenate(complete_data) 
+
+        complete_data = Units.convert(complete_data, 'hartree', unit)
+        x = np.concatenate(x).ravel()
+
+        fermi_energy = self.readrkf('BandStructure', 'FermiEnergy', file='engine')
+        fermi_energy = Units.convert(fermi_energy, 'hartree', unit)
+
+        return x, complete_data, labels, fermi_energy
+
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
 
@@ -448,13 +526,6 @@ class AMSResults(Results):
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
-        # try:
-        #     return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
-        # except FileError as original_error:
-        #     try:
-        #         return min(self.readrkf('PESScan', 'PES')) * Units.conversion_ratio('au', unit)
-        #     except:
-        #         raise original_error
 
 
     def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
@@ -961,7 +1032,7 @@ class AMSResults(Results):
         acf = autocorrelation(data, max_dt=max_dt)
         times = np.arange(len(acf)) * time_step 
 
-        integrated_acf = cumtrapz(acf, times)
+        integrated_acf = cumtrapz(acf, times, initial=0)
         integrated_times = np.arange(len(integrated_acf)) * time_step 
 
         k_B = Units.constants['k_B']
@@ -1148,8 +1219,6 @@ class AMSResults(Results):
 
         z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
         return z, density
-
-
 
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
