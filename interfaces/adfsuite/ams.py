@@ -407,6 +407,8 @@ class AMSResults(Results):
         """
         Extracts the electronic band structure from DFTB or BAND calculations. The returned data can be plotted with ``plot_band_structure``.
 
+        Note: for unrestricted calculations bands 0, 2, 4, ... are spin-up and bands 1, 3, 5, ... are spin-down.
+
         Returns: ``x``, ``y``, ``labels``, ``fermi_energy``
 
         ``x``: 1D array of float
@@ -438,6 +440,10 @@ class AMSResults(Results):
             bands = np.arange(nBands)
 
         nEdges = self.readrkf('band_curves', 'nEdges', file='engine')
+        try:
+            nSpin = self.readrkf('band_curves', 'nSpin', file='engine')
+        except KeyError:
+            nSpin = 1
 
         prevmaxx = 0
         complete_data = []
@@ -463,7 +469,7 @@ class AMSResults(Results):
                 x.append(my_x)
 
             A = self.readrkf('band_curves', f'Edge_{i+1}_bands', file='engine')
-            A = np.array(A).reshape(-1, nBands) 
+            A = np.array(A).reshape(-1, nBands*nSpin) 
             data = A[:, bands]
 
             if only_high_symmetry_points:
