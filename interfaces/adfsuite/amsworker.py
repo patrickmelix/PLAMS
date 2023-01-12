@@ -1110,6 +1110,7 @@ class AMSWorker:
     def _flatten_arrays(self, d):
         out = {}
         for key, val in d.items():
+
             if (isinstance(val, collections.abc.Sequence) or isinstance(val, np.ndarray)) and not isinstance(val, str):
                 array = np.asarray(val)
                 if array.dtype == np.float32:
@@ -1122,6 +1123,10 @@ class AMSWorker:
                     out[key] = out[key].tolist()
             elif isinstance(val, collections.abc.Mapping):
                 out[key] = self._flatten_arrays(val)
+            elif isinstance(val, np.float32): #for scalar float32
+                out[key] = np.float64(val)
+            elif isinstance(val, np.int32):
+                out[key] = int(val)
             else:
                 out[key] = val
         return out
