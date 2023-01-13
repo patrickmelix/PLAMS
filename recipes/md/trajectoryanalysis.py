@@ -143,7 +143,7 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.settings.input.Task = 'MeanSquareDisplacement'
         self.settings.input.MeanSquareDisplacement.Property = 'DiffusionCoefficient'
         self.settings.input.MeanSquareDisplacement.StartTimeSlope = self.start_time_fit_fs
-        self.settings.input.MeanSquareDisplacement.MaxStep = max_dt_frames
+        self.settings.input.MeanSquareDisplacement.MaxFrame = max_dt_frames
 
     def postrun(self):
         """
@@ -227,7 +227,7 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
         self.settings.input.Task = 'AutoCorrelation'
         self.settings.input.AutoCorrelation.Property = 'Velocities'
-        self.settings.input.AutoCorrelation.MaxStep = max_dt_frames
+        self.settings.input.AutoCorrelation.MaxFrame = max_dt_frames
 
     def postrun(self):
         """

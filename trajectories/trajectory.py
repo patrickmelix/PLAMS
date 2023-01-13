@@ -189,7 +189,7 @@ class Trajectory :
                     >>> settings = Settings()
                     >>> settings.input.Task = 'AutoCorrelation' 
                     >>> settings.input.AutoCorrelation.Property = 'Velocities'
-                    >>> settings.input.AutoCorrelation.MaxStep = 2000
+                    >>> settings.input.AutoCorrelation.MaxFrame = 2000
 
                 * ``steprange`` -- Start frame, end frame, and stepsize. The default (None) corresponds to all frames in the object
 
