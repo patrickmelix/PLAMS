@@ -14,10 +14,12 @@ All possible input keywords and options are covered, as well as extraction of ar
     * DFTB     : |AMSJob| with DFTB engine
     * ReaxFF   : |AMSJob| with ReaxFF engine
     * MOPAC    : |AMSJob| with MOPAC engine
-    * UFF      : |AMSJob| with UFF engine
+    * ForceField      : |AMSJob| with ForceField engine
+    * ParAMS      : :ref:`ParAMSJob <ParAMS>`
     * Densf    : |DensfJob|
     * FCF      : |FCFJob|
     * COSMO-RS : |CRSJob|
+    * Zacros      : :ref:`ZacrosJob <Zacros>`
 
 
 .. toctree::
