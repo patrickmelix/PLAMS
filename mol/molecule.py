@@ -299,7 +299,6 @@ class Molecule:
             delbond.atom1.bonds.remove(delbond)
             delbond.atom2.bonds.remove(delbond)
 
-
     def delete_all_bonds(self):
         """Delete all bonds from the molecule."""
         for b in reversed(self.bonds):
@@ -673,10 +672,14 @@ class Molecule:
                 j = self.index(other_at)-1
                 # Here we make sure that C is only treated as electronegative towards non-electronegative neighbors
                 # If there was any relative eleectronegativity data, this could be generalized
+                if bond.order%1 > 0.4 and bond.order%1<0.6:
+                    order = round(bond.order*2)/2 # Rounded to 0.5 only if it is very obviousy a partial bond
+                else:
+                    order = round(bond.order)
                 if atom.symbol == 'C' and j in en_indices :
-                    echarges[i] += bond.order
+                    echarges[i] += order
                 else :
-                    echarges[j] += bond.order
+                    echarges[j] += order
         charges = [q+echarges[i] for i,q in enumerate(charges)]
 
         # Assign positive charge to H and Compensate charges to the rest (assumes that H-atoms have only single neighbor)
@@ -2449,7 +2452,7 @@ class Molecule:
             order = bo.order
             if order == Bond.AR:
                 order = 4
-            f.write('%3i %2i %2i  0  0  0  0\n' % (bo.atom1.id,bo.atom2.id,order))
+            f.write('%3i %2i %2i  0  0  0  0\n' % (bo.atom1.id,bo.atom2.id,round(order)))
         self.unset_atoms_id()
         f.write('M  END\n')
 

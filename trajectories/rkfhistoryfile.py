@@ -325,6 +325,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 molecule.properties = Settings()
                                 for iel,el in enumerate(elements) :
                                         atom = new_mol.atoms[iel]
+                                        atom.bonds = []
                                         #atom = Atom(PT.get_atomic_number(el))
                                         molecule.add_atom(atom)
                                 _, _, _, _, self.props = self._read_plamsmol(molecule)
@@ -417,7 +418,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 step = mddata['Step']
                 # Energy should be read from mddata first, otherwise from historydata, otherwise set to zero
                 energy = self._set_energy(mddata, historydata)
-                if not self.include_historydata :
+                if historydata is None or not self.include_historydata :
                         historydata = {}
                 historydata['Energy'] = energy
 

@@ -560,7 +560,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 step = mddata['Step']
                 # Energy should be read from mddata first, otherwise from historydata, otherwise set to zero
                 energy = self._set_energy(mddata, historydata)
-                if not self.include_historydata :
+                if not self.include_historydata or historydata is None :
                         historydata = {}
                 historydata['Energy'] = energy
 
