@@ -1121,6 +1121,8 @@ class AMSWorker:
                 if issubclass(out[key].dtype.type, Integral) or out[key].dtype.type == np.bool_:
                     #ubjson does not know how to convert numpy arrays of int/bool, so convert back to a list here
                     out[key] = out[key].tolist()
+                elif out[key].dtype == np.bool_:
+                    out[key] = out[key].tolist()
             elif isinstance(val, collections.abc.Mapping):
                 out[key] = self._flatten_arrays(val)
             elif isinstance(val, np.float32): #for scalar float32
