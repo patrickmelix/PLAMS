@@ -4,18 +4,18 @@ import os
 import time
 import datetime
 import threading
-from scm.plams import Atom
-from scm.plams import Bond
-from scm.plams import Molecule
-from scm.plams import AMSJob
-from scm.plams import Settings
-from scm.plams import Units
-from scm.plams import FileError
-from scm.plams import PlamsError
-from scm.plams import AMSWorkerPool
-from scm.plams import AMSWorker
-from scm.plams import JobRunner
-from scm.plams import log
+from ...mol.atom import Atom
+from ...mol.bond import Bond
+from ...mol.molecule import Molecule
+from ...interfaces.adfsuite.ams import AMSJob
+from ...core.settings import Settings
+from ...tools.units import Units
+from ...core.errors import FileError
+from ...core.errors import PlamsError
+from ...interfaces.adfsuite.amsworker import AMSWorkerPool
+from ...interfaces.adfsuite.amsworker import AMSWorker
+from ...core.jobrunner import JobRunner
+from ...core.functions import log
 
 __all__ = ['Optimizer']
 
