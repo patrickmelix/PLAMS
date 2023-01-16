@@ -409,11 +409,13 @@ class AMSResults(Results):
 
         Note: for unrestricted calculations bands 0, 2, 4, ... are spin-up and bands 1, 3, 5, ... are spin-down.
 
-        Returns: ``x``, ``y``, ``labels``, ``fermi_energy``
+        Returns: ``x``, ``y_spin_up``, ``y_spin_down``, ``labels``, ``fermi_energy``
 
         ``x``: 1D array of float
 
-        ``y``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``
+        ``y_spin_up``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``
+
+        ``y_spin_down``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``. If the calculation was restricted this is identical to y_spin_up.
 
         ``labels``: 1D list of str of length len(x). If a point is not a high-symmetry point then the label is an empty string.
 
@@ -436,17 +438,23 @@ class AMSResults(Results):
 
         nBands= self.readrkf('band_curves', 'nBands', file='engine')
 
-        if bands is None:
-            bands = np.arange(nBands)
-
         nEdges = self.readrkf('band_curves', 'nEdges', file='engine')
         try:
             nSpin = self.readrkf('band_curves', 'nSpin', file='engine')
         except KeyError:
             nSpin = 1
 
+        if bands is None:
+            bands = np.arange(nBands)
+
+        spindown_bands = bands
+        if nSpin == 2:
+            spindown_bands = np.array(bands) + nBands
+
+
         prevmaxx = 0
-        complete_data = []
+        complete_spinup_data = []
+        complete_spindown_data = []
         labels = []
         x = []
 
@@ -470,22 +478,28 @@ class AMSResults(Results):
 
             A = self.readrkf('band_curves', f'Edge_{i+1}_bands', file='engine')
             A = np.array(A).reshape(-1, nBands*nSpin) 
-            data = A[:, bands]
+            spinup_data = A[:, bands]
+            spindown_data = A[:, spindown_bands]
 
             if only_high_symmetry_points:
-                data = np.reshape(data[0, :], (-1, len(bands)))
+                spinup_data = np.reshape(spinup_data[0, :], (-1, len(bands)))
+                spindown_data = np.reshape(spindown_data[0, :], (-1, len(spindown_bands)))
 
-            complete_data.append(data)
+            complete_spinup_data.append(spinup_data)
+            complete_spindown_data.append(spindown_data)
 
-        complete_data = np.concatenate(complete_data) 
+        complete_spinup_data = np.concatenate(complete_spinup_data) 
+        complete_spinup_data = Units.convert(complete_spinup_data, 'hartree', unit)
 
-        complete_data = Units.convert(complete_data, 'hartree', unit)
+        complete_spindown_data = np.concatenate(complete_spindown_data) 
+        complete_spindown_data = Units.convert(complete_spindown_data, 'hartree', unit)
+
         x = np.concatenate(x).ravel()
 
         fermi_energy = self.readrkf('BandStructure', 'FermiEnergy', file='engine')
         fermi_energy = Units.convert(fermi_energy, 'hartree', unit)
 
-        return x, complete_data, labels, fermi_energy
+        return x, complete_spinup_data, complete_spindown_data, labels, fermi_energy
 
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.

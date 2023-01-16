@@ -1,6 +1,8 @@
-__all__ = ['plot_band_structure']
+from ..mol.molecule import Molecule
 
-def plot_band_structure(x, y, labels, fermi_energy=None, zero=None, show=False):
+__all__ = ['plot_band_structure', 'plot_molecule']
+
+def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, show=False):
     """
     Plots an electronic band structure from DFTB or BAND with matplotlib.
 
@@ -10,7 +12,10 @@ def plot_band_structure(x, y, labels, fermi_energy=None, zero=None, show=False):
     x: list of float
         Returned by AMSResults.get_band_structure()
 
-    y: 2D numpy array of float
+    y_spin_up: 2D numpy array of float
+        Returned by AMSResults.get_band_structure()
+
+    y_spin_down: 2D numpy array of float. If None, the spin down bands are not plotted.
         Returned by AMSResults.get_band_structure()
 
     labels: list of str
@@ -32,14 +37,25 @@ def plot_band_structure(x, y, labels, fermi_energy=None, zero=None, show=False):
     elif zero == 'fermi':
         assert fermi_energy is not None
         zero = fermi_energy 
-    elif zero == 'vbmax':
+    elif zero in ['vbm', 'vbmax']:
         assert fermi_energy is not None
-        zero = y[y <= fermi_energy].max()
-    elif zero == 'cbmin':
+        zero = y_spin_up[y_spin_up <= fermi_energy].max()
+        if y_spin_down is not None:
+            zero = max(zero, y_spin_down[y_spin_down <= fermi_energy].max())
+    elif zero in ['cbm', 'cbmax']:
         assert fermi_energy is not None
-        zero = y[y >= fermi_energy].min()
+        zero = y_spin_up[y_spin_up >= fermi_energy].min()
+        if y_spin_down is not None:
+            zero = min(zero, y_spin_down[y_spin_down <= fermi_energy].min())
 
-    plt.plot(x, y-zero, '-')
+    labels = labels or []
+
+    fig, ax = plt.subplots()
+
+    plt.plot(x, y_spin_up-zero, '-')
+    if y_spin_down is not None:
+        plt.plot(x, y_spin_down-zero, '--')
+
     tick_x = []
     tick_labels = []
     for xx, ll in zip(x, labels):
@@ -65,3 +81,20 @@ def plot_band_structure(x, y, labels, fermi_energy=None, zero=None, show=False):
 
     if show:
         plt.show()
+
+
+
+def plot_molecule(molecule, figsize=None, **kwargs):
+    """ Show a molecule in a Jupyter notebook """
+    from ase.visualize.plot import plot_atoms
+    import matplotlib.pyplot as plt
+    from ..interfaces.molecule.ase import toASE
+
+    if isinstance(molecule, Molecule):
+        molecule = toASE(molecule)
+
+    plt.figure(figsize=figsize or (2,2))
+    plt.axis('off')
+    plot_atoms(molecule, **kwargs)
+
+
