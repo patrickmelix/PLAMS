@@ -7,7 +7,7 @@ def test_Properties():
     s.runscript.nproc = 1
     job = AMSCalculator(s, name = 'Properties')
     assert 'forces' not in job.implemented_properties
-    job.set_property('forces')
+    job.ensure_property('forces')
     assert 'forces' in job.implemented_properties
 
 

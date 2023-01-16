@@ -233,7 +233,7 @@ class AMSCalculator(Calculator):
         self.results_from_ams_results(ams_results, self._get_job_settings(properties))
         self.prev_ams_results = ams_results
 
-    def set_property(self, properties):
+    def ensure_property(self, properties):
         """A list of ASE properties that the calculator will ensure are available from AMS or it gives an error."""
         if isinstance(properties, str):
             properties = [properties]
