@@ -186,6 +186,7 @@ class AMSAnalysisResults(SCMResults):
         plots = []
         for section in sections :
             if section == 'General': continue
+            if 'History' in section: continue
             name_part = section.split('(')[0]
             num_part = int(section.split('(')[1].split(')')[0])
             outfilename = '%s_%i.dat'%(name_part,num_part)
