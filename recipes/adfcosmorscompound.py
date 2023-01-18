@@ -40,6 +40,12 @@ class ADFCOSMORSCompoundResults(Results):
         for job in self.job.children.values():
             return job.results.get_input_molecule()
 
+    def get_sigma_profile(self, subsection: str = 'profil'):
+        """
+            Returns the sigma profile of the molecule. For more details see `CRSResults.get_sigma_profile`.
+        """
+        return self.job.children['crs'].results.get_sigma_profile(subsection = subsection)
+
 
 class ADFCOSMORSCompoundJob(MultiJob):
     """A class for performing the equivalent of Task COSMO-RS Compound in the AMS GUI
@@ -85,6 +91,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
                 job = ADFCOSMORSCompoundJob(name='water', molecule=mol, preoptimization='UFF')
                 job.run()
                 print(job.results.coskfpath())
+                print(job.results.get_sigma_profile())
 
         """
         MultiJob.__init__(self, children=OrderedDict(), **kwargs)
@@ -141,6 +148,20 @@ class ADFCOSMORSCompoundJob(MultiJob):
             self.parent.convert_to_coskf(self.results.rkfpath(file='adf'), os.path.join(self.parent.path, self.parent.name+'.coskf'))
 
         self.children['solv'] = solv_job
+
+        sigma_s = Settings()
+        sigma_s.input.property._h = 'PURESIGMAPROFILE'
+
+        compounds = [Settings()]
+        sigma_s.input.compound = compounds
+        crsjob = CRSJob(settings=sigma_s, name = 'sigma')
+
+        @add_to_instance(crsjob)
+        def prerun(self):
+            self.parent.children['solv'].results.wait()
+            self.settings.input.compound[0]._h = os.path.join(self.parent.path, self.parent.name+'.coskf')
+
+        self.children['crs'] = crsjob
 
     @staticmethod
     def _get_radii() -> dict:

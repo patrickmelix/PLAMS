@@ -44,6 +44,7 @@ def generate_coskf(smiles, jobname=None):
     molecule = from_smiles(smiles, nconfs=100, forcefield='uff')[0]
     job = ADFCOSMORSCompoundJob(name=jobname, molecule=molecule)
     job.run()
+    plot_sigma_profile(job)
     return job.results.coskfpath()
 
 def plot_results(job):
@@ -58,6 +59,18 @@ def plot_results(job):
     plt.ylabel("Solubility (g/L solvent)")
     plt.show()
 
+def plot_sigma_profile(job):
+    sigma = job.results.get_sigma_profile()
+    xlabel = 'σ (e/A**2)'
+    for profile in sigma:
+        if profile == xlabel:
+            continue
+        plt.plot(sigma[xlabel], sigma[profile], label=profile.split('.')[0])
+
+    plt.xlabel('σ (e/Å**2)')
+    plt.ylabel('p(σ)')
+    plt.legend()
+    plt.show()
 
 def main():
     solubility()
