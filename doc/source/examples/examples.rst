@@ -84,6 +84,12 @@ Other AMS calculations
    BasicMDPostanalysis
    UseLowestEnergy
 
+Pymatgen
+----------------
+
+.. toctree::
+    
+    XRD/XRD
 
 .. _recipes:
 
