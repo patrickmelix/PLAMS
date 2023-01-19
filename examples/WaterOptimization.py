@@ -7,6 +7,8 @@ import numpy as np
 
 # You could also load the geometry from an xyz file: 
 # molecule = Molecule('path/my_molecule.xyz')
+# or generate a molecule from SMILES:
+# molecule = from_smiles('O')
 molecule = Molecule()
 molecule.add_atom(Atom(symbol='O', coords=(0,0,0)))
 molecule.add_atom(Atom(symbol='H', coords=(1,0,0)))
@@ -28,13 +30,16 @@ timings = result.get_timings()
 
 energy = result.get_energy(unit='kcal/mol')
 
-homo = result.get_homo_energies(unit='eV')[0]
-lumo = result.get_lumo_energies(unit='eV')[0]
+try:
+    homo = result.get_homo_energies(unit='eV')[0]
+    lumo = result.get_lumo_energies(unit='eV')[0]
 
-homo_lumo_gap = result.get_smallest_HOMO_LUMO_gap(unit='eV')
+    homo_lumo_gap = result.get_smallest_HOMO_LUMO_gap(unit='eV')
 
-dipole_moment = np.linalg.norm(np.array(job.results.get_dipolemoment()))
-dipole_moment *= Units.convert(1.0, 'au', 'debye')
+    dipole_moment = np.linalg.norm(np.array(job.results.get_dipolemoment()))
+    dipole_moment *= Units.convert(1.0, 'au', 'debye')
+except KeyError:
+    homo = lumo = homo_lumo_gap = dipole_moment = None
 
 frequencies = result.get_frequencies(unit='cm^-1')
 
@@ -55,8 +60,11 @@ print('')
 print('Calculation time: {:.3f} s'.format(timings['elapsed']))
 print('')
 print('Energy      : {:.3f} kcal/mol'.format(energy))
-print('HOMO        : {:.3f} eV'.format(homo))
-print('LUMO        : {:.3f} eV'.format(lumo))
-print('HOMO-LUMO gap : {:.3f} eV'.format(homo_lumo_gap))
-print('Dipole moment: {:.3f} debye'.format(dipole_moment))
+
+if homo and lumo and homo_lumo_gap and dipole_moment:
+    print('HOMO        : {:.3f} eV'.format(homo))
+    print('LUMO        : {:.3f} eV'.format(lumo))
+    print('HOMO-LUMO gap : {:.3f} eV'.format(homo_lumo_gap))
+    print('Dipole moment: {:.3f} debye'.format(dipole_moment))
+
 print('Frequencies : {} cm^-1'.format(frequencies))
