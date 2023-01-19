@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 def solubility():
-    # replace with the output of "$AMSBIN/amspackages loc adfcrs" /ADFCRS-2018
+    # database can also be replaced with the output of "$AMSBIN/amspackages loc adfcrs" /ADFCRS-2018
     database = CRSJob.database()
     
     solute_smiles = 'c1ccccc1'
@@ -14,7 +14,7 @@ def solubility():
     #solute_coskf = os.path.abspath('plams_workdir/adf_benzene/adf_benzene.coskf') # to not rerun the ADF calculation
     #solute_coskf = os.path.join(database, 'Benzene.coskf') # to load from database
 
-    #solute_properties = PropertyPrediction(solute_smiles).results # estimate with the property prediction tool
+    # You can also estimate the solute properties with the Property Prediction tool. See the Property Prediction example
     solute_properties = { 'meltingpoint': 278.7, 'hfusion': 9.91  } #experimental values for benzene, hfusion in kJ/mol
 
     solvent_coskf = os.path.join(database, 'Water.coskf')
