@@ -89,6 +89,24 @@ class ForceFieldPatch :
 
         return ret
 
+    def clear (self) :
+        """
+        Empty self
+        """
+        self.comment = ''
+        self._set_types([])
+        self._set_bonds([])
+        self._set_angles([])
+        self._set_dihedrals([])
+        self._set_impropers([])
+        self._set_ljparams([])
+
+    def __len__ (self) :
+        """
+        Returns the size of the patch
+        """
+        return len(self.types)
+
     def __str__ (self) :
         """
         Returns the patch as text
@@ -119,6 +137,29 @@ class ForceFieldPatch :
         ret.types += [t for t in other.types if not t in self.types]
 
         return ret
+
+    def read_from_kf (self, kf):
+        """
+        Read patch infor from kf
+        """
+        if len(self) > 0 :
+            self.clear()
+        npatches = kf.read("AMSResults","Config.nPatches")
+        patch = ForceFieldPatch()
+        if npatches > 0 :
+            patchtext = kf.read("AMSResults","Config.FFPatch(1)")
+            patch += ForceFieldPatch(patchtext)
+      
+        for key in vars(patch):
+            if 'type' in key or 'lines' in key:
+                self.__dict__[key] = patch.__dict__[key] 
+
+    def write_to_kf (self, kf):
+        """
+        Write the patch info to KF
+        """
+        kf.write('AMSResults','Config.nPatches',1)
+        kf.write("AMSResults","Config.FFPatch(1)",str(self))
 
     def _set_types (self, lines) :
         """
@@ -238,12 +279,9 @@ def forcefield_params_from_kf(kf):
     types = [alltypes[i - 1] for i in indices]
 
     # Read the force field patch
-    npatches = kf.read("AMSResults","Config.nPatches")
     patch = ForceFieldPatch()
-    if npatches > 0 :
-        patchtext = kf.read("AMSResults","Config.FFPatch(1)")
-        patch += ForceFieldPatch(patchtext)
-    else :
+    patch.read_from_kf(kf)
+    if len(patch) == 0 :
         patch = None
     return charges, types, patch
 
