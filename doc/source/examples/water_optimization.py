@@ -24,10 +24,12 @@ init()
 # molecule = from_smiles('O')
 molecule = Molecule()
 molecule.add_atom(Atom(symbol='O', coords=(0,0,0)))
-molecule.add_atom(Atom(symbol='H', coords=(-0.7,-0.7,0)))
+molecule.add_atom(Atom(symbol='H', coords=(1,0,0)))
 molecule.add_atom(Atom(symbol='H', coords=(0,1,0)))
 
-plot_molecule(molecule)
+
+try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+except NameError: pass
 
 
 # ## Calculation settings
@@ -74,7 +76,10 @@ print("Optimized coordinates")
 print("---------------------")
 print(optimized_molecule)
 print("---------------------")
-plot_molecule(optimized_molecule) # show molecule in a Jupyter notebook
+
+
+try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+except NameError: pass
 
 
 # ## Optimized bond lengths and angle
@@ -83,7 +88,8 @@ plot_molecule(optimized_molecule) # show molecule in a Jupyter notebook
 # the index of the first atom in the molecule object is 1.
 
 bond_length = optimized_molecule[1].distance_to(optimized_molecule[2])
-print('O-H bond length: {:.2f} angstrom'.format(bond_length))
+print('O-H bond length: {:.3f} angstrom'.format(bond_length))
+
 
 bond_angle = optimized_molecule[1].angle(optimized_molecule[2], optimized_molecule[3])
 print('Bond angle  : {:.1f} degrees'.format(Units.convert(bond_angle, 'rad', 'degree')))

@@ -33,14 +33,17 @@ Initial structure
     # molecule = from_smiles('O')
     molecule = Molecule()
     molecule.add_atom(Atom(symbol='O', coords=(0,0,0)))
-    molecule.add_atom(Atom(symbol='H', coords=(-0.7,-0.7,0)))
+    molecule.add_atom(Atom(symbol='H', coords=(1,0,0)))
     molecule.add_atom(Atom(symbol='H', coords=(0,1,0)))
-    
-    plot_molecule(molecule)
+
+.. code:: ipython3
+
+    try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+    except NameError: pass
 
 
 
-.. image:: water_optimization_files/water_optimization_4_0.png
+.. image:: water_optimization_files/water_optimization_5_0.png
 
 
 Calculation settings
@@ -85,7 +88,7 @@ You can check the input to AMS by calling the ``get_input()`` method:
     system
       Atoms
                   O       0.0000000000       0.0000000000       0.0000000000 
-                  H      -0.7000000000      -0.7000000000       0.0000000000 
+                  H       1.0000000000       0.0000000000       0.0000000000 
                   H       0.0000000000       1.0000000000       0.0000000000 
       End
     End
@@ -108,10 +111,10 @@ Run the job
 
 .. parsed-literal::
 
-    [23.01|18:33:14] JOB water_optimization STARTED
-    [23.01|18:33:14] JOB water_optimization RUNNING
-    [23.01|18:33:16] JOB water_optimization FINISHED
-    [23.01|18:33:16] JOB water_optimization SUCCESSFUL
+    [23.01|18:52:31] JOB water_optimization STARTED
+    [23.01|18:52:31] JOB water_optimization RUNNING
+    [23.01|18:52:32] JOB water_optimization FINISHED
+    [23.01|18:52:33] JOB water_optimization SUCCESSFUL
 
 
 Main results files: ams.rkf and dftb.rkf
@@ -143,7 +146,6 @@ Optimized coordinates
     print("---------------------")
     print(optimized_molecule)
     print("---------------------")
-    plot_molecule(optimized_molecule) # show molecule in a Jupyter notebook
 
 
 .. parsed-literal::
@@ -151,15 +153,21 @@ Optimized coordinates
     Optimized coordinates
     ---------------------
       Atoms: 
-        1         O       0.114377      -0.043562       0.000000 
-        2         H      -0.701941      -0.542102       0.000000 
-        3         H      -0.112436       0.885664       0.000000 
+        1         O       0.066921       0.066921       0.000000 
+        2         H       1.012042      -0.078963       0.000000 
+        3         H      -0.078963       1.012042       0.000000 
     
     ---------------------
 
 
+.. code:: ipython3
 
-.. image:: water_optimization_files/water_optimization_16_1.png
+    try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+    except NameError: pass
+
+
+
+.. image:: water_optimization_files/water_optimization_18_0.png
 
 
 Optimized bond lengths and angle
@@ -171,16 +179,23 @@ index of the first atom in the molecule object is 1.
 .. code:: ipython3
 
     bond_length = optimized_molecule[1].distance_to(optimized_molecule[2])
-    print('O-H bond length: {:.2f} angstrom'.format(bond_length))
-    
+    print('O-H bond length: {:.3f} angstrom'.format(bond_length))
+
+
+.. parsed-literal::
+
+    O-H bond length: 0.956 angstrom
+
+
+.. code:: ipython3
+
     bond_angle = optimized_molecule[1].angle(optimized_molecule[2], optimized_molecule[3])
     print('Bond angle  : {:.1f} degrees'.format(Units.convert(bond_angle, 'rad', 'degree')))
 
 
 .. parsed-literal::
 
-    O-H bond length: 0.96 angstrom
-    Bond angle  : 107.7 degrees
+    Bond angle  : 107.5 degrees
 
 
 Calculation timing
@@ -201,9 +216,9 @@ Calculation timing
 
     Timings
     -------
-    elapsed             : 1.808 seconds
-    system              : 0.036 seconds
-    cpu                 : 1.538 seconds
+    elapsed             : 0.950 seconds
+    system              : 0.048 seconds
+    cpu                 : 0.670 seconds
     -------
 
 
@@ -219,7 +234,7 @@ Energy
 
 .. parsed-literal::
 
-    Energy      : -3618.401 kcal/mol
+    Energy      : -3618.400 kcal/mol
 
 
 Vibrational frequencies
@@ -240,9 +255,9 @@ Vibrational frequencies
 
     Frequencies
     -----------
-    1426.920 cm^-1
-    3671.233 cm^-1
-    3783.195 cm^-1
+    1427.924 cm^-1
+    3674.507 cm^-1
+    3785.960 cm^-1
     -----------
 
 
@@ -262,7 +277,7 @@ Dipole moment
 
 .. parsed-literal::
 
-    Dipole moment: 1.827 debye
+    Dipole moment: 1.830 debye
 
 
 HOMO, LUMO, and HOMO-LUMO gap
@@ -289,8 +304,8 @@ exist in AMS2023 and later.
 
 .. parsed-literal::
 
-    HOMO        : -13.592 eV
-    LUMO        : -4.205 eV
+    HOMO        : -13.593 eV
+    LUMO        : -4.206 eV
     HOMO-LUMO gap : 9.387 eV
 
 
@@ -313,7 +328,7 @@ using the ``job.results.get_energy()`` method.
 
 .. parsed-literal::
 
-    Energy from the engine .rkf file (in hartree): -5.766288625035975
+    Energy from the engine .rkf file (in hartree): -5.766288141072482
 
 
 Finish PLAMS
@@ -330,5 +345,5 @@ with ``$AMSBIN/plams``. You should only call it if you use
 
 .. parsed-literal::
 
-    [23.01|18:33:23] PLAMS run finished. Goodbye
+    [23.01|18:52:33] PLAMS run finished. Goodbye
 
