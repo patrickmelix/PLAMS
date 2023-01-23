@@ -1,3 +1,4 @@
+#!/usr/bin/env plams
 import numpy as np
 
 # Perform a geometry optimization of a water molecule and compute
@@ -38,7 +39,7 @@ try:
 
     dipole_moment = np.linalg.norm(np.array(job.results.get_dipolemoment()))
     dipole_moment *= Units.convert(1.0, 'au', 'debye')
-except KeyError:
+except (KeyError, AttributeError):
     homo = lumo = homo_lumo_gap = dipole_moment = None
 
 frequencies = result.get_frequencies(unit='cm^-1')
@@ -61,10 +62,10 @@ print('Calculation time: {:.3f} s'.format(timings['elapsed']))
 print('')
 print('Energy      : {:.3f} kcal/mol'.format(energy))
 
-if homo and lumo and homo_lumo_gap and dipole_moment:
+if homo is not None:
     print('HOMO        : {:.3f} eV'.format(homo))
     print('LUMO        : {:.3f} eV'.format(lumo))
     print('HOMO-LUMO gap : {:.3f} eV'.format(homo_lumo_gap))
-    print('Dipole moment: {:.3f} debye'.format(dipole_moment))
 
-print('Frequencies : {} cm^-1'.format(frequencies))
+if dipole_moment is not None:
+    print('Dipole moment: {:.3f} debye'.format(dipole_moment))
