@@ -28,7 +28,7 @@ molecule.add_atom(Atom(symbol='H', coords=(1,0,0)))
 molecule.add_atom(Atom(symbol='H', coords=(0,1,0)))
 
 
-try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook in AMS2023+
 except NameError: pass
 
 
@@ -78,7 +78,7 @@ print(optimized_molecule)
 print("---------------------")
 
 
-try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+try: plot_molecule(optimized_molecule) # plot molecule in a Jupyter Notebook in AMS2023+
 except NameError: pass
 
 

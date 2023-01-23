@@ -38,7 +38,7 @@ Initial structure
 
 .. code:: ipython3
 
-    try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+    try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook in AMS2023+
     except NameError: pass
 
 
@@ -111,10 +111,10 @@ Run the job
 
 .. parsed-literal::
 
-    [23.01|18:52:31] JOB water_optimization STARTED
-    [23.01|18:52:31] JOB water_optimization RUNNING
-    [23.01|18:52:32] JOB water_optimization FINISHED
-    [23.01|18:52:33] JOB water_optimization SUCCESSFUL
+    [23.01|18:55:53] JOB water_optimization STARTED
+    [23.01|18:55:53] JOB water_optimization RUNNING
+    [23.01|18:55:55] JOB water_optimization FINISHED
+    [23.01|18:55:55] JOB water_optimization SUCCESSFUL
 
 
 Main results files: ams.rkf and dftb.rkf
@@ -162,7 +162,7 @@ Optimized coordinates
 
 .. code:: ipython3
 
-    try: plot_molecule(molecule) # plot molecule in a Jupyter Notebook
+    try: plot_molecule(optimized_molecule) # plot molecule in a Jupyter Notebook in AMS2023+
     except NameError: pass
 
 
@@ -216,9 +216,9 @@ Calculation timing
 
     Timings
     -------
-    elapsed             : 0.950 seconds
-    system              : 0.048 seconds
-    cpu                 : 0.670 seconds
+    elapsed             : 0.953 seconds
+    system              : 0.045 seconds
+    cpu                 : 0.712 seconds
     -------
 
 
@@ -345,5 +345,5 @@ with ``$AMSBIN/plams``. You should only call it if you use
 
 .. parsed-literal::
 
-    [23.01|18:52:33] PLAMS run finished. Goodbye
+    [23.01|18:55:55] PLAMS run finished. Goodbye
 
