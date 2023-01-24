@@ -477,7 +477,7 @@ class AMSResults(Results):
                 x.append(my_x)
 
             A = self.readrkf('band_curves', f'Edge_{i+1}_bands', file='engine')
-            A = np.array(A).reshape(-1, nBands*nSpin) 
+            A = np.array(A).reshape(-1, nBands*nSpin)
             spinup_data = A[:, bands]
             spindown_data = A[:, spindown_bands]
 
@@ -488,10 +488,10 @@ class AMSResults(Results):
             complete_spinup_data.append(spinup_data)
             complete_spindown_data.append(spindown_data)
 
-        complete_spinup_data = np.concatenate(complete_spinup_data) 
+        complete_spinup_data = np.concatenate(complete_spinup_data)
         complete_spinup_data = Units.convert(complete_spinup_data, 'hartree', unit)
 
-        complete_spindown_data = np.concatenate(complete_spindown_data) 
+        complete_spindown_data = np.concatenate(complete_spindown_data)
         complete_spindown_data = Units.convert(complete_spindown_data, 'hartree', unit)
 
         x = np.concatenate(x).ravel()
@@ -629,7 +629,7 @@ class AMSResults(Results):
 
     def get_orbital_energies(self, unit='Hartree', engine=None):
         """Return the orbital energies in a numpy array of shape [nSpin,nOrbitals] (nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted)
-        
+
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return Units.convert(np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'orbitalEnergies'), engine)).reshape(self.get_n_spin(),-1), 'Hartree', unit)
@@ -637,7 +637,7 @@ class AMSResults(Results):
 
     def get_orbital_occupations(self, engine=None):
         """Return the orbital occupations in a numpy array of shape [nSpin,nOrbitals]. For spin restricted calculations, the occupations will be between 0 and 2. For spin unrestricted or spin-orbit coupling the values will be between 0 and 1.
-        
+
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'orbitalOccupations'), engine)).reshape(self.get_n_spin(),-1)
@@ -1050,10 +1050,10 @@ class AMSResults(Results):
 
         data = data[:, components]
         acf = autocorrelation(data, max_dt=max_dt)
-        times = np.arange(len(acf)) * time_step 
+        times = np.arange(len(acf)) * time_step
 
         integrated_acf = cumtrapz(acf, times, initial=0)
-        integrated_times = np.arange(len(integrated_acf)) * time_step 
+        integrated_times = np.arange(len(integrated_acf)) * time_step
 
         k_B = Units.constants['k_B']
 
