@@ -151,7 +151,7 @@ class ForceFieldPatch :
             patch += ForceFieldPatch(patchtext)
       
         for key in vars(patch):
-            if 'type' in key or 'lines' in key:
+            if 'type' in key or 'lines' in key or 'comment' in key:
                 self.__dict__[key] = patch.__dict__[key] 
 
     def write_to_kf (self, kf):
