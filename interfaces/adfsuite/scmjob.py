@@ -359,7 +359,7 @@ class SCMJob(SingleJob):
     @staticmethod
     def _atom_symbol(atom):
         """Return the atomic symbol of *atom*. Ensure proper formatting for ADFSuite input taking into account ``ghost`` and ``name`` entries in ``properties`` of *atom*."""
-        smb = atom.symbol if atom.atnum > 0 else ''  #Dummy atom should have '' instead of 'Xx'
+        smb = atom.symbol
         if 'ghost' in atom.properties and atom.properties.ghost:
             smb = ('Gh.'+smb).rstrip('.')
         if 'name' in atom.properties:
