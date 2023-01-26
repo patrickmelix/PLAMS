@@ -144,7 +144,7 @@ class PeriodicTable:
     symtonum = {d[0]:i for i,d in enumerate(data)}
 
     # Collection of symbols used for different kinds of dummy atoms:
-    dummysymbols = ['Xx','El','Eh']
+    dummysymbols = ['Xx','El','Eh','J']
 
 
     def __init__(self):
