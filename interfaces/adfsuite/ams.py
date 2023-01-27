@@ -1645,7 +1645,7 @@ class AMSJob(SingleJob):
         ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $AMSBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
-        ret += ' --input="{}"'.format(self._filename('inp'))
+        ret += ' --input="{}" < /dev/null'.format(self._filename('inp'))
         if self.settings.runscript.stdout_redirect:
             ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
