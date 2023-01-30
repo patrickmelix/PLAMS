@@ -22,8 +22,11 @@ def main():
     s.runscript.nproc = 1
     s.input.ams.task = 'GeometryOptimization'
     s.input.ams.GeometryOptimization.Convergence.Gradients = 0.01 # hartree/ang
-    s.input.ASE.File = os.path.abspath(__file__)   # get it from the current file's get_calculator() method
-    #s.input.ASE.Arguments._1 = "my_argument = my_value" to call get_calculator(my_argument = my_value)
+    #get the get_calculator function, which returns an initialized ASE Calculator,
+    #from the current file
+    s.input.ASE.File = os.path.abspath(__file__)
+    #to call get_calculator(my_argument = my_value) with arguments use:
+    #s.input.ASE.Arguments._1 = "my_argument = my_value"
 
     job = AMSJob(settings=s, molecule=mol, name='ams_with_custom_ase_calculator')
     job.run()
