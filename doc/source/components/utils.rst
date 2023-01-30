@@ -38,6 +38,8 @@ A small module with simple functions related to 3D geometry operations.
 
 .. automodule:: scm.plams.tools.geometry
 
+.. _FileFormatConversionTools:
+
 File format conversion tools
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

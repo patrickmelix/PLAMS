@@ -6,6 +6,7 @@ Python Library for Automating Molecular Simulations
     :caption: Table of contents
     :maxdepth: 3
 
+    general
     intro
     started
     components/components

@@ -1,3 +1,5 @@
+.. _RedoxExample:
+
 Reduction and oxidation potentials
 ====================================
 

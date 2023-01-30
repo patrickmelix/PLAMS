@@ -1,3 +1,5 @@
+.. _AMSMDJob:
+
 AMS Molecular Dynamics PLAMS jobs
 -------------------------------------
 
