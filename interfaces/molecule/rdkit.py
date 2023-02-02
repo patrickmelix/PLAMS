@@ -715,14 +715,14 @@ def write_molblock(plams_mol, file=sys.stdout):
     file.write(Chem.MolToMolBlock(to_rdmol(plams_mol)))
 
 
-def readpdb(pdb_file, removeHs=False, proximityBonding=False, return_rdmol=False):
+def readpdb(pdb_file, sanitize=True, removeHs=False, proximityBonding=False, return_rdmol=False):
     """
     Generate a molecule from a PDB file
 
     :param pdb_file: The PDB file to read
     :type pdb_file: path- or file-like
+    :param bool sanitize: 
     :param bool removeHs: Hydrogens are removed if True
-    :param bool proximityBonding: Enables automatic proximity bonding
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: The molecule
     :rtype: |Molecule| or rdkit.Chem.Mol
@@ -732,7 +732,7 @@ def readpdb(pdb_file, removeHs=False, proximityBonding=False, return_rdmol=False
     except TypeError:
         pass  # pdb_file is a file-like object... hopefully
 
-    pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), removeHs=removeHs, proximityBonding=proximityBonding)
+    pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), sanitize=False, removeHs=removeHs)
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
 
