@@ -158,7 +158,6 @@ class SDFTrajectoryFile (TrajectoryFile) :
 
                 cell = None
                 # Read the coordinates
-                print ('REB: Calling read_next')
                 crd, cell = self._read_coordinates(molecule)
                 if crd is None :
                         return None, None       # End of file is reached

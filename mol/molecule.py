@@ -641,7 +641,7 @@ class Molecule:
 
     def guess_atomic_charges (self, adjust_to_systemcharge=True, keep_hydrogen_charged=False) :
         """
-        Assign charges to the atoms based on connectivity
+        Return a list of guessed charges, one for each atom, based on connectivity
 
         Note: Fairly basic implementation that will not always yield reliable results
         """
