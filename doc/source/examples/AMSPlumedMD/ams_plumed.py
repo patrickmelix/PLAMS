@@ -138,9 +138,9 @@ plt.show()
 index = np.argmax(energies) + 1
 approximate_ts_molecule = job.results.get_history_molecule(index)
 
-print(f"Using frame {index} as approximate transition state")
-
-try: plot_molecule(approximate_ts_molecule)
+try: 
+    plot_molecule(approximate_ts_molecule)
+    plt.title(f"Using frame {index} as initial approximate transition state")
 except NameError: pass
 
 
@@ -153,8 +153,11 @@ ts_job = AMSJob(settings=ts_s, molecule=approximate_ts_molecule, name='ts-search
 ts_job.run();
 
 
-print("Optimized transition state")
-plot_molecule(ts_job.results.get_main_molecule())
+try:
+    plot_molecule(ts_job.results.get_main_molecule())
+    plt.title("Optimized transition state")
+except NameError:
+    pass
 
 
 print("Frequencies (at a TS there should be 1 imaginary [given as negative])")

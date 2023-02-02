@@ -13,7 +13,7 @@ Initial imports
 
 .. parsed-literal::
 
-    PLAMS working folder: AMSPlumedMD/plams_workdir.010
+    PLAMS working folder: AMSPlumedMD/plams_workdir
 
 
 Initial system
@@ -182,10 +182,10 @@ Run the job
 
 .. parsed-literal::
 
-    [01.02|10:00:22] JOB dissociating-carbonic-acid STARTED
-    [01.02|10:00:22] JOB dissociating-carbonic-acid RUNNING
-    [01.02|10:00:25] JOB dissociating-carbonic-acid FINISHED
-    [01.02|10:00:25] JOB dissociating-carbonic-acid SUCCESSFUL
+    [02.02|11:29:02] JOB dissociating-carbonic-acid STARTED
+    [02.02|11:29:03] JOB dissociating-carbonic-acid RUNNING
+    [02.02|11:29:06] JOB dissociating-carbonic-acid FINISHED
+    [02.02|11:29:06] JOB dissociating-carbonic-acid SUCCESSFUL
 
 
 Analyze the trajectory
@@ -208,7 +208,6 @@ molecules
                 plt.show()
             except NameError:
                 pass
-
 
 
 
@@ -275,19 +274,14 @@ transition state search with the ADF DFT engine.
     index = np.argmax(energies) + 1
     approximate_ts_molecule = job.results.get_history_molecule(index)
     
-    print(f"Using frame {index} as approximate transition state")
-    
-    try: plot_molecule(approximate_ts_molecule)
+    try: 
+        plot_molecule(approximate_ts_molecule)
+        plt.title(f"Using frame {index} as initial approximate transition state")
     except NameError: pass
 
 
-.. parsed-literal::
 
-    Using frame 84 as approximate transition state
-
-
-
-.. image:: ams_plumed_files/ams_plumed_16_1.png
+.. image:: ams_plumed_files/ams_plumed_16_0.png
 
 
 .. code:: ipython3
@@ -303,33 +297,23 @@ transition state search with the ADF DFT engine.
 
 .. parsed-literal::
 
-    [01.02|10:00:25] JOB ts-search STARTED
-    [01.02|10:00:25] JOB ts-search RUNNING
-    [01.02|10:02:56] JOB ts-search FINISHED
-    [01.02|10:02:56] JOB ts-search SUCCESSFUL
-
-
-
-
-.. parsed-literal::
-
-    <scm.plams.interfaces.adfsuite.ams.AMSResults at 0x7f2c568590d0>
-
+    [02.02|11:29:07] JOB ts-search STARTED
+    [02.02|11:29:07] JOB ts-search RUNNING
+    [02.02|11:29:56] JOB ts-search FINISHED
+    [02.02|11:29:56] JOB ts-search SUCCESSFUL
 
 
 .. code:: ipython3
 
-    print("Optimized transition state")
-    plot_molecule(ts_job.results.get_main_molecule())
-
-
-.. parsed-literal::
-
-    Optimized transition state
+    try:
+        plot_molecule(ts_job.results.get_main_molecule())
+        plt.title("Optimized transition state")
+    except NameError:
+        pass
 
 
 
-.. image:: ams_plumed_files/ams_plumed_18_1.png
+.. image:: ams_plumed_files/ams_plumed_18_0.png
 
 
 .. code:: ipython3
@@ -343,16 +327,16 @@ transition state search with the ADF DFT engine.
 .. parsed-literal::
 
     Frequencies (at a TS there should be 1 imaginary [given as negative])
-    -1455.412 cm^-1
-    314.599 cm^-1
-    384.083 cm^-1
-    610.419 cm^-1
-    717.112 cm^-1
-    736.455 cm^-1
-    883.872 cm^-1
-    1059.503 cm^-1
-    1122.827 cm^-1
-    1620.478 cm^-1
-    2030.690 cm^-1
-    3468.328 cm^-1
+    -1422.038 cm^-1
+    314.722 cm^-1
+    365.431 cm^-1
+    545.714 cm^-1
+    702.591 cm^-1
+    744.407 cm^-1
+    877.082 cm^-1
+    1080.398 cm^-1
+    1119.906 cm^-1
+    1759.415 cm^-1
+    2064.579 cm^-1
+    3470.480 cm^-1
 
