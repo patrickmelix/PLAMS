@@ -732,7 +732,7 @@ def readpdb(pdb_file, sanitize=True, removeHs=False, proximityBonding=False, ret
     except TypeError:
         pass  # pdb_file is a file-like object... hopefully
 
-    pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), sanitize=False, removeHs=removeHs)
+    pdb_mol = Chem.MolFromPDBBlock(pdb_file.read(), sanitize=sanitize, removeHs=removeHs)
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
 
@@ -750,7 +750,7 @@ def writepdb(mol, pdb_file=sys.stdout):
     except TypeError:
         pass  # pdb_file is a file-like object... hopefully
 
-    mol = to_rdmol(mol)
+    mol = to_rdmol(mol, sanitize=False)
     pdb_file.write(Chem.MolToPDBBlock(mol))
 
 

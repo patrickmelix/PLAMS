@@ -9,6 +9,10 @@ from ...tools.geometry import distance_array
 from ...interfaces.adfsuite.ams import AMSJob
 import tempfile
 import subprocess
+try:
+    from .rdkit import readpdb, writepdb
+except ImportError:
+    pass
 
 __all__ = ['PackMolStructure', 'PackMol', 'packmol_liquid', 'packmol_solid_liquid', 'packmol_solid_liquid_mixture', 'packmol_mixture', 'packmol', 'packmol_on_slab', 'PackMolFailedException', 'packmol_microsolvation']
 
@@ -125,7 +129,7 @@ class PackMolStructure:
 
 class PackMol:
 
-    def __init__(self, tolerance=2.0, structures:List[PackMolStructure]=None, executable=None):
+    def __init__(self, tolerance=2.0, structures:List[PackMolStructure]=None, filetype='xyz', executable=None):
         """
         Class for setting up and running packmol.
 
@@ -134,6 +138,9 @@ class PackMol:
 
         structures: list of PackMolStructure
             Structures to insert
+
+        filetype: str
+            One of 'xyz' or 'pdb'. Specifies the file format to use with packmol. 'pdb' requires rdkit.
 
         executable: str
             Path to the packmol executable. If not specified, $AMSBIN/packmol.exe will be used.
@@ -144,9 +151,8 @@ class PackMol:
 
         """
         self.tolerance = tolerance
-        self.filetype = 'xyz'
-        self.output = 'packmol_output.xyz'
         self.structures = structures or []
+        self.filetype = filetype
         self.executable = executable or os.path.join(os.path.expandvars('$AMSBIN'), 'packmol.exe')
         assert(os.path.exists(self.executable))
 
@@ -186,12 +192,16 @@ class PackMol:
             input_fname = os.path.join(tmpdir, 'input.inp')
             with open(input_fname, 'w') as input_file:
                 input_file.write(f'tolerance {self.tolerance}\n')
-                input_file.write(f'filetype xyz\n')
+                input_file.write(f'filetype {self.filetype}\n')
                 input_file.write(f'output {output_fname}\n')
 
                 for i, structure in enumerate(self.structures):
-                    structure_fname = os.path.join(tmpdir, f'structure{i}.xyz')
-                    structure.molecule.write(structure_fname)
+                    structure_fname = os.path.join(tmpdir, f'structure{i}.{self.filetype}')
+                    if self.filetype == 'pdb':
+                        with open(structure_fname, "w") as f:
+                            writepdb(structure.molecule, f)
+                    else:
+                        structure.molecule.write(structure_fname)
                     input_file.write(structure.get_input_block(structure_fname, tolerance=2.0))
 
             #with open(input_fname, 'r') as f:
@@ -206,7 +216,13 @@ class PackMol:
 
             if not os.path.exists(output_fname):
                 raise PackMolFailedException("Packmol failed. It may work if you try a lower density.")
-            output_molecule = Molecule(output_fname) # without periodic boundary conditions
+
+            if self.filetype == 'pdb':
+                with open(output_fname, 'r') as f:
+                    output_molecule = readpdb(f)
+            else:
+                output_molecule = Molecule(output_fname) # without periodic boundary conditions
+
             output_molecule.lattice = self._get_complete_lattice()
 
         return output_molecule
