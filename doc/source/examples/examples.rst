@@ -25,7 +25,8 @@ Molecule analysis
 
    MoleculesFromRKFTrajectory
    MoleculesTable
-   MoleculeSubstitution
+   MoleculeSubstitution/MoleculeSubstitutionExample
+   ConvertToAMSRKFTrajectory
 
 Benchmarks
 -----------------
@@ -43,9 +44,10 @@ Workflows
 
    RedoxPotential
    ExcitationsWorkflow
+   AMSTSWorkflow/AMSTSWorkflow
    ChargeTransferIntegralsADF
    gammascan
-   ConformersGeneration
+   ConformersGeneration/ConformersGeneration
 
 COSMO-RS and property prediction
 -----------------------------------
@@ -63,8 +65,9 @@ Packmol and AMS-ASE interfaces
 .. toctree::
 
    PackMolExample/PackMolExample
-   AMSCalculator/ASECalculator
    CustomASECalculator
+   AMSCalculator/ASECalculator
+   AMSCalculator/ChargedAMSCalculator
    i-PI-AMS
    SellaTransitionStateSearch
 
@@ -81,8 +84,10 @@ Other AMS calculations
    BAND_NiO_HubbardU
    BandStructure/BandStructure
    AMSPlumedMD/AMSPlumedMD
+   QE_AMS_AFM_HubbardU
    BasicMDPostanalysis
    UseLowestEnergy
+   M3GNet
 
 Pymatgen
 ----------------
@@ -111,4 +116,6 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     numgrad
     numhess
     global_minimum
+    pyAHFCDOS
+    fcf_dos
 

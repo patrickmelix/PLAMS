@@ -176,15 +176,27 @@ class Molecule:
         return ret
 
 
-    def add_molecule(self, other, copy=False):
+    def add_molecule(self, other, copy=False, margin=-1):
         """Add some *other* molecule to this one::
 
             protein += water
 
         If *copy* is ``True``, *other* molecule is copied and the copy is added to this molecule. Otherwise, *other* molecule is directly merged with this one
         The ``properties`` of this molecule are :meth:`soft_updated<scm.plams.core.settings.Settings.soft_update>` with the  ``properties`` of the *other* molecules.
+
+        margin: float
+            If <0, keep the coordinates of ``other``. If >=0, all atoms in the ``other`` molecule will have *at least* this distance (in angstrom) to all atoms in ``self``.
+
         """
+        if margin >= 0:
+            dx, dy, dz = np.max(self.as_array(), axis=0) - np.min(other.as_array(), axis=0) + margin
+            copy = True
+
         other = other.copy() if copy else other
+
+        if margin >= 0:
+            other.translate([dx, dy, dz])
+
         self.atoms += other.atoms
         self.bonds += other.bonds
         for atom in self.atoms:
@@ -429,7 +441,7 @@ class Molecule:
         return frags
 
 
-    def guess_bonds(self, atom_subset=None, dmax=1.28):
+    def guess_bonds(self, atom_subset=None, dmax=1.28, metal_atoms:bool=True):
         """Try to guess bonds in the molecule based on types and positions of atoms.
 
         All previously existing bonds are removed. New bonds are generated based on interatomic distances and information about maximal number of bonds for each atom type (``connectors`` property, taken from |PeriodicTable|).
@@ -442,7 +454,8 @@ class Molecule:
 
         The *dmax* argument gives the maximum value for ratio of the bond length to the sum of atomic radii for the two atoms in the bond.
 
-        The bond order for any bond to a metal atom will be set to 1.
+        metal_atoms : bool
+            If True, bonds to metal atoms will be guessed. They are often useful for visualization.  The bond order for any bond to a metal atom will be set to 1.
 
         .. warning::
 
@@ -608,26 +621,30 @@ class Molecule:
         stray_hydrogens = [x for x in hydrogens if len(x.bonds) == 0]
         find_and_add_bonds(nonmetallic, neighbors, from_atoms_subset=stray_hydrogens, to_atoms_subset=nonmetallic, ignore_free=True, dmax=dmax)
 
-        # for obvious anions like carbonate, nitrate, sulfate, phosphate, and arsenate, do not allow metal atoms to bond to the central atom
-        new_atom_list = []
-        for at in atom_list:
-            if at in potentially_ignore_metal_bonds:
-                if len([x for x in at.bonds if x.other_end(at).is_electronegative]) >= 3:
-                    continue
-            new_atom_list.append(at)
-        find_and_add_bonds(atom_list, neighbors, from_atoms_subset=metallic, to_atoms_subset=new_atom_list, ignore_free=True, dmax=dmax)
+        if metal_atoms:
+            # bonds to metal atoms are very useful for visualization but
+            # are not typically used in force fields. So provide an option to not add them
 
-        # delete metal-metal bonds and metal-hydrogen bonds if the metal is bonded to enough electronegative atoms and not enough metal atoms
-        # (this means that the metal is a cation, so bonds should almost never be drawn unless it's a dimetal complex or a hydride/H2 ligand, but that should be rare)
-        for at in metallic:
-            at._metalbondcounter = len([x for x in at.bonds if x.other_end(at).is_metallic])
-            at._electronegativebondcounter = len([x for x in at.bonds if x.other_end(at).is_electronegative])
-            if at._electronegativebondcounter >= 3 or \
-                    (at._electronegativebondcounter >= 2 >= at._metalbondcounter) or \
-                    (at._electronegativebondcounter >= 1 and at._metalbondcounter <= 0):
-                bonds_to_delete = [b for b in at.bonds if b.other_end(at).is_metallic or b.other_end(at).atnum == 1]
-                for b in bonds_to_delete:
-                    self.delete_bond(b)
+            # for obvious anions like carbonate, nitrate, sulfate, phosphate, and arsenate, do not allow metal atoms to bond to the central atom
+            new_atom_list = []
+            for at in atom_list:
+                if at in potentially_ignore_metal_bonds:
+                    if len([x for x in at.bonds if x.other_end(at).is_electronegative]) >= 3:
+                        continue
+                new_atom_list.append(at)
+            find_and_add_bonds(atom_list, neighbors, from_atoms_subset=metallic, to_atoms_subset=new_atom_list, ignore_free=True, dmax=dmax)
+
+            # delete metal-metal bonds and metal-hydrogen bonds if the metal is bonded to enough electronegative atoms and not enough metal atoms
+            # (this means that the metal is a cation, so bonds should almost never be drawn unless it's a dimetal complex or a hydride/H2 ligand, but that should be rare)
+            for at in metallic:
+                at._metalbondcounter = len([x for x in at.bonds if x.other_end(at).is_metallic])
+                at._electronegativebondcounter = len([x for x in at.bonds if x.other_end(at).is_electronegative])
+                if at._electronegativebondcounter >= 3 or \
+                        (at._electronegativebondcounter >= 2 >= at._metalbondcounter) or \
+                        (at._electronegativebondcounter >= 1 and at._metalbondcounter <= 0):
+                    bonds_to_delete = [b for b in at.bonds if b.other_end(at).is_metallic or b.other_end(at).atnum == 1]
+                    for b in bonds_to_delete:
+                        self.delete_bond(b)
 
 
         cleanup_atom_list(atom_list)
@@ -639,12 +656,43 @@ class Molecule:
         charge = sum(self.guess_atomic_charges(adjust_to_systemcharge=False))
         return charge
 
-    def guess_atomic_charges (self, adjust_to_systemcharge=True, keep_hydrogen_charged=False) :
+    def guess_atomic_charges (self, adjust_to_systemcharge=True, keep_hydrogen_charged=False, depth=1, electronegativities=None) :
         """
         Return a list of guessed charges, one for each atom, based on connectivity
 
+        * ``depth`` -- The electronegativity of an atom is determined all its neighbors up to depth 
+        * ``electronegativities`` -- A dictionary containing electronegativity values for the electronegative elements
+
         Note: Fairly basic implementation that will not always yield reliable results
         """
+        def get_electronegativity (atom, prevat, search_depth=None):
+            """
+            Get the electronegativity of atom by searching through the molecules
+            """
+            ens = get_electronegativities (atom, [self.index(prevat)-1], search_depth)
+            en = sum(ens)/len(ens) if len(ens) > 0 else 0.
+            return en
+
+        def get_electronegativities (atom, prevats=[], search_depth=None):
+            """
+            Get the electronegativities of neighbors by searching through the molecules
+            """
+            en = [electronegativities[atom.symbol] if atom.symbol in electronegativities else None]
+            en = [v for v in en if v is not None]
+            if search_depth is not None:
+                search_depth -= 1
+                if search_depth <= 0:
+                    return en
+            neighbors = [at for at in self.neighbors(atom) if not self.index(at)-1 in prevats]
+            prevats = prevats + [self.index(atom)-1]
+            for other_at in neighbors:
+                en += get_electronegativities(other_at,prevats,search_depth)
+                prevats += [self.index(other_at)-1]
+            return en
+   
+        if electronegativities is None: 
+            # https://pubchem.ncbi.nlm.nih.gov/periodic-table/electronegativity/
+            electronegativities = {'Te': 2.1, 'P': 2.19, 'At': 2.2, 'C': 2.55, 'Se': 2.55, 'S': 2.58, 'I': 2.66, 'Br': 2.96, 'N': 3.04, 'Cl': 3.16, 'O': 3.44, 'F': 3.98, }
         charges = [0. for atom in self.atoms]
 
         # Negative charge to unsatureated electronegative atoms (C, N, O, P, S, etc)
@@ -652,7 +700,7 @@ class Molecule:
         # The exception is if the neighbor is also electro-negative. Then they cancel eachother out.
         #electronegative = [PT.get_symbol(i) for i,values in enumerate(PT.data) if PT.get_electronegative(i) and (not PT.get_symbol(i)=='C')]
         electronegative = [PT.get_symbol(i) for i,values in enumerate(PT.data) if PT.get_electronegative(i)]
-        # This will go very wrong for a lot of elements like P, Si, Al, 
+        # This will go very wrong for a lot of elements like P, Si, Al,
         # which appear to have a connectors value of 8
         electronegative = [s for s in electronegative if not PT.get_connectors(PT.get_atomic_number(s))==8]
         # First select the electronegative indices
@@ -676,7 +724,13 @@ class Molecule:
                     order = round(bond.order*2)/2 # Rounded to 0.5 only if it is very obviousy a partial bond
                 else:
                     order = round(bond.order)
-                if atom.symbol == 'C' and j in en_indices :
+                # Compare the electronegativity values to decide where the electrons go
+                en_i = get_electronegativity(atom,other_at,search_depth=depth)
+                en_j = get_electronegativity(other_at,atom,search_depth=depth)
+                #en_i = electronegativities[atom.symbol]
+                #en_j = electronegativities[other_at.symbol] if other_at.symbol in electronegativities else 0.
+                if en_i <= en_j and j in en_indices :
+                #if atom.symbol == 'C' and j in en_indices :
                     echarges[i] += order
                 else :
                     echarges[j] += order
@@ -716,7 +770,7 @@ class Molecule:
                     dq = sum(charges) - molcharge
                     if abs(dq) > 1 :
                         log('Charges: %s'%(' '.join([str(q) for q in charges])))
-                        raise ChargeError('Guessed atomic charges (%i) using PLAMS do not match assigned charge molecule (%i)'%(sum(charges),molcharge))
+                        raise MoleculeError('Guessed atomic charges (%i) using PLAMS do not match assigned charge molecule (%i)'%(sum(charges),molcharge))
                     tmpcharges = charges.copy()
                     if dq < 0 :
                         tmpcharges = [-q for q in charges]
@@ -1188,6 +1242,9 @@ class Molecule:
             at._visited = False
 
         def dfs(v, indices):
+            """
+            Depth first search of self starting at atom v, extending the list of connected atoms (indices)
+            """
             v._visited = True
             for e in v.bonds:
                 u = e.other_end(v)
@@ -1195,10 +1252,26 @@ class Molecule:
                     indices.append(self.index(u, start=indices[0]+1)-1)
                     dfs(u, indices)
 
+        def bfs(v, indices):
+            """
+            Breadth first search of self starting at atom v, extending the list of connected atoms (indices)
+            """
+            # REB: Changed to bfs to avoid Pythons recursion error for big systems
+            atoms = [v]
+            while (len(atoms)>0):
+                for v in atoms: v._visited = True
+                res = []
+                [res.append(e.other_end(v)) for v in atoms for e in v.bonds if not e.other_end(v)._visited and not e.other_end(v) in res]
+                atoms = res
+                #atoms = [e.other_end(v) for v in atoms for e in v.bonds if not e.other_end(v)._visited]
+                for u in atoms:
+                    indices.append(self.index(u, start=indices[0]+1)-1)
+
         for iatom,src in enumerate(self.atoms):
             if not src._visited:
                 indices = [iatom]
-                dfs(src, indices)
+                #dfs(src, indices)
+                bfs(src, indices)
                 molecule_indices.append(sorted(indices))
 
         for at in self:
@@ -1220,7 +1293,7 @@ class Molecule:
             at_copy = smart_copy(at, owncopy=['properties'], without=['mol','bonds'])
             ret.add_atom(at_copy)
             bro[at] = at_copy
-    
+
         # Then the bonds
         for bo in self.bonds:
             if (bo.atom1 in bro) and (bo.atom2 in bro):
@@ -1272,71 +1345,6 @@ class Molecule:
         """
         Find the rings in the structure
         """
-        def shortest_path_dijkstra (conect, source, target) :
-            """
-            Find the shortest paths (can be more than 1) 
-            between a source atom and a target
-            atom in a molecule
-            """
-            huge = 100000.
-    
-            dist = {}
-            previous = {}
-            for v in range(len(conect)) :
-                dist[v] = huge
-                previous[v] = []
-            dist[source] = 0
-
-            Q = [source]
-            for iat in range(len(conect)) :
-                if iat != source :
-                    Q.append(iat)
-
-            while len(Q) > 0 :
-                # vertex in Q with smallest distance in dist
-                u = Q[0]
-                if dist[u] == huge :
-                    return []
-                u = Q.pop(0)
-                if u == target :
-                    break
-
-                # Select the neighbors of u, and loop over them
-                neighbors = conect[u]
-                for v in neighbors :
-                    if not v in Q :
-                        continue
-                    alt = dist[u] + 1.
-                    if alt == dist[v] :
-                        previous[v].append(u)
-                    if alt < dist[v] :
-                        previous[v] = [u]
-                        dist[v] = alt
-                        # Reorder Q
-                        for i,vertex in enumerate(Q) :
-                            if vertex == v :
-                                ind = i
-                                break
-                        Q.pop(ind)
-                        for i,vertex in enumerate(Q) :
-                            if dist[v] < dist[vertex] :
-                                ind = i
-                                break
-                        Q.insert(ind,v)
-
-            bridgelist = [[u]]
-            d = dist[u]
-            for i in range(int(d)) :
-                paths = []
-                for j,path in enumerate(bridgelist) :
-                    prevats = previous[path[-1]]
-                    for at in prevats :
-                        newpath = path+[at]
-                        paths.append(newpath)
-                bridgelist = paths
-
-            return bridgelist
-
         def bond_from_indices (ret, iat1, iat2) :
             """
             Return a bond object from the atom indices
@@ -1345,7 +1353,7 @@ class Molecule:
             for bond in ret.bonds :
                 indices = [i-1 for i in ret.index(bond)]
                 if iat1 in indices and iat2 in indices :
-                    break 
+                    break
             if bond is None : raise Exception('This bond should exist (%i %i), but does not!'%(iat1,iat2))
             return bond
 
@@ -1375,7 +1383,7 @@ class Molecule:
 
                 if connection :
                     retconect = ret.get_connection_table()
-                    rings = shortest_path_dijkstra(retconect,iat,iatn)
+                    rings = self.shortest_path_dijkstra(iat,iatn,conect=retconect)
                     for ring in rings :
                         ring.sort()
                         if not ring in allrings :
@@ -1386,6 +1394,72 @@ class Molecule:
 
         allrings = [self.order_ring(ring) for ring in allrings]
         return allrings
+
+    def locate_rings_acm (self):
+        """
+        Use the ACM algorithm to find rings
+        """
+        def find_cycle (tree, root, leaf):
+            """
+            Find the path from leaf to root in tree
+
+            Note: The problem is that a bond is not added when a cycle has closed.
+                  And even if we add that bond, I don't know how to find the path other than with Dijkstra
+            """
+            # First move from path to the top of the tree
+            prev = leaf
+            pathb = [leaf]
+            while (prev!=root):
+                prevlist = [b[0] for b in tree if b[1]==prev]
+                if len(prevlist) == 0 : break
+                prev = prevlist[0]
+                pathb.append(prev)
+            if prev==root:
+                return pathb
+            # Also move forward, from the top to the root
+            prev = root
+            pathf = [root]
+            while (prev not in pathb):
+                prevlist = [b[0] for b in tree if b[1]==prev]
+                if len(prevlist) == 0 : break
+                prev = prevlist[0]
+                pathf.append(prev)
+            path = pathb[:pathb.index(prev)] + pathf[::-1]
+            return path
+
+        rings = []
+        rings_sorted = []
+
+        conect = self.get_connection_table()
+        atoms_to_examine = [self.index(at)-1 for at in self.atoms]
+        iat = atoms_to_examine[0]
+        atoms_in_tree = [iat]
+        tree = [[] for i in range(len(self))]
+        counter = 0
+        while (1):
+            #print ('%8i %8i %8i'%(counter,iat,len(rings)))
+            counter += 1
+            for jat in conect[iat]:
+                if jat in atoms_in_tree:
+                    #ring = find_cycle(tree,iat,jat)
+                    for ring in self.shortest_path_dijkstra(iat,jat,conect=tree):
+                        sorted_ring = sorted(ring)
+                        if not sorted_ring in rings_sorted:
+                            rings.append(ring)
+                            rings_sorted.append(sorted_ring)
+                else:
+                    atoms_in_tree.append(jat)
+                tree[iat].append(jat)
+                tree[jat].append(iat)
+                #tree.append([iat,jat])
+                conect[iat] = [j for j in conect[iat] if not j==jat]
+                conect[jat] = [j for j in conect[jat] if not j==iat]
+            atoms_to_examine = [i for i in atoms_to_examine if not i==iat]
+            if len(atoms_to_examine)==0:
+                break
+            candidates = [i for i in atoms_in_tree if i in atoms_to_examine]
+            iat = candidates[0] if len(candidates)>0 else atoms_to_examine[0]
+        return rings
 
     def order_ring (self, ring_indices) :
         """
@@ -1401,6 +1475,89 @@ class Molecule:
             else :
                 new_ring.append(neighbors[0])
         return new_ring
+
+    def locate_rings_networkx (self):
+        """
+        Obtain a list of ring indices using RDKit (same as locate_rings, but much faster)
+        """
+        import networkx
+        matrix = self.bond_matrix()
+        matrix = matrix.astype(numpy.int32)
+        matrix[matrix>0] = 1
+        graph = networkx.from_numpy_matrix(matrix)
+        rings = networkx.cycle_basis(graph)
+        return rings
+
+    def shortest_path_dijkstra (self, source, target, conect=None) :
+        """
+        Find the shortest paths (can be more than 1)
+        between a source atom and a target
+        atom in a connection table
+
+        * ``source`` -- Index of the source atom
+        * ``target`` -- Index of the target atom
+        """
+        if conect is None:
+            conect = self.get_connection_table()
+
+        huge = 100000.
+
+        dist = {}
+        previous = {}
+        for v in range(len(conect)) :
+            dist[v] = huge
+            previous[v] = []
+        dist[source] = 0
+
+        Q = [source]
+        for iat in range(len(conect)) :
+            if iat != source :
+                Q.append(iat)
+
+        while len(Q) > 0 :
+            # vertex in Q with smallest distance in dist
+            u = Q[0]
+            if dist[u] == huge :
+                return []
+            u = Q.pop(0)
+            if u == target :
+                break
+
+            # Select the neighbors of u, and loop over them
+            neighbors = conect[u]
+            for v in neighbors :
+                if not v in Q :
+                    continue
+                alt = dist[u] + 1.
+                if alt == dist[v] :
+                    previous[v].append(u)
+                if alt < dist[v] :
+                    previous[v] = [u]
+                    dist[v] = alt
+                    # Reorder Q
+                    for i,vertex in enumerate(Q) :
+                        if vertex == v :
+                            ind = i
+                            break
+                    Q.pop(ind)
+                    for i,vertex in enumerate(Q) :
+                        if dist[v] < dist[vertex] :
+                            ind = i
+                            break
+                    Q.insert(ind,v)
+
+        bridgelist = [[u]]
+        d = dist[u]
+        for i in range(int(d)) :
+            paths = []
+            for j,path in enumerate(bridgelist) :
+                prevats = previous[path[-1]]
+                for at in prevats :
+                    newpath = path+[at]
+                    paths.append(newpath)
+            bridgelist = paths
+
+        return bridgelist
 
 #===========================================================================
 #==== Geometry operations ==================================================
@@ -1813,13 +1970,7 @@ class Molecule:
         coords[:,:n] = (lattice_mat.T@fractional_coords_new.T).T
         self.from_array(coords)
 
-        def has_cell_shifts(bnd):
-            return 'suffix' in bnd.properties and \
-                   isinstance(bnd.properties.suffix, str) and \
-                   bnd.properties.suffix != '' and \
-                   not bnd.properties.suffix.isspace()
-
-        if any(has_cell_shifts(b) for b in self.bonds):
+        if any(b.has_cell_shifts() for b in self.bonds):
             # Fix cell shifts for bonds for atoms that were moved.
             for b in self.bonds:
                 # Check if the mapping has moved the bonded atoms relative to each other.
@@ -1827,7 +1978,7 @@ class Molecule:
                 relshift = (shift[at2,:n] - shift[at1,:n]).astype(int)
                 if not np.all(relshift == 0):
                     # Relative position has changed: cell shifts need updating!
-                    if has_cell_shifts(b):
+                    if b.has_cell_shifts():
                         # Grab the original cell shifts from the suffix. An empty
                         # suffix means "0 0 0" if at least one atom has cell shifts. If
                         # no atom has cell shifts and all suffixes are empty, the bonds
@@ -2296,7 +2447,7 @@ class Molecule:
             else:
                 new_atom = Atom(atnum=num, coords=(lst[1+shift],lst[2+shift],lst[3+shift]))
             if len(lst) > shift + 4:
-                new_atom.properties.suffix = line.split(maxsplit=shift+5)[-1]
+                new_atom.properties.suffix = ' '.join(line.split()[shift+4:])
             self.add_atom(new_atom)
 
 
@@ -2678,7 +2829,7 @@ class Molecule:
         suffixes = [at.properties.suffix if "suffix" in at.properties else "" for at in self]
         suffixes = [suf.lower() for suf in suffixes]
         for i,at in enumerate(self.atoms):
-            suffix = suffixes[i] + "forcefield.type=%s forcefield.charge=%f"%(types[i],charges[i]) 
+            suffix = suffixes[i] + "forcefield.type=%s forcefield.charge=%f"%(types[i],charges[i])
             at.properties.soft_update(AMSJob._atom_suffix_to_settings(suffix))
         if patch is not None:
             self.properties.forcefieldpatch = patch
@@ -2846,7 +2997,7 @@ class Molecule:
     def numbers(self) -> np.ndarray:
         """ Return an array of all atomic numbers in the Molecule. Can also be used to set all numbers at once. """
         return np.array([i.atnum for i in self])
-    
+
     @numbers.setter
     def numbers(self, values):
         if len(values) != len(self):
@@ -2858,7 +3009,7 @@ class Molecule:
     def symbols(self) -> np.ndarray:
         """ Return an array of all atomic symbols in the Molecule. Can also be used to set all symbols at once. """
         return np.array([i.symbol for i in self])
-    
+
     @symbols.setter
     def symbols(self, values):
         if len(values) != len(self):
@@ -2968,7 +3119,7 @@ class Molecule:
 
         return ret
 
-        
+
 
     if __name__ == '__main__':
         main()

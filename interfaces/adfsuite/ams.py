@@ -278,8 +278,10 @@ class AMSResults(Results):
                 lattice = Units.convert(main.read('History', f'LatticeVectors('+str(step)+')'), 'bohr', 'angstrom')
                 mol.lattice = [tuple(lattice[j:j+3]) for j in range(0,len(lattice),3)]
 
+            # Bonds from the reference molecule are probably outdated. Let us never use them ...
+            mol.delete_all_bonds()
+            # ... but instead use bonds from the history section if they are available:
             if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
-                mol.bonds = []
                 index = main.read('History', f'Bonds.Index({step})')
                 if not isinstance(index, list): index = [index]
                 atoms = main.read('History', f'Bonds.Atoms({step})')
@@ -289,7 +291,13 @@ class AMSResults(Results):
                 for i in range(len(index)-1):
                     for j in range(index[i], index[i+1]):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
+            if ('History', f'Bonds.CellShifts({step})') in main:
+                cellShifts = main.read('History', f'Bonds.CellShifts({step})')
+                for i, b in enumerate(mol.bonds):
+                    b.properties.suffix = f"{cellShifts[3*i]} {cellShifts[3*i+1]} {cellShifts[3*i+2]}"
+
             return mol
+
 
     def is_valid_stepnumber (self, main, step) :
         """
@@ -597,6 +605,16 @@ class AMSResults(Results):
         return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
+    def get_force_constants(self, engine=None):
+        """Return a numpy array of force constants, expressed in atomic units (Hartree/bohr^2).
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        forceConstants = self._process_engine_results(lambda x: x.read('Vibrations', 'ForceConstants'), engine)
+        forceConstants = np.array(forceConstants) if isinstance(forceConstants,list) else np.array([forceConstants])
+        return forceConstants
+
+
     def get_charges(self, engine=None):
         """Return the atomic charges, expressed in atomic units.
 
@@ -661,7 +679,7 @@ class AMSResults(Results):
         return Units.convert(np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'LUMOEnergy'), engine)).reshape(-1), "Hartree", unit)
 
 
-    def get_smallest_HOMO_LUMO_gap(self, unit='Hartree', engine=None):
+    def get_smallest_homo_lumo_gap(self, unit='Hartree', engine=None):
         """
         Returns a float containing the smallest HOMO-LUMO gap irrespective of spin (i.e. min(LUMO) - max(HOMO)). See also :func:`~are_orbitals_fractionally_occupied`.
 
@@ -1323,7 +1341,15 @@ class AMSResults(Results):
                     lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times"+(f", results on {self.engfile})" if self.engfile is not None else ")")]
                     if self.reactantsID is not None: lines += [f"  +- Reactants: {self.reactants}"]
                     if self.productsID is not None:  lines += [f"     Products:  {self.products}"]
-                    if self.reactantsID is not None: lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E}"]
+
+                    if self.reactantsID is not None and self.productsID is not None:
+                        eV = Units.convert(1.0, 'eV', 'hartree')
+                        lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E} s^-1"]
+                        dEforward = ( self.energy-self._landscape._states[self.reactantsID-1].energy )/eV
+                        dEbackward = ( self.energy-self._landscape._states[self.productsID-1].energy )/eV
+                        lines += [f"     Barriers: {dEforward:.3f}:{dEbackward:.3f} eV"]
+                    elif self.productsID is not None:
+                        lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:?"]
                 else:
                     lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times"+(f", results on {self.engfile})" if self.engfile is not None else ")")]
                 return "\n".join(lines)

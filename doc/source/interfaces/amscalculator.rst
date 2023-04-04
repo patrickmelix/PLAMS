@@ -1,7 +1,7 @@
 .. _AMSCalculator:
 
-ASE AMSCalculator
--------------------
+ASE Calculator for AMS
+-----------------------
 
 .. currentmodule:: scm.plams.interfaces.adfsuite.ase_calculator
 
@@ -14,6 +14,8 @@ together with ASE.
 .. seealso::
 
     **Example**: :ref:`ASECalculatorExample` 
+
+    **Engine ASE**: Couple `external ASE calculators <../../ASE/index.html>`__ to the AMS Driver 
 
 .. important::
 
@@ -44,6 +46,9 @@ The easiest way to set the charge a calculation with the |AMSCalculator| is to d
 Additionally, when the charge needs to be treated extensively w.r.t. manipulations of the ``Atoms`` object in ASE, the initial charge of each atom can also be set.
 The total charge is thus obtained as ``sum(Atoms.get_initial_charges())+Atoms.info['charge']``.
 See the ASE documentation for details on initial charges and info.
+
+.. seealso::
+   **Example**: :ref:`ChargedAMSCalculatorExample`
 
 AMS standalone and worker mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
