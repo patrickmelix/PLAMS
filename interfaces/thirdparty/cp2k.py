@@ -368,11 +368,11 @@ class Cp2kResults(Results):
 
         names = [x[0] for x in ret[0]]
         for i, frame in enumerate(ret):
-            assert names == [x[0] for x in frame],
-            ("Namings in output not constant?")
+            assert names == [x[0] for x in frame], ("Namings in output\
+            not constant?")
             assert len(frame) == len(names), ("{:}".format(frame))
             assert set(len(x) for x in frame) == {2}
-            ret[i] = [l[1] for l in frame]
+            ret[i] = [x[1] for x in frame]
         if cache:
             self.md_infos = [names, ret]
         return names, ret
@@ -593,7 +593,8 @@ class Cp2kJob(SingleJob):
                 available = (shutil.which(c) for c in available_mpi_commands)
                 mpi_command = next((c for c in available if c is not None), "")
 
-        return f"{mpi_command} {cp2k_command} -i {self._filename('inp')} -o {self._filename('out')}"
+        return f"{mpi_command} {cp2k_command} -i {self._filename('inp')}\
+            -o {self._filename('out')}"
 
     def check(self):
         """Look for the normal termination signal in Cp2k output."""
