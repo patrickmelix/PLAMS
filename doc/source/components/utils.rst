@@ -38,9 +38,24 @@ A small module with simple functions related to 3D geometry operations.
 
 .. automodule:: scm.plams.tools.geometry
 
+.. _FileFormatConversionTools:
+
 File format conversion tools
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A small module for converting VASP output to AMS-like output, and for converting ASE .traj trajectory files to the .rkf format.
 
 .. automodule:: scm.plams.tools.converters
+
+.. _PlottingTools:
+
+Plotting tools
+~~~~~~~~~~~~~~~~~~
+
+.. seealso::
+
+    * :ref:`BandStructureExample`
+
+Tools for creating plots with matplotlib.
+
+.. automodule:: scm.plams.tools.plot

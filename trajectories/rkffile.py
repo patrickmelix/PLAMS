@@ -163,9 +163,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.mode == 'rb' :
                         self._read_header()
                 elif self.mode == 'wb' :
-                        sections = self.file_object.sections()
-                        if len(sections) > 0 : 
-                                raise PlamsError ('RKF file %s already exists'%(filename))
+                         sections = self.file_object.sections()
+                         if len(sections) > 0 : 
+                                for secname in sections:
+                                        self.file_object.delete_section(secname)
+                         #       raise PlamsError ('RKF file %s already exists'%(filename))
                 else :
                         raise PlamsError ('Mode %s is invalid. Only "rb" and "wb" are allowed.'%(self.mode))
 
@@ -189,7 +191,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 self.include_historydata = True
 
-        def close (self) :
+        def close (self, override_molecule_section_with_last_frame=True) :
                 """
                 Execute all prior commands and cleanly close and garbage collect the RKF file
                 """
@@ -203,8 +205,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # Write to file
                 if self.mode == 'wb' :
-                        # First write the last frame into the Molecule section  
-                        self._rewrite_molecule()
+                        if override_molecule_section_with_last_frame:
+                                # First write the last frame into the Molecule section  
+                                self._rewrite_molecule()
                         # Then write to file
                         self.file_object.save()
                 del(self)
@@ -265,7 +268,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                write_general_section(self.file_object,self.program)
+                if "General" not in self.file_object:
+                        write_general_section(self.file_object,self.program)
 
                 # Then write the input molecule
                 self._update_celldata(cell)
@@ -556,7 +560,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 step = mddata['Step']
                 # Energy should be read from mddata first, otherwise from historydata, otherwise set to zero
                 energy = self._set_energy(mddata, historydata)
-                if not self.include_historydata :
+                if not self.include_historydata or historydata is None :
                         historydata = {}
                 historydata['Energy'] = energy
 
@@ -629,8 +633,16 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Write the bond data into the history section
                 """
+                # Get the bond orders out of the connection table
+                connections = {}
+                orders = {}
+                for k in conect.keys() :
+                    connections[k] = [t[0] if isinstance(t,tuple) else t for t in conect[k]]
+                    orders[k] = [t[1] if isinstance(t,tuple) else 1. for t in conect[k]]
+
                 # Create the index list (correct for double counting)
-                connection_table = [[at for at in conect[i+1] if at>i+1] if i+1 in conect else [] for i in range(nats)]
+                connection_table = [[at for at in connections[iat+1] if at>iat+1] if iat+1 in connections else [] for iat in range(nats)]
+                orders = [[o for o,at in zip(orders[iat+1],connections[iat+1]) if at>iat+1] if iat+1 in connections else [] for iat in range(nats)]
                 numbonds = [len(neighbors) for neighbors in connection_table]
 
                 indices = [sum(numbonds[:i])+1 for i in range(nats+1)]
@@ -644,7 +656,9 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.file_object.write('History','ItemName(%i)'%(counter),'%s'%('Bonds.Atoms'))
                 counter += 1
 
-                bond_orders = [1.0 for bond in connection_table]
+                # Flatten the bond orders
+                bond_orders = [order for i in range(nats) for order in orders[i]]
+                #bond_orders = [1.0 for bond in connection_table]
                 self.file_object.write('History','Bonds.Orders(%i)'%(self.position+1),bond_orders)
                 self.file_object.write('History','ItemName(%i)'%(counter),'%s'%('Bonds.Orders'))
                 counter += 1
@@ -683,7 +697,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Make sure that the variable is a Python 1D list (not numpy)
                 """
-                while(1) :
+                while True :
                         if isinstance(var,list) or isinstance(var,numpy.ndarray) :
                                 if len(var) == 0 : break
                                 if isinstance(var[0],list) or isinstance(var[0],numpy.ndarray) :
@@ -740,7 +754,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                         old_values = self.file_object.read(section,'%s(%i)'%(key,iblock))
                                         if not isinstance(old_values,list) :
                                                 old_values = [old_values]
-                                except AttributeError :
+                                except (AttributeError, KeyError) :
                                         old_values = []
                                 values = old_values + [values] # Values is a scalar
                         else :
@@ -799,7 +813,7 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
         charge = 0.
         if molecule is not None :
                 if 'charge' in molecule.properties :
-                        charge = molecule.properties.charge
+                        charge = float(molecule.properties.charge)
         element_numbers = [PeriodicTable.get_atomic_number(el) for el in elements]
 
         rkf.write(section,'nAtoms',len(elements))
@@ -819,6 +833,16 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
                 suffixes = [ AMSJob._atom_suffix(at) for at in molecule ]
                 if any(s != '' for s in suffixes):
                     rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))
+                # Add atomic charges
+                charges = [at.properties.forcefield for at in molecule.atoms if 'forcefield' in at.properties.keys()]
+                charges = [float(s.charge) for s in charges if 'charge' in s.keys()]
+                if len(charges) == len(molecule):
+                    rkf.write(section,'Charges',charges)
+                # Add region sections
+                if 'regions' in molecule.properties.keys():
+                    region_names = molecule.properties.regions.keys()
+                    rkf.write(section,'RegionNames','\x00'.join(region_names))
+                    rkf.write(section,'RegionProperties','\x00'.join(['\n'.join(molecule.properties.regions[k]) for k in region_names]))
                 # Also add a bond section
                 if len(molecule.bonds) > 0 :
                         bond_indices = [sorted([iat for iat in molecule.index(bond)]) for bond in molecule.bonds]
@@ -842,6 +866,7 @@ def compute_lattice_displacements (molecule) :
         Determine which bonds are displaced along the periodic lattice, so that they are not at their closest distance
         """
         cell = numpy.array(molecule.lattice)
+        nvecs = len(cell)
 
         # Get the difference vectors for the bonds
         nbonds = len(molecule.bonds)
@@ -851,12 +876,12 @@ def compute_lattice_displacements (molecule) :
         
         # Project the vectors onto the lattice vectors
         celldiameters_sqrd = (cell**2).sum(axis=1)
-        proj = (vectors.reshape((nbonds,1,3)) * cell.reshape(1,3,3)).sum(axis=2)
-        proj = proj / celldiameters_sqrd.reshape((1,3))
+        proj = (vectors.reshape((nbonds,1,3)) * cell.reshape(1,nvecs,3)).sum(axis=2)
+        proj = proj / celldiameters_sqrd.reshape((1,nvecs))
         
         # Now see what multiple they are of 0.5
         lattice_displacements = numpy.round(proj).astype(int)
-        lattice_displacements = lattice_displacements.reshape((3*nbonds)).tolist()
+        lattice_displacements = lattice_displacements.reshape((nvecs*nbonds)).tolist()
         return lattice_displacements
 
                                 

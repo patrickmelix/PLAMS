@@ -3,10 +3,21 @@
 ADF and COSMO-RS workflow
 -------------------------
 
-(*contributed by* `Bas van Beek <https://www.researchgate.net/profile/Bas_Beek>`_\)
+**Note**: This example requires AMS2023 or later.
 
-.. autofunction:: scm.plams.recipes.ams_crs.run_crs_ams
+This example uses ADF to generate the .coskf file for benzene. You can also
+modify it to instead use the Benzene.coskf from the ADFCRS-2018 database.
+Note that you first need to install the ADFCRS-2018 database.
 
-The source code:
+The script then plots the sigma profile. This is not a necessary step but is done for illustration purposes only.
 
-.. literalinclude:: ../../../recipes/ams_crs.py
+Then a solubility calculation is performed for benzene in water between 0 and
+10 degrees C. The melting point and enthalpy of fusion can either be estimated
+using the property prediction tool, or the experimental numbers can be given
+(recommended).
+
+**Example usage**: (:download:`ams_crs.py <../../../examples/ams_crs.py>`)
+
+.. literalinclude:: ../../../examples/ams_crs.py
+
+

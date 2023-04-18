@@ -98,13 +98,14 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 # XYZ specific attributes
                 self.name = 'PlamsMol'
 
-                # Required setup before frames can be read/written
-                if self.mode == 'r' :
-                        self._read_header()
-
                 # Specific XYZ stuff
                 self.include_historydata = False
                 self.historydata = None
+                self.nveclines = 0
+
+                # Required setup before frames can be read/written
+                if self.mode == 'r' :
+                        self._read_header()
 
         def store_historydata (self) :
                 """
@@ -136,6 +137,14 @@ class XYZTrajectoryFile (TrajectoryFile) :
                         line = self.file_object.readline()
                         elements.append(line.split()[0])
                 self.elements = elements
+
+                # See if there are any vector lines
+                while True:
+                    line = self.file_object.readline()
+                    if len(line)>0 and line.split()[0][:3] == 'VEC':
+                        self.nveclines += 1
+                    else:
+                        break
 
                 self.file_object.seek(0)
 
@@ -183,10 +192,19 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 if self.include_historydata :
                         self.historydata = historydata
 
-                # Write coordinates
+                # Reade coordinates
                 for i in range(self.ntap) :
                         line = self.file_object.readline()
                         self.coords[i,:] = [float(w) for w in line.split()[1:4]]
+
+                # Possibly read lattice
+                lattice = []
+                for i in range(self.nveclines):
+                    line = self.file_object.readline()
+                    words = line.split()
+                    lattice.append([float(w) for w in words[1:]])
+                if cell is None and len(lattice)>0:
+                    cell = lattice
 
                 if isinstance(molecule,Molecule) :
                         self._set_plamsmol(self.coords, cell, molecule)
@@ -198,7 +216,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 If the end of file is reached, return coords and cell as None
                 """
                 end = False
-                for i in range(self.ntap+2) :
+                for i in range(self.ntap+2+self.nveclines) :
                         line = self.file_object.readline()
                         if len(line) == 0 :
                                 end = True

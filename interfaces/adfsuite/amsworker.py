@@ -14,6 +14,8 @@ import numpy as np
 import collections
 from typing import *
 from ..molecule.ase import toASE
+from ...core.private import retry
+from numbers import Integral
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -252,7 +254,6 @@ class AMSWorkerResults:
         from ase import Atoms
         if self._main_ase_atoms is None:
             if self._results is not None and 'xyzAtoms' in self._results:
-                bohr2angstrom = 0.529177210903
                 lattice = self._results.get('latticeVectors', None)
                 pbc = False
                 cell = None
@@ -262,14 +263,86 @@ class AMSWorkerResults:
                         pbc = [True] * nLatticeVectors + [False] * (3 - nLatticeVectors)
                         cell = np.zeros((3, 3))
                         lattice = np.array(lattice).reshape(-1, 3)
-                        cell[:lattice.shape[0], :lattice.shape[1]] = lattice * bohr2angstrom
+                        cell[:lattice.shape[0], :lattice.shape[1]] = lattice * Units.conversion_ratio('au', 'Angstrom')
                 atomsymbols = [at.symbol for at in self._input_molecule]
-                positions = np.array(self._results['xyzAtoms']).reshape(-1,3) * bohr2angstrom
+                positions = np.array(self._results['xyzAtoms']).reshape(-1,3) * Units.conversion_ratio('au', 'Angstrom')
                 self._main_ase_atoms = Atoms(symbols=atomsymbols, positions=positions, pbc=pbc, cell=cell)
             else:
                 self._main_ase_atoms = toASE(self.get_main_molecule())
 
         return self._main_ase_atoms
+
+
+class AMSWorkerMDState:
+    """A specialized class encapsulating the MD states from calls to an |AMSWorker|.
+    """
+
+    def __init__(self, name, state, error=None):
+        self._name           = name
+        self.error           = error
+        self._state          = state
+
+    @property
+    def name(self):
+        """The name of a calculation.
+
+        That is the name that was passed into the |AMSWorker| method when this |AMSWorkerResults| object was created. I can not be changed after the |AMSWorkerResults| instance has been created.
+        """
+        return self._name
+    @name.setter
+    def name(self, _):
+        raise ResultsError('The name attribute of AMSWorkerResults may not be changed.')
+
+    def ok(self):
+        """Check if the calculation was successful. If not, the ``error`` attribute contains a corresponding exception.
+
+        Users should check if the calculation was successful before using the other methods of the |AMSWorkerResults| instance, as using them might raise a |ResultsError| exception otherwise.
+        """
+        return self.error is None
+
+    def get_errormsg(self):
+        """Attempts to retreive a human readable error message from a crashed job. Returns ``None`` for jobs without errors."""
+        if self.ok():
+            return None
+        else:
+            lines = str(self.error).splitlines()
+            if lines:
+                for line in reversed(lines):
+                    if 'ERROR: ' in line:
+                        return line.partition('ERROR: ')[2]
+                return lines[-1]
+            else:
+                return 'Could not determine error message. Please check the error.stdout and error.stderr manually.'
+
+    @_restrict
+    def get_potentialenergy(self, unit='au'):
+        """Return the potential energy, expressed in *unit*.
+        """
+        return self._state["potentialEnergy"] * Units.conversion_ratio('au', unit)
+
+    @_restrict
+    def get_kineticenergy(self, unit='au'):
+        """Return the kinetic energy, expressed in *unit*.
+        """
+        return self._state["kineticEnergy"] * Units.conversion_ratio('au', unit)
+
+    @_restrict
+    def get_velocities(self, dist_unit='Angstrom', time_unit='fs'):
+        """Return the atomic velocities, expressed in *dist_unit* / *time_unit*.
+        """
+        return self._state["velocities"] * Units.conversion_ratio('au', dist_unit) / Units.conversion_ratio('au', time_unit)
+
+    @_restrict
+    def get_latticevectors(self, unit='Angstrom'):
+        """Return the lattice vectors, expressed in *unit*.
+        """
+        return self._state["latticeVectors"] * Units.conversion_ratio('au', unit)
+
+    @_restrict
+    def get_coords(self, unit='Angstrom'):
+       """Return an array of MD state coordinates
+       """
+       return self._state["xyzAtoms"] * Units.conversion_ratio('au', unit)
 
 
 class AMSWorkerError(PlamsError):
@@ -341,7 +414,8 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
-    def __init__(self, settings, workerdir_root=TMPDIR, workerdir_prefix='amsworker', use_restart_cache=True, keep_crashed_workerdir=False):
+    def __init__(self, settings, workerdir_root=TMPDIR, workerdir_prefix='amsworker', use_restart_cache=True,
+                 keep_crashed_workerdir=False, always_keep_workerdir=False):
 
         self.PyProtVersion = 1
         self.timeout = 2.0
@@ -377,8 +451,11 @@ class AMSWorker:
         self.wd_root   = workerdir_root
         self.wd_prefix = workerdir_prefix+'_'
         self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
-        self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
-        self.keep_wd   = keep_crashed_workerdir
+
+        if not always_keep_workerdir:
+            self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
+        self.keep_crashed_wd = keep_crashed_workerdir
+        self.always_keep_wd  = always_keep_workerdir
 
         # Start the worker process.
         self._start_subprocess()
@@ -551,6 +628,14 @@ class AMSWorker:
 
         stdout  = None
         stderr  = None
+        msg     = None
+
+        if keep_workerdir:
+            msg = f'AMSWorker.stop() asked to keep workerdir, will keep the workerdir in {self.workerdir}'
+
+        if self.always_keep_wd:
+            msg = f'AMSWorker asked to always keep workerdir, will keep the workerdir in {self.workerdir}'
+            keep_workerdir = True
 
         # Tell the worker process to stop.
         if self.proc is not None:
@@ -559,9 +644,12 @@ class AMSWorker:
                     self._call("Exit")
                 except AMSWorkerError:
                     # The process is likely exiting already.
-                    if self.keep_wd:
+                    if self.keep_crashed_wd or keep_workerdir:
                         keep_workerdir = True
-                        print(f'AMSWorkerError encountered, will keep the workerdir in {self.workerdir}')
+                        msg = f'AMSWorkerError encountered, will keep the workerdir in {self.workerdir}'
+
+        if msg is not None:
+            print(msg)
 
         # Tear down the pipes. Ignore OSError telling us the pipes are already broken.
         # This will also make the worker exit if it didn't get the Exit message above.
@@ -620,7 +708,8 @@ class AMSWorker:
 
         if keep_workerdir:
             # Keep the current workerdir and move to a new one
-            self._finalize.detach()
+            if hasattr(self, '_finalize'):
+                self._finalize.detach()
             self.workerdir = tempfile.mkdtemp(dir=self.wd_root, prefix=self.wd_prefix)
             self._finalize = weakref.finalize(self, shutil.rmtree, self.workerdir)
         else:
@@ -630,7 +719,10 @@ class AMSWorker:
                 if os.path.isdir(file_path):
                     shutil.rmtree(file_path)
                 else:
-                    os.unlink(file_path)
+                    @retry(maxtries=10)
+                    def retry_unlink(file_path):
+                        os.unlink(file_path)
+                    retry_unlink(file_path)
 
         return (stdout, stderr)
 
@@ -717,28 +809,7 @@ class AMSWorker:
 
         try:
 
-            # This is a good opportunity to let the worker process know about all the results we no longer need ...
-            self._prune_restart_cache()
-
-            chemicalSystem = {}
-            chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
-            chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
-            if 'charge' in molecule.properties:
-                chemicalSystem['totalCharge'] = float(molecule.properties.charge)
-            else:
-                chemicalSystem['totalCharge'] = 0.0
-            atomicInfo = [AMSJob._atom_suffix(atom) for atom in molecule]
-            if any(ai != '' for ai in atomicInfo):
-                chemicalSystem['atomicInfo'] = np.asarray(atomicInfo)
-            if molecule.lattice:
-                cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
-                chemicalSystem["latticeVectors"] =  cell
-            if molecule.bonds:
-                chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
-                if len(chemicalSystem['bonds']) == 0:
-                    chemicalSystem['bonds'] = np.zeros((0,2))
-                chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
-            self._call("SetSystem", chemicalSystem)
+            self._prepare_system(molecule)
 
             args = {
                 "request": { "title": str(name) },
@@ -791,6 +862,29 @@ class AMSWorker:
             # ... and return an AMSWorkerResults object indicating our failure.
             return AMSWorkerResults(name, molecule, None, exc)
 
+    def _prepare_system(self, molecule):
+            # This is a good opportunity to let the worker process know about all the results we no longer need ...
+            self._prune_restart_cache()
+
+            chemicalSystem = {}
+            chemicalSystem['atomSymbols'] = np.asarray([atom.symbol for atom in molecule])
+            chemicalSystem['coords'] = molecule.as_array() * Units.conversion_ratio('Angstrom','Bohr')
+            if 'charge' in molecule.properties:
+                chemicalSystem['totalCharge'] = float(molecule.properties.charge)
+            else:
+                chemicalSystem['totalCharge'] = 0.0
+            atomicInfo = [AMSJob._atom_suffix(atom) for atom in molecule]
+            if any(ai != '' for ai in atomicInfo):
+                chemicalSystem['atomicInfo'] = np.asarray(atomicInfo)
+            if molecule.lattice:
+                cell = np.asarray(molecule.lattice) * Units.conversion_ratio('Angstrom','Bohr')
+                chemicalSystem["latticeVectors"] =  cell
+            if molecule.bonds:
+                chemicalSystem['bonds'] = np.array([[iat for iat in molecule.index(bond)] for bond in molecule.bonds])
+                if len(chemicalSystem['bonds']) == 0:
+                    chemicalSystem['bonds'] = np.zeros((0,2))
+                chemicalSystem['bondOrders'] = np.asarray([float(bond.order) for bond in molecule.bonds])
+            self._call("SetSystem", chemicalSystem)
 
     def SinglePoint(self, name, molecule, prev_results=None, quiet=True,
                     gradients=False, stresstensor=False, hessian=False, elastictensor=False,
@@ -869,6 +963,123 @@ class AMSWorker:
         return self._solve_from_settings(name, molecule, s)
 
 
+    def MolecularDynamics(self, name, nsteps=None, trajectorysamplingfrequency=None,
+                          checkpointfrequency=None, pipesamplingfrequency=None, setsteptozero=False):
+        try:
+            args = {
+                "title": str(name),
+                "setStepToZero": bool(setsteptozero)
+            }
+            if nsteps is not None:
+                args["nSteps"] = nsteps
+            if trajectorysamplingfrequency is not None:
+                args["trajectorySamplingFrequency"] = trajectorysamplingfrequency
+            if checkpointfrequency is not None:
+                args["checkpointFrequency"] = checkpointfrequency
+            if pipesamplingfrequency is not None:
+                args["pipeSamplingFrequency"] = pipesamplingfrequency
+
+            _states = self._call("RunMD", args)
+
+            states = []
+            for state in _states:
+                state = self._unflatten_arrays(state['state'])
+                states.append(AMSWorkerMDState(name, state))
+
+            return states
+
+        except AMSWorkerError as exc:
+            # Something went wrong. Our worker process might also be down.
+            # Let's reset everything to be safe ...
+            exc.stdout, exc.stderr = self.stop()
+            self._start_subprocess()
+            raise
+
+    def CreateMDState(self, name, molecule):
+        try:
+
+            self._prepare_system(molecule)
+
+            args = {
+                "title": str(name),
+            }
+
+            self._call("CreateMDState", args)
+
+            return
+
+        except AMSWorkerError as exc:
+            # Something went wrong. Our worker process might also be down.
+            # Let's reset everything to be safe ...
+            exc.stdout, exc.stderr = self.stop()
+            self._start_subprocess()
+            raise
+
+    def GenerateVelocities(self, name, randomvelocitiestemperature, randomvelocitiesmethod=None,
+                           setsteptozero=False):
+        try:
+            args = {
+                "title": str(name),
+                "randomVelocitiesTemperature": float(randomvelocitiestemperature),
+                "setStepToZero": bool(setsteptozero)
+            }
+            if randomvelocitiesmethod is not None:
+                args['randomVelocitiesMethod'] = str(randomvelocitiesmethod)
+
+            state = self._call("GenerateVelocities", args)
+
+            state = self._unflatten_arrays(state[0]['state'])
+            state = AMSWorkerMDState(name, state)
+
+            return state
+
+        except AMSWorkerError as exc:
+            # Something went wrong. Our worker process might also be down.
+            # Let's reset everything to be safe ...
+            exc.stdout, exc.stderr = self.stop()
+            self._start_subprocess()
+            raise
+
+    def PrepareMD(self, trajfilename):
+        args = {
+            "trajFileName": str(trajfilename)
+        }
+
+        self._call("PrepareMD", args)
+
+    def SetVelocities(self, name, velocities, dist_unit='Angstrom', time_unit='fs'):
+        velocities = np.array(velocities) * Units.conversion_ratio(dist_unit, 'au') / Units.conversion_ratio(time_unit, 'au')
+        args = {
+            "title": str(name),
+            "velocities": velocities
+        }
+
+        self._call("SetVelocities", args)
+
+    def RenameMDState(self, name, newname):
+        args = {
+            "title": str(name),
+            "newTitle": str(newname)
+        }
+
+        self._call("RenameMDState", args)
+
+    def CopyMDState(self, name, newname):
+        args = {
+            "title": str(name),
+            "newTitle": str(newname)
+        }
+
+        self._call("CopyMDState", args)
+
+    def DeleteMDState(self, name):
+        args = {
+            "title" : str(name)
+        }
+
+        self._call("DeleteMDState", args)
+
+
     def ParseInput(self, program_name, text_input, string_leafs):
         """Parse the text input and return a Python dictionary representing the the JSONified input.
 
@@ -899,14 +1110,25 @@ class AMSWorker:
     def _flatten_arrays(self, d):
         out = {}
         for key, val in d.items():
+
             if (isinstance(val, collections.abc.Sequence) or isinstance(val, np.ndarray)) and not isinstance(val, str):
                 array = np.asarray(val)
-                out[key] = array.flatten()
+                if array.dtype == np.float32:
+                    # Workaround py-ubjson not knowing how to encode float32 yet
+                    array = array.astype(np.float64)
+                out[key] = array.ravel()
                 out[key + "_dim_"] = array.shape[::-1]
-                if 'int' in str(out[key].dtype) :
+                if issubclass(out[key].dtype.type, Integral) or out[key].dtype.type == np.bool_:
+                    #ubjson does not know how to convert numpy arrays of int/bool, so convert back to a list here
+                    out[key] = out[key].tolist()
+                elif out[key].dtype == np.bool_:
                     out[key] = out[key].tolist()
             elif isinstance(val, collections.abc.Mapping):
                 out[key] = self._flatten_arrays(val)
+            elif isinstance(val, np.float32): #for scalar float32
+                out[key] = np.float64(val)
+            elif isinstance(val, np.int32):
+                out[key] = int(val)
             else:
                 out[key] = val
         return out
@@ -930,7 +1152,7 @@ class AMSWorker:
         if len(buf) == n:
             return buf
         else:
-            raise EOFError("Message truncated")
+            raise EOFError("Message truncated to "+str(len(buf)))
 
     def _call(self, method, args={}):
         msg = ubjson.dumpb({method: self._flatten_arrays(args)})
@@ -941,7 +1163,7 @@ class AMSWorker:
                 return None
             self.callpipe.flush()
         except OSError as exc:
-            raise AMSWorkerError('Error while sending a message') from exc
+            raise AMSWorkerError('Error while sending a message '+method+' '+str(len(msg))) from exc
         if method == "Exit":
             return None
 

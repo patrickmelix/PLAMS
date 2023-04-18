@@ -1,16 +1,16 @@
+.. _GeoOptWaterExample:
+
 Geometry optimization of water
 ==============================
 
-.. literalinclude:: ../../../examples/WaterOptimization.py
-   :language: python
+If you're a first-time PLAMS user, also check out the `Getting started PLAMS tutorial <../../Tutorials/WorkflowsAndAutomation/PythonScriptingWithPLAMS.html>`__!
 
 .. note::
+
     To execute this PLAMS script:
     
-    * :download:`Download WaterOptimization.py <../../../examples/WaterOptimization.py>`
-    * ``$AMSBIN/plams WaterOptimization.py``
+    * :download:`Download water_optimization.py <water_optimization.py>`
+    * ``$AMSBIN/plams water_optimization.py``
 
-**Output**
+.. include:: water_optimization.rst.include
 
-.. literalinclude:: ../../../../../../examples/plams/WaterOptimization/WaterOptimization_orig.out
-   :language: none

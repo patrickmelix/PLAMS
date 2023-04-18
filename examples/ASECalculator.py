@@ -1,86 +1,93 @@
+#!/usr/bin/env amspython
 from scm.plams import *
-from ase import Atoms
+from ase.optimize import BFGS
+import os
 
+def get_atoms():
+    # water in a box
+    mol = from_smiles('O')  #PLAMS Molecule
+    mol.lattice = [[3., 0., 0.,], [0., 3., 0.], [0., 0., 3.]]
+    return toASE(mol) # convert PLAMS Molecule to ASE Atoms
 
-#CO test system
-d = 1.1
-co = Atoms('CO', positions=[(0, 0, 0), (0, 0, d)])
-
-
-
-def test_AMSJob():
-    s = Settings()
-    s.input.ForceField
+def get_settings():
+    # PLAMS Settings configuring the calculation
+    s = Settings() 
     s.input.ams.Task = 'SinglePoint'
-    s.runscript.nproc = 1
-    job = AMSCalculator(s, name = 'AMSJob')
-    job.calculate(co)
-    print('energy =', job.results['energy'])
-    job.calculate(properties = 'forces')
-    print('force list')
-    for force_vec in job.results['forces']:
-        print(' '.join(map(str,force_vec)))
+    s.input.ams.Properties.Gradients = "Yes"
+    s.input.ams.Properties.StressTensor = "Yes"
 
+    #Engine definition
+    s.input.ForceField.Type = 'UFF' 
 
-def test_AMSPipe():
-    s = Settings()
-    s.input.ForceField
-    s.input.ams.Task = 'SinglePoint'
-    s.runscript.nproc = 1
-    job = AMSCalculator(s, name = 'AMSPipe', amsworker = True)
-    job.calculate(co)
-    print('energy =', job.results['energy'])
+    # run in serial
+    s.runscript.nproc = 1 
+    return s
 
-    job.calculate(properties = 'forces')
-    print('force list')
-    for force_vec in job.results['forces']:
-        print(' '.join(map(str,force_vec)))
+def singlepoint():
+    settings = get_settings()
+    atoms = get_atoms()
+    atoms.calc = AMSCalculator(settings=settings, name='SinglePoint')
+    print("Singlepoint through the ASE calculator")
+    print(f"Energy (eV): {atoms.get_potential_energy()}")
+    print("Forces (eV/ang):")
+    print(atoms.get_forces())
+    print("Stress (eV/ang^3):")
+    print(atoms.get_stress())
 
+def ams_geoopt():
+    print("AMS geo opt run with the ASE calculator")
+    settings = Settings()
+    settings.input.ams.Task = 'GeometryOptimization'
+    settings.input.ams.GeometryOptimization.Convergence.Gradients = 0.01 # hartree/ang
+    settings.input.ForceField.Type = 'UFF'
+    settings.runscript.nproc = 1
+    atoms = get_atoms()
+    atoms.calc = AMSCalculator(settings=settings, name='AMS_GeoOpt')
+    print(f"Optimized energy (eV): {atoms.get_potential_energy()}")
 
-def test_System():
-    s = Settings()
-    s.input.ForceField
-    s.input.ams.Task = 'SinglePoint'
-    s.runscript.nproc = 1
-    s.input.ams.system.atoms._1 = f'C     0.0    0.0     0.0'
-    s.input.ams.system.atoms._2 = f'O     0.0    0.0     {d}'
+def ase_geoopt():
+    print("ASE geo opt (ase.optimize.BGFGS) in normal mode: One results dir is saved for every step")
+    settings = get_settings()
+    atoms = get_atoms()
+    atoms.calc = AMSCalculator(settings=settings, name='ASE_GeoOpt')
+    dyn = BFGS(atoms)
+    dyn.run(fmax=0.27)
+    print(f"Optimized energy (eV): {atoms.get_potential_energy()}")
 
-    job = AMSCalculator(s, name = 'System', amsworker = False, restart = True)
-    job.calculate()
-    print('energy =', job.results['energy'])
+def ase_geoopt_workermode():
+    print("ASE geo opt (ase.optimize.FGS) in AMSWorker mode: no output files are saved, minimal overhead")
+    settings = get_settings() 
+    atoms = get_atoms()
+    with AMSCalculator(settings=settings, name='ASE_WorkerGeoOpt', amsworker=True) as calc:
+        atoms.calc = calc
+        dyn = BFGS(atoms)
+        dyn.run(fmax=0.27)
+        print(f"Optimized energy (eV): {atoms.get_potential_energy()}")
 
-    job.calculate(properties = 'forces')
-    print('force list')
-    for force_vec in job.results['forces']:
-        print(' '.join(map(str,force_vec)))
+def charged_system():
+    print("Define the charge of a system through the ASE atoms object")
+    settings = get_settings()
+    atoms = get_atoms()
+    atoms.set_initial_charges([-0.3, 0.2, 0.2])
+    atoms.info['charge'] = 3
+    calc = AMSCalculator(settings, name = 'charge')
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    print(f'Charge is "{atoms.calc.amsresults.get_input_molecule().properties.charge}" for the first system.')
+    atoms = atoms*(1,1,2)
+    atoms.calc = calc
+    atoms.get_potential_energy()
+    print(f'Charge is "{atoms.calc.amsresults.get_input_molecule().properties.charge}" for the second system.')
 
-
-
-def test_Properties():
-    s = Settings()
-    s.input.ForceField
-    s.input.ams.Task = 'SinglePoint'
-    s.runscript.nproc = 1
-    s.input.ams.Properties.Gradients = True
-    job = AMSCalculator(s, name = 'Properties')
-    job.calculate(co)
-    print('found forces:', 'forces' in job.results )
-
-
-def test_PipeWorker():
-    s = Settings()
-    s.input.ForceField
-    s.input.ams.Task = 'SinglePoint'
-    s.runscript.nproc = 1
-    s.amsworker.quiet = True
-    job = AMSCalculator(s, name = 'PipeWorker', amsworker = True, restart = True)
-    job.calculate(co)
-
+def main():
+    init()
+    singlepoint()
+    ams_geoopt()
+    ase_geoopt()
+    ase_geoopt_workermode()
+    charged_system()
+    finish()
 
 if __name__ == '__main__':
-    test_AMSJob()
-    test_AMSPipe()
-    test_System()
-    test_Properties()
-    test_PipeWorker()
-    finish()
+    main()
+

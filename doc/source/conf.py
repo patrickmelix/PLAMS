@@ -197,9 +197,13 @@ add_module_names = False
 pygments_style = 'sphinx'
 
 # configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'python3': ('http://docs.python.org/3.6', None)}
+intersphinx_mapping = {'python3': ('http://docs.python.org/3.8', None)}
 
-autodoc_default_flags = ['members', 'private-members', 'special-members']
+autodoc_default_options = {
+    'members': True,
+    'private-members': True,
+    'special-members': True
+}
 autodoc_member_order = 'bysource'
 autodoc_typehints = 'none'
 
@@ -243,6 +247,7 @@ rst_epilog = """
 .. |XYZTrajectoryFile| replace:: :class:`~scm.plams.trajectories.xyzfile.XYZTrajectoryFile`
 .. |XYZHistoryFile| replace:: :class:`~scm.plams.trajectories.xyzhistoryfile.XYZHistoryFile`
 .. |DCDTrajectoryFile| replace:: :class:`~scm.plams.trajectories.dcdfile.DCDTrajectoryFile`
+.. |Trajectory| replace:: :class:`~scm.plams.trajectories.trajectory.Trajectory`
 
 .. |JobManager| replace:: :class:`~scm.plams.core.jobmanager.JobManager`
 .. |load_job| replace:: :meth:`~scm.plams.core.jobmanager.JobManager.load_job`
@@ -258,6 +263,7 @@ rst_epilog = """
 
 .. |AMSJob| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSJob`
 .. |AMSResults| replace:: :class:`~scm.plams.interfaces.adfsuite.ams.AMSResults`
+.. |AMSAnalysisJob| replace:: :class:`~scm.plams.interfaces.adfsuite.amsanalysis.AMSAnalysisJob`
 
 .. |AMSWorker| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorker`
 .. |AMSWorkerPool| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerPool`
@@ -265,6 +271,8 @@ rst_epilog = """
 .. |AMSWorkerError| replace:: :class:`~scm.plams.interfaces.adfsuite.amsworker.AMSWorkerError`
 .. |AMSPipeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeError`
 .. |AMSPipeRuntimeError| replace:: :class:`~scm.plams.interfaces.adfsuite.amspipe.AMSPipeRuntimeError`
+
+.. |AMSCalculator| replace:: :class:`~scm.plams.interfaces.adfsuite.ase_calculator.AMSCalculator`
 
 .. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
 .. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`

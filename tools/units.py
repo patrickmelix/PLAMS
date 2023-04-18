@@ -130,6 +130,15 @@ class Units:
     mass['kg'] = 1.66053906660e-27
     mass['g'] = mass['kg'] * 1e3
 
+    time = {}
+    time['s']                 = 1.0
+    time['ms']                = time['s'] * 1e3
+    time['us']                = time['s'] * 1e6
+    time['ns']                = time['s'] * 1e9
+    time['ps']                = time['s'] * 1e12
+    time['fs']                = time['s'] * 1e15
+    time['au'] = time['a.u.'] = time['s'] / 2.4188843265857e-17 #https://physics.nist.gov/cgi-bin/cuu/Value?aut
+
     angle = {}
     angle['degree'] =  angle['deg'] = 1.0
     angle['radian'] =  angle['rad'] = math.pi / 180.0
@@ -168,6 +177,7 @@ class Units:
     dicts['distance'] = distance
     dicts['energy'] = energy
     dicts['mass'] = mass
+    dicts['time'] = time
     dicts['angle'] = angle
     dicts['dipole'] = dipole
     dicts['reciprocal distance'] = rec_distance

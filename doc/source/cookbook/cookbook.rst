@@ -66,6 +66,34 @@ will generate the following text input when used for an |AMSJob|:
     End
 
 
+Repeating input block
+---------------------
+
+These |Settings|
+
+.. code-block:: python
+
+    block_1 = Settings()
+    block_1.SomeOption = 1
+
+    block_2 = Settings()
+    block_2.SomeOption = 7
+
+    sett = Settings()
+    sett.input.ams.SomeInputBlock = [block_1, block_2]
+
+will generate the following text input when used for an |AMSJob|:
+
+::
+
+    SomeInputBlock
+      SomeOption 1
+    End
+    SomeInputBlock
+      SomeOption 7
+    End
+
+
 Convert an AMS text input into an AMS job
 -----------------------------------------
 
@@ -194,10 +222,10 @@ Generate a liquid or gas mixture
     # Generate a 2-to-1 water-acetonitrile mixture with a density of 0.9 g/cm^3 and approximately 200 atoms
     water = from_smiles('O')
     acetonitrile = from_smiles('CC#N')
-    mixture = packmol_mixture(molecules=[water, acetonitrile], 
-                              mole_fractions=[0.667, 0.333], 
-                              n_atoms=200, 
-                              density=0.9)
+    mixture = packmol(molecules=[water, acetonitrile], 
+                      mole_fractions=[0.667, 0.333], 
+                      n_atoms=200, 
+                      density=0.9)
 
 See :ref:`PackMolExample` for more examples on how to construct liquid or gas mixtures and solid/liquid or solid/gas interfaces.
 
@@ -213,6 +241,11 @@ AMS-like .rkf file so that you can visualize them in the GUI module AMSmovie.
 
     molecule_list = [from_smiles('C'), from_smiles('CC')]
     molecules_to_rkf(molecule_list, 'output.rkf', overwrite=True)
+
+Convert a trajectory to ams.rkf with bond guessing
+---------------------------------------------------------
+
+See :ref:`ConvertToAMSRKFTrajectory`
 
 Pre-optimize a molecule
 ------------------------------------

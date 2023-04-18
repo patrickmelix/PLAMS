@@ -2,7 +2,6 @@ import os
 import subprocess
 import numpy as np
 import re
-from natsort import natsorted
 
 from os.path import join as opj
 
@@ -18,7 +17,7 @@ from ...mol.bond import Bond
 from ...tools.kftools import KFFile
 from ...tools.units import Units
 from ...trajectories.rkffile import RKFTrajectoryFile
-from ...tools.converters import vasp_output_to_ams, qe_output_to_ams
+from ...tools.converters import vasp_output_to_ams, qe_output_to_ams, gaussian_output_to_ams
 
 try:
     from watchdog.observers import Observer
@@ -74,7 +73,10 @@ class AMSResults(Results):
         This method is called automatically during the final part of the job execution and there is no need to call it manually.
         """
         Results.collect(self)
+        self.collect_rkfs()
 
+
+    def collect_rkfs(self):
         rkfname = 'ams.rkf'
         if rkfname in self.files:
             main = KFFile(opj(self.job.path, rkfname))
@@ -89,6 +91,12 @@ class AMSResults(Results):
 
         else:
             log('WARNING: Main KF file {} not present in {}'.format(rkfname, self.job.path), 1)
+
+
+    def _copy_to(self, newresults):
+        super()._copy_to(newresults)
+        newresults.rkfs = {}
+        newresults.collect_rkfs()
 
 
     def refresh(self):
@@ -208,14 +216,39 @@ class AMSResults(Results):
         """
         return self.get_molecule('Molecule', 'ams')
 
-    def get_main_ase_atoms(self):
+    def get_main_ase_atoms(self, get_results=False):
         """Return an ase.Atoms instance with the final coordinates.
 
         An alternative is to call toASE(results.get_main_molecule()) to convert a Molecule to ASE Atoms.
 
-        All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+        get_results : bool
+            If True, the returned Atoms will have a SinglePointCalculator as their calculator, allowing you to call .get_potential_energy(), .get_forces(), and .get_stress() on the returned Atoms object.
+
         """
-        return self.get_ase_atoms('Molecule', 'ams')
+        from ase.calculators.singlepoint import SinglePointCalculator
+        atoms = self.get_ase_atoms('Molecule', 'ams')
+        if get_results:
+            atoms.set_calculator(SinglePointCalculator(atoms))
+            try:
+                energy = self.get_energy(unit='eV')
+                atoms.calc.results['energy'] = energy
+            except KeyError:
+                pass
+            try:
+                forces = (-1) * np.array(self.get_gradients(dist_unit='angstrom', energy_unit='eV')).reshape(-1,3)
+                atoms.calc.results['forces'] = forces
+            except KeyError:
+                pass
+
+            try:
+                stress = np.array(self.get_stresstensor()).ravel() * Units.convert(1.0, 'hartree/bohr^3', 'eV/ang^3')
+                if len(stress) == 9:
+                    stress = stress.reshape(3,3)
+                    atoms.calc.results['stress'] = np.array([stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]])
+            except KeyError:
+                pass
+
+        return atoms
 
 
     def get_history_molecule(self, step):
@@ -245,8 +278,10 @@ class AMSResults(Results):
                 lattice = Units.convert(main.read('History', f'LatticeVectors('+str(step)+')'), 'bohr', 'angstrom')
                 mol.lattice = [tuple(lattice[j:j+3]) for j in range(0,len(lattice),3)]
 
+            # Bonds from the reference molecule are probably outdated. Let us never use them ...
+            mol.delete_all_bonds()
+            # ... but instead use bonds from the history section if they are available:
             if all(('History', i) in main for i in [f'Bonds.Index({step})', f'Bonds.Atoms({step})', f'Bonds.Orders({step})']):
-                mol.bonds = []
                 index = main.read('History', f'Bonds.Index({step})')
                 if not isinstance(index, list): index = [index]
                 atoms = main.read('History', f'Bonds.Atoms({step})')
@@ -256,7 +291,13 @@ class AMSResults(Results):
                 for i in range(len(index)-1):
                     for j in range(index[i], index[i+1]):
                         mol.add_bond(mol[i+1], mol[atoms[j-1]], orders[j-1])
+            if ('History', f'Bonds.CellShifts({step})') in main:
+                cellShifts = main.read('History', f'Bonds.CellShifts({step})')
+                for i, b in enumerate(mol.bonds):
+                    b.properties.suffix = f"{cellShifts[3*i]} {cellShifts[3*i+1]} {cellShifts[3*i+2]}"
+
             return mol
+
 
     def is_valid_stepnumber (self, main, step) :
         """
@@ -323,9 +364,8 @@ class AMSResults(Results):
         main = self.rkfs['ams']
         as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block :
-            import numpy
             blocksize = main.read(history_section,'blockSize')
-            iblock = int(numpy.ceil(step/blocksize))
+            iblock = int(np.ceil(step/blocksize))
             value = main.read(history_section,f"{varname}({iblock})")[(step%blocksize)-1]
         else :
             value = main.read(history_section,f"{varname}({step})")
@@ -335,6 +375,8 @@ class AMSResults(Results):
         """Determines wether the values of varname in a trajectory rkf file are stored in blocks"""
         nentries = main.read(history_section,'nEntries')
         as_block = False
+        # This is extremely slow, because looping over main is very slow.
+        # This is because the (sec,var) tuples are first stored in a set, then sorted, and only then yielded
         keylist = [var for sec,var in main if sec==history_section]
         if 'nBlocks' in keylist :
             if not f"{varname}({nentries})" in keylist :
@@ -368,6 +410,104 @@ class AMSResults(Results):
         temperatures = (m.reshape((nats,1)) * vels**2).sum(axis=1)
         temperatures /= 3 * Units.constants['k_B']
         return temperatures
+
+    def get_band_structure(self, bands=None, unit='hartree', only_high_symmetry_points=False):
+        """
+        Extracts the electronic band structure from DFTB or BAND calculations. The returned data can be plotted with ``plot_band_structure``.
+
+        Note: for unrestricted calculations bands 0, 2, 4, ... are spin-up and bands 1, 3, 5, ... are spin-down.
+
+        Returns: ``x``, ``y_spin_up``, ``y_spin_down``, ``labels``, ``fermi_energy``
+
+        ``x``: 1D array of float
+
+        ``y_spin_up``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``
+
+        ``y_spin_down``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``. If the calculation was restricted this is identical to y_spin_up.
+
+        ``labels``: 1D list of str of length len(x). If a point is not a high-symmetry point then the label is an empty string.
+
+        ``fermi_energy``: float. The Fermi energy (in units of ``unit``).
+
+        Arguments below.
+
+        bands: list of int or None
+            If None, all bands are returned. Note: the band indices start with 0.
+
+        unit: str
+            Unit of the returned band energies
+
+        only_high_symmetry_points: bool
+            Return only the first point of each edge.
+
+        """
+
+        read_labels = True
+
+        nBands= self.readrkf('band_curves', 'nBands', file='engine')
+
+        nEdges = self.readrkf('band_curves', 'nEdges', file='engine')
+        try:
+            nSpin = self.readrkf('band_curves', 'nSpin', file='engine')
+        except KeyError:
+            nSpin = 1
+
+        if bands is None:
+            bands = np.arange(nBands)
+
+        spindown_bands = bands
+        if nSpin == 2:
+            spindown_bands = np.array(bands) + nBands
+
+
+        prevmaxx = 0
+        complete_spinup_data = []
+        complete_spindown_data = []
+        labels = []
+        x = []
+
+        for i in range(nEdges):
+            my_x = self.readrkf('band_curves', f'Edge_{i+1}_xFor1DPlotting', file='engine')
+            my_x = np.array(my_x) + prevmaxx
+            prevmaxx = np.max(my_x)
+
+            if read_labels:
+                my_labels = self.readrkf('band_curves', f'Edge_{i+1}_labels', file='engine').split()
+                if len(my_labels) == 2:
+                    if only_high_symmetry_points:
+                        labels += [my_labels[0]]  # only the first point of the curve
+                    else:
+                        labels += [my_labels[0]] + ['']*(len(my_x)-2) + [my_labels[1]]
+
+            if only_high_symmetry_points:
+                x.append(my_x[0:1])
+            else:
+                x.append(my_x)
+
+            A = self.readrkf('band_curves', f'Edge_{i+1}_bands', file='engine')
+            A = np.array(A).reshape(-1, nBands*nSpin)
+            spinup_data = A[:, bands]
+            spindown_data = A[:, spindown_bands]
+
+            if only_high_symmetry_points:
+                spinup_data = np.reshape(spinup_data[0, :], (-1, len(bands)))
+                spindown_data = np.reshape(spindown_data[0, :], (-1, len(spindown_bands)))
+
+            complete_spinup_data.append(spinup_data)
+            complete_spindown_data.append(spindown_data)
+
+        complete_spinup_data = np.concatenate(complete_spinup_data)
+        complete_spinup_data = Units.convert(complete_spinup_data, 'hartree', unit)
+
+        complete_spindown_data = np.concatenate(complete_spindown_data)
+        complete_spindown_data = Units.convert(complete_spindown_data, 'hartree', unit)
+
+        x = np.concatenate(x).ravel()
+
+        fermi_energy = self.readrkf('BandStructure', 'FermiEnergy', file='engine')
+        fermi_energy = Units.convert(fermi_energy, 'hartree', unit)
+
+        return x, complete_spinup_data, complete_spindown_data, labels, fermi_energy
 
     def get_engine_results(self, engine=None):
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
@@ -414,13 +554,6 @@ class AMSResults(Results):
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
-        # try:
-        #     return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
-        # except FileError as original_error:
-        #     try:
-        #         return min(self.readrkf('PESScan', 'PES')) * Units.conversion_ratio('au', unit)
-        #     except:
-        #         raise original_error
 
 
     def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
@@ -472,6 +605,16 @@ class AMSResults(Results):
         return freqs * Units.conversion_ratio('cm^-1', unit)
 
 
+    def get_force_constants(self, engine=None):
+        """Return a numpy array of force constants, expressed in atomic units (Hartree/bohr^2).
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        forceConstants = self._process_engine_results(lambda x: x.read('Vibrations', 'ForceConstants'), engine)
+        forceConstants = np.array(forceConstants) if isinstance(forceConstants,list) else np.array([forceConstants])
+        return forceConstants
+
+
     def get_charges(self, engine=None):
         """Return the atomic charges, expressed in atomic units.
 
@@ -494,6 +637,67 @@ class AMSResults(Results):
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'DipoleGradients'), engine)).reshape(-1,3)
 
 
+    def get_n_spin(self, engine=None):
+        """n_spin is 1 in case of spin-restricted or spin-orbit coupling calculations, and 2 in case of spin-unrestricted calculations
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'nSpin'))
+
+
+    def get_orbital_energies(self, unit='Hartree', engine=None):
+        """Return the orbital energies in a numpy array of shape [nSpin,nOrbitals] (nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted)
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return Units.convert(np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'orbitalEnergies'), engine)).reshape(self.get_n_spin(),-1), 'Hartree', unit)
+
+
+    def get_orbital_occupations(self, engine=None):
+        """Return the orbital occupations in a numpy array of shape [nSpin,nOrbitals]. For spin restricted calculations, the occupations will be between 0 and 2. For spin unrestricted or spin-orbit coupling the values will be between 0 and 1.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'orbitalOccupations'), engine)).reshape(self.get_n_spin(),-1)
+
+
+    def get_homo_energies(self, unit='Hartree', engine=None):
+        """
+        Return the homo energies per spin as a numpy array of size [nSpin]. nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted. See also :func:`~are_orbitals_fractionally_occupied`.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return Units.convert(np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'HOMOEnergy'), engine)).reshape(-1), "Hartree", unit)
+
+
+    def get_lumo_energies(self, unit='Hartree', engine=None):
+        """
+        Return the lumo energies per spin as a numpy array of size [nSpin]. nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted. See also :func:`~are_orbitals_fractionally_occupied`.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return Units.convert(np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'LUMOEnergy'), engine)).reshape(-1), "Hartree", unit)
+
+
+    def get_smallest_homo_lumo_gap(self, unit='Hartree', engine=None):
+        """
+        Returns a float containing the smallest HOMO-LUMO gap irrespective of spin (i.e. min(LUMO) - max(HOMO)). See also :func:`~are_orbitals_fractionally_occupied`.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return Units.convert(self._process_engine_results(lambda x: x.read('AMSResults', 'SmallestHOMOLUMOGap'), engine), 'Hartree', unit)
+
+
+    def are_orbitals_fractionally_occupied(self, engine=None):
+        """
+        Returns a boolean indicating whether fractional occupations were detected. If that is the case, then the 'HOMO' and 'LUMO' labels are not well defined, since the demarcation between 'occupied' and 'empty' is somewhat arbitrary. See the AMSDriver documentation for more info.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return self._process_engine_results(lambda x: x.read('AMSResults', 'fractionalOccupation'), engine)
+
+
+
     def get_timings(self):
         """Return a dictionary with timing statistics of the job execution. Returned dictionary contains keys cpu, system and elapsed. The values are corresponding timings, expressed in seconds.
         """
@@ -513,6 +717,15 @@ class AMSResults(Results):
             ret['cpu'] = float(cpu[0].split()[-1])
 
         return ret
+
+    def get_forcefield_params (self, engine=None):
+        """
+        Read all force field data from a forcefield.rkf file into self
+
+        * ``filename`` -- Name of the RKF file that contains ForceField data
+        """
+        from .forcefieldparams import forcefield_params_from_kf
+        return self._process_engine_results(forcefield_params_from_kf, engine)
 
     def get_poissonratio(self, engine=None):
         return self._process_engine_results(lambda x: x.read('AMSResults', 'PoissonRatio'), engine)
@@ -561,9 +774,13 @@ class AMSResults(Results):
 
             'HistoryIndices': list of int, the indices (1-based) in the History section which correspond to the Molecules and PES.
 
+            'ConstrainedAtoms': set of int, all atom indices (1-based) that were part of any PESScan scan coordinates (other constrained atoms are not included)
+
             'Properties': list of dict. The dictionary keys are what can be found on the AMSResults section of the engine .rkf file. These will only be populated if "CalcPropertiesAtPESPoints" is set to Yes when running the PES scan.
 
         """
+        from natsort import natsorted
+        import re
         def tolist(x):
             if isinstance(x, list):
                 return x
@@ -605,8 +822,18 @@ class AMSResults(Results):
 
         raveled_scancoords = [x[i] for x in scancoords for i in range(len(x))] # 1d list
         raveled_units = [x[i] for x in units for i in range(len(x))] # 1d list
+
+        constrained_atoms = []
+        for sc in raveled_scancoords:
+            constrained_atoms.extend(re.findall(r"\((\d+)\)", sc))
+        try:
+            constrained_atoms = set(int(x) for x in constrained_atoms)
+        except ValueError:
+            constrained_atoms = set()
+
         ret['RaveledScanCoords'] = raveled_scancoords
         ret['nRaveledScanCoords'] = len(raveled_scancoords)
+        ret['ConstrainedAtoms'] = constrained_atoms
         ret['ScanCoords'] = scancoords
         ret['nScanCoords'] = len(scancoords)
         ret['OrigScanCoords'] = origscancoords #newline delimiter for joint scan coordinates
@@ -690,18 +917,18 @@ class AMSResults(Results):
         return ret
 
     def get_time_step(self):
-        """ Returns the time step in femtoseconds for MD simulation jobs """
-        time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory') 
-        time2 = self.get_property_at_step(2, 'Time', history_section='MDHistory') 
+        """ Returns the time step between adjacent frames (NOT the TimeStep in the settings, but Timestep*SamplingFreq) in femtoseconds for MD simulation jobs """
+        time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory')
+        time2 = self.get_property_at_step(2, 'Time', history_section='MDHistory')
         time_step = time2 - time1
         return time_step
-            
+
     def _get_integer_start_end_every_max(self, start_fs, end_fs, every_fs, max_dt_fs):
         time_step = self.get_time_step()
-        start_step = int( start_fs / time_step )
-        end_step = int( end_fs / time_step ) if end_fs is not None else None
-        every = int ( every_fs / time_step) if every_fs is not None else 1
-        max_dt = int( max_dt_fs / time_step) if max_dt_fs is not None else None
+        start_step = round( start_fs / time_step )
+        end_step = round( end_fs / time_step ) if end_fs is not None else None
+        every = round ( every_fs / time_step) if every_fs is not None else 1
+        max_dt = round( (max_dt_fs / time_step) / every) if max_dt_fs is not None else None
 
         return start_step, end_step, every, max_dt
 
@@ -766,7 +993,7 @@ class AMSResults(Results):
 
         vacf = autocorrelation(data, max_dt=max_dt, normalize=normalize) * n_dimensions # multiply by n_dimensions to undo the averaging per component and instead average per atom
 
-        times = np.arange(len(vacf)) * time_step * every 
+        times = np.arange(len(vacf)) * time_step * every
 
         return times, vacf
 
@@ -824,7 +1051,37 @@ class AMSResults(Results):
 
         return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
 
-    def get_green_kubo_viscosity(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True):
+    @staticmethod
+    def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
+        from ...trajectories.analysis import autocorrelation
+        from ...tools.units import Units
+        from scipy.integrate import cumtrapz
+        data = np.array(pressuretensor)
+
+        components = []
+        if yz:
+            components += [3]
+        if xz:
+            components += [4]
+        if xy:
+            components += [5]
+
+        data = data[:, components]
+        acf = autocorrelation(data, max_dt=max_dt)
+        times = np.arange(len(acf)) * time_step
+
+        integrated_acf = cumtrapz(acf, times, initial=0)
+        integrated_times = np.arange(len(integrated_acf)) * time_step
+
+        k_B = Units.constants['k_B']
+
+        au2Pa = Units.convert(1.0, 'hartree/bohr^3', 'Pa')
+
+        viscosity = (volume*1e-30)/(k_B*temperature) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
+
+        return integrated_times, viscosity
+
+    def get_green_kubo_viscosity(self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True, pressuretensor=None):
         """
         Calculates the viscosity using the Green-Kubo relation (integrating the off-diagonal pressure tensor autocorrelation function).
 
@@ -846,6 +1103,9 @@ class AMSResults(Results):
         xz : bool
             Whether to use the xz off-diagonal elements
 
+        pressuretensor : np.array shape (N,6)
+            Pressure tensor in atomic units. If not specified, it will be read from the ams.rkf file.
+
         Returns: 2-tuple (times, C)
             ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the viscosity (in mPa*s) integral. It should converge to the viscosity values as the time increases.
 
@@ -856,7 +1116,10 @@ class AMSResults(Results):
         nEntries = self.readrkf('MDHistory', 'nEntries')
         time_step = self.get_time_step()
         start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
-        data = self.get_history_property('PressureTensor', 'MDHistory')
+        data = pressuretensor
+        if data is None:
+            data = self.get_history_property('PressureTensor', 'MDHistory')
+            data = [x for x in data if x is not None] # None might appear in currently running trajectories if the job was loaded with load_external
         data = np.array(data)[start_step:end_step:every]
 
         components = []
@@ -869,16 +1132,19 @@ class AMSResults(Results):
 
         data = data[:, components]
         acf = autocorrelation(data, max_dt=max_dt)
-        times = np.arange(len(acf)) * time_step * every 
+        times = np.arange(len(acf)) * time_step * every
 
         integrated_acf = cumtrapz(acf, times)
         integrated_times = np.arange(len(integrated_acf)) * time_step * every
 
         V = self.get_main_molecule().unit_cell_volume()
 
-        T = self.get_history_property('Temperature', 'MDHistory')
-        T = np.array(T)[start_step:end_step:every]
-        mean_T = np.mean(T)
+        try:
+            T = self.get_history_property('Temperature', 'MDHistory')
+            T = np.array(T)[start_step:end_step:every]
+            mean_T = np.mean(T)
+        except KeyError:  # might be triggered for currently running trajectories, then just use the first temperature
+            mean_T = self.get_property_at_step(1, 'Temperature', 'MDHistory')
 
         k_B = Units.constants['k_B']
 
@@ -891,7 +1157,7 @@ class AMSResults(Results):
     def get_density_along_axis(self, axis:str='z', density_type:str='mass', start_fs=0, end_fs=None, every_fs=None, bin_width=0.1, atom_indices=None):
         """
         Calculates the density of atoms along a Cartesian coordinate axis.
-        
+
         This only works if the axis is perpendicular to the other two axes. The
         system must be 3D-periodic and the number of atoms cannot change during
         the trajectory.
@@ -992,8 +1258,6 @@ class AMSResults(Results):
         z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
         return z, density
 
-
-
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
@@ -1007,14 +1271,13 @@ class AMSResults(Results):
     def recreate_settings(self):
         """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
-        If ``ams.rkf`` is present in the job folder, extract user input and parse it back to a |Settings| instance using ``scm.input_parser`` module. Remove the ``system`` branch from that instance.
+        If ``ams.rkf`` is present in the job folder, extract user input and parse it back to a |Settings| instance using ``scm.libbase`` module. Remove the ``system`` branch from that instance.
         """
         if 'ams' in self.rkfs:
             user_input = self.readrkf('General', 'user input')
             try:
-                from scm.input_parser import InputParser
-                with InputParser() as parser:
-                    inp = parser.to_settings('ams', user_input)
+                from scm.libbase import InputParser
+                inp = InputParser().to_settings('ams', user_input)
             except:
                 log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path, 5))
                 return None
@@ -1075,12 +1338,20 @@ class AMSResults(Results):
 
             def __str__(self):
                 if self.isTS:
-                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} transition state @ {self.energy:.8f} Hartree (found {self.count} times"+(f", results on {self.engfile})" if self.engfile is not None else ")")]
                     if self.reactantsID is not None: lines += [f"  +- Reactants: {self.reactants}"]
                     if self.productsID is not None:  lines += [f"     Products:  {self.products}"]
-                    if self.reactantsID is not None: lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E}"]
+
+                    if self.reactantsID is not None and self.productsID is not None:
+                        eV = Units.convert(1.0, 'eV', 'hartree')
+                        lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:{self.prefactorsFromProduct:.3E} s^-1"]
+                        dEforward = ( self.energy-self._landscape._states[self.reactantsID-1].energy )/eV
+                        dEbackward = ( self.energy-self._landscape._states[self.productsID-1].energy )/eV
+                        lines += [f"     Barriers: {dEforward:.3f}:{dEbackward:.3f} eV"]
+                    elif self.productsID is not None:
+                        lines += [f"     Prefactors: {self.prefactorsFromReactant:.3E}:?"]
                 else:
-                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times"+(", results on {self.engfile})" if self.engfile is not None else ")")]
+                    lines  = [f"State {self.id}: {self.molecule.get_formula(False)} local minimum @ {self.energy:.8f} Hartree (found {self.count} times"+(f", results on {self.engfile})" if self.engfile is not None else ")")]
                 return "\n".join(lines)
 
 
@@ -1376,9 +1647,9 @@ class AMSJob(SingleJob):
         """Generate the runscript. Returned string is of the form::
 
             unset AMS_SWITCH_LOGFILE_AND_STDOUT
-            AMS_JOBNAME=jobname AMS_RESULTSDIR=. $AMSBIN/ams [-n nproc] <jobname.in [>jobname.out]
+            AMS_JOBNAME=jobname AMS_RESULTSDIR=. $AMSBIN/ams [-n nproc] --input=jobname.in [>jobname.out]
 
-        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS.
+        ``-n`` flag is added if ``settings.runscript.nproc`` exists. ``[>jobname.out]`` is used based on ``settings.runscript.stdout_redirect``. If ``settings.runscript.preamble_lines`` exists, those lines will be added to the runscript verbatim before the execution of AMS. If ``settings.runscript.postamble_lines`` exists, those lines will be added to the runscript verbatim after the execution of AMS.
         """
         ret  = 'unset AMS_SWITCH_LOGFILE_AND_STDOUT\n'
         ret += 'unset SCM_LOGFILE\n'
@@ -1400,10 +1671,14 @@ class AMSJob(SingleJob):
         ret += 'AMS_JOBNAME="{}" AMS_RESULTSDIR=. $AMSBIN/ams'.format(self.name)
         if 'nproc' in self.settings.runscript:
             ret += ' -n {}'.format(self.settings.runscript.nproc)
-        ret += ' <"{}"'.format(self._filename('inp'))
+        ret += ' --input="{}" < /dev/null'.format(self._filename('inp'))
         if self.settings.runscript.stdout_redirect:
             ret += ' >"{}"'.format(self._filename('out'))
         ret += '\n\n'
+        if 'postamble_lines' in self.settings.runscript:
+            for line in self.settings.runscript.postamble_lines:
+                ret += f'{line}\n'
+            ret += '\n'
         return ret
 
 
@@ -1491,27 +1766,54 @@ class AMSJob(SingleJob):
             """
             ret = ''
             if isinstance(value, Settings):
+                # Open block ...
                 ret += ' '*indent + key
+                # ... with potential header
                 if '_h' in value:
                     ret += ' ' + unspec(value['_h'])
                 ret += '\n'
 
+                # Free block, or explicitly placed entries with _1, _2, ...
                 i = 1
-                while ('_'+str(i)) in value:
-                    ret += serialize('', value['_'+str(i)], indent+2)
+                while f'_{i}' in value:
+                    if isinstance(value[f'_{i}'], Settings):
+                        for ckey in value[f'_{i}']:
+                            ret += serialize(ckey, value[f'_{i}'][ckey], indent+2)
+                    else:
+                        ret += serialize('', value['_'+str(i)], indent+2)
                     i += 1
 
-                for el in value:
-                    if not el.startswith('_'):
-                        if key.lower().startswith('engine') and el.lower() == 'input':
-                            ret += serialize(el, value[el], indent+2, 'EndInput')
-                        # REB: For the hybrid engine. How todeal with the space in el (Engine DFTB)? Replace by underscore?
-                        elif key.lower().startswith('engine') and el.lower().startswith('engine') :
-                            engine = ' '.join(el.split('_'))
-                            ret += serialize(engine, value[el], indent+2, end='EndEngine') + '\n'
+                # Figure out the order in which we should serialize the entries in the block
+                if "_o" in value:
+                    # Ordered block: we need to serialize the contents in the order given by "_o"
+                    children = []
+                    for v in value["_o"]:
+                        ckey, _, idx = v.partition('[')
+                        if idx:
+                            # Child is a recurring entry, e.g. SubBlock[5]
+                            idx = int(idx.rstrip("]"))
+                            children.append((ckey,value[ckey][idx-1]))
                         else:
-                            ret += serialize(el, value[el], indent+2)
+                            # Child is a unique entry
+                            children.append((ckey,value[ckey]))
+                else:
+                    # Unordered block: normal Python order when iterating over a dict/Settings
+                    children = [(ckey,value[ckey]) for ckey in value if not ckey.startswith('_')]
 
+                # Serialize all children
+                for ckey, cvalue in children:
+                    split_key = key.lower().split()
+                    split_ckey = ckey.lower().split()
+                    if len(split_key) > 0 and split_key[0] == 'engine' and ckey.lower() == 'input':
+                        ret += serialize(ckey, cvalue, indent+2, 'EndInput')
+                    # REB: For the hybrid engine. How to deal with the space in ckey (Engine DFTB)? Replace by underscore?
+                    elif len(split_ckey) > 0 and split_ckey[0] == 'engine':
+                        engine = ' '.join(ckey.split('_'))
+                        ret += serialize(engine, cvalue, indent+2, end='EndEngine') + '\n'
+                    else:
+                        ret += serialize(ckey, cvalue, indent+2)
+
+                # Close block
                 if key.lower() == 'input': end='endinput'
                 ret += ' '*indent + end+'\n'
 
@@ -1670,7 +1972,7 @@ class AMSJob(SingleJob):
     @staticmethod
     def _atom_symbol(atom):
         """Return the atomic symbol of *atom*. Ensure proper formatting for AMSuite input taking into account ``ghost`` and ``name`` entries in ``properties`` of *atom*."""
-        smb = atom.symbol if atom.atnum > 0 else ''  #Dummy atom should have '' instead of 'Xx'
+        smb = atom.symbol
         if 'ghost' in atom.properties and atom.properties.ghost:
             smb = ('Gh.'+smb).rstrip('.')
         if 'name' in atom.properties:
@@ -1740,16 +2042,24 @@ class AMSJob(SingleJob):
             preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
         elif os.path.exists(path):
-            # check if path is a Quantum ESPRESSO .out file
-            # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
-            # they do not exist)
-            if fmt =='qe' or (fmt == 'any' and not path.endswith('rkf')):
-                try:
+            from ase.io.formats import filetype
+            try:
+                ft = filetype(path)
+                # check if path is a Quantum ESPRESSO .out file
+                # qe_output_to_ams returns a NEW path containng the ams.rkf and qe.rkf files (will be created if
+                # they do not exist)
+                if fmt == 'qe':
+                    assert ft == 'espresso-out', f"The file {path} does not seem to be a Quantum ESPRESSO output file"
+                if fmt == 'gaussian':
+                    assert ft == 'gaussian-out', f"The file {path} does not seem to be a Gaussian output file"
+                if ft == 'espresso-out' and (fmt =='qe' or (fmt == 'any' and not path.endswith('rkf'))):
                     path = qe_output_to_ams(path, overwrite=False)
-                except:
-                    # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
-                    # assume that any exception means that the file was not a QE output file
-                    pass
+                elif ft == 'gaussian-out' and (fmt == 'gaussian' or (fmt == 'any' and not path.endswith('rkf'))):
+                    path = gaussian_output_to_ams(path, overwrite=False)
+            except Exception as e:
+                # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
+                # assume that any exception means that the file was not a QE output file
+                pass
 
         if not os.path.isdir(path):
             if os.path.exists(path):
@@ -1798,14 +2108,9 @@ class AMSJob(SingleJob):
 
             If *settings* is included in the keyword arguments to this method, the |Settings| created from the *text_input* will be soft updated with the settings from the keyword argument. In other word, the *text_input* takes precedence over the *settings* keyword argument.
         """
-        try:
-            from scm.input_parser import InputParser
-        except ImportError:  # Try to load the parser from $AMSHOME/scripting
-            with UpdateSysPath():
-                from scm.input_parser import InputParser
+        from scm.libbase import InputParser
         sett = Settings()
-        with InputParser() as parser:
-            sett.input = parser.to_settings(cls._command, text_input)
+        sett.input = InputParser().to_settings(cls._command, text_input)
         mol = cls.settings_to_mol(sett)
         if mol:
             if 'molecule' in kwargs:
@@ -1839,6 +2144,7 @@ class AMSJob(SingleJob):
         The existing `s.input.ams.system` block is removed in the process, assuming it was present in the first place.
 
         """
+        from ...tools.units import Units
         def get_list(s):
             if '_1' in s and not '_2' in s and  isinstance(s._1, list):
                 return s._1
@@ -1856,10 +2162,15 @@ class AMSJob(SingleJob):
                 mol = Molecule(settings_block.geometryfile)
             else:
                 mol = Molecule()
+
+                if "_h" in settings_block.atoms:
+                    conv = Units.conversion_ratio(settings_block.atoms._h.strip("[]"), "Angstrom")
+                else:
+                    conv = 1.0
                 for atom in get_list(settings_block.atoms):
                     # Extract arguments for Atom()
                     symbol, x, y, z, *suffix = atom.split(maxsplit=4)
-                    coords = float(x), float(y), float(z)
+                    coords = conv*float(x), conv*float(y), conv*float(z)
 
                     try:
                         at = Atom(symbol=symbol, coords=coords)
@@ -1876,7 +2187,11 @@ class AMSJob(SingleJob):
 
                 # Set the lattice vector if applicable
                 if get_list(settings_block.lattice):
-                    mol.lattice = [tuple(float(j) for j in i.split()) for i in get_list(settings_block.lattice)]
+                    if "_h" in settings_block.lattice:
+                        conv = Units.conversion_ratio(settings_block.lattice._h.strip("[]"), "Angstrom")
+                    else:
+                        conv = 1.0
+                    mol.lattice = [tuple(conv*float(j) for j in i.split()) for i in get_list(settings_block.lattice)]
 
             # Add bonds
             for bond in get_list(settings_block.bondorders):
@@ -1987,3 +2302,23 @@ class AMSJob(SingleJob):
             properties.set_nested(key.split('.'), val)
 
         return properties
+
+    @staticmethod
+    def _add_region(atom:Atom, name:str):
+        """
+            Converts atom.properties.region to a set if it isn't already a set.
+
+            Adds the name to the set.
+
+            If name is None, then only the conversion of atom.properties.region is performed.
+        """
+        if 'region' not in atom.properties:
+            atom.properties.region = set()
+        if isinstance(atom.properties.region, str):
+            atom.properties.region = set([atom.properties.region])
+        if not isinstance(atom.properties.region, set):
+            atom.properties.region = set(atom.properties.region)
+        if name is None:
+            return
+        atom.properties.region.add(name)
+
