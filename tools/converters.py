@@ -1,14 +1,17 @@
 from .units import Units
 from ..trajectories.rkffile import RKFTrajectoryFile
+from ..trajectories.rkfhistoryfile import RKFHistoryFile
 from ..core.private import saferun
 from .kftools import KFFile
+from ..interfaces.molecule.ase import toASE
+from ..mol.molecule import Molecule
 import re
 import os
 import tempfile
 
-__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams']
+__all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'gaussian_output_to_ams', 'rkf_to_ase_traj', 'rkf_to_ase_atoms', 'file_to_traj']
 
-def traj_to_rkf(trajfile,  rkftrajectoryfile):
+def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
     """
         Convert ase .traj file to .rkf file. NOTE: The order of atoms (or the number of atoms) cannot change between frames!
 
@@ -16,7 +19,13 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
             path to a .traj file
         rkftrajectoryfile : str 
             path to the output .rkf file (will be created)
+        task : str
+            Which task to write. If None it is auto-determined.
 
+        timestep: float
+            Which timestep to write when task == 'moleculardynamics'
+
+        
         Returns : 2-tuple (coords, cell)
             The final coordinates and cell in angstrom
     """
@@ -70,6 +79,9 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
             if 'PotentialEnergy' in mddata and 'KineticEnergy' in mddata:
                 mddata['TotalEnergy'] = mddata['PotentialEnergy'] + mddata['KineticEnergy']
             
+            if str(task).lower() == 'moleculardynamics' or len(mddata) > 0:
+                mddata['Time'] = timestep * i
+
             if len(mddata) == 0:
                 mddata = None
 
@@ -92,13 +104,16 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile):
     # the below is needed to be able to load the .rkf file with AMSJob.load_external()
     kf = KFFile(rkftrajectoryfile)
     kf['EngineResults%nEntries'] = 0
-    kf['General%user input'] = '\xFF'.join(['Engine External','EndEngine'])
-    if len(traj) == 1:
-        kf['General%task'] = 'singlepoint'
-    elif kinetic_energy is None or kinetic_energy == 0:
-        kf['General%task'] = 'geometryoptimization'
-    else:
-        kf['General%task'] = 'moleculardynamics'
+    kf['General%program'] = 'ams'
+    if task is None:
+        if len(traj) == 1:
+            task = 'singlepoint'
+        elif kinetic_energy is None or kinetic_energy == 0:
+            task = 'geometryoptimization'
+        else:
+            task = 'moleculardynamics'
+    kf['General%task'] = task
+    kf['General%user input'] = '\xFF'.join([f'Task {task}', 'Engine External','EndEngine'])
 
     return coords, cell
 
@@ -137,6 +152,7 @@ def _write_engine_rkf(kffile, enginefile):
         secdict = kf.read_section(sec)
         for k, v in secdict.items():
             enginerkf[sec+'%'+k] = v
+    enginerkf['General%program'] = 'plams'
     nEntries = kf['History%nEntries']
     suffix='({})'.format(nEntries)
     if ('History', 'Energy'+suffix) in kf: enginerkf['AMSResults%Energy'] = kf['History%Energy'+suffix]
@@ -170,12 +186,13 @@ def _postprocess_vasp_amsrkf(kffile, outcar):
             userinput.append('  !EndINCAR')
         userinput.append('  EndInput') #end of the Free block
         userinput.append('EndEngine')
+        userinput.append('Task {}'.format(kf['General%task']))
         kf['General%user input'] = '\xFF'.join(userinput)
 
     finally:
         kf.save()
 
-def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf=True):
+def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf=True, task:str=None, timestep:float=0.25):
     """ 
         Converts VASP output (OUTCAR, ...) to AMS output (ams.rkf, vasp.rkf)
 
@@ -194,13 +211,22 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
 
         write_engine_rkf : bool
             If True, also write vasp.rkf alongside ams.rkf. The vasp.rkf file will only contain an AMSResults section (energy, gradients, stress tensor). It will not contain the DOS or the band structure.
+
+        task : str
+            Which task to write to ams.rkf. If None it is auto-determined (probably set to 'geometryoptimization')
+
+        timestep : float
+            If task='moleculardynamics', which timestep (in fs) between frames to write
     """
     if not os.path.isdir(vasp_folder):
         raise ValueError('Directory {} does not exist'.format(vasp_folder))
 
     outcar = os.path.join(vasp_folder, 'OUTCAR')
-    if not os.path.exists(outcar):
-        raise ValueError('File {} does not exist, should be an OUTCAR file.'.format(outcar))
+    if not os.path.exists(outcar): 
+        if os.path.exists(os.path.join(vasp_folder, 'XDATCAR')):
+            outcar = os.path.join(vasp_folder, 'XDATCAR')
+        else:
+            raise ValueError('File {} does not exist, should be an OUTCAR file.'.format(outcar))
 
     if wdir is None:
         wdir = os.path.join(os.path.dirname(outcar),'AMSJob')
@@ -220,7 +246,7 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
     _remove_or_raise(enginefile, overwrite)
 
     # convert the .traj file to ams.rkf
-    traj_to_rkf(trajfile, kffile)
+    traj_to_rkf(trajfile, kffile, task=task, timestep=timestep)
 
     _postprocess_vasp_amsrkf(kffile, outcar)
     if write_engine_rkf:
@@ -251,22 +277,32 @@ def _postprocess_qe_amsrkf(kffile, qe_outfile):
     finally:
         kf.save()
 
-def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=True):
+def _postprocess_gaussian_amsrkf(kffile, gaussian_outfile):
+    # add extra info to the kffile
+    kf = KFFile(kffile, autosave=False)
+    try:
+        kf['EngineResults%nEntries'] = 1
+        kf['EngineResults%Title(1)'] = 'gaussian'
+        kf['EngineResults%Description(1)'] = 'Standalone Gaussian. Data from {}'.format(os.path.abspath(gaussian_outfile))
+        kf['EngineResults%Files(1)'] = 'gaussian.rkf'
+
+        userinput = ['!Gaussian',
+                     'Engine External',
+                     '  Input',
+                     '    Unknown Gaussian input',
+                     '  EndInput',
+                     'EndEngine']
+        kf['General%user input'] = '\xFF'.join(userinput)
+
+    finally:
+        kf.save()
+
+def text_out_file_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=True, enginename='qe'):
     """
-    Converts a qe .out file to ams.rkf and qe.rkf.
+        Converts a qe .out or gaussian .out file to ams.rkf and qe.rkf/gaussian.rkf
 
-    Returns: a string containing the directory where ams.rkf was written
-
-    If the filename ends in .out, check if a .results directory exists. In that case, place
-    the AMSJob subdirectory in the .results directory.
-
-    Otherwise, create a new directory called filename.AMSJob
-
-    qe_outfile : str
-        path to the qe output file
-
+        Do not use this function directly, instaead call qe_output_to_ams or gaussian_output_to_ams
     """
-
     if not os.path.exists(qe_outfile) or os.path.isdir(qe_outfile):
         raise FileNotFoundError(qe_outfile)
 
@@ -304,14 +340,13 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
 
     # remove the target files first if overwrite
     kffile = os.path.join(wdir, 'ams.rkf')
-    enginefile = os.path.join(wdir, 'qe.rkf')
+    enginefile = os.path.join(wdir, f'{enginename}.rkf')
     _remove_or_raise(kffile, overwrite)
     _remove_or_raise(enginefile, overwrite)
 
     # convert the .traj file to ams.rkf
     traj_to_rkf(trajfile, kffile)
 
-    _postprocess_qe_amsrkf(kffile, qe_outfile)
     if write_engine_rkf:
         # here one could also run $AMSBIN/tokf to get things like the DOS
         # $AMSBIN/tokf qe qe_outfile enginefile
@@ -324,3 +359,115 @@ def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=Tr
 
     return wdir
 
+
+def qe_output_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rkf=True):
+    """
+    Converts a qe .out file to ams.rkf and qe.rkf.
+
+    Returns: a string containing the directory where ams.rkf was written
+
+    If the filename ends in .out, check if a .results directory exists. In that case, place
+    the AMSJob subdirectory in the .results directory.
+
+    Otherwise, create a new directory called filename.AMSJob
+
+    qe_outfile : str
+        path to the qe output file
+
+    """
+    wdir = text_out_file_to_ams(qe_outfile, wdir, overwrite=overwrite, write_engine_rkf=write_engine_rkf, enginename='qe')
+    _postprocess_qe_amsrkf(os.path.join(wdir, 'ams.rkf'), qe_outfile)
+    return wdir
+
+def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf=True):
+    """
+    Converts a Gaussian .out file to ams.rkf and gaussian.rkf.
+
+    Returns: a string containing the directory where ams.rkf was written
+
+    If the filename ends in .out, check if a .results directory exists. In that case, place
+    the AMSJob subdirectory in the .results directory.
+
+    Otherwise, create a new directory called filename.AMSJob
+
+    outfile : str
+        path to the gaussian output file
+
+    """
+    wdir = text_out_file_to_ams(outfile, wdir, overwrite=overwrite, write_engine_rkf=write_engine_rkf, enginename='gaussian')
+    _postprocess_gaussian_amsrkf(os.path.join(wdir, 'ams.rkf'), outfile)
+    return wdir
+
+
+def rkf_to_ase_atoms(rkf_file, get_results=True):
+    """
+        Convert an ams.rkf trajectory to a list of ASE atoms 
+
+        rkf_file: str
+            Path to an ams.rkf file
+
+        out_file: str
+            Path to the .traj or .xyz file that will be created. If the file exists it will be overwritten. If a .xyz file is specified it will use the normal ASE format (not the AMS format).
+
+        Returns: a list of all the ASE Atoms objects.
+    """
+    from ase import Atoms
+    from ase.calculators.singlepoint import SinglePointCalculator
+    import numpy as np
+    bohr2angstrom = Units.convert(1.0, 'bohr', 'angstrom')
+    hartree2eV = Units.convert(1.0, 'hartree', 'eV')
+    def get_ase_atoms(elements, crd, cell, energy, gradients, stress):
+
+        pbc = None
+        if cell is not None:
+            cell = np.array(cell).reshape(-1,3)
+            pbc = ['T']*len(cell)+['F']*(3-len(cell))
+        atoms = Atoms(symbols=elements, positions=np.array(crd).reshape(-1,3), cell=cell, pbc=pbc)
+        if get_results:
+            calculator = SinglePointCalculator(atoms)
+            atoms.set_calculator(calculator)
+
+            if energy:
+                atoms.calc.results['energy'] = energy*hartree2eV
+            if gradients:
+                forces = -np.array(gradients).reshape(-1,3)*hartree2eV/bohr2angstrom
+                atoms.calc.results['forces'] = forces
+            if stress:
+                n = len(stress)
+                if n == 9:
+                    stress = np.array(stress).reshape(3,3)*hartree2eV/bohr2angstrom**3
+                    atoms.calc.results['stress'] = np.array([stress[0][0], stress[1][1], stress[2][2], stress[1][2], stress[0][2], stress[0][1]])
+
+        return atoms
+
+    rkf_filename = rkf_file
+    kf = KFFile(rkf_filename)
+    if 'History' in kf.keys():
+        if 'ChemicalSystem(1)' in kf.keys():
+            rkf = RKFHistoryFile(rkf_filename)
+        else:
+            rkf = RKFTrajectoryFile(rkf_filename)
+
+        rkf.store_historydata()
+        all_atoms = []
+        for crd, cell in rkf:
+            energy, forces, stress = None, None, None
+            if get_results:
+                energy = rkf.historydata.get('Energy', None)
+                gradients = rkf.historydata.get('EngineGradients', None)
+                if not gradients:
+                    gradients = rkf.historydata.get('Gradients', None)
+                stress = rkf.historydata.get('StressTensor', None)
+            atoms = get_ase_atoms(rkf.elements, crd, cell, energy, gradients, stress)
+            all_atoms.append(atoms)
+    else:
+        atoms = toASE(Molecule(rkf_filename)) 
+        all_atoms = [atoms]
+
+    return all_atoms
+
+def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
+    from ase.io import write
+    all_atoms = rkf_to_ase_atoms(rkf_file, get_results=get_results)
+    write(out_file, all_atoms)
+    return all_atoms

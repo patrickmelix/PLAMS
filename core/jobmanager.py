@@ -33,7 +33,7 @@ class JobManager:
 
     The *path* argument should be be a path to a directory inside which the main working folder will be created. If ``None``, the directory from where the whole script was executed is used.
 
-    The ``foldername`` attribute is initially set to the *folder* argument. If such a folder already exists, the suffix ``.002`` is appended to *folder* and the number is increased (``.003``, ``.004``...) until a non-existsing name is found. If *folder* is ``None``, the name ``plams_workdir`` is used, followed by the same procedure to find a unique ``foldername``.
+    The ``foldername`` attribute is initially set to the *folder* argument. If such a folder already exists (and ``use_existing_folder`` is False), the suffix ``.002`` is appended to *folder* and the number is increased (``.003``, ``.004``...) until a non-existsing name is found. If *folder* is ``None``, the name ``plams_workdir`` is used, followed by the same procedure to find a unique ``foldername``.
 
     The ``settings`` attribute is directly set to the value of *settings* argument (unlike in other classes where they are copied) and it should be a |Settings| instance with the following keys:
 
@@ -43,7 +43,7 @@ class JobManager:
 
     """
 
-    def __init__(self, settings, path=None, folder=None):
+    def __init__(self, settings, path=None, folder=None, use_existing_folder=False):
 
         self.settings = settings
         self.jobs = []
@@ -65,16 +65,19 @@ class JobManager:
 
         basename = os.path.normpath(folder) if folder else 'plams_workdir'
         self.foldername = basename
-        n = 2
-        while os.path.exists(opj(self.path, self.foldername)):
-            self.foldername = basename + '.' + str(n).zfill(3)
-            n += 1
+
+        if not use_existing_folder:
+            n = 2
+            while os.path.exists(opj(self.path, self.foldername)):
+                self.foldername = basename + '.' + str(n).zfill(3)
+                n += 1
 
         self.workdir = opj(self.path, self.foldername)
         self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self.workdir, 'logfile')
         self.input = opj(self.workdir, 'input')
-        os.mkdir(self.workdir)
 
+        if not (use_existing_folder and os.path.exists(self.workdir)):
+            os.mkdir(self.workdir)
 
 
     def load_job(self, filename):

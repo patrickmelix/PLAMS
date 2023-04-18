@@ -133,6 +133,12 @@ class SCMResults(Results):
         raise PlamsError('Trying to run an abstract method SCMResults._atomic_numbers_input_order()')
 
 
+    def kfpath(self):
+        """kfpath()
+        Return the absolute path to the main KF file.
+        """
+        return self._kfpath()
+
     def _kfpath(self):
         """_kfpath()
         Return the absolute path to the main KF file.
@@ -194,6 +200,7 @@ class SCMJob(SingleJob):
     _result_type = SCMResults
     _top = ['title','units','define']
     _command = ''
+    _json_definitions = _command
     _subblock_end = 'subend'
     _legacy = ['band', 'dftb', 'uff']
 
@@ -307,7 +314,7 @@ class SCMJob(SingleJob):
             elif isinstance(value, list):
                 for el in value:
                     ret += serialize(key, el, indent)
-            elif value is '' or value is True:
+            elif value == '' or value is True:
                 ret += ' '*indent + key + '\n'
             elif value is False:
                 pass
@@ -352,7 +359,7 @@ class SCMJob(SingleJob):
     @staticmethod
     def _atom_symbol(atom):
         """Return the atomic symbol of *atom*. Ensure proper formatting for ADFSuite input taking into account ``ghost`` and ``name`` entries in ``properties`` of *atom*."""
-        smb = atom.symbol if atom.atnum > 0 else ''  #Dummy atom should have '' instead of 'Xx'
+        smb = atom.symbol
         if 'ghost' in atom.properties and atom.properties.ghost:
             smb = ('Gh.'+smb).rstrip('.')
         if 'name' in atom.properties:
@@ -368,18 +375,13 @@ class SCMJob(SingleJob):
         on the heredoc delimiter (see *heredoc_delimit*).
 
         """
-        try:
-            from scm.input_parser import InputParser
-        except ImportError:  # Try to load the parser from $AMSHOME/scripting
-            with UpdateSysPath():
-                from scm.input_parser import InputParser
+        from scm.libbase import InputParser
 
         s = Settings()
         with open(filename, 'r') as f:
             inp_file = parse_heredoc(f.read(), heredoc_delimit)
 
-        with InputParser as parser:
-            s.input = parser.to_settings(cls._command, inp_file)
+        s.input = InputParser().to_settings(cls._json_definitions or cls._command, inp_file)
         if not s.input:
             raise JobError(f"from_inputfile: failed to parse '{filename}'")
 

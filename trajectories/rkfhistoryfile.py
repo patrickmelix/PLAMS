@@ -171,16 +171,14 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 self.removed_atoms = {} 
                 self.chemical_systems = {0:1} 
                 secname = 'ChemicalSystem(1)'
-                if self.file_object.reader._sections is None :
-                        self.file_object.reader._create_index()
-                if not 'SystemVersionHistory' in self.file_object.reader._sections :
+                if not 'SystemVersionHistory' in self.file_object.sections() :
                         secname = 'InputMolecule'
                 RKFTrajectoryFile._read_header (self, molecule_section=secname)
 
                 # Now store the added and removed atoms along the trajectory
                 # (This might be slow?)
                 # I could also do it on the fly, but that may be messy when we move back and forth through the file
-                if not 'SystemVersionHistory' in self.file_object.reader._sections :
+                if not 'SystemVersionHistory' in self.file_object.sections() :
                         return
                 #version = 0
                 version = 1
@@ -209,9 +207,13 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         #prevChemSysNum = self.file_object.read('SystemVersionHistory','SectionNum(%i)'%(prev_version))
                         prevChemSysNum = self.chemical_systems[max(self.chemical_systems.keys())]
                         sectionname = 'ChemicalSystem(%i)'%(prevChemSysNum)
-                        prev_elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
+                        atnums = self.file_object.read(sectionname,'AtomicNumbers')
+                        if isinstance(atnums,int): atnums=[atnums]
+                        prev_elements = [PT.get_symbol(atnum) for atnum in atnums]
                         sectionname = 'ChemicalSystem(%i)'%(chemSysNum)
-                        elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(sectionname,'AtomicNumbers')]
+                        atnums = self.file_object.read(sectionname,'AtomicNumbers')
+                        if isinstance(atnums,int): atnums=[atnums]
+                        elements = [PT.get_symbol(atnum) for atnum in atnums]
                         ################
                         # Read badly written files
                         diff = (len(added_atoms) - len(removed_atoms)) - (len(elements)-len(prev_elements))
@@ -312,8 +314,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         coords = self.coords.reshape((len(elements)*3))
                         # Rebuild the molecule (bonds will disappear for now)
                         if isinstance(molecule,Molecule) :
-                                self.props = props
+                                #self.props = props
                                 secname = 'ChemicalSystem(%i)'%(self.chemical_systems[ifr])
+                                if not 'SystemVersionHistory' in self.file_object.sections():
+                                        secname = 'InputMolecule'
                                 section_dict = self.file_object.read_section(secname)
                                 new_mol = Molecule._mol_from_rkf_section(section_dict)
                                 for at in reversed(molecule.atoms) :
@@ -321,8 +325,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 molecule.properties = Settings()
                                 for iel,el in enumerate(elements) :
                                         atom = new_mol.atoms[iel]
+                                        atom.bonds = []
                                         #atom = Atom(PT.get_atomic_number(el))
                                         molecule.add_atom(atom)
+                                _, _, _, _, self.props = self._read_plamsmol(molecule)
                                 # Now what if the elements found in this ChemicalSystem section
                                 # do not match the expected elements (self.elements)?
                                 new_elements = [at.symbol for at in molecule.atoms]
@@ -412,7 +418,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 step = mddata['Step']
                 # Energy should be read from mddata first, otherwise from historydata, otherwise set to zero
                 energy = self._set_energy(mddata, historydata)
-                if not self.include_historydata :
+                if historydata is None or not self.include_historydata :
                         historydata = {}
                 historydata['Energy'] = energy
 
@@ -566,7 +572,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 keys = [key for key in self.file_object.reader._sections.keys() if 'ChemicalSystem' in key]
                 nums = [int(k.split('(')[1].split(')')[0])-1 for k in keys]
                 for num,key in zip(nums,keys) :
-                        elements = [PT.get_symbol(atnum) for atnum in self.file_object.read(key,'AtomicNumbers')]
+                        atnums = self.file_object.read(key,'AtomicNumbers')
+                        if isinstance(atnums,int): atnums = [atnums]
+                        elements = [PT.get_symbol(atnum) for atnum in atnums]
                         self.system_version_elements[num] = elements
 
 def molecules_to_rkf(molecules:List[Molecule], fname, overwrite=False):
