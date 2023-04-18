@@ -24,7 +24,7 @@ config.init = False
 #===========================================================================
 
 
-def init(path=None, folder=None, config_settings:Dict=None, quiet=False):
+def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_existing_folder=False):
     """Initialize PLAMS environment. Create global ``config`` and the default |JobManager|.
 
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
@@ -33,10 +33,10 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False):
     *   If ``$AMSHOME`` variable is in your environment and ``$AMSHOME/scripting/scm/plams/plams_defaults`` exists, it is used.
     *   Otherwise, the path ``../plams_defaults`` relative to the current file (``functions.py``) is checked. If defaults file is not found there, an exception is raised.
 
-    Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.
+    Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.  If *use_existing_folder* is True and the working folder already exists, PLAMS will not create a new working folder with an incremental suffix (e.g. plams_workdir.002). Instead, it will just use the pre-existing folder (note: that this might lead to issues if the working folder is not empty).
 
     Optionally, an additional `dict` (or |Settings| instance) can be provided to the `config_settings` argument which will be used to update the values from the ``plams_defaults``.
-
+    
     .. warning::
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
@@ -58,7 +58,7 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False):
     config.update(config_settings or {})
 
     from .jobmanager import JobManager
-    config.default_jobmanager = JobManager(config.jobmanager, path, folder)
+    config.default_jobmanager = JobManager(config.jobmanager, path, folder, use_existing_folder)
 
     if not quiet:
         log('Running PLAMS located in {}'.format(dirname(dirname(__file__))), 5)
@@ -276,7 +276,7 @@ def log(message, level=0):
 
     Logs are printed independently to the text logfile (a file called ``logfile`` in the main working folder) and to the standard output. If *level* is equal or lower than verbosity (defined by ``config.log.file`` or ``config.log.stdout``) the message is printed. Date and/or time can be added based on ``config.log.date`` and ``config.log.time``. All logging activity is thread safe.
     """
-    if 'log' in config:
+    if config.init and 'log' in config:
         if level <= config.log.file or level <= config.log.stdout:
             message = str(message)
             prefix = ''

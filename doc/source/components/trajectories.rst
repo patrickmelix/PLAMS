@@ -26,3 +26,4 @@ as well as write (altered) conformations to a new trajectory file of one in the 
     xyz
     rkf
     dcd
+    trajectory

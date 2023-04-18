@@ -121,7 +121,7 @@ class Job:
         filename = filename or opj(self.path, self.name+'.dill')
         with open(filename, 'wb') as f:
             try:
-                pickle.dump(self, f, -1)
+                pickle.dump(self, f, config.job.pickle_protocol)
             except:
                 log('Pickling of {} failed'.format(self.name), 1)
 

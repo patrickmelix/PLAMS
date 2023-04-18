@@ -1,3 +1,5 @@
+""" Deprecated, do not use """
+
 import os, sys
 from scm.plams import *
 import argparse

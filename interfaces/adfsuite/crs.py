@@ -27,7 +27,11 @@ class CRSResults(SCMResults):
         try:  # Return the cached value if possible
             return self._section
         except AttributeError:
-            self._section = self.job.settings.input.property._h.upper()
+            try:
+                self._section = self.job.settings.input.property._h.upper()
+            except AttributeError:
+                self._section = self.job.settings.input.t.upper()
+
             return self._section
 
     def get_energy(self, energy_type: str = "deltag", compound_idx: int = 0, unit: str = 'kcal/mol') -> float:
@@ -132,6 +136,33 @@ class CRSResults(SCMResults):
 
         setattr(self, '_prop_dict', np_dict)
         return np_dict
+
+    def get_multispecies_dist(self):
+        '''
+        This function returns multispecies distribution for each (compound,structure) pair.  The format is a list
+        with indices corresponding to compound indices.  Each item in the list is a dictionary with a structure name : list pair, where the structure name corresponds to a structure the compound can be exist as and the list is the distribution of that compound in that structure over the number of points (mole fractions, temperatures, pressures).
+        '''
+        res           = self.get_results()
+        ncomp         = self.readkf(self.section, 'ncomp')
+        struct_names  = res['struct names'].split()
+        num_points    = self.readkf(self.section, 'nitems')
+        valid_structs = [[] for _ in range(ncomp)]
+        comp_dist     = res['comp distribution'].flatten()
+        for i in range(len(struct_names)):
+            for j in range(ncomp):
+                if res['valid structs'][i*ncomp+j]:
+                    valid_structs[j].append(struct_names[i])
+
+        compositions = [ {vs:[] for vs in valid_structs[i]} for i in range(ncomp) ]
+        idx = 0 
+        for i in range(ncomp):
+            for nfrac in range(num_points):
+                for j in range(len(valid_structs[i])):
+                    compositions[i][valid_structs[i][j]].append(comp_dist[idx])
+                    idx += 1
+
+        return compositions
+
 
     def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
@@ -296,6 +327,21 @@ class CRSJob(SCMJob):
         """Initialize a :class:`CRSJob` instance."""
         super().__init__(**kwargs)
         self.settings.ignore_molecule = True
+
+    @staticmethod
+    def database() -> str:
+        cmd = ["sh", os.path.expandvars("$AMSBIN/amspackages"), "loc", "adfcrs"]
+        completed_process = subprocess.run(cmd, stdout=subprocess.PIPE)
+        database_path = os.path.join(completed_process.stdout.decode().strip('\n'), 'ADFCRS-2018')
+        if not os.path.isdir(database_path):
+            raise FileNotFoundError("The ADFCRS-2018 databse does not seem to be installed")
+        return database_path
+
+    @staticmethod
+    def coskf_from_database(name: str) -> str:
+        if not name.endswith('.coskf'):
+            name += '.coskf'
+        return os.path.join(CRSJob.database(), name)
 
     @staticmethod
     def cos_to_coskf(filename: str) -> str:

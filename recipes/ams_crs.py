@@ -33,9 +33,9 @@ def run_crs_ams(settings_ams, settings_crs,
             >>> from scm.plams import Settings
 
             >>> settings_ams = Settings()
-            >>> settings_ams.input.basis.type = 'TZ2P'
-            >>> settings_ams.input.xc.gga = 'BP86'
-            >>> settings_ams.input.scf.converge = '1.0e-06'
+            >>> settings_ams.input.adf.basis.type = 'TZ2P'
+            >>> settings_ams.input.adf.xc.gga = 'BP86'
+            >>> settings_ams.input.adf.scf.converge = '1.0e-06'
 
         An example value for *settings_crs* (`activity coefficient`_ calculation):
 
@@ -56,7 +56,7 @@ def run_crs_ams(settings_ams, settings_crs,
             >>> crs_dict = run_crs_ams(settings_ams, settings_crs, solvents, solutes)
             >>> for key in crs_dict:
             >>>     print("\\nSystem:", key) 
-            >>>     res = crs_dict[key].get_results(>>>settings_crs.input.property._h.upper())
+            >>>     res = crs_dict[key].get_results(settings_crs.input.property._h.upper())
             >>>     print("activity coefficients:")
             >>>     print(res["gamma"])
 
