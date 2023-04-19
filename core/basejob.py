@@ -493,7 +493,7 @@ class SingleJob(Job):
             raise FileError('Path {} does not exist, cannot load from it.'.format(path))
 
         path = os.path.abspath(path)
-        jobname = jobname or os.path.basename(path)
+        jobname = os.path.basename(path) if jobname is None else str(jobname)
 
         job = cls(name=jobname)
         job.path = path
