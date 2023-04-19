@@ -260,12 +260,8 @@ class ORCAResults(Results):
     def get_atomic_charges(self, method='mulliken', match=0):
         """Get Atomic Charges from Output
 
-        - `method`: Can be any one that is available in the output,
-        e.g. mulliken or loewdin.
-        - `match`: Select occurence in the output to use.
-        E.g. when running multiple structures at once.
-                   Is passed to :meth:`~Results.get_output_chunk`,
-                   defaults to 0.
+        :parameter method: Can be any one that is available in the output, e.g. mulliken or loewdin.
+        :parameter match: Select occurence in the output to use. E.g. when running multiple structures at once. Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
         """
         block = self.get_output_chunk(
             begin="{} ATOMIC CHARGES".format(
@@ -287,16 +283,9 @@ class ORCAResults(Results):
     def get_hirshfeld(self, return_spin=False, match=0, skip=5):
         """Get Hirshfeld Analysis from Output
 
-        - `return_spin`: Return a tuple of (charge, spin) instead of just
-        charge.
-        - `match`: Select occurence in the output to use. E.g. when running
-        multiple structures at once.
-                   Is passed to :meth:`~Results.get_output_chunk`,
-                   defaults to 0.
-        - `skip`: Number of lines after the keyword in the outputfile
-        to be skipped.
-                  Don't touch if you don't have trouble with your ORCA
-                  versions output.
+        :parameter return_spin: Return a tuple of (charge, spin) instead of just charge.
+        :parameter match: Select occurence in the output to use. E.g. when running multiple structures at once. Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
+        :parameter skip: Number of lines after the keyword in the outputfile to be skipped. Don't touch if you don't have trouble with your ORCA versions output.
         """
         block = self.get_output_chunk(
             begin="HIRSHFELD ANALYSIS", end="TOTAL", match=match)
@@ -327,12 +316,8 @@ class ORCAResults(Results):
             match=0):
         """Returns Orbital Energies.
 
-        - Set `return_occupancy` to *True* to recieve a tuple
-        (Energy, Occupation) for each MO.
-        - `match`: Select occurence in the output to use. E.g. when running
-        multiple structures at once.
-                   Is passed to :meth:`~Results.get_output_chunk`,
-                   defaults to 0.
+        :parameter return_occupancy: Set to *True* to recieve a tuple (Energy, Occupation) for each MO.
+        :parameter match: Select occurence in the output to use. E.g. when running multiple structures at once. Is passed to :meth:`~Results.get_output_chunk`, defaults to 0.
         """
         conv = Units.conversion_ratio('a.u.', unit)
         block = self.get_output_chunk(
