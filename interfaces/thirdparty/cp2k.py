@@ -1,5 +1,4 @@
 """Class to manipulate CP2K jobs."""
-import subprocess
 import shutil
 import numpy as np
 from pathlib import Path
@@ -22,15 +21,17 @@ class Cp2kResults(Results):
     def recreate_settings(self):
         """Recreate job for |load_external|.
 
-        If a keyword and a section with the same name appear, only the keyword is used.
-        This happens e.g. when reading restart files where ``kind.symbol.potential`` is given
-        as *Potential ABCD* and *&POTENTIAL .... &END POTENTIAL*.
+        If a keyword and a section with the same name appear, only the
+        keyword is used. This happens e.g. when reading restart files where
+        ``kind.symbol.potential`` is given as *Potential ABCD* and
+        *&POTENTIAL .... &END POTENTIAL*.
 
-        Limited support of sections that have different formatting like *KIND* and *COORD*.
-        Check the resulting |Settings| instance if the information you want is there.
-        Be careful with reading restart files, since they are automatically generated
-        and not every case is handled well here.
-        You should get all the information but not sure if I know about all special cases of input.
+        Limited support of sections that have different formatting like
+        *KIND* and *COORD*. Check the resulting |Settings| instance if the
+        information you want is there. Be careful with reading restart files,
+        since they are automatically generated and not every case is handled
+        well here. You should get all the information but not sure if I know
+        about all special cases of input.
         """
 
         _reserved_keywords = ["KIND", "@SET", "@INCLUDE", "@IF"]
@@ -47,9 +48,9 @@ class Cp2kResults(Results):
 
         def parse(input_iter, res_dic):
             """Get input line and create a section or key from it.
-            If a section is created, input_iter.next() is used to get all the lines
-            from that section.
-            So input_iter should not be a string but an iterable containing a string.
+            If a section is created, input_iter.next() is used to get all
+            the lines from that section. So input_iter should not be a string
+            but an iterable containing a string.
 
             Returns False when section is completed."""
             string = next(input_iter).strip()
@@ -69,14 +70,14 @@ class Cp2kResults(Results):
                     l[0] = l[0].replace('@', 'AT_')
                     res_dic.update({l[0].lower(): " ".join(l[1:])})
                 elif 'KIND' in string:
-                    if not 'kind' in res_dic:
+                    if 'kind' not in res_dic:
                         res_dic['kind'] = {}
                     res_dic['kind'][l[1].lower()] = {}
                     r = True
                     while r:
                         r = parse(input_iter, res_dic['kind'][l[1].lower()])
                 return True
-            elif any("&"+k == string for k in _different_keywords):
+            elif any("&" + k == string for k in _different_keywords):
                 # save the entire block as one string until &END
                 l[0] = l[0].replace('&', '')
                 res_dic[l[0].lower()] = {'_h': ""}
@@ -144,36 +145,36 @@ class Cp2kResults(Results):
 
     def get_timings(self):
         """Return the Timings from the End of the Output File"""
-        chunk = self.get_output_chunk(begin="SUBROUTINE",end="-"*70)
+        chunk = self.get_output_chunk(begin="SUBROUTINE", end="-" * 70)
         ret = {}
         for line in chunk[1:]:
             l0, *l1 = line.split()
             ret[l0] = l1
         return ret
 
-
     def _get_energy_type(self, search='Total', index=-1, unit='a.u.'):
-        s = self.grep_output(search+' energy:')[index]
+        s = self.grep_output(search + ' energy:')[index]
         if not isinstance(index, slice):
             return Units.convert(float(s.split()[-1]), 'a.u.', unit)
         else:
-            return [ Units.convert(float(x.split()[-1]), 'a.u.', unit) for x in s ]
+            return [Units.convert(float(x.split()[-1]), 'a.u.', unit)
+                    for x in s]
 
     def get_energy(self, index=-1, unit='a.u.'):
         """Returns 'Total energy:' from the output file.
 
-        Set ``index`` to choose the n-th occurence of the total energy in the output, *e.g.* to choose an optimization step.
-        Also supports slices.
-        Defaults to the last occurence.
+        Set ``index`` to choose the n-th occurence of the total energy in
+        the output, *e.g.* to choose an optimization step. Also supports
+        slices. Defaults to the last occurence.
         """
         return self._get_energy_type('Total', index=index, unit=unit)
 
     def get_dispersion(self, index=-1, unit='a.u.'):
         """Returns 'Dispersion energy:' from the output file.
 
-        Set ``index`` to choose the n-th occurence of the dispersion energy in the output, *e.g.* to choose an optimization step.
-        Also supports slices.
-        Defaults to the last occurence.
+        Set ``index`` to choose the n-th occurence of the dispersion energy
+        in the output, *e.g.* to choose an optimization step.
+        Also supports slices. Defaults to the last occurence.
         """
         return self._get_energy_type('Dispersion', index=index, unit=unit)
 
@@ -182,9 +183,9 @@ class Cp2kResults(Results):
 
         Set ``file`` to use other than the main output file.
 
-        Set ``index`` to choose the n-th occurence of the forces in the output, *e.g.* to choose an optimization step.
-        Set to *None* to return all as a list.
-        Defaults to the last occurence.
+        Set ``index`` to choose the n-th occurence of the forces in the
+        output, *e.g.* to choose an optimization step.
+        Set to *None* to return all as a list. Defaults to the last occurence.
         """
         if not file:
             file = self.job._filename('out')
@@ -192,13 +193,14 @@ class Cp2kResults(Results):
         searchEnd = "SUM OF ATOMIC FORCES"
         n = len(self.grep_file(file, searchBegin))
         match = self._idx_to_match(n, index)
-        block = self.get_file_chunk(file, begin=searchBegin, end=searchEnd, match=match)
+        block = self.get_file_chunk(
+            file, begin=searchBegin, end=searchEnd, match=match)
         ret = []
         for line in block:
             line = line.strip().split()
             if len(line) == 0:
                 continue
-            #new forces block
+            # new forces block
             if line[0] == '#':
                 ret.append([])
                 continue
@@ -221,7 +223,7 @@ class Cp2kResults(Results):
         ret = []
         step = len(l) // n
         for i in range(0, len(l), step):
-            ret.append(l[i+skip:i+step])
+            ret.append(l[i + skip:i + step])
         return ret
 
     def _get_charges(self, return_spin=False, index=-1, name='Mulliken'):
@@ -265,22 +267,24 @@ class Cp2kResults(Results):
     def get_mulliken_charges(self, return_spin=False, index=-1):
         """Get Mulliken charges (and spin moments).
 
-        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
-        Set to *None* to return all as a list.
-        Defaults to the last occurence.
+        Set ``index`` to choose the n-th occurence of the Charges in the
+        output, e.g. to choose an optimization step.
+        Set to *None* to return all as a list. Defaults to the last occurence.
 
-        Returns list of charges. If ``return_spin`` is `True` returns tuple of charges and spins.
+        Returns list of charges. If ``return_spin`` is `True` returns tuple
+        of charges and spins.
         """
         return self._get_charges(return_spin, index, 'Mulliken')
 
     def get_hirshfeld_charges(self, return_spin=False, index=-1):
         """Get Hirshfeld charges (and spin moments).
 
-        Set ``index`` to choose the n-th occurence of the Charges in the output, e.g. to choose an optimization step.
-        Set to *None* to return all as a list.
-        Defaults to the last occurence.
+        Set ``index`` to choose the n-th occurence of the Charges in the output
+        , e.g. to choose an optimization step.
+        Set to *None* to return all as a list. Defaults to the last occurence.
 
-        Returns list of charges. If ``return_spin`` is `True` returns tuple of charges and spins.
+        Returns list of charges. If ``return_spin`` is `True` returns tuple of
+        charges and spins.
         """
         return self._get_charges(return_spin, index, 'Hirshfeld')
 
@@ -306,46 +310,69 @@ class Cp2kResults(Results):
     def get_md_infos(self, file=None, cache=False):
         """Read the MD-info sections.
 
-        Returns a list with descriptors and a nested list containing the values for each timestep.
+        Returns a list with descriptors and a nested list containing the values
+        for each timestep.
 
-        Set ``cache`` to save the results in ``self.md_infos`` to speed up analysis by avoiding I/O.
+        Set ``cache`` to save the results in ``self.md_infos`` to speed up
+        analysis by avoiding I/O.
         """
         if hasattr(self, 'md_infos'):
             return self.md_infos
         if not file:
             file = self.job._filename('out')
-        delimiter = '*'*10
-        chunk = self.get_file_chunk(file, begin=delimiter, end=delimiter, match=0, inc_begin=True)
+        delimiter = '*' * 10
+        chunk = self.get_file_chunk(
+            file,
+            begin=delimiter,
+            end=delimiter,
+            match=0,
+            inc_begin=True)
         frames = [[]]
+        newFormat = False  # Older Format
         for line in chunk:
-            if not line:
+            if not line:  # skip empty
                 continue
             if delimiter in line:
                 if len(frames[-1]) == 0:
+                    continue  # first exists
+                frames.append([])  # next timestep
+                continue
+            if line.startswith(' MD|'):  # new file format
+                newFormat = True
+            if newFormat:
+                if ('-' * 74 in line):  # separator line
                     continue
-                frames.append([])
-                continue
-            if not '=' in line:
-                continue
-            l = line.strip().split('=')
-            l = [ x.strip() for x in l ]
-            frames[-1].append(l)
+                elif 'Instantaneous' in line:  # separator line
+                    continue
+                elif not line.startswith(' MD|'):  # empty line
+                    continue
+                line = line.replace('MD|', '')
+                line = [line[0:36], line[36:]]  # split by length
+            else:  # old format
+                if '=' not in line:  # old format uses = as separator
+                    continue
+                line = line.strip().split('=')
+            line = [x.strip() for x in line]
+            frames[-1].append(line)
 
         ret = []
         for frame in frames:
-            if any('INITIAL' in x[0].upper() for x in frame):
+            if any('INITIAL' in x[0].upper() for x in frame):  # old format
+                continue
+            elif any('MD_INI' in x[0].upper() for x in frame):  # new format
                 continue
             elif len(frame) == 0:
                 continue
             else:
                 ret.append(frame)
 
-        names = [ x[0] for x in ret[0] ]
+        names = [x[0] for x in ret[0]]
         for i, frame in enumerate(ret):
-            assert names == [ x[0] for x in frame ], ("Namings in output not constant?")
+            assert names == [x[0] for x in frame], ("Namings in output\
+            not constant?")
             assert len(frame) == len(names), ("{:}".format(frame))
             assert set(len(x) for x in frame) == {2}
-            ret[i] = [ l[1] for l in frame ]
+            ret[i] = [x[1] for x in frame]
         if cache:
             self.md_infos = [names, ret]
         return names, ret
@@ -359,10 +386,10 @@ class Cp2kResults(Results):
         else:
             n, data = self.md_infos
         idx = n.index("VOLUME[bohr^3]")
-        ret = np.array([x[idx].split(maxsplit=1)[0] for x in data], dtype=float)
+        ret = np.array([x[idx].split(maxsplit=1)[0]
+                       for x in data], dtype=float)
         ret *= Units.conversion_ratio('bohr', unit)**3
         return ret
-
 
     def get_md_pressure(self, file=None):
         """Get pressures using the :meth:`get_md_infos` function."""
@@ -373,12 +400,12 @@ class Cp2kResults(Results):
         else:
             n, data = self.md_infos
         idx = n.index("PRESSURE [bar]")
-        ret = [ float(x[idx].split()[0]) for x in data ]
+        ret = [float(x[idx].split()[0]) for x in data]
         return ret
 
-
     def check_scf(self, file=None, return_n=False):
-        """Returns False if the string 'SCF run NOT converged' appears in *file*, otherwise True.
+        """Returns False if the string 'SCF run NOT converged' appears in
+        *file*, otherwise True.
 
         *file* defaults to ``self.job._filename('out')``.
 
@@ -393,7 +420,8 @@ class Cp2kResults(Results):
         return not bool(n)
 
     def check_go(self, file=None):
-        """Returns False if the string 'GEOMETRY OPTIMIZATION COMPLETED' does not appear in *file*
+        """Returns False if the string 'GEOMETRY OPTIMIZATION COMPLETED'
+        does not appear in *file*
 
         *file* defaults to ``self.job._filename('out')``.
         """
@@ -404,13 +432,14 @@ class Cp2kResults(Results):
         return bool(n)
 
 
-
 class Cp2kJob(SingleJob):
-    """A class representing a single computational job with `CP2K <https://www.cp2k.org/>`_.
+    """A class representing a single computational job with
+    `CP2K <https://www.cp2k.org/>`_.
 
-    In addition to the arguments of |SingleJob|, |Cp2kJob| takes a ``copy`` argument.
-    ``copy`` can be a list or string, containing paths to files to be copied to the jobs directory.
-    This might e.g. be a molecule, further input files etc.
+    In addition to the arguments of |SingleJob|, |Cp2kJob| takes a ``copy``
+    argument. ``copy`` can be a list or string, containing paths to files
+    to be copied to the jobs directory. This might e.g. be a molecule,
+    further input files etc.
     """
     _result_type = Cp2kResults
 
@@ -506,20 +535,20 @@ class Cp2kJob(SingleJob):
             inp.cell[keys[iDim]] = "{:} {:} {:}".format(
                 *self.molecule.lattice[iDim])
         if nDim > 0:
-            inp.cell.periodic = periodic[nDim-1]
+            inp.cell.periodic = periodic[nDim - 1]
 
         # get block of: symbol coords
         coord_sec = ""
         for atom in self.molecule:
             coord_sec += "\n"
-            coord_sec += (" {:}"*4).format(atom.symbol, *atom.coords)
+            coord_sec += (" {:}" * 4).format(atom.symbol, *atom.coords)
         inp.coord._h = coord_sec
 
     def get_runscript(self):
         """Run a parallel version of CP2K.
 
-        The exact CP2K executable, and whether or not one wants to use ``srun`` or ``mpirun``
-        can be specified under :code:`self.settings.executable`.
+        The exact CP2K executable, and whether or not one wants to use ``srun``
+        or ``mpirun`` can be specified under :code:`self.settings.executable`.
         Currently supported executables are:
 
         * ``"sdbg"``: Serial single core testing and debugging
@@ -527,7 +556,8 @@ class Cp2kJob(SingleJob):
         * ``"ssmp"``: Parallel (only OpenMP), single node, multi core
         * ``"pdbg"``: Parallel (only MPI) multi-node testing and debugging
         * ``"popt"``: Parallel (only MPI) general usage, no threads
-        * ``"psmp"``: parallel (MPI + OpenMP) general usage, threading might improve scalability and memory usage
+        * ``"psmp"``: parallel (MPI + OpenMP) general usage, threading might
+                      improve scalability and memory usage
 
         For example:
 
@@ -543,7 +573,8 @@ class Cp2kJob(SingleJob):
         cp2k_command = self.settings.get("executable", "cp2k.popt")
 
         # Check the executable name
-        available_executables = {"sdbg", "sopt", "ssmp", "pdbg", "popt", "psmp"}
+        available_executables = {
+            "sdbg", "sopt", "ssmp", "pdbg", "popt", "psmp"}
 
         available_mpi_commands = ('srun', 'mpirun')
         mpi_command = ""
@@ -556,12 +587,14 @@ class Cp2kJob(SingleJob):
                 msg = f"unrecognized cp2k executable: {cp2k_command}"
                 raise RuntimeError(msg)
 
-            # Try to run cp2k MPI binaries using mpirun and otherwise srun (if available)
+            # Try to run cp2k MPI binaries using mpirun and otherwise srun (if
+            # available)
             if suffix not in {'sdbg', 'sopt'}:
                 available = (shutil.which(c) for c in available_mpi_commands)
                 mpi_command = next((c for c in available if c is not None), "")
 
-        return  f"{mpi_command} {cp2k_command} -i {self._filename('inp')} -o {self._filename('out')}"
+        return f"{mpi_command} {cp2k_command} -i {self._filename('inp')}\
+            -o {self._filename('out')}"
 
     def check(self):
         """Look for the normal termination signal in Cp2k output."""

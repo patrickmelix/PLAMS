@@ -468,7 +468,7 @@ class SingleJob(Job):
             raise ValueError(f"The loaded job is an instance of '{job.__class__.__name__}', wheras this method expects it to be a '{cls.__name__}'. Use `strict=False` to ignore this.")
 
     @classmethod
-    def load_external(cls, path, settings=None, molecule=None, finalize=False):
+    def load_external(cls, path, settings=None, molecule=None, finalize=False, jobname=None):
         """Load an external job from *path*.
 
         In this context an "external job" is an execution of some external binary that was not managed by PLAMS, and hence does not have a ``.dill`` file. It can also be used in situations where the execution was started with PLAMS, but the Python process was terminated before the execution finished, resulting in steps 9-12 of :ref:`job-life-cycle` not happening.
@@ -487,13 +487,15 @@ class SingleJob(Job):
         You can supply |Settings| and |Molecule| instances as *settings* and *molecule* parameters, they will end up attached to the returned job instance. If you don't do this, PLAMS will try to recreate them automatically using methods :meth:`~scm.plams.core.results.Results.recreate_settings` and :meth:`~scm.plams.core.results.Results.recreate_molecule` of the corresponding |Results| subclass. If no |Settings| instance is obtained in either way, the defaults from ``config.job`` are copied.
 
         You can set the *finalize* parameter to ``True`` if you wish to run the whole :meth:`~Job._finalize` on the newly created job. In that case PLAMS will perform the usual :meth:`~Job.check` to determine the job status (*successful* or *failed*), followed by cleaning of the job folder (|cleaning|), |postrun| and pickling (|pickling|). If *finalize* is ``False``, the status of the returned job is *copied*.
+
+        You can set a jobname, if the containing folder name is not equal to the jobname. Note that this is not recommended as it can have unknown consequences and breaks with the PLAMS definition that the foldername is the same as the jobname. So use this feature carefully.
         """
 
         if not os.path.isdir(path):
             raise FileError('Path {} does not exist, cannot load from it.'.format(path))
 
         path = os.path.abspath(path)
-        jobname = os.path.basename(path)
+        jobname = os.path.basename(path) if jobname is None else str(jobname)
 
         job = cls(name=jobname)
         job.path = path
