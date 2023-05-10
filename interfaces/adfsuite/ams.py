@@ -1590,7 +1590,7 @@ class AMSJob(SingleJob):
     _command = 'ams'
 
 
-    def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs):
+    def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs) -> AMSResults:
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
 
         If *watch* is set to ``True``, the contents of the AMS driver logfile will be forwarded line by line to the PLAMS logfile (and stdout), allowing for an easier monitoring of the running job. Not that the forwarding of the AMS driver logfile will cause make the call to this method block until the job's execution has finished, even when using a parallel |JobRunner|.

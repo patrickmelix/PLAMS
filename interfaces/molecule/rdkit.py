@@ -12,9 +12,10 @@ __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
 This is a series of functions that apply RDKit functionality on PLAMS molecules
 """
 
-import sys
 import random
+import sys
 from warnings import warn
+
 try:
     import dill as pickle
 except ImportError:
@@ -26,12 +27,11 @@ try:
 except ImportError:
     __all__ = []
 
-from ...mol.bond import Bond
-from ...mol.atom import Atom
-from ...mol.molecule import Molecule
-from ...core.functions import add_to_class
-from ...core.functions import log
 from ...core.errors import PlamsError
+from ...core.functions import add_to_class, log
+from ...mol.atom import Atom
+from ...mol.bond import Bond
+from ...mol.molecule import Molecule
 
 
 def from_rdmol(rdkit_mol, confid=-1, properties=True):
@@ -471,7 +471,7 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
         param_obj.coordMap = coordMap
     try:
         cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
-    except:
+    except Exception:
          # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
         param_obj.useRandomCoords = True
         cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
@@ -506,7 +506,7 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
                 try:
                     #r = AllChem.AlignMol(rdkit_mol, rdkit_mol, cid, idx)
                     r = rms_function(rdmol_local, rdmol_local, cid, idx)
-                except:
+                except Exception:
                     r = rms + 1
                     message = "Alignment failed in multiple conformation generation: "
                     message += Chem.MolToSmiles(rdkit_mol)
