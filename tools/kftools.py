@@ -277,9 +277,9 @@ class KFFile:
 
         mykf = KFFile('someexistingkffile.kf')
         #all three below are equivalent
-        x = mykf['General%Termination Status']
-        x = mykf[('General','Termination Status')]
-        x = mykf.read('General','Termination Status')
+        x = mykf['General%termination status']
+        x = mykf[('General','termination status')]
+        x = mykf.read('General','termination status')
 
         #all three below are equivalent
         mykf['Geometry%xyz'] = somevariable
