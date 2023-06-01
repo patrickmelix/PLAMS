@@ -4,7 +4,7 @@ FAQ
 ###
 
 
-Do I always need to run PLAMS scripts through $ADFBIN/plams myscript.py?
+Do I always need to run PLAMS scripts through $AMSBIN/plams myscript.py?
 ************************************************************************
 
 Highly advisable as this ensures you get the right /compatible python libraries loaded.
