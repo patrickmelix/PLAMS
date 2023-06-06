@@ -316,8 +316,9 @@ API
     Other parts of ``results`` module described below are responsible for giving |Results| class its unique behavior described in |parallel|.
     They are presented here for the sake of completeness, from a user's perspective this information is not too relevant.
 
-    .. autoclass:: _MetaResults
-    .. autofunction:: _restrict
+    .. autoclass:: ApplyRestrict
+        :special-members:
+
     .. autofunction::  _caller_name_and_arg
     .. autofunction:: _privileged_access
 
