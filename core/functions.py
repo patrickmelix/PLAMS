@@ -319,9 +319,9 @@ def add_to_class(classname):
 
     If *classname* is |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
-    from .results import _restrict, _MetaResults
+    from .results import _restrict, ApplyRestrict
     def decorator(func):
-        if isinstance(classname, _MetaResults):
+        if isinstance(classname, ApplyRestrict):
             func = _restrict(func)
         setattr(classname, func.__name__, func)
     return decorator

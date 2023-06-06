@@ -136,7 +136,7 @@ class ApplyRestrict:
                 continue
             # Note that in python 3.10 staticmethod objects are considered callable, hence the previous line to be futureproof.
             if callable(attr) and name not in _dont_restrict:
-                cls.__dict__[name] = _restrict(attr)
+                setattr(cls, name, _restrict(attr))
 
 
 
