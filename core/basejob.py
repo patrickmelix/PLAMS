@@ -1,3 +1,4 @@
+import copy
 import os
 import stat
 import threading
@@ -16,6 +17,12 @@ from .private import sha256
 from .results import Results
 from .settings import Settings
 from ..mol.molecule import Molecule
+
+try:
+    from scm.pisa.block import DriverBlock
+    _has_scm_pisa = True
+except ImportError:
+    _has_scm_pisa = False
 
 __all__ = ['SingleJob', 'MultiJob']
 
@@ -77,6 +84,12 @@ class Job:
                 self.settings = settings.copy()
             if isinstance(settings, Job):
                 self.settings = settings.settings.copy()
+            # scm specific input objects need to be deepcopied to them sharing references
+            if _has_scm_pisa and hasattr(self.settings, 'input') and isinstance(self.settings.input, DriverBlock):
+                if isinstance(settings, Settings):
+                    self.settings.input = copy.deepcopy(settings.input)
+                elif isinstance(settings, Job):
+                    self.settings.input = copy.deepcopy(settings.settings.input)
 
 
     #=======================================================================

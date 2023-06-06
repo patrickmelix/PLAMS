@@ -11,6 +11,11 @@ You can find more information about the AMS driver in the `corresponding part of
 Preparing input
 ~~~~~~~~~~~~~~~
 
+.. important::
+
+    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
+    
+
 .. note::
 
     Input files handling in the AMS driver is case insensitive.

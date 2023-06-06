@@ -1,27 +1,34 @@
 import os
-import subprocess
-import numpy as np
-import re
-
 from os.path import join as opj
 
+import numpy as np
+
 from ...core.basejob import SingleJob
-from ...core.errors import FileError, JobError, ResultsError, PTError, PlamsError, JobError
+from ...core.errors import FileError, JobError, PlamsError, PTError, ResultsError
 from ...core.functions import config, log, parse_heredoc
-from ...core.private import sha256, UpdateSysPath
+from ...core.private import sha256
 from ...core.results import Results
 from ...core.settings import Settings
-from ...mol.molecule import Molecule
 from ...mol.atom import Atom
 from ...mol.bond import Bond
+from ...mol.molecule import Molecule
+from ...tools.converters import (
+    gaussian_output_to_ams,
+    qe_output_to_ams,
+    vasp_output_to_ams,
+)
 from ...tools.kftools import KFFile
 from ...tools.units import Units
-from ...trajectories.rkffile import RKFTrajectoryFile
-from ...tools.converters import vasp_output_to_ams, qe_output_to_ams, gaussian_output_to_ams
 
 try:
+    from scm.pisa.block import DriverBlock
+    _has_scm_pisa = True
+except ImportError:
+    _has_scm_pisa = False
+
+try:
+    from watchdog.events import FileModifiedEvent, PatternMatchingEventHandler
     from watchdog.observers import Observer
-    from watchdog.events import PatternMatchingEventHandler, FileModifiedEvent
     _has_watchdog = True
 
     class AMSJobLogTailHandler(PatternMatchingEventHandler):
@@ -779,8 +786,9 @@ class AMSResults(Results):
             'Properties': list of dict. The dictionary keys are what can be found on the AMSResults section of the engine .rkf file. These will only be populated if "CalcPropertiesAtPESPoints" is set to Yes when running the PES scan.
 
         """
-        from natsort import natsorted
         import re
+
+        from natsort import natsorted
         def tolist(x):
             if isinstance(x, list):
                 return x
@@ -1053,9 +1061,10 @@ class AMSResults(Results):
 
     @staticmethod
     def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
-        from ...trajectories.analysis import autocorrelation
-        from ...tools.units import Units
         from scipy.integrate import cumtrapz
+
+        from ...tools.units import Units
+        from ...trajectories.analysis import autocorrelation
         data = np.array(pressuretensor)
 
         components = []
@@ -1110,9 +1119,10 @@ class AMSResults(Results):
             ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the viscosity (in mPa*s) integral. It should converge to the viscosity values as the time increases.
 
         """
-        from ...trajectories.analysis import autocorrelation
-        from ...tools.units import Units
         from scipy.integrate import cumtrapz
+
+        from ...tools.units import Units
+        from ...trajectories.analysis import autocorrelation
         nEntries = self.readrkf('MDHistory', 'nEntries')
         time_step = self.get_time_step()
         start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
@@ -1744,7 +1754,7 @@ class AMSJob(SingleJob):
     #=========================================================================
 
 
-    def _serialize_input(self, special):
+    def _serialize_input(self, special) -> str:
         """Transform the contents of ``settings.input`` branch into string with blocks, keys and values.
 
         First, the contents of ``settings.input`` are extended with entries returned by :meth:`_serialize_molecule`. Then the contents of ``settings.input.ams`` are used to generate AMS text input. Finally, every other (than ``ams``) entry in ``settings.input`` is used to generate engine specific input.
@@ -1828,38 +1838,62 @@ class AMSJob(SingleJob):
                 ret += ' '*indent + key + ' ' + str(unspec(value)) + '\n'
             return ret
 
-        fullinput = self.settings.input.copy()
+        if _has_scm_pisa and isinstance(self.settings.input, DriverBlock):
+            # AMS specific way of writing input files:
+            #   self.settings.input is an input class that knows how to serialize itself to text input.
 
-        #prepare contents of 'system' block(s)
-        more_systems = self._serialize_molecule()
-        if more_systems:
-            if 'system' in fullinput.ams:
-                #nonempty system block was already present in input.ams
-                system = fullinput.ams.system
-                system_list = system if isinstance(system, list) else [system]
+            txtinp = self.settings.input.get_input_string()
 
-                system_list_set = Settings({(s._h if '_h' in s else ''):s   for s in system_list})
-                more_systems_set = Settings({(s._h if '_h' in s else ''):s   for s in more_systems})
+            systems = self._serialize_molecule()
+            if len(systems) > 0: 
+                system_input = serialize("System", systems, 0)
+                # merge existing system block with one serialized from the molecule
+                if hasattr(self.settings.input, 'System') and self.settings.input.System.value_changed:
+                    start, end = txtinp.split('System\n')
+                    # strip duplicate 'End' from molecule system block
+                    system_input = ''.join(system_input.splitlines(keepends=True)[:-1])
+                    # insert system input in proper place
+                    txtinp = start + system_input + end
+                else:
+                    txtinp += '\n' + system_input
 
-                system_list_set += more_systems_set
-                system_list = list(system_list_set.values())
-                system = system_list[0] if len(system_list) == 1 else system_list
-                fullinput.ams.system = system
 
-            else:
-                fullinput.ams.system = more_systems[0] if len(more_systems) == 1 else more_systems
+        else:
+            # Open-source PLAMS way of writing input files:
+            #    self.settings.input is a Settings object that we need to serialize to text input.
 
-        txtinp = ''
-        ams = fullinput.find_case('ams')
+            fullinput = self.settings.input.copy()
 
-        #contents of the 'ams' block (AMS input) go first
-        for item in fullinput[ams]:
-            txtinp += serialize(item, fullinput[ams][item], 0) + '\n'
+            # prepare contents of 'system' block(s)
+            more_systems = self._serialize_molecule()
+            if more_systems:
+                if 'system' in fullinput.ams:
+                    # nonempty system block was already present in input.ams
+                    system = fullinput.ams.system
+                    system_list = system if isinstance(system, list) else [system]
 
-        #and then engines
-        for engine in fullinput:
-            if engine != ams:
-                txtinp += serialize('Engine '+engine, fullinput[engine], 0, end='EndEngine') + '\n'
+                    system_list_set = Settings({(s._h if '_h' in s else ''): s for s in system_list})
+                    more_systems_set = Settings({(s._h if '_h' in s else ''): s for s in more_systems})
+
+                    system_list_set += more_systems_set
+                    system_list = list(system_list_set.values())
+                    system = system_list[0] if len(system_list) == 1 else system_list
+                    fullinput.ams.system = system
+
+                else:
+                    fullinput.ams.system = more_systems[0] if len(more_systems) == 1 else more_systems
+
+            txtinp = ''
+            ams = fullinput.find_case('ams')
+
+            # contents of the 'ams' block (AMS input) go first
+            for item in fullinput[ams]:
+                txtinp += serialize(item, fullinput[ams][item], 0) + '\n'
+
+            # and then engines
+            for engine in fullinput:
+                if engine != ams:
+                    txtinp += serialize('Engine '+engine, fullinput[engine], 0, end='EndEngine') + '\n'
 
         return txtinp
 
