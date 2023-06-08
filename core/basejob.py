@@ -84,12 +84,16 @@ class Job:
                 self.settings = settings.copy()
             if isinstance(settings, Job):
                 self.settings = settings.settings.copy()
-            # scm specific input objects need to be deepcopied to them sharing references
-            if _has_scm_pisa and hasattr(self.settings, 'input') and isinstance(self.settings.input, DriverBlock):
-                if isinstance(settings, Settings):
-                    self.settings.input = copy.deepcopy(settings.input)
-                elif isinstance(settings, Job):
-                    self.settings.input = copy.deepcopy(settings.settings.input)
+            if _has_scm_pisa:
+                # allow users to pass a driverblock as the settings argument
+                if isinstance(settings, DriverBlock):
+                    self.settings.input = copy.deepcopy(settings)
+                # scm specific input objects need to be deepcopied to prevent them sharing references across jobs
+                elif hasattr(self.settings, 'input') and isinstance(self.settings.input, DriverBlock):
+                    if isinstance(settings, Settings):
+                        self.settings.input = copy.deepcopy(settings.input)
+                    elif isinstance(settings, Job):
+                        self.settings.input = copy.deepcopy(settings.settings.input)
 
 
     #=======================================================================
