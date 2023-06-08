@@ -9,6 +9,7 @@ except ImportError:
 
 from scm.plams import Molecule, Atom, MoleculeError
 from scm.plams import read_all_molecules_in_xyz_file
+from scm.plams.interfaces.molecule.rdkit import from_smiles
 
 
 PATH = Path('.') / 'xyz'
@@ -181,3 +182,24 @@ def test_write_multiple_molecules_to_xyz():
     finally:
         if os.path.isfile(new_xyz_file):
             os.remove(new_xyz_file)
+
+def test_as_array_context():
+    expected = np.array([
+        [-0.000816, 0.366378, -0.000000],
+        [-0.812316, -0.183482, -0.000000],
+        [0.813132, -0.182896, 0.000000],
+    ])
+    mol = from_smiles("O")
+    with mol.as_array as coord_array:
+        np.testing.assert_allclose(coord_array, expected, rtol=1e-2)
+        coord_array += 1
+    np.testing.assert_allclose(mol.as_array(), expected + 1, rtol=1e-2)
+
+def test_as_array_function():
+    expected = np.array([
+        [-0.000816, 0.366378, -0.000000],
+        [-0.812316, -0.183482, -0.000000],
+        [0.813132, -0.182896, 0.000000],
+    ])
+    mol = from_smiles("O")
+    np.testing.assert_allclose(mol.as_array(), expected, rtol=1e-2)

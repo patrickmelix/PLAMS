@@ -11,6 +11,7 @@ from collections import OrderedDict
 from .atom import Atom
 from .bond import Bond
 from .pdbtools import PDBHandler, PDBRecord
+from .context import AsArrayContext
 
 from ..core.errors import MoleculeError, PTError, FileError
 from ..core.functions import log
@@ -141,7 +142,8 @@ class Molecule:
                 assert lattice.shape[ 0] <= 3, f"`Lattice` shoud be a 3x3 vector at most"
                 assert lattice.shape[-1] == 3, f"Inner dim of `lattice` must be 3"
                 self.lattice = lattice.tolist()
-
+        # create as_array method as an object that supports both direct calling and use as context manager
+        self._as_array = AsArrayContext(self)
 
 
 #===========================================================================
@@ -158,7 +160,9 @@ class Molecule:
         if atoms is None:
             atoms = self.atoms
 
-        ret = smart_copy(self, owncopy=['properties'], without=['atoms','bonds'])
+        # _as_array is an object that contains a reference to the Molecule object and should thus be excluded from
+        # the copy. It will be recreated on Molecule.__init__
+        ret = smart_copy(self, owncopy=['properties'], without=['atoms','bonds', '_as_array'])
 
         bro = {} # mapping of original to copied atoms
         for at in atoms:
@@ -2376,29 +2380,36 @@ class Molecule:
             mol.add_atom(at)
         return mol
 
-    def as_array(self, atom_subset=None):
-        """Return cartesian coordinates of this molecule's atoms as a numpy array.
+    @property
+    def as_array(self):
+        """
+        Property that can either be called directly as a method: ``mol.as_array()`` or as a context manager ``with mol.as_array``. Take care of when to add the parentheses.
+        
+        Return cartesian coordinates of this molecule's atoms as a numpy array.
 
         *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
 
         Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
+
+        Alternatively, this property can be used in conjunction with the ``with`` statement,
+        which automatically calls :meth:`Molecule.from_array` upon exiting the context manager.
+        Note that the molecules' coordinates will be updated based on the array that was originally returned,
+        so creating and operating on a copy thereof will not affect the original molecule.
+
+        .. code-block:: python
+
+            >>> from scm.plams import Molecule
+            >>> mol = Molecule(...)
+            >>> with mol.as_array as xyz_array:
+            >>>     xyz_array += 5.0
+            >>>     xyz_array[0] = [0, 0, 0]
+            # Or equivalently
+            >>> xyz_array = mol.as_array()
+            >>> xyz_array += 5.0
+            >>> xyz_array[0] = [0, 0, 0]
+            >>> mol.from_array(xyz_array)
         """
-        atom_subset = atom_subset or self.atoms
-
-        try:
-            at_len = len(atom_subset)
-        except TypeError:  # atom_subset is an iterator
-            count = -1
-            shape = -1, 3
-        else:
-            count = at_len * 3
-            shape = at_len, 3
-
-        atom_iterator = itertools.chain.from_iterable(at.coords for at in atom_subset)
-        xyz_array = np.fromiter(atom_iterator, count=count, dtype=float)
-        xyz_array.shape = shape
-        return xyz_array
-
+        return self._as_array
 
     def from_array(self, xyz_array, atom_subset=None):
         """Update the cartesian coordinates of this |Molecule|, containing n atoms, with coordinates provided by a (≤n)*3 numpy array *xyz_array*.
