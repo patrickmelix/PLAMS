@@ -2764,6 +2764,15 @@ class Molecule:
         pdb.write(f)
 
 
+    def hydrogen_to_deuterium(self):
+        """
+        Modifies the current molecule so that all hydrogen atoms get mass 2.014 by modifying the atom.properties.mass
+        """
+
+        for at in self:
+            if at.atnum == 1:
+                at.properties.mass = 2.014
+
     @staticmethod
     def _mol_from_rkf_section(sectiondict):
         """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
