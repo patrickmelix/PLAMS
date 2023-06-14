@@ -7,7 +7,7 @@ This example shows how to convert between a PLAMS ``Molecule`` object and the te
 
 .. seealso::
 
-    :ref:`AMSMoleculeHandling`
+    PLAMS documentation: :ref:`AMSMoleculeHandling`
 
 To follow along, either
 
