@@ -19,6 +19,7 @@ Getting Started
 .. toctree::
  
    WaterOptimization
+   Settings/AMSSettingsSystem
    He2DissociationCurve
    ManyJobsInParallel
 
