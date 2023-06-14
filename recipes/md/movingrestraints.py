@@ -10,6 +10,10 @@ from ...interfaces.molecule.rdkit import writepdb
 from ...tools.units import Units
 from ...tools.periodic_table import PeriodicTable
 from ...trajectories.rkfhistoryfile import molecules_to_rkf
+try:
+    from ...interfaces.molecule.ase import toASE
+except ImportError:
+    pass
 from .amsmdjob import AMSMDJob
 from typing import List, Tuple
 import numpy as np
@@ -159,16 +163,20 @@ class AMSMovingRestraintBondSwitchJob(AMSMDJob):
 
         all_reactive_atoms = set()
 
+        atoms2 = toASE(mol2)
+
         # changed bonds
         targets = []
         t1 = bonds1 - bonds2
         t2 = bonds2 - bonds1
         for t in t1:
-            targets.append( (t[0], t[1], mol2[t[0]].distance_to(mol2[t[1]])) )
+            d = atoms2.get_distance(t[0]-1, t[1]-1, mic=True)
+            targets.append( (t[0], t[1], d ) )
             all_reactive_atoms.add(t[0])
             all_reactive_atoms.add(t[1])
         for t in t2:
-            targets.append( (t[0], t[1], mol2[t[0]].distance_to(mol2[t[1]])) )
+            d = atoms2.get_distance(t[0]-1, t[1]-1, mic=True)
+            targets.append( (t[0], t[1], d ) )
             all_reactive_atoms.add(t[0])
             all_reactive_atoms.add(t[1])
 
@@ -182,7 +190,8 @@ class AMSMovingRestraintBondSwitchJob(AMSMDJob):
         for ob in other_bonds:
             i1, i2 = ob
             #other.append( (i1, i2, 0.5*(mol1[i1].distance_to(mol1[i2]) + mol2[i1].distance_to(mol2[i2]))) )
-            other.append( (i1, i2, mol2[i1].distance_to(mol2[i2])) )
+            d = atoms2.get_distance(i1-1, i2-1, mic=True)
+            other.append( (i1, i2, d) )
 
         # other nonbonded
         nonbonded = []
