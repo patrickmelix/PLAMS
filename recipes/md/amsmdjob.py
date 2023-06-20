@@ -4,7 +4,7 @@ from ...tools.kftools import KFFile
 from ...tools.units import Units
 from ...core.functions import add_to_instance
 from typing import Union
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 __all__ = ['AMSMDJob', 'AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
 

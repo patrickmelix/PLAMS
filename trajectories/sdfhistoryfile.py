@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import numpy
+from scm.plams.lazy_import import numpy
 from ..tools.periodic_table import PT
 from ..mol.molecule import Molecule
 from ..mol.atom import Atom

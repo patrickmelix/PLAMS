@@ -31,7 +31,7 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
         If True, call plt.show() at the end
     """
     import matplotlib.pyplot as plt
-    import numpy as np
+    from scm.plams.lazy_import import numpy as np
     if zero is None:
         zero = 0
     elif zero == 'fermi':

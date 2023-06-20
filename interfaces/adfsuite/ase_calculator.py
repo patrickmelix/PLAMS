@@ -1,7 +1,7 @@
 """Implementation of the AMSPipeCalculator class.
 
 """
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 from copy import deepcopy
 
 from .amsworker import AMSWorker

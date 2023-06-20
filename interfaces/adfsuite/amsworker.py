@@ -10,7 +10,7 @@ import struct
 import weakref
 import tempfile
 import functools
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 import collections
 from typing import *
 from ..molecule.ase import toASE

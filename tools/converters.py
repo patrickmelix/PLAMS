@@ -413,7 +413,7 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
     """
     from ase import Atoms
     from ase.calculators.singlepoint import SinglePointCalculator
-    import numpy as np
+    from scm.plams.lazy_import import numpy as np
     bohr2angstrom = Units.convert(1.0, 'bohr', 'angstrom')
     hartree2eV = Units.convert(1.0, 'hartree', 'eV')
     def get_ase_atoms(elements, crd, cell, energy, gradients, stress):

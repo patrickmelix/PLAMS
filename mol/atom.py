@@ -1,5 +1,5 @@
 import math
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 from ..core.settings import Settings
 from ..tools.periodic_table import PT

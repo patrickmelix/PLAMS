@@ -1,4 +1,4 @@
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 from .units import Units
 from ..interfaces.adfsuite.ams import AMSJob
 from ..mol.molecule import Molecule

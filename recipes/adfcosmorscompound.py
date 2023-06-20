@@ -1,6 +1,10 @@
 import os
 import shutil
-from scm.plams import Settings, JobError, AMSJob, CRSJob, Molecule, AMSResults, CRSResults, KFFile
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.interfaces.adfsuite.crs import CRSJob
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.kftools import KFFile
 from collections import OrderedDict
 from ..core.functions import add_to_instance
 from ..core.basejob import MultiJob
@@ -12,7 +16,7 @@ from ..interfaces.adfsuite.ams import AMSJob
 from ..tools.units import Units
 from ..interfaces.adfsuite.quickjobs import model_to_settings
 from typing import List
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 __all__ = ['ADFCOSMORSCompoundJob', 'ADFCOSMORSCompoundResults']
 

@@ -8,7 +8,7 @@ from ...mol.atom import Atom
 from ...interfaces.adfsuite.ams import AMSJob
 from ...tools.units import Units
 from .amsmdjob import AMSNVEJob
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 __all__ = ['AMSNVESpawnerJob', 'AMSNVESpawnerResults']
 

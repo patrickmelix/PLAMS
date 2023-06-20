@@ -1,4 +1,4 @@
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 import os
 import shutil
 

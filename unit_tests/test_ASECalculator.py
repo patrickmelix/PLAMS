@@ -1,4 +1,5 @@
 from scm.plams import *
+from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
 
 def test_Properties():
     s = Settings()

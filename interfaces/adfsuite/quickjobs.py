@@ -4,7 +4,7 @@ from .amsworker import AMSWorker
 from .ams import AMSJob
 from ...core.settings import Settings
 from ...core.functions import config, init, finish, delete_job
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 __all__ = ['preoptimize', 'refine_density', 'refine_lattice']
 

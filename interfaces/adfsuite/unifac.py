@@ -13,7 +13,7 @@ from ...core.errors import JobError, ResultsError, FileError
 from ...mol.molecule import Molecule
 
 try:
-    from rdkit.Chem import MolToSmiles, RemoveHs
+    from scm.plams.lazy_import import rdkit_chem
     from ..molecule.rdkit import from_smiles
     RDKIT_EX = None
 except ImportError as ex:
@@ -167,7 +167,7 @@ class UnifacJob(SingleJob):
             k1 = self.settings.input.find_case('smiles')
             k2 = self.settings.input.find_case('-smiles')
             smiles = k1 if k2 not in self.settings.input else k2
-            self.settings.input[smiles] = [MolToSmiles(RemoveHs(mol)) for mol in mol_list]
+            self.settings.input[smiles] = [rdkit_chem.MolToSmiles(rdkit_chem.RemoveHs(mol)) for mol in mol_list]
 
     def _get_ready(self) -> None:
         """Create the runfile."""

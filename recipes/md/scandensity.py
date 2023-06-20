@@ -8,7 +8,7 @@ from ...mol.atom import Atom
 from ...interfaces.adfsuite.ams import AMSJob, AMSResults
 from ...tools.units import Units
 from .amsmdjob import AMSNVTJob
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 from scipy.optimize import curve_fit
 
 __all__ = ['AMSMDScanDensityJob', 'AMSMDScanDensityResults']

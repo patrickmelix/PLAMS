@@ -1,5 +1,11 @@
-import os, sys
-from scm.plams import *
+import os
+import sys
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
+from scm.plams.core.functions import init, config
+
+
 
 __all__ = ['OxidationPotentialCalculator']
 

@@ -1,15 +1,13 @@
 from ...core.functions import add_to_class
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
-from numpy import zeros as npz
-from numpy import array as npa
+from scm.plams.lazy_import import numpy as np
 
 __all__ = ['toASE', 'fromASE']
 ase_present = False
 
 try:
-    from ase import Atom as aseAtom
-    from ase import Atoms as aseAtoms
+    from scm.plams.lazy_import import ase
     ase_present = True
 except ImportError:
     __all__ = []
@@ -77,7 +75,7 @@ def toASE(molecule, set_atomic_charges=False):
     set_atomic_charges: bool
         If True, set_initial_charges() will be called with the average atomic charge (taken from molecule.properties.charge). The purpose is to preserve the total charge, not to set any reasonable initial charges.
     """
-    aseMol = aseAtoms()
+    aseMol = ase.Atoms()
 
     #iterate over PLAMS atoms
     for atom in molecule:
@@ -87,10 +85,10 @@ def toASE(molecule, set_atomic_charges=False):
             raise ValueError("Non-Number in Atomic Coordinates, not compatible with ASE")
 
         #append atom to aseMol
-        aseMol.append(aseAtom(atom.atnum, atom.coords))
+        aseMol.append(ase.Atom(atom.atnum, atom.coords))
 
     #get lattice info if any
-    lattice = npz((3,3))
+    lattice = np.zeros((3,3))
     pbc = [False,False,False]
     for i,vec in enumerate(molecule.lattice):
 
@@ -99,7 +97,7 @@ def toASE(molecule, set_atomic_charges=False):
             raise ValueError("Non-Number in Lattice Vectors, not compatible with ASE")
 
         pbc[i] = True
-        lattice[i] = npa(vec)
+        lattice[i] = np.array(vec)
 
     #save lattice info to aseMol
     if any(pbc):

@@ -9,7 +9,7 @@ from ...interfaces.adfsuite.ams import AMSJob
 from ...tools.units import Units
 from .scandensity import AMSMDScanDensityJob
 from .amsmdjob import AMSNVTJob, AMSNPTJob, AMSNVEJob
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 from scipy.optimize import curve_fit
 
 __all__ = ['EquilibrateDensityJob', 'EquilibrateDensityResults']

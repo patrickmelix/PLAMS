@@ -1,4 +1,4 @@
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 __all__ = ['autocorrelation', 'power_spectrum']
 

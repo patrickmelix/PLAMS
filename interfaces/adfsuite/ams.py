@@ -1,7 +1,8 @@
 import os
+import subprocess
+from scm.plams.lazy_import import numpy as np
+import re
 from os.path import join as opj
-
-import numpy as np
 
 from ...core.basejob import SingleJob
 from ...core.errors import FileError, JobError, PlamsError, PTError, ResultsError

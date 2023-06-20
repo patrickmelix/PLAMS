@@ -1,5 +1,6 @@
 #!/usr/bin/env amspython
 from scm.plams import *
+from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
 import os
 from ase.io import read
 from sella import Sella

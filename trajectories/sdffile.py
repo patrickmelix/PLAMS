@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import io
-import numpy
+from scm.plams.lazy_import import numpy
 from ..mol.atom import Atom
 from ..mol.bond import Bond
 from ..mol.molecule import Molecule

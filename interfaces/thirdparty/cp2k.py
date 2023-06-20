@@ -1,6 +1,6 @@
 """Class to manipulate CP2K jobs."""
 import shutil
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 from pathlib import Path
 from os.path import join as opj
 

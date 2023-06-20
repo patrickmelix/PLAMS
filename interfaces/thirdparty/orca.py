@@ -2,7 +2,7 @@ import shutil
 from os.path import relpath, basename
 from os.path import join as opj
 from os import symlink
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 from ...core.basejob import SingleJob
 from ...core.results import Results

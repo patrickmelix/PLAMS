@@ -1,6 +1,6 @@
 import collections
 import math
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 from ..core.errors import UnitsError
 

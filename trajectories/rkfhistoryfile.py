@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import numpy
+from scm.plams.lazy_import import numpy
 import os
 
 from typing import List, Union, Set

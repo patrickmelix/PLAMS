@@ -2,7 +2,7 @@ import copy
 import heapq
 import itertools
 import math
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 import os
 import io
 
@@ -3014,7 +3014,7 @@ class Molecule:
         return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
 
     @property
-    def numbers(self) -> np.ndarray:
+    def numbers(self) -> 'np.ndarray':
         """ Return an array of all atomic numbers in the Molecule. Can also be used to set all numbers at once. """
         return np.array([i.atnum for i in self])
 
@@ -3026,7 +3026,7 @@ class Molecule:
 
 
     @property
-    def symbols(self) -> np.ndarray:
+    def symbols(self) -> 'np.ndarray':
         """ Return an array of all atomic symbols in the Molecule. Can also be used to set all symbols at once. """
         return np.array([i.symbol for i in self])
 

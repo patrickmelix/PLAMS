@@ -2,10 +2,6 @@ import os
 import threading
 import re
 import shutil
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
 
 from os.path import join as opj
 
@@ -87,6 +83,11 @@ class JobManager:
 
         See |pickling| for details.
         """
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
         def setstate(job, path, parent=None):
             job.parent = parent
             job.jobmanager = self

@@ -1,10 +1,9 @@
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 from collections import OrderedDict
 from itertools import combinations
 
 try:
-    import networkx
-    from networkx.algorithms import isomorphism
+    from scm.plams.lazy_import import networkx
     has_networkx = True
 except ImportError:
     has_networkx = False
@@ -344,7 +343,7 @@ if has_networkx:
             return None
 
         # Match
-        GM = isomorphism.GraphMatcher(graph, graph2, edge_match=isomorphism.categorical_edge_match('weight',1))
+        GM = networkx.isomorphism.GraphMatcher(graph, graph2, edge_match=networkx.isomorphism.categorical_edge_match('weight',1))
         isomorphic = GM.is_isomorphic()
         if not isomorphic:
             return None

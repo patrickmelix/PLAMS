@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import numpy
+from scm.plams.lazy_import import numpy
 from ..mol.molecule import Molecule
 from ..core.errors import TrajectoryError
 from ..tools.geometry import cell_shape

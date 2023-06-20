@@ -1,7 +1,7 @@
 import os
 import re
 import sys
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 from os.path import join as opj
 
@@ -184,7 +184,7 @@ class SCMResults(Results):
         return t([data[mapping[i]-1] for i in range(len(mapping))])
 
 
-    def readarray(self, section: str, subsection: str, **kwargs) -> np.ndarray:
+    def readarray(self, section: str, subsection: str, **kwargs) -> 'np.ndarray':
         """Read data from *section*/*subsection* of the main KF file and return as NumPy array.
 
         All additional provided keyword arguments will be passed onto the numpy.array_ function.

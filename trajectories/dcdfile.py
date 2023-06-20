@@ -3,7 +3,7 @@
 import os
 import struct
 import array
-import numpy
+from scm.plams.lazy_import import numpy
 from ..mol.molecule import Molecule
 from ..core.errors import PlamsError
 from .trajectoryfile import TrajectoryFile

@@ -1,6 +1,6 @@
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 try:
-    from scipy.spatial.distance import cdist
+    from scm.plams.lazy_import import scipy_spatial
     scipy_present = True
 except ImportError:
     scipy_present = False
@@ -52,7 +52,7 @@ def distance_array(array1, array2):
 
     Uses fast ``cdist`` function if ``scipy`` is present, otherwise falls back to slightly slower ``numpy`` loop. Arguments should be 2-dimensional ``numpy`` arrays with the same second dimension. If *array1* is A x N and *array2* is B x N, the returned array is A x B.
     """
-    return cdist(array1, array2) if scipy_present else np.array([np.linalg.norm(i - array2, axis=1) for i in array1])
+    return scipy_spatial.distance.cdist(array1, array2) if scipy_present else np.array([np.linalg.norm(i - array2, axis=1) for i in array1])
 
 
 def angle(vec1, vec2, result_unit='radian'):

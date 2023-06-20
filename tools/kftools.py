@@ -1,4 +1,4 @@
-import numpy
+from scm.plams.lazy_import import numpy
 import os
 import shutil
 import struct

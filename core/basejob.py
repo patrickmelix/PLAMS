@@ -4,11 +4,6 @@ import stat
 import threading
 import time
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
-
 from os.path import join as opj
 
 from .errors import FileError, JobError, PlamsError, ResultsError
@@ -135,6 +130,11 @@ class Job:
 
     def pickle(self, filename=None):
         """Pickle this instance and save to a file indicated by *filename*. If ``None``, save to ``[jobname].dill`` in the job folder."""
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
         filename = filename or opj(self.path, self.name+'.dill')
         with open(filename, 'wb') as f:
             try:
@@ -462,6 +462,11 @@ class SingleJob(Job):
         Setting `strict = False` disables the check, allowing for signatures such as
         `SingleJob.load() -> AMSJob`.
         """
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
         if not os.path.exists(path):
             raise FileError(f"Path '{path}' does not exist")
         if os.path.isdir(path):

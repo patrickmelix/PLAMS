@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-import numpy
+from scm.plams.lazy_import import numpy
 from..mol.molecule import Bond
 from ..core.errors import PlamsError
 

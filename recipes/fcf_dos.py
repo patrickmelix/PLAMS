@@ -1,6 +1,6 @@
 #from .scmjob import SCMJob, SCMResults
 import os, numpy, math
-from scm.plams import KFFile
+from scm.plams.tools.kftools import KFFile
 
 __all__ = ['FCFDOS']
 

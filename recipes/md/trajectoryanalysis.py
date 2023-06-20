@@ -9,7 +9,7 @@ from ...interfaces.adfsuite.ams import AMSJob
 from ...interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
 from ...tools.units import Units
 from .amsmdjob import AMSNVEJob
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 from typing import List
 
 __all__ = ['AMSRDFJob', 'AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults']

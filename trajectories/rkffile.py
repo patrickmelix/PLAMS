@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import numpy
+from scm.plams.lazy_import import numpy
 
 from ..mol.molecule import Molecule, Bond
 from ..tools.periodic_table import PeriodicTable

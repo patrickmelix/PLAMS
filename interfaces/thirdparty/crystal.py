@@ -1,5 +1,5 @@
 from os.path import join as opj
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 from ...core.basejob  import SingleJob
 from ...core.settings import Settings

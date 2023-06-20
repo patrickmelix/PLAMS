@@ -1,7 +1,8 @@
 #!/usr/bin/env amspython
 from ase.io import read
 from ase.calculators.socketio import SocketClient
-from scm.plams import Settings, AMSCalculator, init, finish
+from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
+from scm.plams import Settings, init, finish
 
 """
 Example illustrating how to use AMS as a client together with i-PI.

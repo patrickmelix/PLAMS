@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 try:
     import dill as pickle
 except ImportError:

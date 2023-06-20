@@ -16,7 +16,7 @@ except ImportError:
     pass
 from .amsmdjob import AMSMDJob
 from typing import List, Tuple
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 import os
 from scipy.optimize import curve_fit
 from dataclasses import dataclass

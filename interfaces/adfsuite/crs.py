@@ -3,7 +3,7 @@ import inspect
 import subprocess
 from itertools import cycle
 
-import numpy as np
+from scm.plams.lazy_import import numpy as np
 
 try:
     import pandas as pd
@@ -164,7 +164,7 @@ class CRSResults(SCMResults):
         return compositions
 
 
-    def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
+    def plot(self, *arrays: 'np.ndarray', x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
 
         Accepts the output of, *e.g.*, :meth:`CRSResults.get_sigma_profile`:
