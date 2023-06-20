@@ -1,5 +1,5 @@
 from scm.conformers import ConformersJob, ConformersResults
-from scm.input_classes import CONFORMERS, DFTB
+from scm.input_classes import Conformers, DFTB
 
 # This example shows how to use the AMS's Conformers tool via PLAMS
 
@@ -33,7 +33,7 @@ sett = Settings()
 # the input options for the Conformers tool, which are
 # described in the Conformers tool user manual.
 
-sett.input = CONFORMERS()
+sett.input = Conformers()
 sett.input.Task = "Optimize"
 sett.input.InputConformersSet = job.results.rkfpath()
 
