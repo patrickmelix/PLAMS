@@ -57,7 +57,20 @@ if TYPE_CHECKING:
     import dill
     import ase
 else:
-    numpy = lazy_import("numpy")
-    networkx = lazy_import("networkx")
-    dill = lazy_import("dill")
-    ase = lazy_import("ase")
+    # we have to make sure we don't import things twice
+    if 'numpy' in sys.modules:
+        import numpy
+    else:
+        numpy = lazy_import("numpy")
+    if 'networkx' in sys.modules:
+        import networkx
+    else:
+        networkx = lazy_import("networkx")
+    if 'dill' in sys.modules:
+        import dill
+    else:
+        dill = lazy_import("dill")
+    if 'ase' in sys.modules:
+        import ase
+    else:
+        ase = lazy_import("ase")
