@@ -4,16 +4,11 @@ import os
 import time
 import datetime
 import threading
-from ...mol.atom import Atom
-from ...mol.bond import Bond
-from ...mol.molecule import Molecule
 from ...interfaces.adfsuite.ams import AMSJob
 from ...core.settings import Settings
-from ...tools.units import Units
 from ...core.errors import FileError
 from ...core.errors import PlamsError
 from ...interfaces.adfsuite.amsworker import AMSWorkerPool
-from ...interfaces.adfsuite.amsworker import AMSWorker
 from ...core.jobrunner import JobRunner
 from ...core.functions import log
 

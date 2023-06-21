@@ -94,6 +94,9 @@ from .interfaces.molecule.rdkit import (
 )
 from .recipes.reorganization_energy import ReorganizationEnergyJob
 from .recipes.adffragment import ADFFragmentJob, ADFFragmentResults
+from .recipes.adfnbo import ADFNBOJob
+from .recipes.numgrad import NumGradJob
+from .recipes.numhess import NumHessJob
 from .tools.kftools import KFFile, KFReader, KFHistory
 from .tools.converters import (
     traj_to_rkf,
@@ -290,5 +293,8 @@ __all__ = [
     "SDFHistoryFile",
     "ReorganizationEnergyJob",
     "ADFFragmentJob",
-    "ADFFragmentResults"
+    "ADFFragmentResults",
+    "ADFNBOJob",
+    "NumGradJob",
+    "NumHessJob",
 ]
