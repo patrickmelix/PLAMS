@@ -97,6 +97,7 @@ from .recipes.adffragment import ADFFragmentJob, ADFFragmentResults
 from .recipes.adfnbo import ADFNBOJob
 from .recipes.numgrad import NumGradJob
 from .recipes.numhess import NumHessJob
+from .recipes.pestools.optimizer import Optimizer
 from .tools.kftools import KFFile, KFReader, KFHistory
 from .tools.converters import (
     traj_to_rkf,
@@ -297,4 +298,5 @@ __all__ = [
     "ADFNBOJob",
     "NumGradJob",
     "NumHessJob",
+    "Optimizer",
 ]
