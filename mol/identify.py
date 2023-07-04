@@ -1,6 +1,7 @@
-from scm.plams.lazy_import import numpy as np
 from collections import OrderedDict
 from itertools import combinations
+
+from scm.plams.lazy_import import numpy as np
 
 try:
     from scm.plams.lazy_import import networkx
@@ -8,12 +9,10 @@ try:
 except ImportError:
     has_networkx = False
 
-from .atom import Atom
-from .molecule import Molecule
-from ..core.private import sha256
-from ..core.functions import add_to_class
-from ..tools.units import Units
-
+from scm.plams.core.functions import add_to_class
+from scm.plams.core.private import sha256
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.units import Units
 
 __all__ = ['label_atoms']
 

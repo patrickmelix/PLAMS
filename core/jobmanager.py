@@ -1,13 +1,12 @@
 import os
-import threading
 import re
 import shutil
-
+import threading
 from os.path import join as opj
 
-from .basejob import MultiJob
-from .errors import PlamsError, FileError
-from .functions import config, log
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.core.functions import config, log
 
 __all__ = ['JobManager']
 

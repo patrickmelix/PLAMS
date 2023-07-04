@@ -1,7 +1,6 @@
-from ...core.functions import add_to_class
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
+from scm.plams.core.functions import add_to_class
 from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.molecule import Atom, Molecule, MoleculeError
 
 __all__ = ['toASE', 'fromASE']
 ase_present = False

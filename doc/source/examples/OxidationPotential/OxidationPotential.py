@@ -1,5 +1,6 @@
+import os
+
 from scm.plams import *
-import os, sys
 
 job_dir = './Screening'
 if not os.path.exists(job_dir):

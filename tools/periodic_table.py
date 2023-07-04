@@ -1,4 +1,4 @@
-from ..core.errors import PTError
+from scm.plams.core.errors import PTError
 from scm.plams.lazy_import import numpy
 
 __all__ = ['PeriodicTable', 'PT']

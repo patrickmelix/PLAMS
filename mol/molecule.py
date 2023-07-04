@@ -1,26 +1,30 @@
 import copy
 import heapq
+import io
 import itertools
 import math
-from scm.plams.lazy_import import numpy as np
 import os
-import io
-
 from collections import OrderedDict
 
-from .atom import Atom
-from .bond import Bond
-from .pdbtools import PDBHandler, PDBRecord
-from .context import AsArrayContext
-
-from ..core.errors import MoleculeError, PTError, FileError
-from ..core.functions import log
-from ..core.private import smart_copy, parse_action
-from ..core.settings import Settings
-from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array, cell_lengths, cell_angles
-from ..tools.units import Units
-from ..tools.kftools import KFFile
+from scm.plams.core.errors import FileError, MoleculeError, PTError
+from scm.plams.core.functions import log
+from scm.plams.core.private import parse_action, smart_copy
+from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.bond import Bond
+from scm.plams.mol.context import AsArrayContext
+from scm.plams.mol.pdbtools import PDBHandler, PDBRecord
+from scm.plams.tools.geometry import (
+    axis_rotation_matrix,
+    cell_angles,
+    cell_lengths,
+    distance_array,
+    rotation_matrix,
+)
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.periodic_table import PT
+from scm.plams.tools.units import Units
 
 input_parser_available = 'AMSBIN' in os.environ
 
@@ -129,18 +133,18 @@ class Molecule:
 
         elif positions is not None:
             positions = np.array(positions)
-            assert positions.ndim == 2, f"`Positions` must be a 2d array"
-            assert positions.shape[-1] == 3, f"Inner dim of `positions` must be 3"
+            assert positions.ndim == 2, "`Positions` must be a 2d array"
+            assert positions.shape[-1] == 3, "Inner dim of `positions` must be 3"
             if numbers is None:
                 numbers = len(positions)*[0]
-            assert len(numbers) == len(positions), f"Length or `numbers` and `positions` does not match"
+            assert len(numbers) == len(positions), "Length or `numbers` and `positions` does not match"
             for num,xyz in zip(numbers, positions):
                 self.add_atom( Atom(atnum=num, coords=xyz) )
             if lattice is not None:
                 lattice = np.array(lattice)
-                assert lattice.ndim      == 2, f"`Lattice` must be a 2d array"
-                assert lattice.shape[ 0] <= 3, f"`Lattice` shoud be a 3x3 vector at most"
-                assert lattice.shape[-1] == 3, f"Inner dim of `lattice` must be 3"
+                assert lattice.ndim      == 2, "`Lattice` must be a 2d array"
+                assert lattice.shape[ 0] <= 3, "`Lattice` shoud be a 3x3 vector at most"
+                assert lattice.shape[-1] == 3, "Inner dim of `lattice` must be 3"
                 self.lattice = lattice.tolist()
         # create as_array method as an object that supports both direct calling and use as context manager
         self._as_array = AsArrayContext(self)
@@ -1139,7 +1143,7 @@ class Molecule:
             try:
                 action_func(err)
             except MoleculeError as ex:  # Restore the initial bond orders
-                for b, order in zip(mol.bonds, reversed(order_before)):
+                for b, order in zip(self.bonds, reversed(order_before)):
                     b.order = order
                 raise ex
 
@@ -1486,7 +1490,7 @@ class Molecule:
         """
         import networkx
         matrix = self.bond_matrix()
-        matrix = matrix.astype(numpy.int32)
+        matrix = matrix.astype(np.int32)
         matrix[matrix>0] = 1
         graph = networkx.from_numpy_matrix(matrix)
         rings = networkx.cycle_basis(graph)
@@ -2776,7 +2780,7 @@ class Molecule:
     @staticmethod
     def _mol_from_rkf_section(sectiondict):
         """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
 
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
@@ -2836,8 +2840,10 @@ class Molecule:
 
         * ``filename`` -- Name of the RKF file that contains ForceField data
         """
-        from ..interfaces.adfsuite.forcefieldparams import ForceFieldPatch, forcefield_params_from_kf
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.forcefieldparams import (
+            forcefield_params_from_kf,
+        )
 
         # Read atom types and charges
         kf = KFFile(filename)
@@ -2867,7 +2873,7 @@ class Molecule:
         if not input_parser_available:
             raise NotImplementedError('Reading from System blocks from AMS input files requires the scm.libbase library to be available.')
         from scm.libbase import InputParser
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
         sett = Settings()
         sett.input.AMS = Settings(InputParser().to_dict('ams', f.read(), string_leafs=True))
         if 'System' not in sett.input.AMS: raise ValueError('No System block found in file.')
@@ -2880,7 +2886,7 @@ class Molecule:
 
     def writein(self, f, **other):
         """Write the Molecule instance to a file as a System block from the AMS driver input files."""
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
         f.write(AMSJob(molecule={other.get('sysname',''):self}).get_input())
 
 
@@ -2956,7 +2962,7 @@ class Molecule:
                 3         H      0.327778       0.033891      -0.901672
 
         """
-        from subprocess import Popen, DEVNULL
+        from subprocess import DEVNULL, Popen
         from tempfile import NamedTemporaryFile
         with NamedTemporaryFile(mode='w+', suffix='.xyz', delete=False) as f_in:
             self.writexyz(f_in)
@@ -3011,7 +3017,7 @@ class Molecule:
         if check:
             nums1 = np.array([i.atnum for i in mol1])
             nums2 = np.array([i.atnum for i in mol2])
-            assert (nums1 == nums2).all(), f"\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
+            assert (nums1 == nums2).all(), "\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
         if ignore_hydrogen is True:
             mol1 = [at.coords for at in mol1 if at.symbol != 'H']
             mol2 = [at.coords for at in mol2 if at.symbol != 'H']
@@ -3142,9 +3148,3 @@ class Molecule:
                             ret[angleid] = self.index(at)-1+index_start, self.index(at2)-1+index_start, self.index(at3)-1+index_start
 
         return ret
-
-
-
-    if __name__ == '__main__':
-        main()
-

@@ -1,8 +1,8 @@
 from collections import OrderedDict
 from itertools import product
 
-from ..core.results import Results
-from ..core.basejob import MultiJob
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.results import Results
 
 __all__ = ['NumGradJob', 'NumGradResults'] #names exported to the main namespace
 
@@ -58,7 +58,7 @@ class NumGradJob(MultiJob):
         self.jobtype = jobtype   #who is going to calculate single points
 
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         self.steps = list(range(-(self.npoints//2), 0)) + list(range(1, self.npoints//2+1))
 
         for (atom,axis,i) in product(range(1,1+len(self.molecule)), 'xyz', self.steps):

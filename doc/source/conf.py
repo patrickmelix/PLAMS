@@ -3,11 +3,9 @@
 # PLAMS documentation build configuration file, created by
 # sphinx-quickstart2 on Mon Aug 11 16:40:00 2014.
 
-import sys
-import os
 from datetime import date
 
-from docutils.parsers.rst.directives.admonitions import Important,Danger,Attention
+from docutils.parsers.rst.directives.admonitions import Danger, Important
 from sphinx.locale import admonitionlabels
 
 admonitionlabels['important'] = 'Technical'

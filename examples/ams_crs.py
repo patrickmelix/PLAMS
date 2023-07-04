@@ -1,8 +1,8 @@
 #!/usr/bin/env amspython
-from scm.plams import *
-import numpy as np
 import os
+
 import matplotlib.pyplot as plt
+from scm.plams import *
 
 
 def solubility():

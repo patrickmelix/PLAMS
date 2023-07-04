@@ -1,4 +1,4 @@
-from ..core.errors import PlamsError, FileError
+from scm.plams.core.errors import FileError, PlamsError
 
 __all__ = ['PDBRecord', 'PDBHandler']
 

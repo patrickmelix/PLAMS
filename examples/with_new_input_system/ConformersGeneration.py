@@ -1,5 +1,5 @@
 from scm.conformers import ConformersJob, ConformersResults
-from scm.input_classes import Conformers, DFTB
+from scm.input_classes import DFTB, Conformers
 
 # This example shows how to use the AMS's Conformers tool via PLAMS
 

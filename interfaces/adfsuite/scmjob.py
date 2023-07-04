@@ -1,22 +1,17 @@
 import os
-import re
-import sys
-from scm.plams.lazy_import import numpy as np
-
 from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.errors import PlamsError, ResultsError, FileError, JobError
-from ...core.functions import log, parse_heredoc
-from ...core.private import sha256, UpdateSysPath
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...tools.kftools import KFFile
-from ...tools.units import Units
-from .ams import AMSJob
-
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
+from scm.plams.core.functions import log, parse_heredoc
+from scm.plams.core.private import sha256
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.units import Units
 
 
 class SCMResults(Results):

@@ -1,4 +1,5 @@
-from .scmjob import SCMJob, SCMResults
+from scm.plams.core.errors import PlamsError
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
 
 __all__ = ['DensfJob', 'DensfResults']
 

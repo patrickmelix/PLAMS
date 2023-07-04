@@ -1,22 +1,19 @@
 import os
-import shutil
-from scm.plams.core.settings import Settings
-from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.interfaces.adfsuite.crs import CRSJob
-from scm.plams.mol.molecule import Molecule
-from scm.plams.tools.kftools import KFFile
 from collections import OrderedDict
-from ..core.functions import add_to_instance
-from ..core.basejob import MultiJob
-from ..core.results import Results
-from ..core.settings import Settings
-from ..mol.molecule import Molecule
-from ..mol.atom import Atom
-from ..interfaces.adfsuite.ams import AMSJob
-from ..tools.units import Units
-from ..interfaces.adfsuite.quickjobs import model_to_settings
 from typing import List
-from scm.plams.lazy_import import numpy as np
+
+from scm.plams import (
+    AMSJob,
+    CRSJob,
+    KFFile,
+    Molecule,
+    MultiJob,
+    PeriodicTable,
+    Results,
+    Settings,
+)
+from scm.plams.core.functions import add_to_instance
+from scm.plams.interfaces.adfsuite.quickjobs import model_to_settings
 
 __all__ = ['ADFCOSMORSCompoundJob', 'ADFCOSMORSCompoundResults']
 
@@ -118,7 +115,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
             if preoptimization:
                 @add_to_instance(gas_job)
-                def prerun(self):
+                def prerun(self):  # noqa F811
                     self.molecule = self.parent.children['preoptimization'].results.get_main_molecule()
             else:
                 gas_job.molecule = molecule
@@ -131,12 +128,12 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         if singlepoint:
             @add_to_instance(solv_job)
-            def prerun(self):
+            def prerun(self):  # noqa F811
                 self.molecule = self.parent.input_molecule
                 self.settings += self.parent.adf_settings(solvation=True, settings=self.parent.settings, elements=list(set(at.symbol for at in self.parent.input_molecule)))
         else:
             @add_to_instance(solv_job)
-            def prerun(self):
+            def prerun(self):  # noqa F811
                 gas_job.results.wait()
                 self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
                 self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
@@ -161,7 +158,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
         crsjob = CRSJob(settings=sigma_s, name = 'sigma')
 
         @add_to_instance(crsjob)
-        def prerun(self):
+        def prerun(self):  # noqa F811
             self.parent.children['solv'].results.wait()
             self.settings.input.compound[0]._h = os.path.join(self.parent.path, self.parent.name+'.coskf')
 

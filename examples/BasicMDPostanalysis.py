@@ -1,8 +1,10 @@
 #!/usr/bin/env plams
-from scm.plams import *
-import numpy as np
 import os
+
 import matplotlib.pyplot as plt
+import numpy as np
+from scm.plams import *
+
 
 def run_md():
     mol = packmol_liquid(from_smiles('O'), n_molecules=16, density=1.0)

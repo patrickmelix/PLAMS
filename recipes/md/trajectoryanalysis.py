@@ -1,16 +1,11 @@
 from collections import OrderedDict, defaultdict
-from ...core.functions import add_to_instance
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob
-from ...interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
-from ...tools.units import Units
-from .amsmdjob import AMSNVEJob
-from scm.plams.lazy_import import numpy as np
 from typing import List
+
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.results import Results
+from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
+from scm.plams.lazy_import import numpy as np
+from scm.plams.tools.units import Units
 
 __all__ = ['AMSRDFJob', 'AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults']
 
@@ -134,7 +129,7 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.max_correlation_time_fs = max_correlation_time_fs
         self.start_time_fit_fs = start_time_fit_fs
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """
         Constructs the final settings
         """
@@ -219,7 +214,7 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         self.max_correlation_time_fs = max_correlation_time_fs
         self.max_freq = max_freq
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """
         Creates final settings
         """
@@ -303,7 +298,7 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
         self.rmax = rmax
         self.rstep = rstep
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """
         Creates the final settings. Do not call or override this method.
         """
@@ -384,7 +379,7 @@ class AMSConvenientAnalysisPerRegionJob(MultiJob):
 
         return regions_dict
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         regions_dict = self.regions_dict or self.get_regions_dict(self.previous_job.results.get_main_molecule(), per_element=self.per_element)
 
         for region in regions_dict:
@@ -409,7 +404,6 @@ class AMSConvenientAnalysisPerRegionJob(MultiJob):
         if isinstance(list_of_jobs, dict):
             list_of_jobs = [x for x in list_of_jobs.values()]
 
-        frequencies = None # same for all jobs
         all_x = defaultdict(lambda: [])
         all_y = defaultdict(lambda: [])
         for vacfjob in list_of_jobs:

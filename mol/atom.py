@@ -1,10 +1,9 @@
 import math
+
+from scm.plams.core.settings import Settings
 from scm.plams.lazy_import import numpy as np
-
-from ..core.settings import Settings
-from ..tools.periodic_table import PT
-from ..tools.units import Units
-
+from scm.plams.tools.periodic_table import PT
+from scm.plams.tools.units import Units
 
 __all__ = ['Atom']
 

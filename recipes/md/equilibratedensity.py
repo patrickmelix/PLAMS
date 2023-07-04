@@ -1,16 +1,11 @@
 from collections import OrderedDict
-from ...core.functions import add_to_instance
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob
-from ...tools.units import Units
-from .scandensity import AMSMDScanDensityJob
-from .amsmdjob import AMSNVTJob, AMSNPTJob, AMSNVEJob
-from scm.plams.lazy_import import numpy as np
-from scipy.optimize import curve_fit
+
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.functions import add_to_instance
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.recipes.md.amsmdjob import AMSNPTJob, AMSNVTJob
+from scm.plams.recipes.md.scandensity import AMSMDScanDensityJob
 
 __all__ = ['EquilibrateDensityJob', 'EquilibrateDensityResults']
 
@@ -61,7 +56,7 @@ class EquilibrateDensityJob(MultiJob):
 
         if scan_density_job is not None:
             @add_to_instance(job)
-            def prerun(self):
+            def prerun(self):  # noqa F811
                 self.molecule = scan_density_job.results.get_lowest_energy_molecule()
         else:
             job.molecule = self.initial_molecule
@@ -81,7 +76,7 @@ class EquilibrateDensityJob(MultiJob):
         )
 
         #@add_to_instance(job)
-        #def prerun(self):
+        #def prerun(self):  # noqa F811
             #self.get_velocities_from(nvt_pre_eq_job, update_molecule=True)
 
         self.children[name] = job
@@ -140,5 +135,5 @@ class EquilibrateDensityJob(MultiJob):
 
         nvt_pre_eq_job = self._create_nvt_pre_eq_job(scan_density_job)
 
-        npt_job = self._create_npt_job(nvt_pre_eq_job)
+        self._create_npt_job(nvt_pre_eq_job)
 

@@ -1,9 +1,8 @@
 import collections
 import math
+
+from scm.plams.core.errors import UnitsError
 from scm.plams.lazy_import import numpy as np
-
-from ..core.errors import UnitsError
-
 
 __all__ = ['Units']
 

@@ -1,4 +1,4 @@
-from .scmjob import SCMJob, SCMResults
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
 
 __all__ = ['UFFJob', 'UFFResults']
 

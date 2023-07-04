@@ -1,16 +1,16 @@
 """Class to manipulate CP2K jobs."""
 import shutil
-from scm.plams.lazy_import import numpy as np
-from pathlib import Path
 from os.path import join as opj
+from pathlib import Path
 
-from ...core.basejob import SingleJob
-from ...core.settings import Settings
-from ...core.results import Results
-from ...core.errors import ResultsError
-from ...tools.units import Units
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import ResultsError
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.units import Units
 
 __all__ = ['Cp2kJob', 'Cp2kResults', 'Cp2kSettings2Mol']
 

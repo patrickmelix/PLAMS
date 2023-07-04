@@ -1,21 +1,22 @@
+import collections
+import datetime
+import functools
 import os
+import queue
 import shutil
 import signal
-import subprocess
-import time
-import datetime
-import threading
-import queue
 import struct
-import weakref
+import subprocess
 import tempfile
-import functools
-from scm.plams.lazy_import import numpy as np
-import collections
-from typing import *
-from ..molecule.ase import toASE
-from ...core.private import retry
+import threading
+import time
+import weakref
 from numbers import Integral
+from typing import Dict, Tuple
+
+from scm.plams.core.private import retry
+from scm.plams.interfaces.molecule.ase import toASE
+from scm.plams.lazy_import import numpy as np
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -71,13 +72,12 @@ try:
 except ImportError:
     __all__ = []
 
-from ...mol.molecule import Molecule
-from ...core.settings import Settings
-from ...core.errors import PlamsError, JobError, ResultsError
-from ...tools.units import Units
-from ...core.functions import config, log
-from .ams import AMSJob
-from .amspipeerror import *
+from scm.plams.core.errors import JobError, PlamsError, ResultsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.interfaces.adfsuite.amspipeerror import AMSPipeError, AMSPipeRuntimeError
+from scm.plams.tools.units import Units
 
 
 def _restrict(func):
@@ -750,7 +750,7 @@ class AMSWorker:
         '''
 
         try:
-            args = AMSWorker._settings_to_args(s)
+            AMSWorker._settings_to_args(s)
             return True
         except NotImplementedError:
             return False

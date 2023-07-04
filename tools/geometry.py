@@ -1,11 +1,12 @@
 from scm.plams.lazy_import import numpy as np
+
 try:
     from scm.plams.lazy_import import scipy_spatial
     scipy_present = True
 except ImportError:
     scipy_present = False
 
-from .units import Units
+from scm.plams.tools.units import Units
 
 __all__ = ['rotation_matrix', 'axis_rotation_matrix', 'distance_array', 'angle','dihedral','cell_shape','cellvectors_from_shape']
 

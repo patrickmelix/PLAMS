@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 
 import io
+
+from scm.plams.core.errors import TrajectoryError
 from scm.plams.lazy_import import numpy
-from ..mol.atom import Atom
-from ..mol.bond import Bond
-from ..mol.molecule import Molecule
-from ..core.errors import TrajectoryError
-from ..tools.geometry import cell_shape
-from ..tools.geometry import cellvectors_from_shape
-from .trajectoryfile import TrajectoryFile
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.bond import Bond
+from scm.plams.mol.molecule import Molecule
+from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 
 __all__ = ['SDFTrajectoryFile','create_sdf_string']
 

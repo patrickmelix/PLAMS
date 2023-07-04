@@ -1,13 +1,11 @@
-import os
-from pathlib import Path
 
-from scm.plams.lazy_import import numpy as np
 try:
-    import dill as pickle
+    import dill as pickle  # noqa: F401
 except ImportError:
-    import pickle
+    pass
 
 from scm.plams import AMSJob, Settings
+
 
 def test_hybrid_engine_input():
     """test :meth:`AMSJob.get_input` for writing sub engines in a hybrid engine block of ams."""

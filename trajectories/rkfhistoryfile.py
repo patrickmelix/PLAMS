@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 
-from scm.plams.lazy_import import numpy
 import os
+from typing import List, Set, Union
 
-from typing import List, Union, Set
-from ..tools.periodic_table import PT
-from ..mol.molecule import Molecule
-from ..mol.atom import Atom
-from ..core.settings import Settings
-from ..core.errors import PlamsError
-from ..tools.kftools import KFFile
-from .rkffile import RKFTrajectoryFile
-from .rkffile import bohr_to_angstrom
-from .rkffile import write_general_section
+from scm.plams.core.errors import PlamsError
+from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import numpy
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.periodic_table import PT
+from scm.plams.trajectories.rkffile import RKFTrajectoryFile, bohr_to_angstrom, write_general_section
 
 __all__ = ['RKFHistoryFile', 'molecules_to_rkf', 'rkf_filter_regions']
 
@@ -139,7 +136,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 *   ``elements`` -- A list containing the element name of each atom
                 """
                 if self.position > 0 :
-                        raise PLAMSError('Elements should not be changed while reading/writing is already in progress')
+                        raise PlamsError('Elements should not be changed while reading/writing is already in progress')
                 RKFTrajectoryFile.set_elements(self, elements)
                 self.input_elements = elements
 

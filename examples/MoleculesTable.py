@@ -1,11 +1,11 @@
 #!/usr/bin/env amspython
-from scm.plams import *
-from collections import Counter
-import matplotlib.pyplot as plt
-import sys
 import os
+import sys
+from collections import Counter
+
+import matplotlib.pyplot as plt
 import numpy as np
-import time
+from scm.plams import *
 
 """
 

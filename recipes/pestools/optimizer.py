@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-import os
-import time
 import datetime
+import os
 import threading
-from ...interfaces.adfsuite.ams import AMSJob
-from ...core.settings import Settings
-from ...core.errors import FileError
-from ...core.errors import PlamsError
-from ...interfaces.adfsuite.amsworker import AMSWorkerPool
-from ...core.jobrunner import JobRunner
-from ...core.functions import log
+import time
+
+from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.core.functions import log
+from scm.plams.core.jobrunner import JobRunner
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.interfaces.adfsuite.amsworker import AMSWorkerPool
 
 __all__ = ['Optimizer']
 

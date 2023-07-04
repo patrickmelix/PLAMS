@@ -1,21 +1,16 @@
-from collections import OrderedDict
-from ...core.functions import add_to_instance
-from ...core.private import saferun
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...tools.kftools import KFFile
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob, AMSResults
-from ...tools.units import Units
-from .equilibratedensity import EquilibrateDensityJob
-from .amsmdjob import AMSNVTJob
-from scm.plams.lazy_import import numpy as np
-from scipy.optimize import curve_fit
-from natsort import natsorted
 import os
-import time
+from collections import OrderedDict
+
+from natsort import natsorted
+from scipy.optimize import curve_fit
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.functions import add_to_instance
+from scm.plams.core.results import Results
+from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.molecule import Molecule
+from scm.plams.recipes.md.amsmdjob import AMSNVTJob
+from scm.plams.tools.kftools import KFFile
 
 __all__ = ['AMSGreenKuboViscosityJob', 'AMSGreenKuboViscosityResults', 'AMSPartialGreenKuboViscosityJob']
 
@@ -275,7 +270,7 @@ class AMSGreenKuboViscosityJob(MultiJob):
             )
 
             @add_to_instance(self.children['step1'])
-            def prerun(self):
+            def prerun(self):  # noqa F811
                 self.get_velocities_from(restart_from, update_molecule=True)
 
         else:
@@ -307,7 +302,7 @@ class AMSGreenKuboViscosityJob(MultiJob):
                 **kwargs
             )
             @add_to_instance(job)
-            def prerun(self):
+            def prerun(self):  # noqa F811
                 prev = previous_names[self.name]
                 self.get_velocities_from(self.parent.children[prev], update_molecule=True)
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
+from scm.plams.core.errors import TrajectoryError
 from scm.plams.lazy_import import numpy
-from ..mol.molecule import Molecule
-from ..core.errors import TrajectoryError
-from ..tools.geometry import cell_shape
-from ..tools.geometry import cellvectors_from_shape
-from .trajectoryfile import TrajectoryFile
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.geometry import cell_shape, cellvectors_from_shape
+from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 
 __all__ = ['XYZTrajectoryFile','create_xyz_string']
 

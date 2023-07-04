@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
+from scm.plams.core.settings import Settings
 from scm.plams.lazy_import import numpy
-from ..tools.periodic_table import PT
-from ..mol.molecule import Molecule
-from ..mol.atom import Atom
-from ..core.settings import Settings
-from .xyzfile import XYZTrajectoryFile
-from .xyzfile import data_from_xyzcomment
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.periodic_table import PT
+from scm.plams.trajectories.xyzfile import XYZTrajectoryFile, data_from_xyzcomment
 
 __all__ = ['XYZHistoryFile']
 

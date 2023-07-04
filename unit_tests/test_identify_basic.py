@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from scm.plams import Molecule, PT
+from scm.plams import PT, Molecule
 
 PATH = Path('.') / 'xyz'
 

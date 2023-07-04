@@ -1,6 +1,7 @@
 import os
-from scm.plams.core.settings import Settings
+
 from scm.plams.core.basejob import JobError
+from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.interfaces.adfsuite.crs import CRSJob, CRSResults
 from scm.plams.mol.molecule import Molecule

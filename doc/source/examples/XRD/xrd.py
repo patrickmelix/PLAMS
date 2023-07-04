@@ -4,10 +4,11 @@
 # ## Initial imports
 
 from scm.plams import *
+
 try:
     from ase import Atoms
-    from pymatgen.core.structure import Structure
     from pymatgen.analysis.diffraction.xrd import XRDCalculator
+    from pymatgen.core.structure import Structure
 except ImportError as e:
     print("You need ASE and pymatgen installed in the AMS python environment to run this example. Install the package for m3gnet to do this.")
     print(e)

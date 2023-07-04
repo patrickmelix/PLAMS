@@ -1,8 +1,7 @@
 from functools import reduce
 
-from ...core.basejob  import SingleJob
-from ...core.settings import Settings
-
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.settings import Settings
 
 __all__ = ['GamessJob']
 

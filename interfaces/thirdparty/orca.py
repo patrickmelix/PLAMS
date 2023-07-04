@@ -1,15 +1,16 @@
 import shutil
-from os.path import relpath, basename
-from os.path import join as opj
 from os import symlink
-from scm.plams.lazy_import import numpy as np
+from os.path import basename
+from os.path import join as opj
+from os.path import relpath
 
-from ...core.basejob import SingleJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...core.errors import JobError
-from ...mol.molecule import Molecule
-from ...tools.units import Units
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import JobError
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.units import Units
 
 __all__ = ['ORCAJob', 'ORCAResults']
 

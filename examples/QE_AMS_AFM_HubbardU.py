@@ -1,6 +1,7 @@
 #!/usr/bin/env amspython
 from scm.plams import *
 
+
 def main():
     init()
 

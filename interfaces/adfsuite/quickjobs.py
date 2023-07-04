@@ -1,10 +1,9 @@
-import os
-from ...mol.molecule import Molecule
-from .amsworker import AMSWorker
-from .ams import AMSJob
-from ...core.settings import Settings
-from ...core.functions import config, init, finish, delete_job
+from scm.plams.core.functions import config, delete_job, finish, init
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.interfaces.adfsuite.amsworker import AMSWorker
 from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.molecule import Molecule
 
 __all__ = ['preoptimize', 'refine_density', 'refine_lattice']
 
@@ -141,8 +140,6 @@ def refine_lattice(molecule: Molecule, lattice, n_points=None, max_strain=0.15, 
         return '\n'.join(' '.join(str(j) for j in i) for i in latt)
 
 
-    from_lattice = lattice2str(molecule.lattice)
-    to_lattice = lattice2str(lattice)
 
     if n_points is None:
         lat1 = np.array(molecule.lattice)

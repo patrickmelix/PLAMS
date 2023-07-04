@@ -1,15 +1,12 @@
-from scm.plams.lazy_import import numpy as np
 import warnings
 
-from subprocess import CalledProcessError
-
-from .scmjob import SCMJob, SCMResults
-from ...core.errors import ResultsError
-from ...core.settings import Settings
-from ...core.functions import config, log
-from ...tools.units import Units
-from ...tools.periodic_table import PT
-
+from scm.plams.core.errors import ResultsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.lazy_import import numpy as np
+from scm.plams.tools.periodic_table import PT
+from scm.plams.tools.units import Units
 
 __all__ = ['ADFJob', 'ADFResults']
 
@@ -194,7 +191,7 @@ class ADFResults(SCMResults):
             else:
                 user_input = self.readkf('General', 'user input')
             try:
-                from scm.libbase import InputParser, InputError
+                from scm.libbase import InputError, InputParser
                 inp = InputParser().to_settings('adf', user_input)
             except InputError:
                 from scm.input_parser import convert_legacy_input

@@ -1,25 +1,23 @@
 import os
-import subprocess
-from scm.plams.lazy_import import numpy as np
-import re
 from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.errors import FileError, JobError, PlamsError, PTError, ResultsError
-from ...core.functions import config, log, parse_heredoc
-from ...core.private import sha256
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.atom import Atom
-from ...mol.bond import Bond
-from ...mol.molecule import Molecule
-from ...tools.converters import (
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError
+from scm.plams.core.functions import config, log, parse_heredoc
+from scm.plams.core.private import sha256
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.bond import Bond
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.converters import (
     gaussian_output_to_ams,
     qe_output_to_ams,
     vasp_output_to_ams,
 )
-from ...tools.kftools import KFFile
-from ...tools.units import Units
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.units import Units
 
 try:
     from scm.pisa.block import DriverBlock
@@ -90,7 +88,6 @@ class AMSResults(Results):
             main = KFFile(opj(self.job.path, rkfname))
             n = main[('EngineResults','nEntries')]
             for i in range(1, n+1):
-                title =  main[('EngineResults','Title({})'.format(i))]
                 files =  main[('EngineResults','Files({})'.format(i))].split('\x00')
                 if files[0].endswith('.rkf'):
                     key = files[0][:-4]
@@ -282,8 +279,8 @@ class AMSResults(Results):
             for at, c in zip(mol, coords):
                 at.move_to(c, unit='bohr')
 
-            if ('History', f'LatticeVectors('+str(step)+')') in main:
-                lattice = Units.convert(main.read('History', f'LatticeVectors('+str(step)+')'), 'bohr', 'angstrom')
+            if ('History', 'LatticeVectors('+str(step)+')') in main:
+                lattice = Units.convert(main.read('History', 'LatticeVectors('+str(step)+')'), 'bohr', 'angstrom')
                 mol.lattice = [tuple(lattice[j:j+3]) for j in range(0,len(lattice),3)]
 
             # Bonds from the reference molecule are probably outdated. Let us never use them ...
@@ -732,7 +729,9 @@ class AMSResults(Results):
 
         * ``filename`` -- Name of the RKF file that contains ForceField data
         """
-        from .forcefieldparams import forcefield_params_from_kf
+        from scm.plams.interfaces.adfsuite.forcefieldparams import (
+            forcefield_params_from_kf,
+        )
         return self._process_engine_results(forcefield_params_from_kf, engine)
 
     def get_poissonratio(self, engine=None):
@@ -797,7 +796,6 @@ class AMSResults(Results):
                 return [x]
 
         nScanCoord = self.readrkf('PESScan', 'nScanCoord')
-        nPoints = tolist(self.get_history_property('nPoints', 'PESScan'))
 
         pes = tolist(self.readrkf('PESScan', 'PES'))
 
@@ -808,9 +806,7 @@ class AMSResults(Results):
         pescoords = tolist(self.readrkf('PESScan', 'PESCoords'))
         pescoords = np.array(pescoords).reshape(-1,sum(len(x) for x in scancoords))
         pescoords = np.transpose(pescoords)
-        w = []
         units = []
-        count = 0
         for i in range(nScanCoord):
             units.append([])
             for j in range(len(scancoords[i])):
@@ -972,7 +968,7 @@ class AMSResults(Results):
         Returns: 2-tuple (times, C)
             ``times`` is a 1D np array with times in femtoseconds. ``C`` is a 1D numpy array with shape (max_dt,) containing the autocorrelation function. If not ``normalize`` then the unit is angstrom^2/fs^2.
         """
-        from ...trajectories.analysis import autocorrelation
+        from scm.plams.trajectories.analysis import autocorrelation
         nEntries = self.readrkf('MDHistory', 'nEntries')
 
         time_step = self.get_time_step()
@@ -1054,7 +1050,7 @@ class AMSResults(Results):
         Returns: 2-tuple (frequencies, intensities)
             ``frequencies`` : Frequencies in cm^-1 (1D numpy array). ``intensities``: Intensities (1D numpy array).
         """
-        from ...trajectories.analysis import power_spectrum
+        from scm.plams.trajectories.analysis import power_spectrum
         if times is None or acf is None:
             times, acf = self.get_velocity_acf(normalize=True)
 
@@ -1063,9 +1059,8 @@ class AMSResults(Results):
     @staticmethod
     def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
         from scipy.integrate import cumtrapz
-
-        from ...tools.units import Units
-        from ...trajectories.analysis import autocorrelation
+        from scm.plams.tools.units import Units
+        from scm.plams.trajectories.analysis import autocorrelation
         data = np.array(pressuretensor)
 
         components = []
@@ -1121,10 +1116,8 @@ class AMSResults(Results):
 
         """
         from scipy.integrate import cumtrapz
-
-        from ...tools.units import Units
-        from ...trajectories.analysis import autocorrelation
-        nEntries = self.readrkf('MDHistory', 'nEntries')
+        from scm.plams.tools.units import Units
+        from scm.plams.trajectories.analysis import autocorrelation
         time_step = self.get_time_step()
         start_step, end_step, every, max_dt = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, max_dt_fs)
         data = pressuretensor
@@ -1290,7 +1283,7 @@ class AMSResults(Results):
                 from scm.libbase import InputParser
                 inp = InputParser().to_settings('ams', user_input)
             except:
-                log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path, 5))
+                log('Failed to recreate input settings from {}'.format(self.rkfs['ams'].path))
                 return None
             s = Settings()
             s.input = inp
@@ -1463,12 +1456,10 @@ class AMSResults(Results):
 
             for iFState in range(nFragmentedStates):
                 iEnergy = sec['fStatesEnergy('+str(iFState+1)+')']
-                iNFragments = sec['fStatesNFragments('+str(iFState+1)+')']
 
                 value = sec['fStatesComposition('+str(iFState+1)+')']
                 iComposition = [i-1 for i in value] if isinstance(value,list) else [value-1]
 
-                iNConnections = sec['fStatesNConnections('+str(iFState+1)+')']
 
                 value = sec['fStatesConnections('+str(iFState+1)+')']
                 iConnections = [i-1 for i in value] if isinstance(value,list) else [value-1]
@@ -2091,7 +2082,7 @@ class AMSJob(SingleJob):
                     path = qe_output_to_ams(path, overwrite=False)
                 elif ft == 'gaussian-out' and (fmt == 'gaussian' or (fmt == 'any' and not path.endswith('rkf'))):
                     path = gaussian_output_to_ams(path, overwrite=False)
-            except Exception as e:
+            except Exception:
                 # several types of exceptions can be raised, e.g. StopIteration and UnicodeDecodeError
                 # assume that any exception means that the file was not a QE output file
                 pass
@@ -2179,7 +2170,7 @@ class AMSJob(SingleJob):
         The existing `s.input.ams.system` block is removed in the process, assuming it was present in the first place.
 
         """
-        from ...tools.units import Units
+        from scm.plams.tools.units import Units
         def get_list(s):
             if '_1' in s and not '_2' in s and  isinstance(s._1, list):
                 return s._1
@@ -2356,4 +2347,3 @@ class AMSJob(SingleJob):
         if name is None:
             return
         atom.properties.region.add(name)
-

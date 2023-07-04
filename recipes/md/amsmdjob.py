@@ -1,10 +1,9 @@
-from ...interfaces.adfsuite.ams import AMSJob, AMSResults
-from ...core.settings import Settings
-from ...tools.kftools import KFFile
-from ...tools.units import Units
-from ...core.functions import add_to_instance
-from typing import Union
+from scm.plams.core.functions import add_to_instance
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.lazy_import import numpy as np
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.units import Units
 
 __all__ = ['AMSMDJob', 'AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
 
@@ -342,7 +341,7 @@ class AMSMDJob(AMSJob):
 
         if use_prerun:
             @add_to_instance(job)
-            def prerun(self):
+            def prerun(self):  # noqa F811
                 self.get_velocities_from(other_job, frame=frame, update_molecule=True)
 
         return job

@@ -1,5 +1,4 @@
 import numpy as np
-
 from scm.input_classes import ADF, AMS
 
 # Calcualte bond energy of He dimers for a series of bond

@@ -1,15 +1,7 @@
-from collections import OrderedDict
-from ...core.functions import add_to_instance
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob, AMSResults
-from ...tools.units import Units
-from .amsmdjob import AMSNVTJob
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSResults
 from scm.plams.lazy_import import numpy as np
-from scipy.optimize import curve_fit
+from scm.plams.recipes.md.amsmdjob import AMSNVTJob
 
 __all__ = ['AMSMDScanDensityJob', 'AMSMDScanDensityResults']
 
@@ -42,7 +34,7 @@ class AMSMDScanDensityJob(AMSNVTJob):
         density_ratio = from_density / scan_density_upper
         new_length = [x *  density_ratio**0.333333 for x in orig_length]
 
-        nsteps = self.settings.input.ams.MolecularDynamics.NSteps
+        self.settings.input.ams.MolecularDynamics.NSteps
 
         self.scan_density_upper = scan_density_upper
         self.startstep = startstep or 1

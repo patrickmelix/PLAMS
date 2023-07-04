@@ -1,10 +1,9 @@
 from collections import OrderedDict
-from ..core.functions import add_to_instance
-from ..core.basejob import MultiJob
-from ..core.results import Results
-from ..core.settings import Settings
-from ..mol.molecule import Molecule
-from ..interfaces.adfsuite.ams import AMSJob
+
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.functions import add_to_instance
+from scm.plams.core.results import Results
+from scm.plams.interfaces.adfsuite.ams import AMSJob
 
 __all__ = ['ReorganizationEnergyJob', 'ReorganizationEnergyResults']
 
@@ -12,7 +11,7 @@ __all__ = ['ReorganizationEnergyJob', 'ReorganizationEnergyResults']
 # using this function to pass a molecule inside a MultiJob ensures proper parallel execution
 def pass_molecule(source, target):
     @add_to_instance(target)
-    def prerun(self):
+    def prerun(self):  # noqa F811
         self.molecule = source.results.get_main_molecule()
 
 

@@ -3,13 +3,10 @@
 
 # ## Initial imports
 
-from scm.plams import *
-from ase.optimize import BFGS
-from ase.build import molecule as ase_build_molecule
-from ase.visualize.plot import plot_atoms
-from ase.build import fcc111
 import matplotlib.pyplot as plt
-
+from ase.build import fcc111
+from ase.visualize.plot import plot_atoms
+from scm.plams import *
 
 # ## Helper functions
 

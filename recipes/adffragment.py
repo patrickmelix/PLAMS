@@ -1,9 +1,8 @@
-from ..core.basejob import MultiJob
-from ..core.results import Results
-from ..core.settings import Settings
-from ..mol.molecule import Molecule
-from ..interfaces.adfsuite.ams import AMSJob
-
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.mol.molecule import Molecule
 
 __all__ = ['ADFFragmentJob', 'ADFFragmentResults']
 
@@ -42,7 +41,7 @@ class ADFFragmentJob(MultiJob):
         self.fragment2 = fragment2.copy() if isinstance(fragment2, Molecule) else fragment2
         self.full_settings = full_settings or Settings()
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         self.f1 = AMSJob(name='frag1', molecule=self.fragment1, settings=self.settings)
         self.f2 = AMSJob(name='frag2', molecule=self.fragment2, settings=self.settings)
 

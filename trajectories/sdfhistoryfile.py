@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-from scm.plams.lazy_import import numpy
-from ..tools.periodic_table import PT
-from ..mol.molecule import Molecule
-from ..mol.atom import Atom
-from ..core.settings import Settings
-from .sdffile import SDFTrajectoryFile
-from .sdffile import get_molecule
+from scm.plams.core.settings import Settings
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.molecule import Bond, Molecule
+from scm.plams.tools.periodic_table import PT
+from scm.plams.trajectories.sdffile import SDFTrajectoryFile, get_molecule
 
 __all__ = ['SDFHistoryFile']
 
@@ -95,65 +93,6 @@ class SDFHistoryFile (SDFTrajectoryFile) :
                 SDFTrajectoryFile.__init__(self,filename,mode,fileobject,ntap)
 
                 self.input_elements = self.elements[:]
-
-        def _read_coordinates (self, molecule) :
-                """
-                Read the coordinates at current step
-                """
-                # Find the number of atoms
-                line = self.file_object.readline()
-                if len(line) == 0 :
-                        return None, None     # End of file is reached
-                nats = int(line.split()[0])
-                line = self.file_object.readline()
-
-                # Handle the comment line
-                cell = None
-                historydata = data_from_xyzcomment(line)
-                if 'Lattice' in historydata :
-                        cell = historydata['Lattice']
-                        del historydata['Lattice']
-                if self.include_historydata :
-                        self.historydata = historydata
-
-                # Read coordinates and elements
-                coords = []
-                elements = []
-                for i in range(nats) :
-                        line = self.file_object.readline() 
-                        words = line.split()
-                        coords.append([float(w) for w in words[1:4]])
-                        elements.append(words[0])
-
-                # If the elements changed, update the molecule
-                if elements != self.elements :
-                        self.elements = elements
-                        self.coords = numpy.array(coords)
-                        # Rebuild the molecule (bonds will disappear for now)
-                        if isinstance(molecule,Molecule) :
-                                for at in reversed(molecule.atoms) :
-                                        molecule.delete_atom(at)
-                                molecule.properties = Settings()
-                                for el in elements :
-                                        atom = Atom(PT.get_atomic_number(el))
-                                        molecule.add_atom(atom)
-                else :
-                        self.coords[:] = coords
-
-                # Possibly read lattice
-                lattice = []
-                for i in range(self.nveclines):
-                        line = self.file_object.readline()
-                        words = line.split()
-                        lattice.append([float(w) for w in words[1:]])
-                if cell is None and len(lattice)>0:
-                        cell = lattice
-
-                # Assign the data to the molecule object
-                if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds=None)
-
-                return coords, cell
 
         def _read_coordinates (self, molecule) :
                 """

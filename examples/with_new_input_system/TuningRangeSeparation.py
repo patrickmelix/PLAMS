@@ -2,7 +2,6 @@ import copy
 import multiprocessing
 
 import numpy as np
-
 from scm.input_classes import ADF, AMS
 
 

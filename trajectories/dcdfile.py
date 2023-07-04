@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
+import array
 import os
 import struct
-import array
+
+from scm.plams.core.errors import PlamsError
 from scm.plams.lazy_import import numpy
-from ..mol.molecule import Molecule
-from ..core.errors import PlamsError
-from .trajectoryfile import TrajectoryFile
+from scm.plams.mol.molecule import Molecule
+from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 
 __all__ = ['DCDTrajectoryFile']
 
@@ -165,8 +166,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.namnf = self._read_variable('i')
 
                 # DELTA: The timestep
-                delta = self._read_variable('f')
-
+                self._read_variable('f')          
                 # 10 blanc integers
                 dummies = array.array('i')
                 dummies.fromfile(self.file_object,10)
@@ -185,11 +185,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 if (input_integer-4)%80 == 0 :
                         # NTITLE: The number of 80 char title strings
                         ntitle = self._read_variable('i')
-
-                        for i in range(ntitle) :
-                                car = self.file_object.read(80).decode()
-                                #print car
-
+                        for _ in range(ntitle) :
+                                self.file_object.read(80).decode()
                         # The end size of this block
                         input_integer = self._read_variable('i')
                 else :
@@ -393,7 +390,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self._write_variable(0,'i')
 
                 # DELTA: The timestep
-                delta = self._write_variable(self.delta,'f')
+                self._write_variable(self.delta,'f')
 
                 # 10 blanc integers
                 dummies = array.array('i')

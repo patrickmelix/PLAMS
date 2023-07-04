@@ -1,7 +1,9 @@
 #!/usr/bin/env amspython
-from scm.plams import *
-from ase.calculators.emt import EMT
 import os
+
+from ase.calculators.emt import EMT
+from scm.plams import *
+
 
 def get_calculator():
     """ 

@@ -1,6 +1,7 @@
 #!/usr/bin/env amspython
 from scm.plams import *
 
+
 def main():
     mol = from_smiles('C1=CC(=O)C=CC1=O', forcefield='uff')  # benzoquinone
     solvent_name = 'Water'   # Solvent for AMSRedoxDirectJob and AMSRedoxThermodynamicCycleJob. See the ADF Solvation documentation for which solvents are available.

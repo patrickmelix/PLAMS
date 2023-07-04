@@ -3,10 +3,10 @@
 
 # ## Initial imports
 
-from scm.plams import *
-from ase.build import bulk as ase_build_bulk
 import matplotlib.pyplot as plt
-import numpy as np
+from ase.build import bulk as ase_build_bulk
+from scm.plams import *
+
 init()
 
 

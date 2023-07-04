@@ -1,4 +1,4 @@
-from ..mol.molecule import Molecule
+from scm.plams.mol.molecule import Molecule
 
 __all__ = ['plot_band_structure', 'plot_molecule']
 
@@ -86,9 +86,9 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
 
 def plot_molecule(molecule, figsize=None, ax=None, **kwargs):
     """ Show a molecule in a Jupyter notebook """
-    from ase.visualize.plot import plot_atoms
     import matplotlib.pyplot as plt
-    from ..interfaces.molecule.ase import toASE
+    from ase.visualize.plot import plot_atoms
+    from scm.plams.interfaces.molecule.ase import toASE
 
     if isinstance(molecule, Molecule):
         molecule = toASE(molecule)

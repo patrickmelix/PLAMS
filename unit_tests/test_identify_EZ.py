@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from scm.plams import Molecule
-from scm.plams.mol.identify import label
 
 PATH = Path('.') / 'xyz'
 

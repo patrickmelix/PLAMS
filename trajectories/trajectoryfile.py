@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import os
 from scm.plams.lazy_import import numpy
-from..mol.molecule import Bond
-from ..core.errors import PlamsError
+
+from..mol.molecule import Bond, Molecule
+from scm.plams.core.errors import PlamsError
 
 __all__ = ['TrajectoryFile']
 
@@ -114,7 +114,6 @@ class TrajectoryFile (object) :
 
                 Sets self.ntap and self.coords to proper value/size
                 """
-                pass
 
         def get_plamsmol (self) :
                 """
@@ -158,10 +157,10 @@ class TrajectoryFile (object) :
 
                 # Place the values into the provided molecule object
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule)
+                        self._set_plamsmol(self.coords, self.cell, molecule)
 
                 self.position += 1
-                return self.coords, cell
+                return self.coords, self.cell
 
         def _move_cursor_without_reading (self) :
                 """
@@ -178,7 +177,6 @@ class TrajectoryFile (object) :
                 """
                 Reads and checks If the end of file is reached.
                 """
-                pass
 
         def read_frame (self, frame, molecule=None) :
                 """
@@ -273,7 +271,7 @@ class TrajectoryFile (object) :
                         conect[iat2].append((iat1,order))
                 # Get the properties
                 #props = [at.properties.suffix if 'suffix' in at.properties else '' for at in plamsmol.atoms]
-                from ..interfaces.adfsuite.ams import AMSJob
+                from scm.plams.interfaces.adfsuite.ams import AMSJob
                 props = [AMSJob._atom_suffix(at) for at in plamsmol.atoms]
                 #props = [at.properties if len(at.properties)>0 else None for at in plamsmol.atoms]
                 if sum([len(s) for s in props]) == 0 : props = None
@@ -307,7 +305,6 @@ class TrajectoryFile (object) :
                 """
                 Rewind the file by nframes frames
                 """
-                pass
 
         def get_length (self) :
                 """

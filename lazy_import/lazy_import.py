@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from importlib import util, abc
 import sys
+from importlib import abc, util
 from types import ModuleType
 from typing import TYPE_CHECKING
 
@@ -52,10 +52,10 @@ def lazy_import(name: str) -> ModuleType:
 
 
 if TYPE_CHECKING:
-    import numpy
-    import networkx
-    import dill
     import ase
+    import dill
+    import networkx
+    import numpy
 else:
     # we have to make sure we don't import things twice
     if 'numpy' in sys.modules:

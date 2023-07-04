@@ -5,7 +5,6 @@
 
 from scm.plams import *
 
-
 # ## Elements, coordinates, lattice vectors, and charge
 
 # ### Manual molecule definition

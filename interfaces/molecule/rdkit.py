@@ -20,11 +20,11 @@ import random
 import sys
 from warnings import warn
 
-from ...core.errors import PlamsError
-from ...core.functions import add_to_class, log
-from ...mol.atom import Atom
-from ...mol.bond import Bond
-from ...mol.molecule import Molecule
+from scm.plams.core.errors import PlamsError
+from scm.plams.core.functions import add_to_class, log
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.bond import Bond
+from scm.plams.mol.molecule import Molecule
 
 
 def from_rdmol(rdkit_mol, confid=-1, properties=True):

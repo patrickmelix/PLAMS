@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
+from scm.plams.core.errors import PlamsError
 from scm.plams.lazy_import import numpy
-
-from ..mol.molecule import Molecule, Bond
-from ..tools.periodic_table import PeriodicTable
-from ..tools.kftools import KFFile
-from ..tools.units import Units
-from ..core.errors import PlamsError
-from .trajectoryfile import TrajectoryFile
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.periodic_table import PeriodicTable
+from scm.plams.tools.units import Units
+from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 
 __all__ = ['RKFTrajectoryFile','write_general_section','write_molecule_section']
 
@@ -128,7 +127,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         #fileobject = KFFile(filename,autosave=False,fastsave=True)
                         # This fastsave option (no copying) was not worth it, so I removed it.
                         if fileobject is None :
-                                raise PlamsError('KFFile %s not found.'%(rkfname))
+                                raise PlamsError('KFFile %s not found.'%(filename))
                 self.file_object = fileobject
                 self.mode = mode
 
@@ -440,7 +439,6 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 # First get the block info
                 blocksize = self.file_object.read(section, 'blockSize')
-                nblocks = self.file_object.read(section, 'nBlocks')
 
                 # Look for the items
                 sections = self.file_object.get_skeleton()
@@ -829,7 +827,7 @@ def write_molecule_section (rkf, coords=None, cell=None, elements=None, section=
         # Should it write bonds?
         # Write atom properties
         if molecule is not None :
-                from ..interfaces.adfsuite.ams import AMSJob
+                from scm.plams.interfaces.adfsuite.ams import AMSJob
                 suffixes = [ AMSJob._atom_suffix(at) for at in molecule ]
                 if any(s != '' for s in suffixes):
                     rkf.write(section,'EngineAtomicInfo','\x00'.join(suffixes))

@@ -1,13 +1,13 @@
-from .units import Units
-from ..trajectories.rkffile import RKFTrajectoryFile
-from ..trajectories.rkfhistoryfile import RKFHistoryFile
-from ..core.private import saferun
-from .kftools import KFFile
-from ..interfaces.molecule.ase import toASE
-from ..mol.molecule import Molecule
-import re
 import os
+import re
 import tempfile
+
+from scm.plams.interfaces.molecule.ase import toASE
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.units import Units
+from scm.plams.trajectories.rkffile import RKFTrajectoryFile
+from scm.plams.trajectories.rkfhistoryfile import RKFHistoryFile
 
 __all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'gaussian_output_to_ams', 'rkf_to_ase_traj', 'rkf_to_ase_atoms', 'file_to_traj']
 
@@ -29,8 +29,9 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
         Returns : 2-tuple (coords, cell)
             The final coordinates and cell in angstrom
     """
-    from ase.io import read, Trajectory
     import warnings
+
+    from ase.io import Trajectory
     warnings.filterwarnings('ignore', 'Creating an ndarray from ragged nested sequences')
     traj = Trajectory(trajfile)
     rkfout = RKFTrajectoryFile(rkftrajectoryfile, mode='wb')
@@ -453,7 +454,7 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
         rkf.store_historydata()
         all_atoms = []
         for crd, cell in rkf:
-            energy, forces, stress = None, None, None
+            energy, stress = None, None
             if get_results:
                 energy = rkf.historydata.get('Energy', None)
                 gradients = rkf.historydata.get('EngineGradients', None)

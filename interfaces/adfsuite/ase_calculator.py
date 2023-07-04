@@ -1,19 +1,20 @@
 """Implementation of the AMSPipeCalculator class.
 
 """
-from scm.plams.lazy_import import numpy as np
 from copy import deepcopy
 
-from .amsworker import AMSWorker
-from .ams import AMSJob
-from ...core.settings import Settings
-from ..molecule.ase import fromASE, toASE
-from ...core.functions import config, log
+from scm.plams.core.functions import config
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.interfaces.adfsuite.amsworker import AMSWorker
+from scm.plams.interfaces.molecule.ase import fromASE, toASE
+from scm.plams.lazy_import import numpy as np
+
 __all__ = ['AMSCalculator', 'BasePropertyExtractor'] 
 
 try:
     from ase.calculators.calculator import Calculator, all_changes
-    from ase.units import Hartree, Bohr
+    from ase.units import Bohr, Hartree
 except ImportError:
     #empty interface if ase does not exist:
     __all__ = []
@@ -245,7 +246,7 @@ class AMSCalculator(Calculator):
                     self.properties_updated = True
                 property_found = True
             if not property_found:        
-                raise NotImplemented(f'No extractor known for property {prop}')
+                raise NotImplementedError(f'No extractor known for property {prop}')
         
     def results_from_ams_results(self, ams_results, job_settings):
         """Populates the self.results dictionary by having extractors act on an AMSResults object."""
@@ -334,7 +335,6 @@ class AMSPipeCalculator(AMSCalculator):
 class AMSJobCalculator(AMSCalculator):
     """This class should be instantiated through AMSCalculator with settings.Calculator.AMSJob defined"""
     def _get_ams_results(self, molecule, properties):
-        settings = self.settings.copy()
         job_settings = self._get_job_settings(properties)
         if self.restart and self.prev_ams_results:
             job_settings.input.ams.EngineRestart = self.prev_ams_results.rkfpath(file='engine')

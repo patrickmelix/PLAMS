@@ -6,15 +6,13 @@ import operator
 import os
 import shutil
 import threading
-
 from os.path import join as opj
 from subprocess import PIPE
 from typing import List
 
-from .private import saferun
-from .errors import ResultsError, FileError
-from .functions import config, log
-
+from scm.plams.core.errors import FileError, ResultsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.private import saferun
 
 __all__ = ['Results']
 
@@ -42,7 +40,7 @@ def _privileged_access():
 
     Privileged access is granted to two |Job| methods: |postrun| and :meth:`~scm.plams.core.basejob.Job.check`, but only if they are called from :meth:`~scm.plams.core.basejob.Job._finalize` of the same |Job| instance.
     """
-    from .basejob import Job
+    from scm.plams.core.basejob import Job
     for frame in inspect.getouterframes(inspect.currentframe()):
         cal, arg = _caller_name_and_arg(frame[0])
         prev_cal, prev_arg = _caller_name_and_arg(frame[0].f_back)
@@ -204,7 +202,6 @@ class Results(ApplyRestrict):
 
             This is **not** an abstract method. It does exactly what it should: nothing. All the work is done by :func:`_restrict` decorator that is wrapped around it.
         """
-        pass
 
 
     def grep_file(self, filename, pattern='', options=''):

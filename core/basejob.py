@@ -3,15 +3,14 @@ import os
 import stat
 import threading
 import time
-
 from os.path import join as opj
 
-from .errors import FileError, JobError, PlamsError, ResultsError
-from .functions import config, log
-from .private import sha256
-from .results import Results
-from .settings import Settings
-from ..mol.molecule import Molecule
+from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.private import sha256
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
 
 try:
     from scm.pisa.block import DriverBlock
@@ -166,12 +165,11 @@ class Job:
         raise PlamsError('Trying to run an abstract method Job.hash()')
 
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """Actions to take before the actual job execution.
 
         This method is initially empty, it can be defined in subclasses or directly added to either the whole class or a single instance using |binding_decorators|.
         """
-        pass
 
 
     def postrun(self):
@@ -179,7 +177,6 @@ class Job:
 
         This method is initially empty, it can be defined in subclasses or directly added to either the whole class or a single instance using |binding_decorators|.
         """
-        pass
 
 
     #=======================================================================

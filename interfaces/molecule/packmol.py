@@ -1,16 +1,16 @@
 import os
-from scm.plams.lazy_import import numpy as np
-from typing import List, Union
-import tempfile
 import subprocess
+import tempfile
+from typing import List, Union
 
-from ...core.private import saferun
-from ...core.errors import MoleculeError
-from ...mol.molecule import Molecule
-from ...interfaces.adfsuite.ams import AMSJob
+from scm.plams.core.errors import MoleculeError
+from scm.plams.core.private import saferun
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.molecule import Molecule
 
 try:
-    from .rdkit import readpdb, writepdb
+    from scm.plams.interfaces.molecule.rdkit import readpdb, writepdb
 except ImportError:
     pass
 

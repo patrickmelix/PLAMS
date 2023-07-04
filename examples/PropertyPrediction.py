@@ -1,5 +1,4 @@
 #!/usr/bin/env amspython
-from scm.plams import *
 import matplotlib.pyplot as plt
 import pyCRS
 

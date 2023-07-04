@@ -1,5 +1,6 @@
-from setuptools import setup, find_packages
 from os.path import join as opj
+
+from setuptools import find_packages, setup
 
 packages = ['scm.plams'] + ['scm.plams.'+i for i in find_packages('.')]
 

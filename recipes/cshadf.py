@@ -1,10 +1,9 @@
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.errors import JobError
+from scm.plams.core.results import Results
+from scm.plams.interfaces.adfsuite.adf import ADFJob
 from scm.plams.lazy_import import numpy as np
-
-from ..core.basejob import MultiJob
-from ..core.errors import JobError
-from ..core.results import Results
-from ..interfaces.adfsuite.adf import ADFJob
-from ..tools.units import Units
+from scm.plams.tools.units import Units
 
 __all__ = ['CSHessianADFJob', 'CSHessianADFResults']
 
@@ -35,7 +34,7 @@ class CSHessianADFJob(MultiJob):
         self.step = step
 
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         self.restartjob = ADFJob(name='restart', molecule=self.molecule, settings=self.settings.gradient)
         self.restartjob.parent = self
         self.restartjob.run()

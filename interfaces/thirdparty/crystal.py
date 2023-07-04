@@ -1,10 +1,10 @@
 from os.path import join as opj
-from scm.plams.lazy_import import numpy as np
 
-from ...core.basejob  import SingleJob
-from ...core.settings import Settings
-from ...core.errors import PlamsError
-from ...mol.molecule  import Molecule
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import PlamsError
+from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import numpy as np
+from scm.plams.mol.molecule import Molecule
 
 __all__ = ['CrystalJob','mol2CrystalConf']
 

@@ -3,10 +3,11 @@
 
 # ## Initial imports
 
-import pyCRS
 import matplotlib.pyplot as plt
+import pyCRS
 from rdkit import Chem
 from rdkit.Chem.Draw import IPythonConsole
+
 IPythonConsole.ipython_useSVG = True
 IPythonConsole.molSize = 150, 150
 

@@ -1,5 +1,7 @@
 #from .scmjob import SCMJob, SCMResults
-import os, numpy, math
+import math
+
+import numpy
 from scm.plams.tools.kftools import KFFile
 
 __all__ = ['FCFDOS']
@@ -75,7 +77,6 @@ class FCFDOS:
         spcgrn = min(absdlt, emidlt)
         spclen = math.floor( (spcmax - spcmin) / spcgrn ) + 1
         # Initialize spectrum
-        spc = numpy.zeros((spclen, 2), dtype=float)
         self.spc = self.newspc(spcmin, spcmax, spclen)
         return None
 
@@ -95,8 +96,6 @@ class FCFDOS:
         absspc = self.convolute(absspc, absstick, lineshape, HWHM)
         emispc = self.convolute(emispc, emistick, lineshape, HWHM)
         # Integrate
-        absint = self.trapezoid(absspc)
-        emiint = self.trapezoid(emispc)
         # Calculate DOS
         self.spc[:, 1] = absspc[:, 1] * emispc[:, 1]
         dos = self.trapezoid(self.spc)

@@ -2,15 +2,14 @@ import os
 from pathlib import Path
 
 from scm.plams.lazy_import import numpy as np
+
 try:
     import dill as pickle
 except ImportError:
     import pickle
 
-from scm.plams import Molecule, Atom, MoleculeError
-from scm.plams import read_all_molecules_in_xyz_file
+from scm.plams import Atom, Molecule, MoleculeError, read_all_molecules_in_xyz_file
 from scm.plams.interfaces.molecule.rdkit import from_smiles
-
 
 PATH = Path('.') / 'xyz'
 

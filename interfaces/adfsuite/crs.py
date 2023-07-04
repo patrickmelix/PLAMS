@@ -1,18 +1,11 @@
-import os
 import inspect
+import os
 import subprocess
 from itertools import cycle
 
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
 from scm.plams.lazy_import import numpy as np
-
-try:
-    import pandas as pd
-    PANDAS = True
-except ImportError:
-    PANDAS = False
-
-from .scmjob import (SCMJob, SCMResults)
-from ...tools.units import Units
+from scm.plams.tools.units import Units
 
 __all__ = ['CRSResults', 'CRSJob']
 
@@ -307,7 +300,9 @@ class CRSResults(SCMResults):
     @staticmethod
     def _dict_to_df(array_dict: dict, section: str, x_axis: str):
         """Attempt to convert a dictionary into a DataFrame."""
-        if not PANDAS:
+        try:
+            import pandas as pd
+        except ImportError:
             method = inspect.stack()[2][3]
             raise ImportError("{}: as_df=True requires the 'pandas' package".format(method))
 
