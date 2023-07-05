@@ -5,6 +5,27 @@ from importlib import abc, util
 from types import ModuleType
 from typing import TYPE_CHECKING
 
+# !!!!!!!!!!!!!!!!!!!
+# Note that lazy importing is not threadsafe if the module is lazily imported in the main thread, but the first 
+# attribute access happens in the started threads. The following example will throw an AttributeError:
+
+# from scm.plams.lazy_import import numpy as np
+
+# import threading
+
+# def print_ndarray():
+#     isinstance('val', np.ndarray)
+
+
+# threads = [threading.Thread(target=print_ndarray) for _ in range(100)]
+# for t in threads:
+#     t.start()
+
+# for t in threads:
+#     t.join()
+
+# Which can be prevented by accessing any attribute of numpy in the main thread, or adding a 'import numpy' statement
+# in the main thread
 
 def lazy_import(name: str) -> ModuleType:
     """Taken from https://docs.python.org/3.11/library/importlib.html#implementing-lazy-imports.
