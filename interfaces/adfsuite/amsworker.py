@@ -1109,6 +1109,7 @@ class AMSWorker:
 
     def _flatten_arrays(self, d):
         out = {}
+        # import numpy as np
         for key, val in d.items():
 
             if (isinstance(val, collections.abc.Sequence) or isinstance(val, np.ndarray)) and not isinstance(val, str):
@@ -1219,7 +1220,10 @@ class AMSWorkerPool:
     """
 
     def __init__(self, settings, num_workers, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
-
+        # vdkolk: The lazy importing of numpy somehow causes issues when starting up the worker threads.
+        # Doing a re-import here solves the issues of the 'ndarray' attribute not being present on the numpy module
+        # I was not able to reproduce that error in isolation
+        import numpy  # noqa: F401  
         self.workers = num_workers * [None]
         if num_workers == 1:
             # Do all the work in the main thread
