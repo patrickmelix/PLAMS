@@ -115,6 +115,9 @@ from scm.plams.mol.molecule import Molecule
 from scm.plams.mol.pdbtools import PDBHandler, PDBRecord
 from scm.plams.recipes.adffragment import ADFFragmentJob, ADFFragmentResults
 from scm.plams.recipes.adfnbo import ADFNBOJob
+from scm.plams.recipes.md.amsmdjob import AMSMDJob, AMSNVEJob, AMSNVTJob, AMSNPTJob
+from scm.plams.recipes.md.nvespawner import AMSNVESpawnerJob
+from scm.plams.recipes.md.scandensity import AMSMDScanDensityJob
 from scm.plams.recipes.numgrad import NumGradJob
 from scm.plams.recipes.numhess import NumHessJob
 from scm.plams.recipes.pestools.optimizer import Optimizer
