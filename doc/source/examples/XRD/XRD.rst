@@ -3,7 +3,9 @@
 X-Ray Diffraction (XRD)
 =====================================
 
-This example shows how to use **pymatgen** to quickly estimate a powder diffractogram. You can also access this feature from the `AMSinput GUI <../../../GUI/index.html>`__.
+This example shows how to use **pymatgen** to quickly estimate a powder
+diffractogram with Cu K-alpha radiation. You can also access this feature from
+the `AMSinput GUI <../../../GUI/index.html>`__.
 
 .. note::
 
