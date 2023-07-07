@@ -4,11 +4,10 @@
 # ## Initial imports
 
 from scm.plams import *
-
 try:
     from ase import Atoms
-    from pymatgen.analysis.diffraction.xrd import XRDCalculator
     from pymatgen.core.structure import Structure
+    from pymatgen.analysis.diffraction.xrd import XRDCalculator
 except ImportError as e:
     print("You need ASE and pymatgen installed in the AMS python environment to run this example. Install the package for m3gnet to do this.")
     print(e)
@@ -40,8 +39,15 @@ at.write(fname)
 
 # ## Load .cif in pymatgen and calculate XRD
 
+# Available radiation sources:
+
+print(f'Available radiation sources: {XRDCalculator.AVAILABLE_RADIATION}')
+
+
+# Let's choose Cu K-alpha (default):
+
 structure = Structure.from_file(fname)
-xrd_calc = XRDCalculator()
+xrd_calc = XRDCalculator(wavelength='CuKa')
 xrd_calc.show_plot(structure)
 
 
