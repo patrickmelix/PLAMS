@@ -117,6 +117,7 @@ from scm.plams.recipes.adffragment import ADFFragmentJob, ADFFragmentResults
 from scm.plams.recipes.adfnbo import ADFNBOJob
 from scm.plams.recipes.md.amsmdjob import AMSMDJob, AMSNVEJob, AMSNVTJob, AMSNPTJob
 from scm.plams.recipes.md.nvespawner import AMSNVESpawnerJob
+from scm.plams.recipes.md.trajectoryanalysis import AMSRDFJob, AMSVACFJob, AMSMSDJob
 from scm.plams.recipes.md.scandensity import AMSMDScanDensityJob
 from scm.plams.recipes.numgrad import NumGradJob
 from scm.plams.recipes.numhess import NumHessJob
@@ -149,7 +150,6 @@ from scm.plams.tools.reaction_energies import (
     reaction_energy,
 )
 from scm.plams.tools.units import Units
-from scm.plams.trajectories.analysis import autocorrelation, power_spectrum
 from scm.plams.trajectories.dcdfile import DCDTrajectoryFile
 from scm.plams.trajectories.rkffile import (
     RKFTrajectoryFile,
@@ -314,8 +314,6 @@ __all__ = [
     "SDFTrajectoryFile",
     "create_sdf_string",
     "XYZHistoryFile",
-    "autocorrelation",
-    "power_spectrum",
     "Trajectory",
     "TrajectoryFile",
     "RKFTrajectoryFile",
@@ -332,6 +330,15 @@ __all__ = [
     "ADFFragmentJob",
     "ADFFragmentResults",
     "ADFNBOJob",
+    "AMSMDJob",
+    "AMSNVEJob",
+    "AMSNVTJob",
+    "AMSNPTJob",
+    "AMSNVESpawnerJob",
+    "AMSMDScanDensityJob",
+    "AMSRDFJob",
+    "AMSMSDJob",
+    "AMSVACFJob",
     "NumGradJob",
     "NumHessJob",
     "Optimizer",
