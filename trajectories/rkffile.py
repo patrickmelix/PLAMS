@@ -143,7 +143,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.store_molecule = True # Even if True, the molecule attribute is only stored during iteration
         
                 # RKF specific attributes
-                self.program = 'plams'
+                self.program = 'trajectory'
                 self.nvecs = 3
                 self.latticevecs = numpy.zeros((3,3))
                 self.read_lattice = True               # Reading time can be saved by skipping the lattice info
