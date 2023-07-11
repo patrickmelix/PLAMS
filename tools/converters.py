@@ -409,9 +409,6 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
         rkf_file: str
             Path to an ams.rkf file
 
-        out_file: str
-            Path to the .traj or .xyz file that will be created. If the file exists it will be overwritten. If a .xyz file is specified it will use the normal ASE format (not the AMS format).
-
         get_results: bool
             Whether to include results like energy, forces, and stress in the trajectory.
 
