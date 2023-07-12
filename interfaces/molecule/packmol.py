@@ -186,7 +186,7 @@ class PackMol:
     def add_structure(self, structure: PackMolStructure):
         self.structures.append(structure)
 
-    def _get_complete_box_bounds(self):
+    def _get_complete_box_bounds(self) -> List[float]:
         min_x = min(s.box_bounds[0] for s in self.structures if s.box_bounds is not None)
         min_y = min(s.box_bounds[1] for s in self.structures if s.box_bounds is not None)
         min_z = min(s.box_bounds[2] for s in self.structures if s.box_bounds is not None)
@@ -197,7 +197,7 @@ class PackMol:
         # return min_x, min_y, min_z, max_x+self.tolerance, max_y+self.tolerance, max_z+self.tolerance
         return min_x, min_y, min_z, max_x, max_y, max_z
 
-    def _get_complete_lattice(self):
+    def _get_complete_lattice(self) -> List[List[float]]:
         """
         returns a 3x3 list using the smallest and largest x/y/z box_bounds for all structures
         """
@@ -216,6 +216,38 @@ class PackMol:
             [0.0, max_y - min_y, 0.0],
             [0.0, 0.0, max_z - min_z],
         ]
+
+    def _get_complete_radius(self) -> float:
+        """
+        Calculates radius of sphere with the same volume as the 
+        cuboid from the box bounds
+
+        :return: Radius in angstrom
+        :rtype: float
+        """
+        volume = self._get_complete_volume()
+        radius = (3 * volume / (4 * 3.14159)) ** 0.3333
+
+        return radius
+
+    def _get_complete_volume(self) -> float:
+        """ Returns volume based on box bounds in ang^3
+
+        :return: Volume in ang^3
+        :rtype: float
+        """
+        (
+            min_x,
+            min_y,
+            min_z,
+            max_x,
+            max_y,
+            max_z,
+        ) = self._get_complete_box_bounds()
+
+        volume = (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
+
+        return volume
 
     def run(self):
         """
@@ -303,13 +335,17 @@ def packmol(
         If True, the bonds from the constituent molecules will be kept in the returned Molecule
 
     keep_atom_properties : bool
-        If True, the atom.properties (e.g. force-field atom types) of the constituent molecules will be kept in the returned Molecule
+        If True, the atom.properties (e.g. force-field atom types) of the constituent molecules will be kept in 
+        the returned Molecule
 
     region_names : str or list of str
-        Populate the region information for each atom. Should have the same length and order as ``molecules``. By default the regions are named ``mol0``, ``mol1``, etc.
+        Populate the region information for each atom. Should have the same length and order as ``molecules``. 
+        By default the regions are named ``mol0``, ``mol1``, etc.
 
     return_details : bool
-        Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', etc. They contain the actual details of the returned molecule, which may differ slightly from the requested quantities.
+        Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', 
+        etc. They contain the actual details of the returned molecule, which may differ slightly from 
+        the requested quantities.
 
         Returned keys:
 
@@ -320,6 +356,7 @@ def packmol(
         * 'molecule_type_indices': list of int of length n_atoms. For each atom, give an integer index for which TYPE of molecule it belongs to.
         * 'molecule_indices': list of int of length n_atoms. For each atom, give an integer index for which molecule it belongs to
         * 'atom_indices_in_molecule': list of int of length n_atoms. For each atom, give an integer index for which position in the molecule it is.
+        * 'volume': float. The volume of the bounding box / packed sphere in ang^3.
 
     executable : str
         The path to the packmol executable. If not specified, ``$AMSBIN/packmol.exe`` will be used (which is the correct path for the Amsterdam Modeling Suite).
@@ -460,6 +497,13 @@ def packmol(
     assert len(molecule_indices) == len(out)
     assert len(atom_indices_in_molecule) == len(out)
 
+    try:
+        volume = out.unit_cell_volume(unit='angstrom')
+        density = out.get_density() * 1e-3  # g / cm^3
+    except ValueError:  # not periodic, presumably when sphere=True
+        volume = pm._get_complete_volume()
+        mass = out.get_mass(unit='g')
+        density = mass / (volume * 1e-24)  # g / cm^3
     details = {
         "n_molecules": coeffs.tolist(),
         "mole_fractions": (coeffs / np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else [0.0] * len(coeffs),
@@ -467,12 +511,12 @@ def packmol(
         "molecule_type_indices": molecule_type_indices,  # for each atom, indicate which type of molecule it belongs to by an integer index (starts with 0)
         "molecule_indices": molecule_indices,  # for each atoms, indicate which molecule it belongs to by an integer index (starts with 0)
         "atom_indices_in_molecule": atom_indices_in_molecule,
+        "volume": volume,
+        "density": density,
     }
-    try:
-        details["density"] = out.get_density() * 1e-3
-    except ValueError:
-        details["density"] = None
-        pass  # if not periodict
+
+    if sphere:
+        details["radius"] = (volume * 3 / (4 * 3.1415926535)) ** (1 / 3.0)
 
     if keep_atom_properties:
         for at, molecule_type_index, atom_index_in_molecule in zip(
