@@ -456,9 +456,11 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
         for crd, cell in rkf:
             energy, stress = None, None
             if get_results:
-                energy = rkf.historydata.get('Energy', None)
+                energy = rkf.historydata.get('EngineEnergy', None)
+                if energy is None:
+                    energy = rkf.historydata.get('Energy', None)
                 gradients = rkf.historydata.get('EngineGradients', None)
-                if not gradients:
+                if gradients is None:
                     gradients = rkf.historydata.get('Gradients', None)
                 stress = rkf.historydata.get('StressTensor', None)
             atoms = get_ase_atoms(rkf.elements, crd, cell, energy, gradients, stress)
