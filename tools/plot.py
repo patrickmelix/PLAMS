@@ -84,7 +84,7 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
 
 
 
-def plot_molecule(molecule, figsize=None, ax=None, **kwargs):
+def plot_molecule(molecule, figsize=None, ax=None, keep_axis:bool=False, **kwargs):
     """ Show a molecule in a Jupyter notebook """
     import matplotlib.pyplot as plt
     from ase.visualize.plot import plot_atoms
@@ -98,9 +98,10 @@ def plot_molecule(molecule, figsize=None, ax=None, **kwargs):
 
     plot_atoms(molecule, ax=ax, **kwargs)
 
-    if ax:
-        ax.axis('off')
-    else:
-        plt.axis('off')
+    if not keep_axis:
+        if ax:
+            ax.axis('off')
+        else:
+            plt.axis('off')
 
 

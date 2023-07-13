@@ -2526,6 +2526,11 @@ class Molecule:
 
 
     def writexyz(self, f, space=16, decimal=8):
+        """write and xyz in the file f
+        example:
+            with open(path_init_molecule, 'w') as f:
+                molecule.writexyz(f)
+        """
         f.write(str(len(self)) + '\n')
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -3022,6 +3027,34 @@ class Molecule:
             mol1 = [at.coords for at in mol1 if at.symbol != 'H']
             mol2 = [at.coords for at in mol2 if at.symbol != 'H']
         return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
+
+    def align2mol(self, molecule_ref, ignore_hydrogen:bool=False, watch:bool=False):
+        """
+        align the molecule to a reference molecule, they should be same molecule type and same order of atoms
+        it is an wrapper of the rmsd methods
+        if watch = True show the molecules (before and after) in a Jupyter notebook 
+        """
+        if watch:
+            mol_initial = self.copy()
+        rmsd_value, R = Molecule.rmsd(self, molecule_ref, ignore_hydrogen=ignore_hydrogen, return_rotmat=True, check=True)
+        self.rotate(R, lattice=False)
+
+        center_m_var = self.get_center_of_mass(unit='angstrom')
+        center_m_ref = molecule_ref.get_center_of_mass(unit='angstrom')
+        vector = np.array(center_m_ref) - np.array(center_m_var)
+        self.translate(vector, unit='angstrom') 
+
+        if watch:
+                import matplotlib.pyplot as plt
+                from scm.plams.tools.plot import plot_molecule
+                fig, ax = plt.subplots(1, 2)
+                ax[0].set_title('before alignment')
+                plot_molecule(molecule_ref, ax=ax[0], keep_axis=True)
+                plot_molecule(mol_initial, ax=ax[0], keep_axis=True)
+                ax[1].set_title('after alignment')
+                plot_molecule(molecule_ref, ax=ax[1], keep_axis=True)
+                plot_molecule(self, ax=ax[1], keep_axis=True)
+                print(f'Root mean square deviation: {rmsd_value:0.3} Ang')
 
     @property
     def numbers(self) -> 'np.ndarray':
