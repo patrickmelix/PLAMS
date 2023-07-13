@@ -4,6 +4,7 @@ import struct
 import subprocess
 from bisect import bisect
 from collections import OrderedDict
+from typing import Dict, Set
 
 from scm.plams.core.errors import FileError
 from scm.plams.core.functions import log
@@ -342,7 +343,7 @@ class KFFile:
 
         if section not in self.tmpdata:
             self.tmpdata[section] = OrderedDict()
-            
+
         if trick_value:
             self.tmpdata[section][variable] = trick_value
         else:
@@ -414,15 +415,17 @@ class KFFile:
             log("WARNING: Section '{}' not present in {} or present, but empty. Returning empty dictionary".format(section, self.path), 1)
         return ret
 
-
-    def keys(self) -> set:
+    def keys(self) -> Set[str]:
         """ Returns all sections in the current instance """
-        return set([sec for sec,var in self])
+        return set([sec for sec, var in self])
 
-    def get_skeleton(self):
-        """Return a dictionary reflecting the structure of this KF file. Each key in that dictionary corresponds to a section name of the KF file with the value being a set of variable names."""
+    def get_skeleton(self) -> Dict[str, Set[str]]:
+        """Return a dictionary reflecting the structure of this KF file.
+
+        Each key in that dictionary corresponds to a section name of the KF file
+        with the value being a set of variable names."""
         ret = {}
-        for sec,var in self:
+        for sec, var in self:
             if sec not in ret:
                 ret[sec] = set()
             ret[sec].add(var)

@@ -1,5 +1,6 @@
 import os
 from os.path import join as opj
+from typing import Dict, Set, Union
 
 from scm.plams.core.basejob import SingleJob
 from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError
@@ -11,11 +12,7 @@ from scm.plams.lazy_import import numpy as np
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
 from scm.plams.mol.molecule import Molecule
-from scm.plams.tools.converters import (
-    gaussian_output_to_ams,
-    qe_output_to_ams,
-    vasp_output_to_ams,
-)
+from scm.plams.tools.converters import gaussian_output_to_ams, qe_output_to_ams, vasp_output_to_ams
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.units import Units
 
@@ -170,7 +167,7 @@ class AMSResults(Results):
         return self._access_rkf(lambda x: x.read_section(section), file)
 
 
-    def get_rkf_skeleton(self, file='ams'):
+    def get_rkf_skeleton(self, file='ams') -> Dict[str, Set[str]]:
         """Return a dictionary with the structure of a chosen ``.rkf`` file. Each key corresponds to a section name with the value being a set of variable names present in that section.
 
         The *file* argument should be the identifier of the file to read. It defaults to ``'ams'``. To access a file called ``something.rkf`` you need to call this function with ``file='something'``. If there exists only one engine results ``.rkf`` file, you can call this function with ``file='engine'`` to access this file.
@@ -202,22 +199,39 @@ class AMSResults(Results):
         else:
             cell = None
         atomsymbols = sectiondict['AtomSymbols'].split()
-        positions = np.array(sectiondict['Coords']).reshape(-1,3) * bohr2angstrom
+        positions = np.array(sectiondict['Coords']).reshape(-1, 3) * bohr2angstrom
         return Atoms(symbols=atomsymbols, positions=positions, pbc=pbc, cell=cell)
-
 
     def get_input_molecule(self):
         """Return a |Molecule| instance with the initial coordinates.
 
-        All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+        All data used by this method is taken from ``ams.rkf`` file.
+        The ``molecule`` attribute of the corresponding job is ignored.
         """
         return self.get_molecule('InputMolecule', 'ams')
 
+    def get_input_molecules(self) -> Dict[str, Molecule]:
+        """Return a dictionary mapping the name strings from the AMS input file to |Molecule| instances.
+
+        The main molecule (aka the one that did not have a string in the block header in the input file) will be
+        returned under the key of the empty string "". All data used by this method is taken from ``ams.rkf`` file.
+        The ``molecule`` attribute of the corresponding job is ignored.
+        """
+        mols: Dict[str, Molecule] = {}
+        skel = self.get_rkf_skeleton()
+        if "InputMolecule" in skel:
+            mols[""] = self.get_molecule('InputMolecule', 'ams')
+        for sec in skel:
+            if sec.startswith("InputMolecule("):
+                name = sec[len("InputMolecule("):-1]
+                mols[name] = self.get_molecule(f'InputMolecule({name})', 'ams')
+        return mols
 
     def get_main_molecule(self):
         """Return a |Molecule| instance with the final coordinates.
 
-        All data used by this method is taken from ``ams.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+        All data used by this method is taken from ``ams.rkf`` file.
+        The ``molecule`` attribute of the corresponding job is ignored.
         """
         return self.get_molecule('Molecule', 'ams')
 
@@ -729,9 +743,7 @@ class AMSResults(Results):
 
         * ``filename`` -- Name of the RKF file that contains ForceField data
         """
-        from scm.plams.interfaces.adfsuite.forcefieldparams import (
-            forcefield_params_from_kf,
-        )
+        from scm.plams.interfaces.adfsuite.forcefieldparams import forcefield_params_from_kf
         return self._process_engine_results(forcefield_params_from_kf, engine)
 
     def get_poissonratio(self, engine=None):
@@ -1059,6 +1071,7 @@ class AMSResults(Results):
     @staticmethod
     def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
         from scipy.integrate import cumtrapz
+
         from scm.plams.tools.units import Units
         from scm.plams.trajectories.analysis import autocorrelation
         data = np.array(pressuretensor)
@@ -1116,6 +1129,7 @@ class AMSResults(Results):
 
         """
         from scipy.integrate import cumtrapz
+
         from scm.plams.tools.units import Units
         from scm.plams.trajectories.analysis import autocorrelation
         time_step = self.get_time_step()
@@ -1262,15 +1276,21 @@ class AMSResults(Results):
         z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
         return z, density
 
-    def recreate_molecule(self):
-        """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
+    def recreate_molecule(self) -> Union[None, Molecule, Dict[str, Molecule]]:
+        """Recreate the input molecule(s) for the corresponding job based on files present in the job folder.
 
-        If ``ams.rkf`` is present in the job folder, extract data from the ``InputMolecule`` section.
+        This method is used by |load_external|. If ``ams.rkf`` is present in the job folder,
+        extract data from the ``InputMolecule`` and ``InputMolecule(*)`` sections.
         """
         if 'ams' in self.rkfs:
-            return self.get_input_molecule()
+            mols = self.get_input_molecules()
+            if len(mols) == 0:
+                return None
+            elif len(mols) == 1 and "" in mols:
+                return mols[""]
+            else:
+                return mols
         return None
-
 
     def recreate_settings(self):
         """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
@@ -1837,7 +1857,7 @@ class AMSJob(SingleJob):
             txtinp = self.settings.input.get_input_string()
 
             systems = self._serialize_molecule()
-            if len(systems) > 0: 
+            if len(systems) > 0:
                 system_input = serialize("System", systems, 0)
                 # merge existing system block with one serialized from the molecule
                 if hasattr(self.settings.input, 'System') and self.settings.input.System.value_changed:
