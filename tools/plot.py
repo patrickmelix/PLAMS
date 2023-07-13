@@ -1,6 +1,6 @@
 from scm.plams.mol.molecule import Molecule
 
-__all__ = ['plot_band_structure', 'plot_molecule']
+__all__ = ['plot_band_structure', 'plot_molecule', 'plot_correlation']
 
 def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, show=False):
     """
@@ -103,5 +103,182 @@ def plot_molecule(molecule, figsize=None, ax=None, keep_axis:bool=False, **kwarg
             ax.axis('off')
         else:
             plt.axis('off')
+
+
+def plot_correlation(
+        job1, 
+        job2, 
+        section, 
+        variable, 
+        file="ams", 
+        multiplier=1.0, 
+        unit=None, 
+        save_txt=None, 
+        ax=None,
+        show_xy=True,
+        show_linear_fit=True,
+        show_mad=True,
+        show_rmsd=True,
+        xlabel=None,
+        ylabel=None,
+    ):
+    """ 
+    
+    Plot a correlation plot from AMS .rkf files
+
+    job1: AMSJob or List[AMSJob]
+        Job(s) plotted on x-axis
+
+    job2: AMSJob or List[AMSJob]
+        job2: Job(s) plotted on y-axis
+
+    section: str
+        section: section to read on .rkf files
+
+    variable: str
+        variable: variable to read
+
+    file: str, optional
+        file: "ams" or "engine", defaults to "ams"
+
+    multiplier: float, optional
+        multiplier: Numbers will be multiplied by this number, defaults to 1.0
+
+    unit: str, optional
+        unit: unit will be shown in the plot, defaults to None
+
+    save_txt: str, optional
+        save_txt: If not None, save the xy data to this text file, defaults to None
+
+    ax: matplotlib axis, optional
+        ax: matplotlib axis, defaults to None
+
+    show_xy: bool, optional
+        show_xy: Whether to show y=x line, defaults to True
+
+    show_linear_fit: bool, optional
+        show_linear_fit: Whether to perform and show a linear fit, defaults to True
+
+    show_mad: bool, optional
+        show_mad: Whether to show mean absolute deviation, defaults to True
+
+    show_rmsd: bool, optional
+        show_rmsd: Whether to show root-mean-square deviation, defaults to True
+
+    xlabel: str, optional
+        xlabel: The x-label. If not given will be a list of job names, defaults to None
+
+    ylabel: str, optional
+        ylabel: THe y-label. If not given will be al ist of job names, defaults to None
+
+    Returns: A matplotlib axis
+
+    """
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    def tolist(x):
+        if isinstance(x, list):
+            return x
+        return [x]
+
+    job1 = tolist(job1)
+    job2 = tolist(job2)
+
+    data1 = []
+    data2 = []
+    for j1, j2 in zip (job1, job2):
+        try:
+            d1 = j1.results.readrkf(section, variable, file=file)
+        except KeyError:
+            d1 = j1.results.get_history_property(variable, history_section=section)
+        d1 = np.ravel(d1)*multiplier
+
+        try:
+            d2 = j2.results.readrkf(section, variable, file=file)
+        except KeyError:
+            d2 = j2.results.get_history_property(variable, history_section=section)
+        d2 = np.ravel(d2)*multiplier
+
+        data1.extend(list(d1))
+        data2.extend(list(d2))
+
+    data1 = np.array(data1)
+    data2 = np.array(data2)
+
+    def add_unit(s: str):
+        if unit is not None:
+            return f"{s} ({unit})"
+
+        return s
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    
+    complete_data = np.stack((data1, data2), axis=1)
+
+    min_data = np.min(complete_data)
+    max_data = np.max(complete_data)
+    min_max = np.array([min_data, max_data])
+    
+    legend = []
+    title = [f"{section}%{variable}"]
+    if show_xy:
+        ax.plot(min_max, min_max, '-')
+        legend.append("y=x")
+
+    stats_title = ""
+
+    if show_mad:
+        mad = np.mean(np.abs(data2-data1))
+        stats_title += add_unit(f" MAD: {mad:.5f}")
+
+    if show_rmsd:
+        rmsd = np.sqrt(np.mean((data2-data1)**2))
+        stats_title += add_unit(f" RMSD: {rmsd:.5f}")
+
+    linear_fit_title = None
+    if show_linear_fit:
+        from scipy.stats import linregress
+        result = linregress(data1, data2)
+        min_max_linear_fit = result.slope * min_max + result.intercept
+        r2 = result.rvalue**2
+        ax.plot(min_max, min_max_linear_fit, '-')
+        legend.append(f"Fit")
+        stats_title += f" R^2: {r2:.3f}"
+        linear_fit_title = f"Linear fit slope={result.slope:.3f} intercept={result.intercept:.3f}"
+
+    if stats_title:
+        title.append(stats_title)
+    
+    if linear_fit_title:
+        title.append(linear_fit_title)
+
+    ax.plot(data1, data2, '.')
+    legend.append("data")
+
+    if xlabel is None:
+        xlabel = ", ".join(x.name for x in job1)
+        if len(xlabel) > 40:
+            xlabel = xlabel[:35] + "..."
+    if ylabel is None:
+        ylabel = ", ".join(x.name for x in job2)
+        if len(ylabel) > 40:
+            ylabel = ylabel[:35] + "..."
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    ax.set_title("\n".join(title))
+    ax.legend(legend)
+
+    ax.set_box_aspect(1)
+    ax.set_xlim(*min_max)
+    ax.set_ylim(*min_max)
+
+    if save_txt is not None:
+        np.savetxt(save_txt, complete_data, header=f"{xlabel} {ylabel}")
+
+    return ax
 
 
