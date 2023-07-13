@@ -2526,9 +2526,17 @@ class Molecule:
 
 
     def writexyz(self, f, space=16, decimal=8):
-        """write and xyz in the file f
+        """
+        f: file
+            An open file handle.
+
+        see also the write method: `molecule.write("my_molecule.xyz")`
+
         example:
-            with open(path_init_molecule, 'w') as f:
+
+        .. code-block:: python
+
+            with open(path_to_xyz_molecule_file, 'w') as f:
                 molecule.writexyz(f)
         """
         f.write(str(len(self)) + '\n')
