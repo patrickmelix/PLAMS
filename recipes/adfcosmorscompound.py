@@ -79,7 +79,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
                 If None, do not preoptimize with a fast engine (then initial optimization is done with ADF). Otherwise, can be one of 'UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x'. Note that you need valid licenses for ForceField or DFTB or MLPotential to use these preoptimizers.
 
             singlepoint : bool
-                Only run a singlepoint with solvation to generate the .coskf file on the given Molecule. (no geometry optimization)
+                Run a singlepoint in gasphase and with solvation to generate the .coskf file on the given Molecule. (no geometry optimization). Cannot be combined with ``preoptimization``.
 
             settings : settings
                 settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
@@ -95,11 +95,21 @@ class ADFCOSMORSCompoundJob(MultiJob):
                 print(job.results.get_sigma_profile())
 
         """
+        if preoptimization and singlepoint:
+            raise ValueError("Cannot combine preoptimization with singlepoint")
+
         MultiJob.__init__(self, children=OrderedDict(), **kwargs)
         self.input_molecule = molecule
         self.settings = settings or Settings()
 
-        if not singlepoint:
+        gas_s = Settings()
+        gas_s += self.adf_settings(solvation=False, settings=self.settings)
+        gas_job = AMSJob(settings=gas_s, name='gas')
+
+        if singlepoint:
+            gas_job.settings.input.ams.Task = 'SinglePoint'
+            gas_job.molecule = molecule
+        else:
             if preoptimization:
                 preoptimization_s = Settings()
                 preoptimization_s.runscript.nproc = 1
@@ -108,10 +118,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
                 preoptimization_job = AMSJob(settings=preoptimization_s, name='preoptimization', molecule=molecule)
                 self.children['preoptimization'] = preoptimization_job
 
-            gas_s = Settings()
-            gas_s.input.ams.Task = 'GeometryOptimization'
-            gas_s += self.adf_settings(solvation=False, settings=self.settings)
-            gas_job = AMSJob(settings=gas_s, name='gas')
+            gas_job.settings.input.ams.Task = 'GeometryOptimization'
 
             if preoptimization:
                 @add_to_instance(gas_job)
@@ -120,54 +127,23 @@ class ADFCOSMORSCompoundJob(MultiJob):
             else:
                 gas_job.molecule = molecule
 
-            self.children['gas'] = gas_job
+        self.children['gas'] = gas_job
 
         solv_s = Settings()
         solv_s.input.ams.Task = 'SinglePoint'
         solv_job = AMSJob(settings=solv_s, name='solv')
 
-        if singlepoint:
-            if preoptimization:
-                preoptimization_s = Settings()
-                preoptimization_s.runscript.nproc = 1
-                preoptimization_s.input.ams.Task = 'GeometryOptimization'
-                preoptimization_s += model_to_settings(preoptimization)
-                preoptimization_job = AMSJob(settings=preoptimization_s, name='preoptimization', molecule=molecule)
-                self.children['preoptimization'] = preoptimization_job
-
-            gas_s = Settings()
-            gas_s.input.ams.Task = 'SinglePoint'
-            gas_s += self.adf_settings(solvation=False, settings=self.settings)
-            gas_job = AMSJob(settings=gas_s, name='gas')
-
-            if preoptimization:
-                @add_to_instance(gas_job)
-                def prerun(self):  # noqa F811
-                    self.molecule = self.parent.children['preoptimization'].results.get_main_molecule()
-            else:
-                gas_job.molecule = molecule
-
-            #gas_job.molecule = molecule
-            self.children['gas'] = gas_job
-
-            @add_to_instance(solv_job)
-            def prerun(self):  # noqa F811
-                gas_job.results.wait()
-                self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
-                self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
-                self.settings += self.parent.adf_settings(solvation=True, settings=self.parent.settings, elements=list(set(at.symbol for at in self.parent.input_molecule)))
-        else:
-            @add_to_instance(solv_job)
-            def prerun(self):  # noqa F811
-                gas_job.results.wait()
-                self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
-                self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
-                self.settings += self.parent.adf_settings(solvation=True, settings=self.parent.settings, elements=list(set(at.symbol for at in self.parent.input_molecule)))
-                #self.settings.input.ams.EngineRestart = self.parent.children['gas'].results.rkfpath(file='adf') # this doesn't work with PLAMS restart since the file will refer to the .res directory (so the job is rerun needlessly)
-                #self.settings.input.ams.LoadSystem.File = self.parent.children['gas'].results.rkfpath(file='ams')
-                # cannot copy to gasphase-ams.rkf etc. because that conflicts with PLAMS restarts
-                #shutil.copyfile(gas_job.results.rkfpath(file='ams'), os.path.join(self.path, 'gasphase-ams.rkf'))
-                #shutil.copyfile(gas_job.results.rkfpath(file='adf'), os.path.join(self.path, 'gasphase-adf.rkf'))
+        @add_to_instance(solv_job)
+        def prerun(self):  # noqa F811
+            gas_job.results.wait()
+            self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
+            self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
+            self.settings += self.parent.adf_settings(solvation=True, settings=self.parent.settings, elements=list(set(at.symbol for at in self.parent.input_molecule)))
+            #self.settings.input.ams.EngineRestart = self.parent.children['gas'].results.rkfpath(file='adf') # this doesn't work with PLAMS restart since the file will refer to the .res directory (so the job is rerun needlessly)
+            #self.settings.input.ams.LoadSystem.File = self.parent.children['gas'].results.rkfpath(file='ams')
+            # cannot copy to gasphase-ams.rkf etc. because that conflicts with PLAMS restarts
+            #shutil.copyfile(gas_job.results.rkfpath(file='ams'), os.path.join(self.path, 'gasphase-ams.rkf'))
+            #shutil.copyfile(gas_job.results.rkfpath(file='adf'), os.path.join(self.path, 'gasphase-adf.rkf'))
 
         @add_to_instance(solv_job)
         def postrun(self):
