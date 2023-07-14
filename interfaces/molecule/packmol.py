@@ -16,10 +16,14 @@ except ImportError:
 
 __all__ = [
     "packmol",
+    "packmol_in_void",
     "packmol_on_slab",
     "packmol_microsolvation",
     "PackMolError",
 ]
+
+def tolist(x):
+    return x if isinstance(x, list) else [x]
 
 
 class PackMolError(MoleculeError):
@@ -298,6 +302,7 @@ def packmol(
     box_bounds: List[float] = None,
     n_molecules: Union[List[int], int] = None,
     sphere: bool = False,
+    fix_first: bool = False,
     keep_bonds: bool = True,
     keep_atom_properties: bool = True,
     region_names: List[str] = None,
@@ -330,6 +335,9 @@ def packmol(
 
     sphere: bool
         Whether the molecules should be packed in a sphere. The radius is determined by getting the volume from the box bounds!
+
+    fix_first: bool
+        Whether to keep the first molecule fixed. This can only be used with ``n_molecules=[1, ..., ...]``. Defaults to False.
 
     keep_bonds : bool
         If True, the bonds from the constituent molecules will be kept in the returned Molecule
@@ -399,6 +407,9 @@ def packmol(
         raise ValueError("Illegal combination of arguments: n_molecules, box_bounds and density specified at the same time")
     if mole_fractions is not None and n_molecules is not None:
         raise ValueError("Illegal combination of arguments: mole_fractions and n_molecules are mutually exclusive")
+    if fix_first:
+        if n_molecules is None or np.isscalar(n_molecules) or n_molecules[0] != 1:
+            raise ValueError(f"Illegal combination of arguments: fix_first requires that n_molecules is a list where the first element is 1. Received n_molecules={n_molecules}")
     if isinstance(molecules, list):
         if n_molecules is not None:
             if not isinstance(n_molecules, list):
@@ -422,9 +433,6 @@ def packmol(
             raise ValueError("Illegal combination of arguments: mole_fractions is a list, when molecules is not")
         if region_names is not None and isinstance(region_names, list):
             raise ValueError("Illegal combination of arguments: region_names is a list, when molecules is not")
-
-    def tolist(x):
-        return x if isinstance(x, list) else [x]
 
     molecules = tolist(molecules)
     if mole_fractions is None:
@@ -477,7 +485,10 @@ def packmol(
         )
     else:
         for i, (mol, n_mol) in enumerate(zip(molecules, coeffs)):
-            pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, sphere=sphere))
+            if fix_first and i == 0:
+                pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, sphere=False, fixed=True))
+            else:
+                pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, sphere=sphere))
 
     out = pm.run()
 
@@ -568,6 +579,43 @@ def get_packmol_solid_liquid_box_bounds(slab: Molecule):
         liquid_max_z - 1.5,
     ]
     return box_bounds
+
+
+def packmol_in_void(
+    host: Molecule,
+    molecules: Union[List[Molecule], Molecule],
+    n_molecules: Union[List[int], int],
+    keep_bonds: bool = True,
+    keep_atom_properties: bool = True,
+    region_names: List[str] = None,
+    return_details: bool = False,
+    executable: str = None,
+):
+    if len(host.lattice) != 3:
+        raise ValueError("host in packmol_in_void must be 3D periodic")
+    if host.cell_angles() != [90.0, 90.0, 90.0]:
+        raise ValueError("host in packmol_in_void must be have orthorhombic cell")
+
+    my_host = host.copy()
+    my_host.map_to_central_cell(around_origin=False)
+    box_bounds = [0., 0., 0., my_host.lattice[0][0], my_host.lattice[1][1], my_host.lattice[2][2]]
+
+    my_molecules = [my_host] + tolist(molecules)
+    my_n_molecules = [1] + tolist(n_molecules)
+
+    ret = packmol(
+        molecules=my_molecules,
+        n_molecules=my_n_molecules,
+        box_bounds=box_bounds,
+        keep_bonds=keep_bonds,
+        keep_atom_properties=keep_atom_properties,
+        region_names=region_names,
+        return_details=return_details,
+        fix_first=True,
+        executable=executable,
+    )
+
+    return ret
 
 
 def packmol_on_slab(
