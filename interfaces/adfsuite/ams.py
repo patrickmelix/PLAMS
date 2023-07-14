@@ -220,11 +220,11 @@ class AMSResults(Results):
         mols: Dict[str, Molecule] = {}
         skel = self.get_rkf_skeleton()
         if "InputMolecule" in skel:
-            mols[""] = self.get_molecule('InputMolecule', 'ams')
-        for sec in skel:
-            if sec.startswith("InputMolecule("):
-                name = sec[len("InputMolecule("):-1]
-                mols[name] = self.get_molecule(f'InputMolecule({name})', 'ams')
+            mols[""] = self.get_molecule('InputMolecule')
+        if "InputMolecules" in skel:
+            num_named_molecules: int = self.readrkf("InputMolecules", "numNamedMolecules")
+            for imol in range(1, num_named_molecules+1):
+                mols[self.readrkf("InputMolecules", f"Name({imol})")] = self.get_molecule(f'InputMolecule({imol})')
         return mols
 
     def get_main_molecule(self):
