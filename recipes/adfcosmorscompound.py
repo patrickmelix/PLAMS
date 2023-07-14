@@ -127,9 +127,34 @@ class ADFCOSMORSCompoundJob(MultiJob):
         solv_job = AMSJob(settings=solv_s, name='solv')
 
         if singlepoint:
+            if preoptimization:
+                preoptimization_s = Settings()
+                preoptimization_s.runscript.nproc = 1
+                preoptimization_s.input.ams.Task = 'GeometryOptimization'
+                preoptimization_s += model_to_settings(preoptimization)
+                preoptimization_job = AMSJob(settings=preoptimization_s, name='preoptimization', molecule=molecule)
+                self.children['preoptimization'] = preoptimization_job
+
+            gas_s = Settings()
+            gas_s.input.ams.Task = 'SinglePoint'
+            gas_s += self.adf_settings(solvation=False, settings=self.settings)
+            gas_job = AMSJob(settings=gas_s, name='gas')
+
+            if preoptimization:
+                @add_to_instance(gas_job)
+                def prerun(self):  # noqa F811
+                    self.molecule = self.parent.children['preoptimization'].results.get_main_molecule()
+            else:
+                gas_job.molecule = molecule
+
+            #gas_job.molecule = molecule
+            self.children['gas'] = gas_job
+
             @add_to_instance(solv_job)
             def prerun(self):  # noqa F811
-                self.molecule = self.parent.input_molecule
+                gas_job.results.wait()
+                self.settings.input.ams.EngineRestart = "../gas/adf.rkf" 
+                self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
                 self.settings += self.parent.adf_settings(solvation=True, settings=self.parent.settings, elements=list(set(at.symbol for at in self.parent.input_molecule)))
         else:
             @add_to_instance(solv_job)
