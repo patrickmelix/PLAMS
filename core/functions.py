@@ -13,6 +13,7 @@ from typing import Dict
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.private import retry
 from scm.plams.core.settings import Settings
+from scm.plams.lazy_import import LazyImporter
 
 __all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules', 'read_all_molecules_in_xyz_file']
 
@@ -41,6 +42,9 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_exi
 
     if config.init:
         return
+
+    # Resolve lazy imports before running any jobs, since jobs might spawn threads and lazy importing is not threadsafe at the moment
+    LazyImporter.resolve_imports()
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
         defaults = expandvars('$PLAMSDEFAULTS')
