@@ -151,19 +151,11 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         self.children['solv'] = solv_job
 
-        sigma_s = Settings()
-        sigma_s.input.property._h = 'PURESIGMAPROFILE'
-
-        compounds = [Settings()]
-        sigma_s.input.compound = compounds
-        crsjob = CRSJob(settings=sigma_s, name = 'sigma')
-
         @add_to_instance(crsjob)
         def prerun(self):  # noqa F811
             self.parent.children['solv'].results.wait()
             self.settings.input.compound[0]._h = os.path.join(self.parent.path, self.parent.name+'.coskf')
 
-        self.children['crs'] = crsjob
 
     @staticmethod
     def _get_radii() -> dict:
@@ -236,9 +228,10 @@ class ADFCOSMORSCompoundJob(MultiJob):
         """ rkf: absolute path to adf.rkf, coskf: path to write out the resulting .coskf file  """
         f = KFFile(rkf)
         cosmo = f.read_section("COSMO")
-        coskf = KFFile(coskf)
+        coskf_file = KFFile(coskf,autosave=False)
         for k,v in cosmo.items():
-            coskf.write("COSMO",k,v)
+            coskf_file.write("COSMO",k,v)
 
+        coskf_file.save()
 
 
