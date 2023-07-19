@@ -7,7 +7,7 @@ from scm.plams import *
 from ase.optimize import BFGS
 from ase.build import molecule as ase_build_molecule
 from ase.visualize.plot import plot_atoms
-from ase.build import fcc111
+from ase.build import fcc111, bulk
 import matplotlib.pyplot as plt
 
 
@@ -208,6 +208,26 @@ out = packmol_on_slab(slab, [water, acetonitrile], mole_fractions=[x_water, x_ac
 printsummary(out)
 out.write('al-water-acetonitrile.xyz')
 show(out, figsize=figsize, rotation=rotation)
+
+
+# ## Pack inside voids in crystals
+# 
+# Use the ``packmol_in_void`` function. You can decrease ``tolerance`` if you need to pack very tightly. The default value for ``tolerance`` is 2.0.
+
+bulk_Al = fromASE(bulk('Al', cubic=True).repeat((3, 3, 3)))
+rotation = ('90x,5y,5z')
+show(bulk_Al, rotation=rotation, radii=0.4)
+
+
+out = packmol_in_void(
+    host=bulk_Al,
+    molecules=[from_smiles("[H]"), from_smiles("[He]")],
+    n_molecules=[50, 20],
+    tolerance=1.5
+)
+show(out, rotation=rotation, radii=0.4)
+printsummary(out)
+out.write('al-bulk-with-h-he.xyz')
 
 
 # ## Bonds, atom properties (force field types, regions, ...)

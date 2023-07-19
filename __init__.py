@@ -78,6 +78,7 @@ from scm.plams.interfaces.molecule.packmol import (
     packmol,
     packmol_microsolvation,
     packmol_on_slab,
+    packmol_in_void,
 )
 from scm.plams.interfaces.molecule.rdkit import (
     add_Hs,
@@ -266,6 +267,7 @@ __all__ = [
     "packmol",
     "packmol_on_slab",
     "packmol_microsolvation",
+    "packmol_in_void",
     "PackMolError",
     "add_Hs",
     "apply_reaction_smarts",

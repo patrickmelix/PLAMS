@@ -593,6 +593,7 @@ def packmol_in_void(
     keep_bonds: bool = True,
     keep_atom_properties: bool = True,
     region_names: List[str] = None,
+    tolerance: float = 2.0,
     return_details: bool = False,
     executable: str = None,
 ):
@@ -617,6 +618,7 @@ def packmol_in_void(
         region_names=region_names,
         return_details=return_details,
         fix_first=True,
+        tolerance=tolerance,
         executable=executable,
     )
 
