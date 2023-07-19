@@ -597,6 +597,19 @@ def packmol_in_void(
     return_details: bool = False,
     executable: str = None,
 ):
+    """
+        Pack molecules inside voids in a crystal.
+
+        host: Molecule
+            The host molecule. Must be 3D-periodic and the cell must be orthorhombic (all angles 90 degrees) with the lattice vectors parallel to the cartesian axes (all off-diagonal components must be 0).
+
+        For the other arguments, see the ``packmol`` function.
+
+        Note: ``region_names`` needs to have one more element than the list of
+        ``molecules``. For example ``region_names=['host', 'guest1',
+        'guest2']``.
+
+    """
     if len(host.lattice) != 3:
         raise ValueError("host in packmol_in_void must be 3D periodic")
     if host.cell_angles() != [90.0, 90.0, 90.0]:
