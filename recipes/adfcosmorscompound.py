@@ -151,11 +151,6 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         self.children['solv'] = solv_job
 
-        @add_to_instance(crsjob)
-        def prerun(self):  # noqa F811
-            self.parent.children['solv'].results.wait()
-            self.settings.input.compound[0]._h = os.path.join(self.parent.path, self.parent.name+'.coskf')
-
 
     @staticmethod
     def _get_radii() -> dict:
