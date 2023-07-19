@@ -13,7 +13,7 @@ the `AMSinput GUI <../../../GUI/index.html>`__ using the **View → X-Ray Diffra
 
 .. seealso::
 
-    See also the `pymatgen documentation for XRDCalculator <https://pymatgen.org/pymatgen.analysis.diffraction.xrd.html>`__.
+    See also the `pymatgen documentation for XRDCalculator <https://pymatgen.org/pymatgen.analysis.diffraction.html#module-pymatgen.analysis.diffraction.xrd>`__.
 
 
 To follow along, either
