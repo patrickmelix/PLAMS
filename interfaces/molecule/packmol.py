@@ -274,7 +274,7 @@ class PackMol:
                             writepdb(structure.molecule, f)
                     else:
                         structure.molecule.write(structure_fname)
-                    input_file.write(structure.get_input_block(structure_fname, tolerance=2.0))
+                    input_file.write(structure.get_input_block(structure_fname, tolerance=self.tolerance))
 
             my_input = open(input_fname, "r")
             saferun(self.executable, stdin=my_input, stdout=subprocess.DEVNULL)
@@ -307,6 +307,7 @@ def packmol(
     keep_atom_properties: bool = True,
     region_names: List[str] = None,
     return_details: bool = False,
+    tolerance: float = 2.0,
     executable: str = None,
 ):
     """
@@ -349,6 +350,10 @@ def packmol(
     region_names : str or list of str
         Populate the region information for each atom. Should have the same length and order as ``molecules``. 
         By default the regions are named ``mol0``, ``mol1``, etc.
+
+    tolerance: float
+        The packmol tolerance (approximately the minimum intermolecular distance). When packing
+        a periodic box, half the tolerance will be excluded from each face of the box.
 
     return_details : bool
         Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', 
@@ -474,7 +479,7 @@ def packmol(
             f"Illegal combination of arguments: n_atoms={n_atoms}, n_molecules={n_molecules}, box_bounds={box_bounds}, density={density}"
         )
 
-    pm = PackMol(executable=executable)
+    pm = PackMol(executable=executable, tolerance=tolerance)
     if sphere and len(molecules) == 2 and n_molecules and n_molecules[0] == 1:
         # Special case used by packmol_microsolvation
         pm.add_structure(
