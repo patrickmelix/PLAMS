@@ -151,13 +151,18 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.cell = numpy.zeros((3,3))
                 self.conect = None
                 self.timestep = None
+                self.saving_freq = None                # By default the 'wb' file is only written upon closing
+                                                       # Saving more often is much slower.
                 self.include_mddata = False
                 self.mddata = None
                 self.mdunits = None
+                self.mdblocksize = None
+                self.mditems = None
+                self.mdblockitems = None
                 self.include_historydata = False       # Any additional data along the history section will be stored
                 self.historydata = None
-                self.saving_freq = None                # By default the 'wb' file is only written upon closing
-                                                       # Saving more often is much slower.
+                self.historyitems = None
+
                 # Skip to the trajectory part of the file (only if in read mode, because coords are required in header)
                 if self.mode == 'rb' :
                         self._read_header()
@@ -179,6 +184,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.include_mddata = True
                 if 'r' in self.mode :
                         self._set_mddata_units()
+                        self._set_mddata_items()
                 elif 'w' in self.mode :
                         if rkf is not None :
                                 self.timestep = rkf.timestep
@@ -189,6 +195,15 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Read/write non-standard entries in the History section
                 """
                 self.include_historydata = True
+
+                if 'r' in self.mode:
+                        # Set the History items
+                        sections = self.file_object.get_skeleton()
+                        section = 'History'
+                        item_keys = [kn for kn in sections[section] if 'ItemName' in kn]
+                        items = [self.file_object.read(section,kn) for kn in item_keys]
+                        standard_items = ['Coords','nLatticeVectors','LatticeVectors','Bonds.Index','Bonds.Atoms','Bonds.Orders']
+                        self.historyitems = [item for item in items if not item in standard_items]
 
         def close (self, override_molecule_section_with_last_frame=True) :
                 """
@@ -235,14 +250,12 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                         self.timestep = times[1]
                 self.ntap = len(self.elements)
                 self.coords = numpy.zeros((self.ntap,3))
-                try :
+
+                # Set the lattice info
+                if (molecule_section,'LatticeVectors') in self.file_object:
                         self.latticevecs = numpy.array(self.file_object.read(molecule_section,'LatticeVectors'))
-                        #self.nvecs = int(len(self.cell)/3)
-                        # New code 27-05-2020
                         self.nvecs = int(len(self.latticevecs)/3) # Why did I remove this line locally?!
                         self.latticevecs = self.latticevecs.reshape((self.nvecs,3))
-                except (KeyError,AttributeError) :
-                        pass
 
         def _set_mddata_units (self) :
                 """
@@ -261,6 +274,25 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 unit_dic[item] = self.file_object.read(section,'%s(units)'%(item))
 
                 self.mdunits = unit_dic
+
+        def _set_mddata_items (self) :
+                """
+                Get all the items for the mddatam if those are to be read
+                """
+                sections = self.file_object.get_skeleton()
+                section = 'MDHistory'
+                blocksize = self.file_object.read(section, 'blockSize')
+                item_keys = [kn for kn in sections[section] if 'ItemName' in kn]
+                items = [self.file_object.read(section,kn) for kn in item_keys]
+                blockitems = [] 
+                for item in items :
+                        dim = self.file_object.read(section,'%s(dim)'%(item))
+                        if dim == 1 and not self.file_object.read(section,'%s(perAtom)'%(item)):
+                                blockitems.append(item)
+                items = [item for item in items if not item in blockitems]
+                self.mdblocksize = blocksize
+                self.mditems = items
+                self.mdblockitems = blockitems
 
         def _write_header (self, coords, cell, molecule=None) :
                 """
@@ -434,53 +466,37 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Store the data from the MDHistory section
                 """
+                if 'w' in self.mode:
+                    return
                 if self.mddata is None: self.mddata = {}
-                section = 'MDHistory'
-
-                # First get the block info
-                blocksize = self.file_object.read(section, 'blockSize')
-
-                # Look for the items
-                sections = self.file_object.get_skeleton()
-                item_keys = [kn for kn in sections[section] if 'ItemName' in kn]
-                items = [self.file_object.read(section,kn) for kn in item_keys]
 
                 # Get the data for each item
-                for item in items :
-                        # First read the units (not needed?)
-                        #units = ''
-                        #if '%s(units)'%(item) in self.file_object.reader._sections[section] :
-                        #        units = self.file_object.read(section,'%s(units)'%(item))
-
-                        dim = self.file_object.read(section,'%s(dim)'%(item))
-                        if dim == 1 and not self.file_object.read(section,'%s(perAtom)'%(item)):
-                                # Stored in block format
-                                block = int(istep/blocksize)
-                                pos = istep%blocksize
-                                values = self.file_object.read(section,'%s(%i)'%(item,block+1))
-                                if not isinstance(values,list) : values = [values]
-                                self.mddata[item] = values[pos]
-                        else :  
+                section = 'MDHistory'
+                for item in self.mditems:
+                        if (section,'%s(%i)'%(item,istep+1)) in self.file_object:
                                 self.mddata[item] = self.file_object.read(section,'%s(%i)'%(item,istep+1))
+                for item in self.mdblockitems:
+                        block = int(istep/self.mdblocksize)
+                        pos = istep%self.mdblocksize
+                        if not (section,'%s(%i)'%(item,block+1)) in self.file_object:
+                                continue
+                        values = self.file_object.read(section,'%s(%i)'%(item,block+1))
+                        if not isinstance(values,list) : values = [values]
+                        self.mddata[item] = values[pos]
 
         def _store_historydata_for_step (self, istep) :
                 """
                 Store the extra data from the History section
+
+                Note: Block format is not used in the History section
                 """
+                if 'w' in self.mode:
+                    return
                 if self.historydata is None: self.historydata = {}
                 section = 'History'
-
-                # Look for the items
-                sections = self.file_object.get_skeleton()
-                item_keys = [kn for kn in sections[section] if 'ItemName' in kn]
-                items = [self.file_object.read(section,kn) for kn in item_keys]
-                standard_items = ['Coords','nLatticeVectors','LatticeVectors','Bonds.Index','Bonds.Atoms','Bonds.Orders']
-                items = [item for item in items if not item in standard_items]
-
-                # Get the data for each item
-                for item in items :
-                        # Never stored in block format
-                        self.historydata[item] = self.file_object.read(section,'%s(%i)'%(item,istep+1))
+                for item in self.historyitems :
+                        if (section,'%s(%i)'%(item,istep+1)) in self.file_object:
+                                self.historydata[item] = self.file_object.read(section,'%s(%i)'%(item,istep+1))
 
         def _is_endoffile (self) :
                 """
