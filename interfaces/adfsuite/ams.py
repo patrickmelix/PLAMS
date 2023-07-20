@@ -1608,6 +1608,7 @@ class AMSResults(Results):
 class AMSJob(SingleJob):
     """A class representing a single computation with AMS driver. The corresponding results type is |AMSResults|.
     """
+    results: AMSResults
     _result_type = AMSResults
     _command = 'ams'
 
