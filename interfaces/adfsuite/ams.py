@@ -2183,7 +2183,7 @@ class AMSJob(SingleJob):
 
 
     @staticmethod
-    def settings_to_mol(s: Settings) -> dict:
+    def settings_to_mol(s: Settings) -> Dict[str, Molecule]:
         """Pop the `s.input.ams.system` block from a settings instance and convert it into a dictionary of molecules.
 
         The provided settings should be in the same style as the ones produced by the SCM input parser.
@@ -2273,7 +2273,7 @@ class AMSJob(SingleJob):
                 return None
 
         # Create a new dictionary with system headers as keys and molecules as values
-        moldict = {}
+        moldict: Dict[str, Molecule] = {}
         for settings_block in settings_list:
             key = str(settings_block._h) if ('_h' in settings_block) else '' # Empty string used as default system name.
             if key in moldict:

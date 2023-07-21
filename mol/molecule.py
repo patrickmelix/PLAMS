@@ -668,7 +668,7 @@ class Molecule:
         """
         Return a list of guessed charges, one for each atom, based on connectivity
 
-        * ``depth`` -- The electronegativity of an atom is determined all its neighbors up to depth 
+        * ``depth`` -- The electronegativity of an atom is determined all its neighbors up to depth
         * ``electronegativities`` -- A dictionary containing electronegativity values for the electronegative elements
 
         Note: Fairly basic implementation that will not always yield reliable results
@@ -697,8 +697,8 @@ class Molecule:
                 en += get_electronegativities(other_at,prevats,search_depth)
                 prevats += [self.index(other_at)-1]
             return en
-   
-        if electronegativities is None: 
+
+        if electronegativities is None:
             # https://pubchem.ncbi.nlm.nih.gov/periodic-table/electronegativity/
             electronegativities = {'Te': 2.1, 'P': 2.19, 'At': 2.2, 'C': 2.55, 'Se': 2.55, 'S': 2.58, 'I': 2.66, 'Br': 2.96, 'N': 3.04, 'Cl': 3.16, 'O': 3.44, 'F': 3.98, }
         charges = [0. for atom in self.atoms]
@@ -2388,7 +2388,7 @@ class Molecule:
     def as_array(self):
         """
         Property that can either be called directly as a method: ``mol.as_array()`` or as a context manager ``with mol.as_array``. Take care of when to add the parentheses.
-        
+
         Return cartesian coordinates of this molecule's atoms as a numpy array.
 
         *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
@@ -2873,7 +2873,7 @@ class Molecule:
         if patch is not None:
             self.properties.forcefieldpatch = patch
 
-    def readrkf(self, filename, section='Molecule', **other):
+    def readrkf(self, filename: str, section: str = "Molecule", **other):
         kf = KFFile(filename)
         sectiondict = kf.read_section(section)
         self.__dict__.update(Molecule._mol_from_rkf_section(sectiondict).__dict__)
@@ -3040,7 +3040,7 @@ class Molecule:
         """
         align the molecule to a reference molecule, they should be same molecule type and same order of atoms
         it is an wrapper of the rmsd methods
-        if watch = True show the molecules (before and after) in a Jupyter notebook 
+        if watch = True show the molecules (before and after) in a Jupyter notebook
         """
         if watch:
             mol_initial = self.copy()
@@ -3050,7 +3050,7 @@ class Molecule:
         center_m_var = self.get_center_of_mass(unit='angstrom')
         center_m_ref = molecule_ref.get_center_of_mass(unit='angstrom')
         vector = np.array(center_m_ref) - np.array(center_m_var)
-        self.translate(vector, unit='angstrom') 
+        self.translate(vector, unit='angstrom')
 
         if watch:
                 import matplotlib.pyplot as plt
