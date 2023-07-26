@@ -3,14 +3,15 @@
 """
 from copy import deepcopy
 
+import numpy as np
+
 from scm.plams.core.functions import config
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.amsworker import AMSWorker
 from scm.plams.interfaces.molecule.ase import fromASE, toASE
-from scm.plams.lazy_import import numpy as np
 
-__all__ = ['AMSCalculator', 'BasePropertyExtractor'] 
+__all__ = ['AMSCalculator', 'BasePropertyExtractor']
 
 try:
     from ase.calculators.calculator import Calculator, all_changes
@@ -121,13 +122,13 @@ class AMSCalculator(Calculator):
                 `settings.input.ams.properties.gradients`: `force`
                 `settings.input.ams.properties.stresstensor`: `stress`
     name      : str, optional
-                Name of the rundir of calculations done by this calculator. A counter 
+                Name of the rundir of calculations done by this calculator. A counter
                 is appended to the name for every calculation.
     amsworker : bool , optional
-                If True, use the AMSWorker to set up an interactive session. 
+                If True, use the AMSWorker to set up an interactive session.
                 The AMSWorker will spawn a seperate
                 process (an amsdriver). In order to make sure this process is closed,
-                either use AMSCalculator as a context manager or ensure that 
+                either use AMSCalculator as a context manager or ensure that
                 AMSCalculator.stop_worker() is called before python is finished:
 
                 .. code-block:: python
@@ -135,18 +136,18 @@ class AMSCalculator(Calculator):
                     with AMSCalculator(settings=settings, amsworker=True) as calc:
                         atoms.set_calculator(calc)
                         atoms.get_potential_energy()
-                
-                If False, use AMSJob to set up an io session (a normal AMS calculation storing all output on disk). 
+
+                If False, use AMSJob to set up an io session (a normal AMS calculation storing all output on disk).
     restart   : bool , optional
                 Allow the engine to restart based on previous calculations.
     molecule  : Molecule , optional
-                A Molecule object for which the calculation has to be performed. If 
+                A Molecule object for which the calculation has to be performed. If
                 settings.input.ams.system is defined it overrides the molecule argument.
-                If AMSCalculator.calculate(atoms = atoms) is called with an atoms argument 
+                If AMSCalculator.calculate(atoms = atoms) is called with an atoms argument
                 it overrides any earlier definition of the system and remembers it.
     extractors: List[BasePropertyExtractor] , optional
                 Define extractors for additional properties.
-    
+
 
     Examples:
     """
@@ -179,7 +180,7 @@ class AMSCalculator(Calculator):
         extractors = settings.pop('Extractors', [])
         self.extractors = [EnergyExtractor(), ForceExtractor(), StressExtractor()]
         self.extractors += [e for e in extractors if not e in self.extractors]
-        
+
         if 'system' in self.settings.input.ams:
             mol_dict = AMSJob.settings_to_mol(settings)
             atoms = toASE(mol_dict['']) if mol_dict else None
@@ -245,9 +246,9 @@ class AMSCalculator(Calculator):
                     self.settings = extractor.set_settings(self.settings.copy())
                     self.properties_updated = True
                 property_found = True
-            if not property_found:        
+            if not property_found:
                 raise NotImplementedError(f'No extractor known for property {prop}')
-        
+
     def results_from_ams_results(self, ams_results, job_settings):
         """Populates the self.results dictionary by having extractors act on an AMSResults object."""
         for extractor in self.extractors:
@@ -340,8 +341,8 @@ class AMSJobCalculator(AMSCalculator):
             job_settings.input.ams.EngineRestart = self.prev_ams_results.rkfpath(file='engine')
 
         return AMSJob( name     = self.name+str(self.counter),
-                       molecule = molecule, 
+                       molecule = molecule,
                        settings = job_settings
                        ).run()
 
-    
+

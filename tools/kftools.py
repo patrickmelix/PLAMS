@@ -9,7 +9,7 @@ from typing import Dict, Set
 from scm.plams.core.errors import FileError
 from scm.plams.core.functions import log
 from scm.plams.core.private import saferun
-from scm.plams.lazy_import import numpy
+import numpy
 
 __all__ = ['KFFile', 'KFReader', 'KFHistory']
 

@@ -1,6 +1,7 @@
+import numpy as np
+
 from scm.plams.core.errors import MoleculeError
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import numpy as np
 
 __all__ = ['Bond']
 

@@ -4,13 +4,13 @@ from typing import List
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.results import Results
 from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.tools.units import Units
 
 __all__ = ['AMSRDFJob', 'AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults']
 
 class AMSConvenientAnalysisJob(AMSAnalysisJob):
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  atom_indices=None,
                  **kwargs):
@@ -76,9 +76,9 @@ class AMSMSDResults(AMSAnalysisResults):
 
 
         y = y[time >= start_time_fit_fs]
-        time = time[time >= start_time_fit_fs] 
-        y = y[time <= end_time_fit_fs] 
-        time = time[time <= end_time_fit_fs] 
+        time = time[time >= start_time_fit_fs]
+        y = y[time <= end_time_fit_fs]
+        time = time[time <= end_time_fit_fs]
 
         result = linregress(time, y)
         fit_x = time
@@ -101,7 +101,7 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
     _result_type = AMSMSDResults
     _parent_write_atoms = True
 
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  max_correlation_time_fs:float=10000,
                  start_time_fit_fs:float=2000,
@@ -159,14 +159,14 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         D = self.results.get_diffusion_coefficient()
         with open(self.path+'/D.txt', 'w') as f:
             f.write(f'{D}\n')
-        
+
 class AMSVACFResults(AMSAnalysisResults):
     """Results class for AMSVACFJob
     """
     def get_vacf(self):
         xy = self.get_xy()
         time = np.array(xy.x[0]) # fs
-        y = np.array(xy.y) 
+        y = np.array(xy.y)
 
         return time, y
 
@@ -188,7 +188,7 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
     _result_type = AMSVACFResults
     _parent_write_atoms = True
 
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  max_correlation_time_fs=5000, # fs
                  max_freq=5000, # cm^-1
@@ -201,10 +201,10 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
 
         max_correlation_time_fs: float
             Maximum correlation time in femtoseconds
-        
+
         max_freq: float
             The maximum frequency for the power spectrum in cm^-1
-        
+
         atom_indices: List[int]
             Atom indices (starting with 1). If None, use all atoms.
 
@@ -254,8 +254,8 @@ class AMSRDFResults(AMSAnalysisResults):
         rdf: numpy array of float
         """
         xy = self.get_xy()
-        r = np.array(xy.x[0]) 
-        y = np.array(xy.y) 
+        r = np.array(xy.x[0])
+        y = np.array(xy.y)
 
         return r, y
 
@@ -338,7 +338,7 @@ class AMSConvenientAnalysisPerRegionResults(Results):
 
     def get_diffusion_coefficient(self, **kwargs):
         return self._getter(AMSMSDJob, 'get_diffusion_coefficient', kwargs)
-    
+
     def get_msd(self, **kwargs):
         return self._getter(AMSMSDJob, 'get_msd', kwargs)
 

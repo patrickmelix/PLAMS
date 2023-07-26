@@ -2,7 +2,7 @@ from scm.plams.core.basejob import MultiJob
 from scm.plams.core.errors import JobError
 from scm.plams.core.results import Results
 from scm.plams.interfaces.adfsuite.adf import ADFJob
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.tools.units import Units
 
 __all__ = ['CSHessianADFJob', 'CSHessianADFResults']

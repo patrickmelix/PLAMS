@@ -2,7 +2,7 @@ import collections
 import math
 
 from scm.plams.core.errors import UnitsError
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 
 __all__ = ['Units']
 
@@ -57,19 +57,19 @@ class Units:
 
     *   forces:
 
-        -   All energy units divided by angstrom or bohr, for example 
+        -   All energy units divided by angstrom or bohr, for example
         -   ``eV/angstrom``
         -   ``hartree/bohr``
 
     *   hessian:
 
-        -   All energy units divided by angstrom^2 or bohr^2, for example 
+        -   All energy units divided by angstrom^2 or bohr^2, for example
         -   ``eV/angstrom^2``
         -   ``hartree/bohr^2``
 
     *   pressure:
 
-        -   All energy units divided by angstrom^3 or bohr^3, for example 
+        -   All energy units divided by angstrom^3 or bohr^3, for example
         -   ``eV/angstrom^3``
         -   ``hartree/bohr^3``
         -   And some more:

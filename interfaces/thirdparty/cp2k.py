@@ -3,11 +3,12 @@ import shutil
 from os.path import join as opj
 from pathlib import Path
 
+import numpy as np
+
 from scm.plams.core.basejob import SingleJob
 from scm.plams.core.errors import ResultsError
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import numpy as np
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.units import Units

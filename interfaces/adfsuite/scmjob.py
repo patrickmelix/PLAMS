@@ -1,13 +1,14 @@
 import os
 from os.path import join as opj
 
+import numpy as np
+
 from scm.plams.core.basejob import SingleJob
 from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
 from scm.plams.core.functions import log, parse_heredoc
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import numpy as np
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.kftools import KFFile

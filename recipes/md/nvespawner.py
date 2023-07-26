@@ -3,7 +3,7 @@ from collections import OrderedDict
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.recipes.md.amsmdjob import AMSNVEJob
 
 __all__ = ['AMSNVESpawnerJob', 'AMSNVESpawnerResults']
@@ -11,7 +11,7 @@ __all__ = ['AMSNVESpawnerJob', 'AMSNVESpawnerResults']
 class AMSNVESpawnerResults(Results):
     """Results class for AMSNVESpawnerJob
     """
-        
+
 
 class AMSNVESpawnerJob(MultiJob):
     """A class for running multiple NVE simulations with initial structures/velocities taken from an NVT trajectory. The NVT trajectory must contain the velocities!
@@ -25,7 +25,7 @@ class AMSNVESpawnerJob(MultiJob):
         s.input.ForceField.AnteChamberIntegration = 'Yes'
         return s
 
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  n_nve=1,
                  name='nvespawnerjob',

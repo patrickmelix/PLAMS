@@ -1,7 +1,7 @@
 import os
 
 from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.mol.molecule import Molecule
 
 __all__ = ['get_stoichiometry', 'balance_equation', 'reaction_energy']
@@ -25,7 +25,7 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
                 d = AMSJob.load_external(r).molecule.get_formula(as_dict=as_dict)
         else:
             raise ValueError("The path {} does not exist.".format(r))
-                
+
     else:
         raise TypeError("expected type AMSJob or dict but received {}".format(type(r)))
 
@@ -33,8 +33,8 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
 
 def balance_equation(reactants, products, normalization='r0', normalization_value=1.0):
     """
-    Calculate stoichiometric coefficients 
-    This only works if 
+    Calculate stoichiometric coefficients
+    This only works if
         number_of_chemical_elements == len(reactants)+len(products), OR
         number_of_chemical_elements == len(reactants)+len(products)-1
 
@@ -86,7 +86,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
             if normalization_index >= num_reactants:
                 raise ValueError("Reactant index {} specified, but max value allowed is {}".format(normalization_index, num_reactants-1))
         elif normalization.startswith('p'):
-            normalization_index = int(normalization.split('p')[1]) 
+            normalization_index = int(normalization.split('p')[1])
             if normalization_index >= num_products:
                 raise ValueError("Product index {} specified, but max value allowed is {}".format(normalization_index, num_products-1))
             normalization_index += num_reactants
@@ -116,7 +116,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
     #  [0 -2    2 1]] #O
     #  CH4 O2 CO2 H2O
     #
-    # Al2(SO4)3 + Ca(OH)2 → Al(OH)3 + CaSO4 
+    # Al2(SO4)3 + Ca(OH)2 → Al(OH)3 + CaSO4
     # mat = np.array([[-2,-3,-12,0,0,0],[0,0,0,-1,-2,-2],[1,0,0,0,3,3],[0,1,4,1,0,0]]).T
 
     mat = []
@@ -159,7 +159,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
     return list(coeffs[:num_reactants]), list(coeffs[num_reactants:])
 
 def reaction_energy(reactants, products, normalization='r0', unit='hartree'):
-    """ 
+    """
 
     Calculates a reaction energy from an unbalanced chemical equation (the equation is first balanced)
 

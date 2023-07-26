@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import numpy
+import numpy
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.periodic_table import PT
@@ -21,8 +21,8 @@ class XYZHistoryFile (XYZTrajectoryFile) :
         *   ``elements``    -- The elements of the atoms in the system at the current frame
 
         An |XYZHistoryFile| object behaves very similar to a regular file object.
-        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
-        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`)
+        that read and write from/to the position of the cursor in the ``file_object`` attribute.
         If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
         the cursor to any frame in the file and reads from there.
         The amount of information stored in memory is kept to a minimum, as only information from the current frame
@@ -68,9 +68,9 @@ class XYZHistoryFile (XYZTrajectoryFile) :
             >>>     xyzout.write_next(coords=crd,elements=xyz.elements)
 
         By default the write mode will create a minimal version of the XYZ file, containing only elements
-        and coordinates. 
+        and coordinates.
         Additional information can be written to the file by supplying additional arguments
-        to the :meth:`write_next` method. 
+        to the :meth:`write_next` method.
         The additional keywords `step` and `energy` trigger the writing of a remark containing
         the molecule name, the step number, the energy, and the lattice vectors.
 
@@ -141,7 +141,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 coords = []
                 elements = []
                 for i in range(nats) :
-                        line = self.file_object.readline() 
+                        line = self.file_object.readline()
                         words = line.split()
                         coords.append([float(w) for w in words[1:4]])
                         elements.append(words[0])
@@ -177,7 +177,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                 return coords, cell
 
         def write_next (self,coords=None,molecule=None,elements=None,cell=[0.,0.,0.],conect=None,historydata=None) :
-                """ 
+                """
                 Write frame to next position in trajectory file
 
                 * ``coords``   -- A list or numpy array of (``ntap``,3) containing the system coordinates
@@ -199,7 +199,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
                         coords, cell, elements = self._read_plamsmol(molecule)[:3]
                 self.elements = elements
                 cell = self._convert_cell(cell)
-                        
+
                 self._write_moldata(coords, cell, historydata)
-                
+
                 self.position += 1

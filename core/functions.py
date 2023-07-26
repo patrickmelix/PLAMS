@@ -13,7 +13,6 @@ from typing import Dict
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.private import retry
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import LazyImporter
 
 __all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules', 'read_all_molecules_in_xyz_file']
 
@@ -35,16 +34,13 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_exi
     Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.  If *use_existing_folder* is True and the working folder already exists, PLAMS will not create a new working folder with an incremental suffix (e.g. plams_workdir.002). Instead, it will just use the pre-existing folder (note: that this might lead to issues if the working folder is not empty).
 
     Optionally, an additional `dict` (or |Settings| instance) can be provided to the `config_settings` argument which will be used to update the values from the ``plams_defaults``.
-    
+
     .. warning::
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
 
     if config.init:
         return
-
-    # Resolve lazy imports before running any jobs, since jobs might spawn threads and lazy importing is not threadsafe at the moment
-    LazyImporter.resolve_imports()
 
     if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
         defaults = expandvars('$PLAMSDEFAULTS')

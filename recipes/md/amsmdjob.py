@@ -1,7 +1,7 @@
 from scm.plams.core.functions import add_to_instance
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.units import Units
 
@@ -85,7 +85,7 @@ class AMSMDJob(AMSJob):
         **Other options**:
 
         calcpressure: bool
-            Whether to calculate pressure for each frame. 
+            Whether to calculate pressure for each frame.
 
         binlog_time: bool
             Whether to log the time at every timestep in the BinLog section on ams.rkf
@@ -124,7 +124,7 @@ class AMSMDJob(AMSJob):
     default_binlog_pressuretensor = 'False'
 
     def __init__(
-        self, 
+        self,
         velocities=None,
         timestep=None,
         samplingfreq=None,
@@ -238,7 +238,7 @@ class AMSMDJob(AMSJob):
     def get_velocities_from(self, other_job, frame=None, update_molecule=True):
         """
         Function to update the InitialVelocities block in self. It is normally not needed, instead use the e.g. AMSNVEJob.restart_from() function.
-        
+
         This function can be called in prerun() methods for MultiJobs
         """
         _, velocities, molecule, _ = self._get_restart_job_velocities_molecule(other_job, frame=frame)
@@ -312,7 +312,7 @@ class AMSMDJob(AMSJob):
         self.settings.input.ams.MolecularDynamics.Barostat.Pressure = pressure if pressure is not None else self.settings.input.ams.MolecularDynamics.Barostat.Pressure or self.default_pressure
         self.settings.input.ams.MolecularDynamics.Barostat.Tau = barostat_tau or self.settings.input.ams.MolecularDynamics.Barostat.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_barostat_tau_multiplier
         self.settings.input.ams.MolecularDynamics.Barostat.Scale = scale or self.settings.input.ams.MolecularDynamics.Barostat.Scale or self.default_scale
-        self.settings.input.ams.MolecularDynamics.Barostat.Equal = equal or self.settings.input.ams.MolecularDynamics.Barostat.Equal or self.default_equal 
+        self.settings.input.ams.MolecularDynamics.Barostat.Equal = equal or self.settings.input.ams.MolecularDynamics.Barostat.Equal or self.default_equal
         self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume = str(constantvolume) if constantvolume is not None else self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume or self.default_constantvolume
         return s
 

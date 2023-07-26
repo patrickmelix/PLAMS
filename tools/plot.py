@@ -6,7 +6,7 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
     """
     Plots an electronic band structure from DFTB or BAND with matplotlib.
 
-    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc. 
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
     manually outside this function.
 
     x: list of float
@@ -31,12 +31,12 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
         If True, call plt.show() at the end
     """
     import matplotlib.pyplot as plt
-    from scm.plams.lazy_import import numpy as np
+    import numpy as np
     if zero is None:
         zero = 0
     elif zero == 'fermi':
         assert fermi_energy is not None
-        zero = fermi_energy 
+        zero = fermi_energy
     elif zero in ['vbm', 'vbmax']:
         assert fermi_energy is not None
         zero = y_spin_up[y_spin_up <= fermi_energy].max()
@@ -106,14 +106,14 @@ def plot_molecule(molecule, figsize=None, ax=None, keep_axis:bool=False, **kwarg
 
 
 def plot_correlation(
-        job1, 
-        job2, 
-        section, 
-        variable, 
-        file="ams", 
-        multiplier=1.0, 
-        unit=None, 
-        save_txt=None, 
+        job1,
+        job2,
+        section,
+        variable,
+        file="ams",
+        multiplier=1.0,
+        unit=None,
+        save_txt=None,
         ax=None,
         show_xy=True,
         show_linear_fit=True,
@@ -122,8 +122,8 @@ def plot_correlation(
         xlabel=None,
         ylabel=None,
     ):
-    """ 
-    
+    """
+
     Plot a correlation plot from AMS .rkf files
 
     job1: AMSJob or List[AMSJob]
@@ -214,13 +214,13 @@ def plot_correlation(
 
     if ax is None:
         fig, ax = plt.subplots()
-    
+
     complete_data = np.stack((data1, data2), axis=1)
 
     min_data = np.min(complete_data)
     max_data = np.max(complete_data)
     min_max = np.array([min_data, max_data])
-    
+
     legend = []
     title = [f"{section}%{variable}"]
     if show_xy:
@@ -250,7 +250,7 @@ def plot_correlation(
 
     if stats_title:
         title.append(stats_title)
-    
+
     if linear_fit_title:
         title.append(linear_fit_title)
 

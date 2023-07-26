@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import pytest
 
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 
 try:
     import dill as pickle

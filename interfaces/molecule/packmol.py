@@ -3,10 +3,11 @@ import subprocess
 import tempfile
 from typing import List, Union
 
+import numpy as np
+
 from scm.plams.core.errors import MoleculeError
 from scm.plams.core.private import saferun
 from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.lazy_import import numpy as np
 from scm.plams.mol.molecule import Molecule
 
 try:
@@ -223,7 +224,7 @@ class PackMol:
 
     def _get_complete_radius(self) -> float:
         """
-        Calculates radius of sphere with the same volume as the 
+        Calculates radius of sphere with the same volume as the
         cuboid from the box bounds
 
         :return: Radius in angstrom
@@ -344,11 +345,11 @@ def packmol(
         If True, the bonds from the constituent molecules will be kept in the returned Molecule
 
     keep_atom_properties : bool
-        If True, the atom.properties (e.g. force-field atom types) of the constituent molecules will be kept in 
+        If True, the atom.properties (e.g. force-field atom types) of the constituent molecules will be kept in
         the returned Molecule
 
     region_names : str or list of str
-        Populate the region information for each atom. Should have the same length and order as ``molecules``. 
+        Populate the region information for each atom. Should have the same length and order as ``molecules``.
         By default the regions are named ``mol0``, ``mol1``, etc.
 
     tolerance: float
@@ -356,8 +357,8 @@ def packmol(
         a periodic box, half the tolerance will be excluded from each face of the box.
 
     return_details : bool
-        Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', 
-        etc. They contain the actual details of the returned molecule, which may differ slightly from 
+        Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density',
+        etc. They contain the actual details of the returned molecule, which may differ slightly from
         the requested quantities.
 
         Returned keys:

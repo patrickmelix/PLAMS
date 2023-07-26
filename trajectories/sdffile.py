@@ -3,7 +3,7 @@
 import io
 
 from scm.plams.core.errors import TrajectoryError
-from scm.plams.lazy_import import numpy
+import numpy
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
 from scm.plams.mol.molecule import Molecule
@@ -24,8 +24,8 @@ class SDFTrajectoryFile (TrajectoryFile) :
         *   ``elements``    -- The elements of the atoms in the system (needs to be constant throughout)
 
         An |SDFTrajectoryFile| object behaves very similar to a regular file object.
-        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
-        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`)
+        that read and write from/to the position of the cursor in the ``file_object`` attribute.
         If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
         the cursor to any frame in the file and reads from there.
         The amount of information stored in memory is kept to a minimum, as only information from the current frame
@@ -73,9 +73,9 @@ class SDFTrajectoryFile (TrajectoryFile) :
             >>> sdfout.close()
 
         By default the write mode will create a minimal version of the SDF file, containing only elements
-        and coordinates. 
+        and coordinates.
         Additional information can be written to the file by supplying additional arguments
-        to the :meth:`write_next` method. 
+        to the :meth:`write_next` method.
         The additional keywords `step` and `energy` trigger the writing of a remark containing
         the molecule name, the step number, the energy, and the lattice vectors.
 
@@ -165,7 +165,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         self.firsttime = False
 
                 self.position += 1
-                
+
                 return self.coords, cell
 
         def _read_coordinates (self, molecule) :
@@ -230,7 +230,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         line = self.file_object.readline()
                         if len(line) == 0 :
                                 end = True
-                                break 
+                                break
                         if len(line) < 4 : continue
                         if line[:4] == '$$$$' :
                                 break
@@ -320,7 +320,7 @@ def create_sdf_string (molecule, step=None, historydata=None) :
                         energy = historydata['energies']
         else :
                 historydata = {}
-        
+
         if 'Step' in historydata :
                 step = historydata['Step']
 
@@ -347,7 +347,7 @@ def get_molecule (lines) :
         for i,line in enumerate(lines) :
                 if line[:6] == 'M  END' :
                         end = i+1
-                        break 
+                        break
         moltext = ''.join(lines[:end])
         f = io.StringIO(moltext)
         mol = Molecule()

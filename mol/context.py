@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools
 from typing import TYPE_CHECKING
 
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 
 if TYPE_CHECKING:
     from scm.plams.mol.molecule import Molecule

@@ -10,7 +10,7 @@ from scm.plams.core.errors import FileError, MoleculeError, PTError
 from scm.plams.core.functions import log
 from scm.plams.core.private import parse_action, smart_copy
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
 from scm.plams.mol.context import AsArrayContext

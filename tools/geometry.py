@@ -1,7 +1,7 @@
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 
 try:
-    from scm.plams.lazy_import import scipy_spatial
+    from scipy.spatial.distance import cdist
     scipy_present = True
 except ImportError:
     scipy_present = False
@@ -21,7 +21,7 @@ def rotation_matrix(vec1, vec2):
     # avoid division by zero in case of antiparallel vectors
     if abs(1+np.dot(a,b)) < 1E-8:
         return -np.eye(3)
-    
+
     v1,v2,v3 = np.cross(a,b)
     M = np.array([[0, -v3, v2], [v3, 0, -v1], [-v2, v1, 0]])
     return (np.identity(3) + M + np.dot(M,M)/(1+np.dot(a,b)))
@@ -53,7 +53,7 @@ def distance_array(array1, array2):
 
     Uses fast ``cdist`` function if ``scipy`` is present, otherwise falls back to slightly slower ``numpy`` loop. Arguments should be 2-dimensional ``numpy`` arrays with the same second dimension. If *array1* is A x N and *array2* is B x N, the returned array is A x B.
     """
-    return scipy_spatial.distance.cdist(array1, array2) if scipy_present else np.array([np.linalg.norm(i - array2, axis=1) for i in array1])
+    return cdist(array1, array2) if scipy_present else np.array([np.linalg.norm(i - array2, axis=1) for i in array1])
 
 
 def angle(vec1, vec2, result_unit='radian'):
@@ -152,7 +152,7 @@ def cell_angles(lattice, unit='degree'):
 
 def cellvectors_from_shape (box) :
     """
-    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors 
+    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors
     """
     a = box[0]
     b = box[1]

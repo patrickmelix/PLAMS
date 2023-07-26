@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from scm.plams.core.errors import PlamsError
-from scm.plams.lazy_import import numpy
+import numpy
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.periodic_table import PeriodicTable
@@ -30,8 +30,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
         *   ``saving_freq`` -- How often the 'wb' file is written (default: only when :meth:`close` is called)
 
         An |RKFTrajectoryFile| object behaves very similar to a regular file object.
-        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
-        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`)
+        that read and write from/to the position of the cursor in the ``file_object`` attribute.
         If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
         the cursor to any frame in the file and reads from there.
         The amount of information stored in memory is kept to a minimum, as only information from the latest frame
@@ -116,7 +116,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 #TODO: If the mddata option is set to True, then the file created here works with AMSMovie and the analysis tools.
                 #      To also make is work for restarts, two things have to be added:
-                #      1. The final velocities have to be converted from bohr/fs to bohr/au (1/41.341373336493) 
+                #      1. The final velocities have to be converted from bohr/fs to bohr/au (1/41.341373336493)
                 #         and stored in MDResuts%EndVelocities
                 #      2. The final coordinates need to be copied to the Molecule section.
 
@@ -141,7 +141,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.elements = ['H']*self.ntap
                 self.current_molecule = None
                 self.store_molecule = True # Even if True, the molecule attribute is only stored during iteration
-        
+
                 # RKF specific attributes
                 self.program = 'trajectory'
                 self.nvecs = 3
@@ -168,7 +168,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         self._read_header()
                 elif self.mode == 'wb' :
                          sections = self.file_object.sections()
-                         if len(sections) > 0 : 
+                         if len(sections) > 0 :
                                 for secname in sections:
                                         self.file_object.delete_section(secname)
                          #       raise PlamsError ('RKF file %s already exists'%(filename))
@@ -220,7 +220,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 # Write to file
                 if self.mode == 'wb' :
                         if override_molecule_section_with_last_frame:
-                                # First write the last frame into the Molecule section  
+                                # First write the last frame into the Molecule section
                                 self._rewrite_molecule()
                         # Then write to file
                         self.file_object.save()
@@ -284,7 +284,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 blocksize = self.file_object.read(section, 'blockSize')
                 item_keys = [kn for kn in sections[section] if 'ItemName' in kn]
                 items = [self.file_object.read(section,kn) for kn in item_keys]
-                blockitems = [] 
+                blockitems = []
                 for item in items :
                         dim = self.file_object.read(section,'%s(dim)'%(item))
                         if dim == 1 and not self.file_object.read(section,'%s(perAtom)'%(item)):
@@ -453,11 +453,11 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 for j in neighbors_i :
                                         if not j in conect_sym.keys() :
                                                 conect_sym[j] = []
-                                        if j in conect.keys() : 
+                                        if j in conect.keys() :
                                                 conect_sym[j] = conect[j]
                                         if not i in conect_sym[j] :
                                                 conect_sym[j].append(i)
-                        conect = conect_sym     
+                        conect = conect_sym
                 except (KeyError, AttributeError) :
                         pass
                 return conect, bonds
@@ -519,7 +519,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
                 crd, vecs = self.read_frame (self.position,molecule)
                 self.position += 1
-                return crd, vecs 
+                return crd, vecs
 
         def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], conect=None, historydata=None, mddata=None) :
                 """
@@ -533,7 +533,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
 
                 The ``mddata`` dictionary can contain the following keys:
-                ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
+                ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy',
                 'Charges', 'ConservedEnergy', 'Time', 'Temperature')
 
                 The ``historydata`` dictionary can contain for example:
@@ -602,7 +602,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         if historydata is not None :
                                 if 'Energy' in historydata :
                                         energy = historydata['Energy']
-                if energy is None :     
+                if energy is None :
                         energy = 0.
                 return energy
 
@@ -688,7 +688,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
 
         def _write_dictionary_to_history (self, data, section, counter=1) :
                 """
-                Add the entries of a dictionary to a History section 
+                Add the entries of a dictionary to a History section
                 """
                 self.file_object.write(section,'nEntries',self.position+1)
                 self.file_object.write(section,'currentEntryOpen',False)
@@ -723,7 +723,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                                 var = [float(v) for v in var]
                                         break
                         else :
-                                if isinstance(var,numpy.int64) : 
+                                if isinstance(var,numpy.int64) :
                                         var = int(var)
                                 elif isinstance(var,numpy.float64) :
                                         var = float(var)
@@ -742,7 +742,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 # Block code: if the data is to be written as blocks, then step and values need to be replaced.
                 if section == 'MDHistory' :
                         step, values = self._get_block_info (key, perAtom, dim, step, values, section)
-                                
+
                 # The rest should be independent on format (block or individual)
                 self.file_object.write(section,'%s(%i)'%(key,step),values)
                 if printstartdata :
@@ -887,15 +887,15 @@ def compute_lattice_displacements (molecule) :
         bond_indices = numpy.array([sorted([iat-1 for iat in molecule.index(bond)]) for bond in molecule.bonds])
         coords = molecule.as_array()
         vectors = coords[bond_indices[:,0]] - coords[bond_indices[:,1]]
-        
+
         # Project the vectors onto the lattice vectors
         celldiameters_sqrd = (cell**2).sum(axis=1)
         proj = (vectors.reshape((nbonds,1,3)) * cell.reshape(1,nvecs,3)).sum(axis=2)
         proj = proj / celldiameters_sqrd.reshape((1,nvecs))
-        
+
         # Now see what multiple they are of 0.5
         lattice_displacements = numpy.round(proj).astype(int)
         lattice_displacements = lattice_displacements.reshape((nvecs*nbonds)).tolist()
         return lattice_displacements
 
-                                
+

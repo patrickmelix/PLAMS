@@ -1,12 +1,13 @@
+import numpy as np
+
 from scm.plams.core.functions import add_to_class
-from scm.plams.lazy_import import numpy as np
 from scm.plams.mol.molecule import Atom, Molecule, MoleculeError
 
 __all__ = ['toASE', 'fromASE']
 ase_present = False
 
 try:
-    from scm.plams.lazy_import import ase
+    import ase
     ase_present = True
 except ImportError:
     __all__ = []
@@ -69,8 +70,8 @@ if ase_present:
 
 def toASE(molecule, set_atomic_charges=False):
     """Convert a PLAMS |Molecule| to an ASE molecule (``ase.Atoms`` instance). Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved.
-    
-    
+
+
     set_atomic_charges: bool
         If True, set_initial_charges() will be called with the average atomic charge (taken from molecule.properties.charge). The purpose is to preserve the total charge, not to set any reasonable initial charges.
     """

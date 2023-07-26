@@ -1,10 +1,10 @@
 from collections import OrderedDict
 from itertools import combinations
 
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 
 try:
-    from scm.plams.lazy_import import networkx
+    import networkx
     has_networkx = True
 except ImportError:
     has_networkx = False
@@ -321,7 +321,7 @@ if has_networkx:
     @add_to_class(Molecule)
     def find_permutation(self, other, level=1):
         """
-        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. 
+        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed.
         """
         # Get bonds and unique atomIDs if needed
         if len(self.bonds) == 0:

@@ -2,12 +2,13 @@ import os
 import shutil
 from os.path import join as opj
 
+import numpy as np
+
 from scm.plams.core.basejob import SingleJob
 from scm.plams.core.errors import FileError
 from scm.plams.core.functions import log
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
-from scm.plams.lazy_import import numpy as np
 from scm.plams.tools.units import Units
 
 __all__ = ['ReaxFFJob', 'ReaxFFResults', 'load_reaxff_control', 'reaxff_control_to_settings']

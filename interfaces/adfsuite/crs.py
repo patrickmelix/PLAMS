@@ -3,8 +3,9 @@ import os
 import subprocess
 from itertools import cycle
 
+import numpy as np
+
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
-from scm.plams.lazy_import import numpy as np
 from scm.plams.tools.units import Units
 
 __all__ = ['CRSResults', 'CRSJob']
@@ -147,7 +148,7 @@ class CRSResults(SCMResults):
                     valid_structs[j].append(struct_names[i])
 
         compositions = [ {vs:[] for vs in valid_structs[i]} for i in range(ncomp) ]
-        idx = 0 
+        idx = 0
         for i in range(ncomp):
             for nfrac in range(num_points):
                 for j in range(len(valid_structs[i])):
@@ -317,7 +318,7 @@ class CRSJob(SCMJob):
     _command = 'crs'
     _result_type = CRSResults
     _subblock_end = 'end'
-    
+
     def __init__(self, **kwargs) -> None:
         """Initialize a :class:`CRSJob` instance."""
         super().__init__(**kwargs)

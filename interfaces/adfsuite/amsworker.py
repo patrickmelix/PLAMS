@@ -14,9 +14,10 @@ import weakref
 from numbers import Integral
 from typing import Dict, Tuple
 
+import numpy as np
+
 from scm.plams.core.private import retry
 from scm.plams.interfaces.molecule.ase import toASE
-from scm.plams.lazy_import import numpy as np
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -1220,10 +1221,6 @@ class AMSWorkerPool:
     """
 
     def __init__(self, settings, num_workers, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
-        # vdkolk: The lazy importing of numpy somehow causes issues when starting up the worker threads.
-        # Doing a re-import here solves the issues of the 'ndarray' attribute not being present on the numpy module
-        # I was not able to reproduce that error in isolation
-        import numpy  # noqa: F401
         self.workers = num_workers * [None]
         if num_workers == 1:
             # Do all the work in the main thread

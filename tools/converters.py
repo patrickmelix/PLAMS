@@ -17,7 +17,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
 
         trajfile : str
             path to a .traj file
-        rkftrajectoryfile : str 
+        rkftrajectoryfile : str
             path to the output .rkf file (will be created)
         task : str
             Which task to write. If None it is auto-determined.
@@ -25,7 +25,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
         timestep: float
             Which timestep to write when task == 'moleculardynamics'
 
-        
+
         Returns : 2-tuple (coords, cell)
             The final coordinates and cell in angstrom
     """
@@ -79,7 +79,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
 
             if 'PotentialEnergy' in mddata and 'KineticEnergy' in mddata:
                 mddata['TotalEnergy'] = mddata['PotentialEnergy'] + mddata['KineticEnergy']
-            
+
             if str(task).lower() == 'moleculardynamics' or len(mddata) > 0:
                 mddata['Time'] = timestep * i
 
@@ -129,7 +129,7 @@ def file_to_traj(outfile, trajfile):
     if os.path.exists(trajfile):
         os.remove(trajfile)
 
-    atoms = read(outfile, ':') 
+    atoms = read(outfile, ':')
     write(trajfile, atoms)
 
     if not os.path.exists(trajfile):
@@ -194,7 +194,7 @@ def _postprocess_vasp_amsrkf(kffile, outcar):
         kf.save()
 
 def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf=True, task:str=None, timestep:float=0.25):
-    """ 
+    """
         Converts VASP output (OUTCAR, ...) to AMS output (ams.rkf, vasp.rkf)
 
         Returns: a string containing the directory where ams.rkf was written
@@ -223,7 +223,7 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
         raise ValueError('Directory {} does not exist'.format(vasp_folder))
 
     outcar = os.path.join(vasp_folder, 'OUTCAR')
-    if not os.path.exists(outcar): 
+    if not os.path.exists(outcar):
         if os.path.exists(os.path.join(vasp_folder, 'XDATCAR')):
             outcar = os.path.join(vasp_folder, 'XDATCAR')
         else:
@@ -404,7 +404,7 @@ def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf
 
 def rkf_to_ase_atoms(rkf_file, get_results=True):
     """
-        Convert an ams.rkf trajectory to a list of ASE atoms 
+        Convert an ams.rkf trajectory to a list of ASE atoms
 
         rkf_file: str
             Path to an ams.rkf file
@@ -416,7 +416,7 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
     """
     from ase import Atoms
     from ase.calculators.singlepoint import SinglePointCalculator
-    from scm.plams.lazy_import import numpy as np
+    import numpy as np
     bohr2angstrom = Units.convert(1.0, 'bohr', 'angstrom')
     hartree2eV = Units.convert(1.0, 'hartree', 'eV')
     def get_ase_atoms(elements, crd, cell, energy, gradients, stress):
@@ -466,7 +466,7 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
             atoms = get_ase_atoms(rkf.elements, crd, cell, energy, gradients, stress)
             all_atoms.append(atoms)
     else:
-        atoms = toASE(Molecule(rkf_filename)) 
+        atoms = toASE(Molecule(rkf_filename))
         all_atoms = [atoms]
 
     return all_atoms

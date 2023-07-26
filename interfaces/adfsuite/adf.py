@@ -1,10 +1,11 @@
 import warnings
 
+import numpy as np
+
 from scm.plams.core.errors import ResultsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
-from scm.plams.lazy_import import numpy as np
 from scm.plams.tools.periodic_table import PT
 from scm.plams.tools.units import Units
 

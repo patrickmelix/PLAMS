@@ -1,6 +1,6 @@
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSResults
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.recipes.md.amsmdjob import AMSNVTJob
 
 __all__ = ['AMSMDScanDensityJob', 'AMSMDScanDensityResults']
@@ -18,7 +18,7 @@ class AMSMDScanDensityResults(AMSResults):
 
     def get_lowest_energy_molecule(self, variable='TotalEnergy'):
         return self.get_history_molecule(self.get_lowest_energy_index(variable, 'MDHistory'))
-        
+
 
 class AMSMDScanDensityJob(AMSNVTJob):
     """A class for scanning the density using MD Deformations
@@ -40,7 +40,7 @@ class AMSMDScanDensityJob(AMSNVTJob):
         self.startstep = startstep or 1
 
         s = Settings()
-        s.input.ams.MolecularDynamics.Deformation.TargetLength = ' '.join([str(x) for x in new_length]) 
+        s.input.ams.MolecularDynamics.Deformation.TargetLength = ' '.join([str(x) for x in new_length])
         s.input.ams.MolecularDynamics.Deformation.StartStep = self.startstep
 
         self.settings += s

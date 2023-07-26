@@ -7,7 +7,7 @@ from scm.plams.core.basejob import MultiJob
 from scm.plams.core.functions import add_to_instance
 from scm.plams.core.results import Results
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
-from scm.plams.lazy_import import numpy as np
+import numpy as np
 from scm.plams.mol.molecule import Molecule
 from scm.plams.recipes.md.amsmdjob import AMSNVTJob
 from scm.plams.tools.kftools import KFFile
@@ -19,8 +19,8 @@ def get_viscosity(job, max_dt_fs=50000, reuse=False):
         job: AMSGreenKuboViscosityJob
             The job
 
-        Returns the viscosity in mPa*s, and writes 
-        
+        Returns the viscosity in mPa*s, and writes
+
         * viscosity.txt: viscosity in mPa*s
         * green_kubo_viscosity.txt: viscosity vs. time (curve that should converge to the viscosity as t goes to inifinity)
         * fit.txt : A fit of the form A*(1-exp(-x/tau)) to green_kubo_viscosity.txt; A is the final viscosity.
@@ -55,8 +55,8 @@ def get_viscosity(job, max_dt_fs=50000, reuse=False):
     max_dt = int(max_dt_fs  / (job.samplingfreq * job.timestep))
 
     t, visc = AMSResults._get_green_kubo_viscosity(
-        pressuretensor=pressuretensor, 
-        max_dt=max_dt, 
+        pressuretensor=pressuretensor,
+        max_dt=max_dt,
         time_step=job.samplingfreq * job.timestep,
         volume=volume,
         temperature=temperature
@@ -135,7 +135,7 @@ class AMSPartialGreenKuboViscosityJob(AMSNVTJob):
         if not self.keep_trajectory:
             kf = KFFile(os.path.join(self.path, 'ams.rkf'))
             kf.delete_section('History')
-        
+
         self.results.collect()
 
         get_viscosity(self.parent, max_dt_fs=self.max_dt_fs, reuse=False)
@@ -145,8 +145,8 @@ class AMSGreenKuboViscosityResults(Results):
     """
     def get_viscosity(self, max_dt_fs=50000, reuse=False):
         """
-        Returns the viscosity in mPa*s, and writes 
-        
+        Returns the viscosity in mPa*s, and writes
+
         * viscosity.txt: viscosity in mPa*s
         * green_kubo_viscosity.txt: viscosity vs. time (curve that should converge to the viscosity as t goes to inifinity)
         * fit.txt : A fit of the form A*(1-exp(-x/tau)) to green_kubo_viscosity.txt; A is the final viscosity.
@@ -192,12 +192,12 @@ class AMSGreenKuboViscosityJob(MultiJob):
     _result_type = AMSGreenKuboViscosityResults
 
 
-    def __init__(self, 
-        molecule:Molecule=None, 
+    def __init__(self,
+        molecule:Molecule=None,
         name:str='greenkuboviscosity',
-        nsteps:int=100000, 
-        fragment_length:int=10000, 
-        samplingfreq:int=5, 
+        nsteps:int=100000,
+        fragment_length:int=10000,
+        samplingfreq:int=5,
         timestep:float=1.0,
         temperature:float=300,
         keep_trajectory:bool=False,
@@ -260,9 +260,9 @@ class AMSGreenKuboViscosityJob(MultiJob):
             if not isinstance(restart_from, AMSJob):
                 raise ValueError(f"restart_from must be AMSJob, got {type(restart_from)}")
             self.children['step1'] = AMSPartialGreenKuboViscosityJob(
-                name='step1', 
+                name='step1',
                 keep_trajectory=self.keep_trajectory,
-                timestep=self.timestep, 
+                timestep=self.timestep,
                 temperature=self.temperature,
                 nsteps=self.fragment_length,
                 samplingfreq=self.samplingfreq,
@@ -275,10 +275,10 @@ class AMSGreenKuboViscosityJob(MultiJob):
 
         else:
             self.children['step1'] = AMSPartialGreenKuboViscosityJob(
-                name='step1', 
-                molecule=molecule, 
+                name='step1',
+                molecule=molecule,
                 keep_trajectory=self.keep_trajectory,
-                timestep=self.timestep, 
+                timestep=self.timestep,
                 temperature=self.temperature,
                 nsteps=self.fragment_length,
                 samplingfreq=self.samplingfreq,
@@ -293,9 +293,9 @@ class AMSGreenKuboViscosityJob(MultiJob):
             previous_names[name] = previous_name
 
             job = AMSPartialGreenKuboViscosityJob(
-                name=name, 
+                name=name,
                 keep_trajectory=keep_trajectory,
-                timestep=self.timestep, 
+                timestep=self.timestep,
                 temperature=self.temperature,
                 nsteps=fragment_length,
                 samplingfreq=self.samplingfreq,
@@ -308,5 +308,5 @@ class AMSGreenKuboViscosityJob(MultiJob):
 
             self.children[name] = job
             previous_name = name
-            
+
 

@@ -1,8 +1,9 @@
+import numpy as np
+
 from scm.plams.core.functions import config, delete_job, finish, init
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.amsworker import AMSWorker
-from scm.plams.lazy_import import numpy as np
 from scm.plams.mol.molecule import Molecule
 
 __all__ = ['preoptimize', 'refine_density', 'refine_lattice']
@@ -118,7 +119,7 @@ def refine_lattice(molecule: Molecule, lattice, n_points=None, max_strain=0.15, 
         lattice: list of list of float
             List with 1, 2, or 3 elements. Each element is a list of float with 3 elements each. For example, ``lattice=[[10, 0, 0],[-5, 5, 0],[0, 0, 12]]``.
         n_points: None or int >=2
-            Number of points used for the linear interpolation. If None, n_points will be chosen such that the maximum strain for any step is at most ``max_strain`` compared to the original lattice vector lengths. 
+            Number of points used for the linear interpolation. If None, n_points will be chosen such that the maximum strain for any step is at most ``max_strain`` compared to the original lattice vector lengths.
         max_strain: float
             Only if ``n_points=None``, use this value to determine the maximum allowed strain from one step to the next (as a fraction of the length of the original lattice vectors).
         model: str

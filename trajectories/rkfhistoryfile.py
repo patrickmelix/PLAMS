@@ -5,7 +5,7 @@ from typing import List, Set, Union
 
 from scm.plams.core.errors import PlamsError
 from scm.plams.core.settings import Settings
-from scm.plams.lazy_import import numpy
+import numpy
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.periodic_table import PT
@@ -29,8 +29,8 @@ class RKFHistoryFile (RKFTrajectoryFile) :
         *   ``read_bonds``  -- Wether the connectivity information will be read from the file
 
         An |RKFHistoryFile| object behaves very similar to a regular file object.
-        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
-        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`)
+        that read and write from/to the position of the cursor in the ``file_object`` attribute.
         If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
         the cursor to any frame in the file and reads from there.
         The amount of information stored in memory is kept to a minimum, as only information from the latest frame
@@ -165,8 +165,8 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 Read the start molecule data from the InputMolecule section (not the Molecule section)
                 """
                 self.added_atoms = {}
-                self.removed_atoms = {} 
-                self.chemical_systems = {0:1} 
+                self.removed_atoms = {}
+                self.chemical_systems = {0:1}
                 secname = 'ChemicalSystem(1)'
                 if not 'SystemVersionHistory' in self.file_object.sections() :
                         secname = 'InputMolecule'
@@ -222,7 +222,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         added_elements = [elements[i-1].split('.')[0] for i in added_atoms]
                         # Now store the elements
                         for iat,el in zip(removed_atoms,removed_elements) :
-                                self.removed_atoms[i][iat] = el 
+                                self.removed_atoms[i][iat] = el
                         for iat,el in zip(added_atoms,added_elements) :
                                 self.added_atoms[i][iat] = el
                         self.chemical_systems[i] = chemSysNum
@@ -256,7 +256,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 ###################
                 return chemSysNum, elements
 
-        # FIXME: The _write_header section writes the starting molecule to the Molecule section, 
+        # FIXME: The _write_header section writes the starting molecule to the Molecule section,
         #        not the final molecule (like the Fortran code does)
         def _write_header (self, coords, cell, molecule=None) :
                 """
@@ -264,7 +264,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 """
                 # First write the general section
                 write_general_section(self.file_object,self.program)
-                
+
                 # Then write the input molecule
                 self._update_celldata(cell)
                 self._write_molecule_section(coords, cell, molecule=molecule)
@@ -373,7 +373,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 * ``mddata``   -- A dictionary containing the variables to be written to the MDHistory section
 
                 The ``mddata`` dictionary can contain the following keys:
-                ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy', 
+                ('TotalEnergy', 'PotentialEnergy', 'Step', 'Velocities', 'KineticEnergy',
                 'Charges', 'ConservedEnergy', 'Time', 'Temperature')
 
                 The ``historydata`` dictionary can contain for example:
@@ -424,7 +424,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
 
                 if self.include_mddata and mddata is not None :
                         self._write_mdhistory_entry(mddata)
-                
+
                 # If a change took place, write it.
                 # Note: The chemical system is only written if the elements change. Changes in the atom properties are not checked
                 if elements != self.elements or props != self.props or self.position==0 :
@@ -503,15 +503,15 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 removed_atoms = []
                 position = 0
                 for i,el in enumerate(self.elements) :
-                        if position == len(elements) : 
+                        if position == len(elements) :
                                 removed_atoms += [j for j in range(i,len(self.elements))]
                                 break
                         # Get the props, if relevant
-                        if self.props is None : 
+                        if self.props is None :
                                 op = None
                         else :
                                 op = self.props[i]
-                        if props is None : 
+                        if props is None :
                                 p = None
                         else :
                                 p = props[position]
@@ -523,7 +523,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
 
                 # Then find out which elements were added
                 added_atoms = [i for i in range(position,len(elements))]
-                
+
                 # Now store them (this is actually not really necessary)
                 if len(removed_atoms) > 0 :
                         self.removed_atoms[self.position] = {}

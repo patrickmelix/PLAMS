@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from scm.plams.lazy_import import numpy
+import numpy
 
 from..mol.molecule import Bond, Molecule
 from scm.plams.core.errors import PlamsError
@@ -189,16 +189,16 @@ class TrajectoryFile (object) :
                         nframes = abs(frame - self.position)
                         self.rewind(nframes)
                 steps = frame - self.position
-                
+
                 for i in range(steps) :
                         crd,cell = self.read_next(read=False)
                         if crd is None :
                                 break
-                
+
                 crd,cell = self.read_next(molecule)
                 if crd is None :
                         print('Not enough frames!')
-                
+
                 return crd,cell
 
         def _set_plamsmol (self, coords, cell, plamsmol, bonds=None) :
@@ -278,7 +278,7 @@ class TrajectoryFile (object) :
                 return coords, cell, elements, conect, props
 
         def rewind (self,nframes=None) :
-                """ 
+                """
                 Rewind the file either by ``nframes`` or to the first frame
 
                 *   ``nframes`` -- The number of frames to rewind
@@ -288,7 +288,7 @@ class TrajectoryFile (object) :
                         self._rewind_to_first_frame()
                 elif nframes > self.position :
                         raise PlamsError('Trying to rewind too much!')
-                else :  
+                else :
                         # Go back nframes geometries
                         self._rewind_n_frames(nframes)
 
@@ -300,7 +300,7 @@ class TrajectoryFile (object) :
                 self.firsttime = True
                 self.position = 0
                 self._read_header()
-                
+
         def _rewind_n_frames(self,nframes) :
                 """
                 Rewind the file by nframes frames
@@ -336,7 +336,7 @@ class TrajectoryFile (object) :
                                 break
                         step += 1
 
-                # If the current position was already the end of the file, this fails, so a failsafe is built in:                
+                # If the current position was already the end of the file, this fails, so a failsafe is built in:
                 if step == 0 :
                         step = self.position
 
