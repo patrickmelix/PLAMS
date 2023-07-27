@@ -1889,7 +1889,7 @@ class Molecule:
         The atoms in the unit cell will be strained accordingly, keeping the fractional atomic coordinates constant.
 
         If ``voigt_form=False``, *strain* should be a container with n*n numerical values, where n is the number of ``lattice`` vectors. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (e.g. ``[e_xx, e_xy, e_xz, e_yx, e_yy, e_yz, e_zx, e_zy, e_zz]``) or in two-level fashion (e.g. ``[[e_xx, e_xy, e_xz],[e_yx, e_yy, e_yz],[e_zx, e_zy, e_zz]]``).
-        If ``voigt_form=True``, *strain* should be passed in voigt form (for 3D periodic systems: ``[e_xx, e_yy, e_zz, gamma_yz, gamma_xz, gamma_xy]``; for 2D periodic systems: ``[e_xx, e_yy, gamma_xy]``; for 1D periodic systems: ``[e_xx]``  with e_xy = gamma_xy/2,...). Example usage::
+        If ``voigt_form=True``, *strain* should be passed in Voigt form (for 3D periodic systems: ``[e_xx, e_yy, e_zz, gamma_yz, gamma_xz, gamma_xy]``; for 2D periodic systems: ``[e_xx, e_yy, gamma_xy]``; for 1D periodic systems: ``[e_xx]``  with e_xy = gamma_xy/2,...). Example usage::
 
             >>> graphene = Molecule('graphene.xyz')
             >>> print(graphene)
