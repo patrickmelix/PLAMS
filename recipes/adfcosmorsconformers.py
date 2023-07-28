@@ -24,10 +24,23 @@ class ADFCOSMORSConfResults(Results):
 
 
 class ADFCOSMORSConfJob(MultiJob):
+    '''
+    This class allows for the user to implement a custom workflow for generating multiple conformers for use with COSMO-RS.  The class allows the user to input conformer generation strategies, job types to refine the energies/geometries, and filters to remove conformers between each calculation step.  
+
+    Params:
+        molecule : A plams Molecule instance
+
+    Keyword Args:
+        conf_gen : A ConformerJob isntance
+
+
+    '''
+
+
     _result_type = ADFCOSMORSConfResults
 
     def __init__(self,
-        molecule,
+        molecule : Molecule,
         conf_gen=None,
         first_filter=None,
         additional=None,
@@ -105,7 +118,10 @@ class ADFCOSMORSConfJob(MultiJob):
         return AMSJob(name="replay", settings=sett)
 
     def new_children(self):
+        '''Don't doc this
 
+        :meta private:
+        '''
         if self.job_count < len(self.job_settings)-1:
             self.job_count += 1
             settings = self.job_settings[self.job_count]
@@ -126,9 +142,7 @@ class ADFCOSMORSConfJob(MultiJob):
         self._make_coskfs()
 
     def _make_coskfs(self):
-        '''
-        Copy the COSMO sections from all the files back to the folder with the conformers
-        '''
+
         base_name = self.coskf_name if self.coskf_name is not None else "conformer"
         if self.coskf_dir is None:
             self.coskf_dir = self.children['adf_job'].path
@@ -153,6 +167,7 @@ class ADFCOSMORSConfJob(MultiJob):
 
 
     def has_valid_filter_settings(self):
+
         for js, f in zip(self.job_settings,self.filters):
             if js is not None and not isinstance(js,Settings):
                 return False
