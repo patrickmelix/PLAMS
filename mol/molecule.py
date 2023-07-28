@@ -1938,7 +1938,7 @@ class Molecule:
         else:
             try:
                 strain = np.array(strain).reshape(n,n)
-            except:
+            except Exception:
                 raise MoleculeError('apply_strain: could not convert the strain to a (%i,%i) numpy array'%(n,n))
 
         if n==1:
