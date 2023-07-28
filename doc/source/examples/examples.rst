@@ -114,6 +114,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
 .. toctree::
 
     ADFCOSMORSCompound
+    ADFCOSMORSConformers
     MDJobs
     adffragment
     ReorganizationEnergy
