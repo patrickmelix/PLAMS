@@ -10,10 +10,16 @@ from scm.plams import (
 
 from scm.conformers import ConformersJob
 from scm.plams.recipes.adfcosmorscompound import ADFCOSMORSCompoundJob
-from collections import OrderedDict
 import os
 
 class ADFCOSMORSConfFilter:
+    '''
+    This class allows the user to specify criteria on which to filter sets of conformers.  
+
+    Args:
+        max_num_confs : The maximum number of conformers to bring forward to the next step.  These are automatically ordered by energy, so the first *n* lowest energy structures are carried carried forward to the next step.
+        max_energy_range : The maximum allowable difference (in kcal/mol) between the lowest energy conformer and the highest energy conformer that will be carried forward.  For example, for a max_energy_range of 2 kcal/mol and a lowest energy structure of 1 kcal/mol, any structure with an energy above 3 (1+2) kcal/mol will be filtered out.
+    '''
     def __init__(self,max_num_confs=None,max_energy_range=None):
         self.max_num_confs = max_num_confs
         self.max_energy_range = max_energy_range
@@ -27,12 +33,18 @@ class ADFCOSMORSConfJob(MultiJob):
     '''
     This class allows for the user to implement a custom workflow for generating multiple conformers for use with COSMO-RS.  The class allows the user to input conformer generation strategies, job types to refine the energies/geometries, and filters to remove conformers between each calculation step.  
 
-    Params:
-        molecule : A plams Molecule instance
+    Args:
+        molecule (|Molecule|) : A plams Molecule instance
 
     Keyword Args:
-        conf_gen : A ConformerJob isntance
-
+        conf_gen (ConformersJob) : A ConformersJob instance
+        first_filter (ADFCOSMORSConfFilter) : The ADFCOSMORSConfFilter to apply to the initial set of sampled conformers
+        additional : A list of (|Settings|, ADFCOSMORSConfFilter) tuples.  The elements of this list represent additional calculation steps (e.g., progressively higher levels of theory) and possibly different filters to apply at each step.  
+        final_filter (ADFCOSMORSConfFilter) : The ADFCOSMORSConfFilter to apply to the results of the gas phase ADF calculation for the conformers
+        adf_singlepoint (bool) : A boolean indicating if the adf gas phase calculation in the cosmo-rs compound task should be a single point.  This defaults to False.
+        initial_conformers : the (integer) number of initially sampled conformers.  This is only applied if the default conformer generation strategy is used.  
+        coskf_dir : a directory to put all the .coskf files generated for the conformers.  If this keyword is not specified, the .coskf files are put in the directory containing the adf gas phase calculation results
+        coskf_name : a base name to be used with conformers.  All conformers will have the name *coskf_name*_i where i is the index of the unique conformer.  If not specified, the base name becomes simply *conformer*
 
     '''
 
@@ -44,8 +56,8 @@ class ADFCOSMORSConfJob(MultiJob):
         conf_gen=None,
         first_filter=None,
         additional=None,
-        thing=True,
         final_filter = None,
+        adf_singlepoint = False,
         initial_conformers=500,
         coskf_dir = None,
         coskf_name = None):
@@ -59,8 +71,13 @@ class ADFCOSMORSConfJob(MultiJob):
         self.adf_results   = False
         self.cosmo_results = False
 
+        self.adf_singlepoint = adf_singlepoint
+
         self.coskf_dir     = coskf_dir
         self.coskf_name    = coskf_name
+
+        if self.coskf_dir is not None and not os.path.exists(self.coskf_dir):
+            os.mkdir(self.coskf_dir)
         
         self.initial_conformers = initial_conformers
 
@@ -102,9 +119,11 @@ class ADFCOSMORSConfJob(MultiJob):
     def make_adf_job(self):
 
         sett = ADFCOSMORSCompoundJob.adf_settings(False)
-        sett.input.AMS.Task = "Optimize"
-        sett.input.AMS.GeometryOptimization.UseAMSWorker = "False"
-
+        if not self.adf_singlepoint:
+            sett.input.AMS.Task = 'Optimize'
+            sett.input.AMS.GeometryOptimization.UseAMSWorker = "False"
+        else:
+            sett.input.AMS.Task = 'Score'
         sett.input.AMS.InputConformersSet = self.children[f'job_{self.job_count-1}'].results
         
         return ConformersJob(name="adf_conformers", settings=sett)
@@ -151,6 +170,11 @@ class ADFCOSMORSConfJob(MultiJob):
                 cosmo_section = self.children['cosmo_job'].results.read_rkf_section("COSMO", f"Frame{i+1}")
                 cosmo_section["Gas Phase Bond Energy"] = E
                 name = f"{base_name}_{i}.coskf"
+
+                fullname = os.path.join(self.coskf_dir,name)
+                if os.path.exists(fullname):
+                    os.remove(fullname)
+
                 coskf = KFFile(os.path.join(self.coskf_dir, name), autosave=False)
                 for key, val in cosmo_section.items():
                     coskf.write("COSMO", key, val)
