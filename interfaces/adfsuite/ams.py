@@ -934,6 +934,103 @@ class AMSResults(Results):
 
         return ret
 
+    def get_irc_results(self, molecules:bool=True, unit='au'):
+        """
+        Returns a dictionary with results from an IRC calculation.
+
+        molecules : bool
+            Whether to include the 'Molecules' key in the return result
+
+        unit : str
+            Energy unit for the Energies, LeftBarrier, RightBarrier
+
+        Returns: dict
+            'Energies': list of energies 
+
+            'RelativeEnergies': list of energies relative to the first point
+
+            'LeftBarrier': float, left reaction barrier
+
+            'RightBarrier': float, right reaction barrier
+
+            'Molecules': list of Molecule (including end points)
+
+            'IRCDirection': IRC direction
+
+            'Energies': Energies (in ``unit``)
+
+            'PathLength': Path length in angstrom
+
+            'IRCIteration': list of int
+
+            'IRCGradMax': list of float
+
+            'IRCGradRms': list of float
+
+            'ArcLength': list of float
+
+        """
+        from itertools import compress
+        def tolist(x):
+            if isinstance(x, list):
+                return x
+            else:
+                return [x]
+        conversion_ratio = Units.conversion_ratio('au', unit)
+        sec='History'
+        nEntries = self.readrkf(sec, 'nEntries')
+
+        items = ['IRCDirection', 'Energy', 'PathLength', 'IRCIteration', 'IRCGradMax', 'IRCGradRms', 'ArcLength', 'HistoryIndices', 'Molecules']
+        d = {}
+        forw = {}
+        back = {}
+        reformed = {}
+        converged_mask = None
+        forw_mask = None
+        back_mask = None
+        converged = self.get_history_property('Converged', history_section=sec)
+        converged = tolist(converged)
+        converged_mask = [x!=0 for x in converged]
+        history_indices = [i for i, x in enumerate(converged_mask, 1) if x]  # raw, not rearranged
+        for k in items:
+            # first half is forward direction, second half is backward direction
+            # second half should be reversed, path length made negative.
+            if k == 'Molecules':
+                if not molecules:
+                    continue
+                d[k] = [self.get_history_molecule(ind) for ind in history_indices] # rearrangement happens later
+            elif k == 'HistoryIndices':
+                d[k] = history_indices # rearrangement happens later
+            else:
+                d[k] = self.get_history_property(k, history_section=sec)
+                d[k] = tolist(d[k])
+                d[k] = list(compress(d[k], converged_mask))
+            if k == 'IRCDirection':
+                forw_mask = [x == 1 for x in d[k]]
+                back_mask = [x != 1 for x in d[k]]
+                d[k] = ['Forward' if x == 1 else 'Backward' if x == 2 else x for x in d[k]]
+
+            n = len(d[k])
+            forw[k] = list(compress(d[k], forw_mask))
+            back[k] = list(compress(d[k], back_mask))
+            back[k].reverse()
+            if k == 'PathLength':
+                # print backwards direction as negative numbers
+                back[k] = [-x for x in back[k]]
+            reformed[k] = back[k] + forw[k]
+
+        conversion_ratio = Units.convert(1.0, 'au', unit)
+        reformed['Energies'] = [x*conversion_ratio for x in reformed['Energy']]
+        del reformed['Energy']
+        max_energy = max(reformed['Energies'])
+        if 'Forward' in reformed['IRCDirection']:
+            reformed['LeftBarrier'] = max_energy - reformed['Energies'][0]
+        if 'Backward' in reformed['IRCDirection']:
+            reformed['RightBarrier'] = max_energy - reformed['Energies'][-1]
+        reformed['RelativeEnergies'] = [x-reformed['Energies'][0] for x in reformed['Energies']]
+
+        return reformed
+
     def get_time_step(self):
         """ Returns the time step between adjacent frames (NOT the TimeStep in the settings, but Timestep*SamplingFreq) in femtoseconds for MD simulation jobs """
         time1 = self.get_property_at_step(1, 'Time', history_section='MDHistory')
