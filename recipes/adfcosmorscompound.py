@@ -41,12 +41,6 @@ class ADFCOSMORSCompoundResults(Results):
         for job in self.job.children.values():
             return job.results.get_input_molecule()
 
-    def get_sigma_profile(self, subsection: str = 'profil'):
-        """
-            Returns the sigma profile of the molecule. For more details see `CRSResults.get_sigma_profile`.
-        """
-        return self.job.children['crs'].results.get_sigma_profile(subsection = subsection)
-
 
 class ADFCOSMORSCompoundJob(MultiJob):
     """A class for performing the equivalent of Task COSMO-RS Compound in the AMS GUI
@@ -92,7 +86,6 @@ class ADFCOSMORSCompoundJob(MultiJob):
                 job = ADFCOSMORSCompoundJob(name='water', molecule=mol, preoptimization='UFF')
                 job.run()
                 print(job.results.coskfpath())
-                print(job.results.get_sigma_profile())
 
         """
         if preoptimization and singlepoint:
