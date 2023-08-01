@@ -45,6 +45,7 @@ class ADFCOSMORSConfJob(MultiJob):
         initial_conformers : the (integer) number of initially sampled conformers.  This is only applied if the default conformer generation strategy is used.  
         coskf_dir : a directory to put all the .coskf files generated for the conformers.  If this keyword is not specified, the .coskf files are put in the directory containing the adf gas phase calculation results
         coskf_name : a base name to be used with conformers.  All conformers will have the name *coskf_name*_i where i is the index of the unique conformer.  If not specified, the base name becomes simply *conformer*
+        name : an optional name for the calculation directory
 
     '''
 
@@ -133,7 +134,7 @@ class ADFCOSMORSConfJob(MultiJob):
 
         sett = ADFCOSMORSCompoundJob.adf_settings(True,elements=list(set(at.symbol for at in self.mol)))
         sett.input.AMS.Task = "Replay"
-        sett.input.AMS.Replay.File = self.children['adf_job'].results.wait()
+        self.children['adf_job'].results.wait()
         sett.input.AMS.Replay.File = self.children['adf_job'].results["conformers.rkf"]
         sett.input.AMS.Replay.StoreAllResultFiles = "True"
         return AMSJob(name="replay", settings=sett)
