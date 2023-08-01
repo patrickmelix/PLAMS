@@ -60,9 +60,10 @@ class ADFCOSMORSConfJob(MultiJob):
         adf_singlepoint = False,
         initial_conformers=500,
         coskf_dir = None,
-        coskf_name = None):
+        coskf_name = None,
+        **kwargs):
 
-        super().__init__(children = {})
+        super().__init__(children = {}, **kwargs)
 
         self.job_count = 0
 
@@ -132,6 +133,7 @@ class ADFCOSMORSConfJob(MultiJob):
 
         sett = ADFCOSMORSCompoundJob.adf_settings(True,elements=list(set(at.symbol for at in self.mol)))
         sett.input.AMS.Task = "Replay"
+        sett.input.AMS.Replay.File = self.children['adf_job'].results.wait()
         sett.input.AMS.Replay.File = self.children['adf_job'].results["conformers.rkf"]
         sett.input.AMS.Replay.StoreAllResultFiles = "True"
         return AMSJob(name="replay", settings=sett)
@@ -141,18 +143,16 @@ class ADFCOSMORSConfJob(MultiJob):
 
         :meta private:
         '''
-        if self.job_count < len(self.job_settings)-1:
-            self.job_count += 1
+        self.job_count += 1
+        if self.job_count < len(self.job_settings):
             settings = self.job_settings[self.job_count]
             new_job = self.make_intermediate_job(settings)
             return {f'job_{self.job_count}':new_job}
         
         if 'adf_job' not in self.children:
-            self.job_count += 1
             return {'adf_job':self.make_adf_job()}
 
         if 'cosmo_job' not in self.children:
-            self.job_count += 1
             return {'cosmo_job':self.make_cosmo_job()}
 
         return None
