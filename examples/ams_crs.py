@@ -3,6 +3,7 @@ import os
 
 import matplotlib.pyplot as plt
 from scm.plams import *
+from scm.plams.recipes.adfcosmorscompound import ADFCOSMORSCompoundJob
 
 
 def solubility():
@@ -44,7 +45,7 @@ def generate_coskf(smiles, jobname=None):
     molecule = from_smiles(smiles, nconfs=100, forcefield='uff')[0]
     job = ADFCOSMORSCompoundJob(name=jobname, molecule=molecule)
     job.run()
-    plot_sigma_profile(job)
+    plot_sigma_profile(job.results)
     return job.results.coskfpath()
 
 def plot_results(job):
@@ -59,8 +60,17 @@ def plot_results(job):
     plt.ylabel("Solubility (g/L solvent)")
     plt.show()
 
-def plot_sigma_profile(job):
-    sigma = job.results.get_sigma_profile()
+def get_sigma_profile(coskf_file):
+    s = Settings()
+    s.input.property._h = 'PURESIGMAPROFILE'
+    s.input.compound._h = coskf_file
+    job = CRSJob(name='sigma_profile', settings=s)
+    res = job.run()
+    return res.get_sigma_profile()
+
+def plot_sigma_profile(results):
+    coskf_path = results.coskfpath()
+    sigma = get_sigma_profile(coskf_path)
     xlabel = 'σ (e/A**2)'
     for profile in sigma:
         if profile == xlabel:
