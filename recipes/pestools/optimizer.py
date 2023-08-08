@@ -172,7 +172,8 @@ class Optimizer :
 
         # Remove files
         keep = self.keep
-        if len(molecules) == 1 or task == 'SinglePoint' : keep = 'all'
+        #if len(molecules) == 1 or task == 'SinglePoint' : keep = 'all'
+        if len(molecules) == 1: keep = 'all'
         for i,r in enumerate(resultlist) :
             r._clean(keep)
             if keep is None :
