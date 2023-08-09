@@ -103,6 +103,10 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         self.coskf_name = coskf_name
         self.coskf_dir  = coskf_dir
+        
+        if self.coskf_dir is not None and not os.path.exists(self.coskf_dir):
+            os.mkdir(self.coskf_dir)
+
         if self.coskf_name is not None and isinstance(self.coskf_name, str) and not self.coskf_name.endswith(".coskf"):
             self.coskf_name += ".coskf"
 
