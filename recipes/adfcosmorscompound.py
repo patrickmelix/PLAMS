@@ -48,7 +48,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
     _result_type = ADFCOSMORSCompoundResults
 
-    def __init__(self, molecule:Molecule, preoptimization=None, singlepoint=False, settings=None, **kwargs):
+    def __init__(self, molecule:Molecule, coskf_name = None, coskf_dir = None, preoptimization=None, singlepoint=False, settings=None, **kwargs):
         """
 
             Class for running the equivalent of "COSMO-RS Compound" in the AMS
@@ -95,6 +95,11 @@ class ADFCOSMORSCompoundJob(MultiJob):
         self.input_molecule = molecule
         self.settings = settings or Settings()
 
+        self.coskf_name = coskf_name
+        self.coskf_dir  = coskf_dir
+        if self.coskf_name is not None and isinstance(self.coskf_name, str) and not self.coskf_name.endswith(".coskf"):
+            self.coskf_name += ".coskf"
+
         gas_s = Settings()
         gas_s += self.adf_settings(solvation=False, settings=self.settings)
         gas_job = AMSJob(settings=gas_s, name='gas')
@@ -140,7 +145,13 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         @add_to_instance(solv_job)
         def postrun(self):
-            self.parent.convert_to_coskf(self.results.rkfpath(file='adf'), os.path.join(self.parent.path, self.parent.name+'.coskf'))
+            self.parent.convert_to_coskf(
+                self.results.rkfpath(file='adf'), 
+                os.path.join(
+                    self.parent.coskf_dir if self.parent.coskf_dir is not None else self.parent.path , 
+                    self.parent.coskf_name if self.parent.coskf_name is not None else self.parent.name+'.coskf'
+                )
+            )
 
         self.children['solv'] = solv_job
 
