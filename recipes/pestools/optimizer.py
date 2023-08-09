@@ -199,22 +199,24 @@ class Optimizer :
         # Lift out geometry optimization settings (now only 'Type')
         kwargs = {}
         kwargs["quiet"] = False
-        for key in self.go_settings.keys():
-            if key.lower() == "geometryoptimization":
-                keys = [k.lower() for k in self.go_settings[key].keys()]
-                if "convergence" in keys:
-                    convkeys = [k.lower() for k in self.go_settings[key].convergence.keys()]
-                    if "Energy" in convkeys:
-                        kwargs["convenergy"] = self.go_settings[key].Convergence.Energy
-                    if "Gradients" in convkeys:
-                        kwargs["convgradients"] = self.go_settings[key].Convergence.Gradients
-                if 'method' in keys:
-                    kwargs["method"] = self.go_settings[key].method
-                if 'maxiterations' in keys:
-                    kwargs["maxiterations"] = self.go_settings[key].maxiterations
-                if 'coordinatetype' in keys:
-                    kwargs['coordinatetype'] = self.go_settings[key].coordinatetype
 
+        for key in self.go_settings.input.ams.keys():
+            if key.lower() == "geometryoptimization":
+                go_sett = self.go_settings.input.ams[key]
+                if "convergence" in go_sett:
+                    convkeys = [k.lower() for k in go_sett.convergence.keys()]
+                    if "Energy" in convkeys:
+                        kwargs["convenergy"] = go_sett.Convergence.Energy
+                    if "Gradients" in convkeys:
+                        kwargs["convgradients"] = go_sett.Convergence.Gradients
+                if 'method' in go_sett:
+                    kwargs["method"] = go_sett.method
+                if 'maxiterations' in go_sett:
+                    kwargs["maxiterations"] = go_sett.maxiterations
+                if 'coordinatetype' in go_sett:
+                    kwargs['coordinatetype'] = go_sett.coordinatetype
+                if 'pretendconverged' in go_sett:
+                    kwargs['pretendconverged'] = go_sett.pretendconverged
         # Run the tasks
         molecule_list = []
         for i, mol in enumerate(molecules) :
