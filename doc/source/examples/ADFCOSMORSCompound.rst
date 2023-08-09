@@ -3,11 +3,14 @@
 ADF: Task COSMO-RS Compound
 ===========================
 
-The ``ADFCOSMORSCompound`` class mimics the "Task COSMO-RS Compound" in the AMS ADF graphical user interface.
+The ``ADFCOSMORSCompound`` class generates results identical to the "Task COSMO-RS Compound" in the AMS ADF graphical user interface.  This python interface allows users to easily generate the .coskf files for one or many structures.  A possible usage is given in :ref:`ams_crs_workflow`.
 
-It is used to generate .coskf files for use with COSMO-RS.
 
-For an example, see :ref:`ams_crs_workflow`.
+Example: generating .coskf files for a set of compounds
+-------------------------------------------------------
+
+.. wei-lin, do what you can here
+
 
 
 Source code for ``ADFCOSMORSCompound``
