@@ -43,7 +43,34 @@ class ADFCOSMORSCompoundResults(Results):
 
 
 class ADFCOSMORSCompoundJob(MultiJob):
-    """A class for performing the equivalent of Task COSMO-RS Compound in the AMS GUI
+    """
+    A class for performing the equivalent of Task: COSMO-RS Compound in the AMS GUI
+
+    Args:
+        molecule : a PLAMS |Molecule|
+
+    Keyword Args:
+        coskf_name  : A name for the generated .coskf file.  If nothing is specified, the name of the job will be used.
+        coskf_dir  : The directory in which to place the generated .coskf file.  If nothing is specified, the file will be put in the plams directory corresponding to the job.
+        preoptimization  : If None, do not preoptimize with a fast engine (then initial optimization is done with ADF). Otherwise, can be one of 'UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x'. Note that you need valid licenses for ForceField or DFTB or MLPotential to use these preoptimizers.
+        singlepoint (bool) :  Run a singlepoint in gasphase and with solvation to generate the .coskf file on the given Molecule. (no geometry optimization). Cannot be combined with ``preoptimization``.
+        settings (Settings) : A |Settings| object.  settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
+
+    Example:
+
+        .. code-block:: python
+            
+            mol = from_smiles('O')
+            job = ADFCOSMORSCompoundJob(
+                name='water', 
+                molecule=mol, 
+                preoptimization='UFF',
+                coskf_dir = "coskfs/", 
+                coskf_name = "Water"
+            )
+            job.run()
+            print(job.results.coskfpath())
+
     """
 
     _result_type = ADFCOSMORSCompoundResults
@@ -65,27 +92,6 @@ class ADFCOSMORSCompoundJob(MultiJob):
             Access the result .coskf file with ``job.results.coskfpath()``.
             Note: this file will be called jobname.coskf, where jobname is the
             name of the ADFCOSMORSCompoundJob.
-
-            molecule  : Molecule
-                The initial structure
-
-            preoptimization : str or None
-                If None, do not preoptimize with a fast engine (then initial optimization is done with ADF). Otherwise, can be one of 'UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x'. Note that you need valid licenses for ForceField or DFTB or MLPotential to use these preoptimizers.
-
-            singlepoint : bool
-                Run a singlepoint in gasphase and with solvation to generate the .coskf file on the given Molecule. (no geometry optimization). Cannot be combined with ``preoptimization``.
-
-            settings : settings
-                settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
-
-            Usage:
-
-            .. code-block:: python
-                
-                mol = from_smiles('O')
-                job = ADFCOSMORSCompoundJob(name='water', molecule=mol, preoptimization='UFF')
-                job.run()
-                print(job.results.coskfpath())
 
         """
         if preoptimization and singlepoint:
