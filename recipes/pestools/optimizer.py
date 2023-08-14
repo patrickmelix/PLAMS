@@ -324,7 +324,11 @@ class Optimizer :
             if nsteps > 0 :
                 energy = r.get_property_at_step(nsteps,'Energy') #* Units.conversion_ratio('Hartree','kcal/mol')
             else :
-                energy = r.get_energy() #* Units.conversion_ratio('Hartree','kcal/mol')
+                try:
+                    energy = r.get_energy() #* Units.conversion_ratio('Hartree','kcal/mol')
+                except FileError:
+                    energy = None
+
             coords = r.get_main_molecule().as_array()
             optimized_geometries.append(coords)
             energies.append(energy)
