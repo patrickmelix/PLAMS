@@ -386,7 +386,11 @@ class AMSResults(Results):
         if as_block :
             blocksize = main.read(history_section,'blockSize')
             iblock = int(np.ceil(step/blocksize))
-            value = main.read(history_section,f"{varname}({iblock})")[(step%blocksize)-1]
+            value = main.read(history_section,f"{varname}({iblock})") # this can return something that isn't a list, for example an int
+            try:
+                value = value[(step%blocksize)-1]
+            except TypeError: # TypeError: 'int' object is not subscriptable
+                pass
         else :
             value = main.read(history_section,f"{varname}({step})")
         return value
