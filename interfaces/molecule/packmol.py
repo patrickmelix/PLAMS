@@ -91,8 +91,11 @@ class PackMolStructure:
                 if n_molecules or n_atoms:
                     raise ValueError("Cannot set all n_molecules or n_atoms together with (box_bounds AND density)")
                 n_molecules = self._get_n_molecules_from_density_and_box_bounds(self.molecule, box_bounds, density)
-            assert n_molecules or n_atoms
-            self.n_molecules = n_molecules or self._get_n_molecules(self.molecule, n_atoms)
+            assert n_molecules is not None or n_atoms is not None
+            if n_molecules is None:
+                self.n_molecules = self._get_n_molecules(self.molecule, n_atoms)
+            else:
+                self.n_molecules = n_molecules 
             assert box_bounds or density
             self.box_bounds = box_bounds or self._get_box_bounds(self.molecule, self.n_molecules, density)
             self.fixed = False
@@ -122,6 +125,8 @@ class PackMolStructure:
         return [0.0, 0.0, 0.0, side_length, side_length, side_length]
 
     def get_input_block(self, fname, tolerance):
+        if self.n_molecules == 0 and not self.fixed:
+            return ""
         if self.fixed:
             ret = f"""
             structure {fname}
@@ -446,8 +451,23 @@ def packmol(
 
     if n_molecules:
         n_molecules = tolist(n_molecules)
+        sum_n_molecules = np.sum(n_molecules)
+        if np.isclose(sum_n_molecules, 0):
+            raise ValueError(f"The sum of n_molecules is {sum_n_molecules}, which is very close to 0. "
+                             f"Specify larger numbers. n_molecules specified: {n_molecules}")
+        if any(x < 0 for x in n_molecules):
+            raise ValueError(f"All n_molecules must be >= 0. "
+                             f"n_molecules specified: {n_molecules}")
 
     xs = np.array(mole_fractions)
+    sum_xs = np.sum(xs)
+    if np.isclose(sum_xs, 0):
+        raise ValueError(f"The sum of mole fractions is {sum_xs}, which is very close to 0. "
+                         f"Specify larger numbers. Mole fractions specified: {xs}")
+    if np.any(xs < 0):
+        raise ValueError(f"All mole fractions must be >= 0. "
+                         f"Mole fractions specified: {mole_fractions}")
+
     atoms_per_mol = np.array([len(a) for a in molecules])
     masses = np.array([m.get_mass(unit="g") for m in molecules])
 
