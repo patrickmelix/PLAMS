@@ -149,6 +149,11 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
         raise RuntimeError("Something went wrong when solving the system of linear equations. Verify that the chemical equation can be balanced at all, and that it can be balanced uniquely except for multiplication by a constant.")
 
     normalization_index = get_normalization_index(normalization)
+    if np.abs(coeffs[normalization_index]) < 1e-12:
+        if coeffs[normalization_index] < 0:
+            coeffs[normalization_index] = -1e-12
+        else:
+            coeffs[normalization_index] = 1e-12
     coeffs /= coeffs[normalization_index]
     coeffs *= normalization_value
 
