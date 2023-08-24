@@ -150,10 +150,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
 
     normalization_index = get_normalization_index(normalization)
     if np.abs(coeffs[normalization_index]) < 1e-12:
-        if coeffs[normalization_index] < 0:
-            coeffs[normalization_index] = -1e-12
-        else:
-            coeffs[normalization_index] = 1e-12
+        raise RuntimeError("Trying to normalize an extremely small coefficient (close to zero): {coeffs[normalization_index]}.")
     coeffs /= coeffs[normalization_index]
     coeffs *= normalization_value
 
