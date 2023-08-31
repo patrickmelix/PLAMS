@@ -2161,6 +2161,102 @@ class Molecule:
         self.add_molecule(_ligand)
         self.add_bond(stay, stay_lig)
 
+    def map_atoms_to_bonds (self):
+        """
+        Corrects for lattice displacements along bonds
+
+        Uses a breadth-first search to map the atoms bond by bond
+        """
+        def get_translation_vectors (iat, neighbors, molcoords):
+            """
+            Compute the translation of the neighbors
+            """
+            ones = np.ones((len(neighbors),3))
+            boxarray = box.reshape((1,3)) * ones
+            dcoords = np.rint((molcoords[neighbors]-molcoords[iat].reshape((1,3))*ones)/boxarray)*boxarray
+            return dcoords, -np.rint(dcoords/boxarray)
+
+        def get_translated_vectors (iat, neighbors, molcoords):
+            """
+            Compute the translation vectors for non-orthorhombic boxes
+            """
+            ones = np.ones((len(neighbors),3))
+            rfractional = s_inv @ molcoords[neighbors].transpose()
+            diffvec = (molcoords[neighbors] - molcoords[iat].reshape((1,3))*ones).transpose()
+            shift = np.rint(s_inv @ diffvec)
+            rnew = (s @ (rfractional-shift)).transpose()
+            return rnew, -shift
+
+        # Only do something for a periodic system
+        if len(self.lattice)==0:
+            return
+
+        # Get the lattice vectors, and make sure there are 3 of them
+        nats = len(self)
+        latticevecs = []
+        for i in range(3):
+            if i<len(self.lattice):
+                latticevecs.append(self.lattice[i])
+            else:
+                v = [1.e10 if j==i else 0. for j in range(3)]
+                latticevecs.append(v)
+        latticevecs = np.array(latticevecs)
+
+        # Get the inversion matrix from fractional coordinates to cartesian and vice versa
+        s = latticevecs.transpose()
+        s_inv = np.linalg.inv(s)
+        box = np.sqrt((latticevecs**2).sum(axis=1))
+
+        mol_indices = [indices for indices in self.get_molecule_indices()]
+        #connectivity = self.get_connection_table()
+        coords = self.as_array()
+        for imol,atoms in enumerate(mol_indices) :
+            periodic = False
+            molcoords = coords[atoms].copy()
+            mol_indices = {iat:i for i,iat in enumerate(atoms)}
+            explored = []
+            to_explore = [0]
+            for iat in to_explore:
+                if iat in explored: continue
+                explored.append(iat)
+                #neighbors = [mol_indices[i] for i in connectivity[atoms[iat]]]
+                neighbors = [mol_indices[self.index(at)-1] for at in self.neighbors(self.atoms[atoms[iat]])]
+                unique_indices = [i for i,jat in enumerate(neighbors) if not jat in to_explore]
+
+                # Compute the translation for all the neighbors
+                if (box - latticevecs.sum(axis=1)).any()>1e-10:
+                    # Orthorhombic (faster)
+                    dcoords, shift = get_translation_vectors(iat,neighbors,molcoords)
+                    newcoords = molcoords[neighbors] - dcoords
+                else:
+                    # Non-orthorhombic
+                    newcoords, shift = get_translated_vectors(iat,neighbors,molcoords)
+                    dcoords = newcoords - molcoords[neighbors]
+
+                # Check for bonds across lattice (A neighbor that was already moved will require movement again)
+                if True in [abs(dcoords[i]).sum()>1e-14 for i,jat in enumerate(neighbors) if jat in explored]:
+                    periodic = True
+                    break
+
+                # Now move only the unique neighbors
+                neighbors = [neighbors[i] for i in unique_indices]
+                molcoords[neighbors] = newcoords[unique_indices]
+                # Update the cell shifts
+                for jat in neighbors:
+                    bond = self.find_bond(self.atoms[atoms[iat]],self.atoms[atoms[jat]])
+                    if bond.has_cell_shifts():
+                        cell_shifts = np.array([int(cs) for cs in bond.properties.suffix.split()]) + shift
+                        if np.all(cell_shifts == 0):
+                            # All 0 cell shifts are not written out explicitly
+                            if 'suffix' in bond.properties:
+                                del bond.properties.suffix
+                        else:
+                            bond.properties.suffix = " ".join(str(cs) for cs in cell_shifts)
+                to_explore += neighbors
+            if not periodic:
+                coords[atoms] = molcoords
+        self.from_array(coords)
+
 
 #===========================================================================
 #==== Magic methods ========================================================
