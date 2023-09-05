@@ -33,6 +33,13 @@ Molecule analysis
    MoleculeSubstitution/MoleculeSubstitutionExample
    ConvertToAMSRKFTrajectory
 
+MD trajectory analysis
+----------------------
+
+.. toctree::
+
+  IonicConductivityFromMD.rst
+
 Benchmarks
 -----------------
 
