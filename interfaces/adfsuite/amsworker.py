@@ -488,8 +488,10 @@ class AMSWorker:
                                    60000,        # Timeout in ms (unused unless someone calls Wait)
                                    None)
         else:
-            for filename in ["call_pipe", "reply_pipe"]:
-                os.mkfifo(os.path.join(self.workerdir, filename))
+            call_pipe_path = os.path.join(self.workerdir, 'call_pipe')
+            os.mkfifo(call_pipe_path)
+            reply_pipe_path = os.path.join(self.workerdir, 'reply_pipe')
+            os.mkfifo(reply_pipe_path)
 
         # Launch the worker process
 
@@ -530,12 +532,18 @@ class AMSWorker:
                 self.callpipe = os.fdopen(pipefd, 'r+b')
                 self.replypipe = self.callpipe
             else:
-                self.callpipe  = open(os.path.join(self.workerdir, 'call_pipe'), 'wb')
-                self.replypipe = open(os.path.join(self.workerdir, 'reply_pipe'), 'rb')
+                self.callpipe  = open(call_pipe_path, 'wb')
+                self.replypipe = open(reply_pipe_path, 'rb')
         finally:
             # Both open()s are either done or have failed, we don't need the watcher thread anymore.
             self._stop_watcher.set()
             self._watcher.join()
+            if os.name != 'nt':
+                # The special files have already served their purpose. Better remove them already
+                # so that they don't stay lying around if we crash. This also ensures that someone
+                # else doesn't accidentally open them and interfere with our communication.
+                os.unlink(call_pipe_path)
+                os.unlink(reply_pipe_path)
 
         # Raise a nice error message if the worker failed to start. Otherwise, we'd get
         # a less descriptive error from the call to Hello below.
