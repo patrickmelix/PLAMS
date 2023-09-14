@@ -1,5 +1,6 @@
 #!/usr/bin/env amspython
 from scm.plams import *
+from scm.plams.recipes.redox import AMSRedoxScreeningJob, AMSRedoxDirectJob, AMSRedoxThermodynamicCycleJob
 
 
 def main():
