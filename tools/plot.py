@@ -1,4 +1,6 @@
 from scm.plams.mol.molecule import Molecule
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from typing import Tuple, Union, List
 
 __all__ = ['plot_band_structure', 'plot_molecule', 'plot_correlation']
 
@@ -105,22 +107,69 @@ def plot_molecule(molecule, figsize=None, ax=None, keep_axis:bool=False, **kwarg
             plt.axis('off')
 
 
+def get_correlation_xy(
+    job1 : Union[AMSJob, List[AMSJob]],
+    job2 : Union[AMSJob, List[AMSJob]],
+    section : str,
+    variable : str,
+    alt_section : str = None,
+    alt_variable : str = None,
+    file : str = "ams",
+    multiplier : float = 1.0
+) -> Tuple:
+    import numpy as np
+    def tolist(x):
+        if isinstance(x, list):
+            return x
+        return [x]
+
+    job1 = tolist(job1)
+    job2 = tolist(job2)
+
+    alt_section = alt_section or section
+    alt_variable = alt_variable or variable
+
+    data1 = []
+    data2 = []
+    for j1, j2 in zip (job1, job2):
+        try:
+            d1 = j1.results.readrkf(section, variable, file=file)
+        except KeyError:
+            d1 = j1.results.get_history_property(variable, history_section=section)
+        d1 = np.ravel(d1)*multiplier
+
+        try:
+            d2 = j2.results.readrkf(alt_section, alt_variable, file=file)
+        except KeyError:
+            d2 = j2.results.get_history_property(alt_variable, history_section=alt_section)
+        d2 = np.ravel(d2)*multiplier
+
+        data1.extend(list(d1))
+        data2.extend(list(d2))
+
+    data1 = np.array(data1)
+    data2 = np.array(data2)
+
+    return data1, data2
+
 def plot_correlation(
-        job1,
-        job2,
-        section,
-        variable,
-        file="ams",
-        multiplier=1.0,
-        unit=None,
-        save_txt=None,
+        job1 : Union[AMSJob, List[AMSJob]],
+        job2 : Union[AMSJob, List[AMSJob]],
+        section : str,
+        variable : str,
+        alt_section : str = None,
+        alt_variable : str = None,
+        file : str = "ams",
+        multiplier : float = 1.0,
+        unit : str = None,
+        save_txt : bool =None,
         ax=None,
-        show_xy=True,
-        show_linear_fit=True,
-        show_mad=True,
-        show_rmsd=True,
-        xlabel=None,
-        ylabel=None,
+        show_xy : bool = True,
+        show_linear_fit : bool = True,
+        show_mad : bool = True,
+        show_rmsd : bool = True,
+        xlabel : str = None,
+        ylabel : str = None,
     ):
     """
 
@@ -137,6 +186,12 @@ def plot_correlation(
 
     variable: str
         variable: variable to read
+
+    alt_section: str
+        Section to read on .rkf files for job2. If not specified it will be the same as ``section``
+
+    alt_variable : str
+        Variable to read for job2. If not specified it will be the same as ``variable``.
 
     file: str, optional
         file: "ams" or "engine", defaults to "ams"
@@ -185,26 +240,20 @@ def plot_correlation(
     job1 = tolist(job1)
     job2 = tolist(job2)
 
-    data1 = []
-    data2 = []
-    for j1, j2 in zip (job1, job2):
-        try:
-            d1 = j1.results.readrkf(section, variable, file=file)
-        except KeyError:
-            d1 = j1.results.get_history_property(variable, history_section=section)
-        d1 = np.ravel(d1)*multiplier
+    alt_section = alt_section or section
+    alt_variable = alt_variable or variable
 
-        try:
-            d2 = j2.results.readrkf(section, variable, file=file)
-        except KeyError:
-            d2 = j2.results.get_history_property(variable, history_section=section)
-        d2 = np.ravel(d2)*multiplier
+    data1, data2 = get_correlation_xy(
+        job1,
+        job2,
+        section,
+        variable,
+        alt_section,
+        alt_variable,
+        file,
+        multiplier
+    )
 
-        data1.extend(list(d1))
-        data2.extend(list(d2))
-
-    data1 = np.array(data1)
-    data2 = np.array(data2)
 
     def add_unit(s: str):
         if unit is not None:
