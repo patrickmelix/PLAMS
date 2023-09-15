@@ -35,18 +35,21 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
     """
     Calculate stoichiometric coefficients
     This only works if
-        number_of_chemical_elements == len(reactants)+len(products), OR
-        number_of_chemical_elements == len(reactants)+len(products)-1
+    * number_of_chemical_elements == len(reactants)+len(products), OR
+    * number_of_chemical_elements == len(reactants)+len(products)-1
 
     Returns: a 2-tuple (coeffs_reactants, coeffs_products)
         coeffs_reactants is a list with length == len(reactants)
         coeffs_products is a list with length == len(products)
 
     reactants: a list of amsjobs, or a list of paths to ams.results folders or ams.rkf files or .xyz files, or a list of Molecules, or a list of stoichiometry dicts, or a list of Molecules
+        The reactants
 
     products: a list of amsjobs, or a list of paths to ams.results folders or ams.rkf files, or a list of Molecules or .xyz files, or a list of stoichiometry dicts, or a list of Molecules
+        The products
 
-    normalization: 'r0' for the first reactant, 'r1' for the second reactant, etc.
+    normalization: str
+        'r0' for the first reactant, 'r1' for the second reactant, etc.
         'p0' for the first product, 'p1' for the second product, etc.
         This normalizes the chemical equation such that the coefficient in front of the specified species is normalization_value
 
@@ -54,6 +57,8 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
         The coefficient to normalize to
 
     EXAMPLE:
+
+    .. code-block:: python
 
         balance_equation(
             reactants=[
@@ -65,8 +70,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
                 {'H': 2, 'O': 1}
             ])
 
-        returns
-        ([1.0], [1.0, 1.0, 1.0, 4.0])
+    The above returns a tuple ``([1.0], [1.0, 1.0, 1.0, 4.0])``
 
 
     """
@@ -166,13 +170,19 @@ def reaction_energy(reactants, products, normalization='r0', unit='hartree'):
     Calculates a reaction energy from an unbalanced chemical equation (the equation is first balanced)
 
     reactants: a list of amsjobs or paths to ams results folders,
+        The recatnts
     products: a list of amsjobs or paths to ams results folders
-    normalization: normalize the chemical equation by setting the corresponding coefficient to 1.
-        'r0': first reactant
-        'r1': second reactant, ...
-        'p0: first product,
-        'p1': second product, ...
-    unit: Unit of the reaction energy
+        The products
+    normalization: str
+        normalize the chemical equation by setting the corresponding coefficient to 1.
+
+        * 'r0': first reactant
+        * 'r1': second reactant, ...
+        * 'p0: first product,
+        * 'p1': second product, ...
+
+    unit: str
+        Unit of the reaction energy
 
     Returns: a 3-tuple (coeffs_reactants, coeffs_products, reaction_energy)
 
