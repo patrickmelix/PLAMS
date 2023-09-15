@@ -186,7 +186,8 @@ extensions += [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon']
+    'sphinx.ext.napoleon',
+    'sphinx_copybutton']
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
