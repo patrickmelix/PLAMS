@@ -182,22 +182,22 @@ show(out)
 # 
 # In PLAMS, ``molecule.properties.charge`` specifies the charge:
 
-ammonia = from_smiles("[NH4+]")  # ammonia.properties.charge == +1
+ammonium = from_smiles("[NH4+]")  # ammonia.properties.charge == +1
 chloride = from_smiles("[Cl-]")   # chloride.properties.charge == -1
-print('3 water molecules, 3 ammonia, 1 chloride (non-periodic)')
+print('3 water molecules, 3 ammonium, 1 chloride (non-periodic)')
 print("Initial charges:")
 print(f"Water: {water.properties.get('charge', 0)}")
-print(f"Ammonia: {ammonia.properties.get('charge', 0)}")
+print(f"Ammonia: {ammonium.properties.get('charge', 0)}")
 print(f"Chloride: {chloride.properties.get('charge', 0)}")
 out = packmol(
-    molecules=[water, ammonia, chloride], 
+    molecules=[water, ammonium, chloride], 
     n_molecules=[3, 3, 1],
     density=0.4, 
     sphere=True
 )
 tot_charge = out.properties.get("charge", 0)
 print(f"Total charge of packmol-generated system: {tot_charge}")
-out.write('water-ammonia-chloride.xyz')
+out.write('water-ammonium-chloride.xyz')
 show(out)
 
 
