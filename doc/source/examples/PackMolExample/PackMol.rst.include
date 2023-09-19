@@ -149,7 +149,7 @@ First, create the gasphase molecule:
 .. parsed-literal::
 
     water-5.xyz: pure liquid in non-orthorhombic box (requires AMS2022 or later)
-    PLAMS working folder: PackMolExample/plams_workdir
+    PLAMS working folder: /PackMolExample/plams_workdir
     Top: system in surrounding orthorhombic box before calling refine_lattice(). Bottom: System in non-orthorhombic box after calling refine_lattice()
 
 
@@ -368,6 +368,49 @@ periodic box. The sphere will be centered near the origin.
 .. image:: PackMol_files/PackMol_24_1.png
 
 
+Packing ions, total system charge
+---------------------------------
+
+The total system charge will be sum of the charges of the constituent
+molecules.
+
+In PLAMS, ``molecule.properties.charge`` specifies the charge:
+
+.. code:: ipython3
+
+    ammonia = from_smiles("[NH4+]")  # ammonia.properties.charge == +1
+    chloride = from_smiles("[Cl-]")   # chloride.properties.charge == -1
+    print('3 water molecules, 3 ammonia, 1 chloride (non-periodic)')
+    print("Initial charges:")
+    print(f"Water: {water.properties.get('charge', 0)}")
+    print(f"Ammonia: {ammonia.properties.get('charge', 0)}")
+    print(f"Chloride: {chloride.properties.get('charge', 0)}")
+    out = packmol(
+        molecules=[water, ammonia, chloride], 
+        n_molecules=[3, 3, 1],
+        density=0.4, 
+        sphere=True
+    )
+    tot_charge = out.properties.get("charge", 0)
+    print(f"Total charge of packmol-generated system: {tot_charge}")
+    out.write('water-ammonia-chloride.xyz')
+    show(out)
+
+
+.. parsed-literal::
+
+    3 water molecules, 3 ammonia, 1 chloride (non-periodic)
+    Initial charges:
+    Water: 0
+    Ammonia: 1
+    Chloride: -1
+    Total charge of packmol-generated system: 2
+
+
+
+.. image:: PackMol_files/PackMol_26_1.png
+
+
 Microsolvation
 --------------
 
@@ -391,7 +434,7 @@ solute.
 
 
 
-.. image:: PackMol_files/PackMol_26_1.png
+.. image:: PackMol_files/PackMol_28_1.png
 
 
 Solid-liquid or solid-gas interfaces
@@ -407,7 +450,7 @@ First, create a slab using the ASE ``fcc111`` function
 
 
 
-.. image:: PackMol_files/PackMol_28_0.png
+.. image:: PackMol_files/PackMol_30_0.png
 
 
 .. code:: ipython3
@@ -426,7 +469,7 @@ First, create a slab using the ASE ``fcc111`` function
 
 
 
-.. image:: PackMol_files/PackMol_29_1.png
+.. image:: PackMol_files/PackMol_31_1.png
 
 
 .. code:: ipython3
@@ -445,7 +488,7 @@ First, create a slab using the ASE ``fcc111`` function
 
 
 
-.. image:: PackMol_files/PackMol_30_1.png
+.. image:: PackMol_files/PackMol_32_1.png
 
 
 Pack inside voids in crystals
@@ -463,7 +506,7 @@ you need to pack very tightly. The default value for ``tolerance`` is
 
 
 
-.. image:: PackMol_files/PackMol_32_0.png
+.. image:: PackMol_files/PackMol_34_0.png
 
 
 .. code:: ipython3
@@ -485,7 +528,7 @@ you need to pack very tightly. The default value for ``tolerance`` is
 
 
 
-.. image:: PackMol_files/PackMol_33_1.png
+.. image:: PackMol_files/PackMol_35_1.png
 
 
 Bonds, atom properties (force field types, regions, …)
