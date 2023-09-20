@@ -197,7 +197,10 @@ class Molecule:
 
         """
         if margin >= 0:
-            dx, dy, dz = np.max(self.as_array(), axis=0) - np.min(other.as_array(), axis=0) + margin
+            if len(self) == 0:
+                dx, dy, dz = 0, 0, 0
+            else:
+                dx, dy, dz = np.max(self.as_array(), axis=0) - np.min(other.as_array(), axis=0) + margin
             copy = True
 
         other = other.copy() if copy else other
