@@ -120,6 +120,60 @@ class SMILESReaction(BoostReaction):
         products = self.mapping(reactants, products)
         return reactants, products
 
+    def _fix_single_stoichoimetry(self, stoich: Dict[str, int]) -> bool:
+        """ Returns True if the stoichiometry was modified """
+        if stoich["H"] <= -2 and stoich["O"] <= -1:
+            self.products_smiles.append("O")
+            stoich["H"] += 2
+            stoich["O"] += 1
+        if stoich["H"] >= +2 and stoich["O"] >= +1:
+            self.reactants_smiles.append("O")
+            stoich["H"] -= 2
+            stoich["O"] -= 1
+            return True
+        if stoich["H"] <= -1 and stoich["Cl"] <= -1:
+            self.products_smiles.append("Cl")
+            stoich["H"] += 1
+            stoich["Cl"] += 1
+            return True
+        if stoich["H"] >= +1 and stoich["Cl"] >= +1:
+            self.reactants_smiles.append("Cl")
+            stoich["H"] -= 1
+            stoich["Cl"] -= 1
+            return True
+        if stoich["H"] <= -1 and stoich["Br"] <= -1:
+            self.products_smiles.append("Br")
+            stoich["H"] += 1
+            stoich["Br"] += 1
+            return True
+        if stoich["H"] >= +1 and stoich["Br"] >= +1:
+            self.reactants_smiles.append("Br")
+            stoich["H"] -= 1
+            stoich["Br"] -= 1
+            return True
+        if stoich["H"] <= -1 and stoich["F"] <= -1:
+            self.products_smiles.append("F")
+            stoich["H"] += 1
+            stoich["F"] += 1
+            return True
+        if stoich["H"] >= +1 and stoich["F"] >= +1:
+            self.reactants_smiles.append("F")
+            stoich["H"] -= 1
+            stoich["F"] -= 1
+            return True
+        if stoich["H"] <= -2 and stoich["S"] <= -1:
+            self.products_smiles.append("S")
+            stoich["H"] += 2
+            stoich["S"] += 1
+            return True
+        if stoich["H"] >= +2 and stoich["S"] >= +1:
+            self.reactants_smiles.append("S")
+            stoich["H"] -= 2
+            stoich["S"] -= 1
+            return True
+
+        return False
+
     def add_molecules_if_needed(self):
         """ modifies self.reactants_smiles and self.products_smiles """
         rmols = [plams.from_smiles(x) for x in self.reactants_smiles]
@@ -132,26 +186,9 @@ class SMILESReaction(BoostReaction):
             for k, v in mol.get_formula(as_dict=True).items():
                 stoich[k] += v
 
-        if stoich["H"] == -1 and stoich["Cl"] == -1:
-            self.products_smiles.append("Cl")
-        elif stoich["H"] == +1 and stoich["Cl"] == +1:
-            self.reactants_smiles.append("Cl")
-        elif stoich["H"] == -1 and stoich["Br"] == -1:
-            self.products_smiles.append("Br")
-        elif stoich["H"] == +1 and stoich["Br"] == +1:
-            self.reactants_smiles.append("Br")
-        elif stoich["H"] == -1 and stoich["F"] == -1:
-            self.products_smiles.append("F")
-        elif stoich["H"] == +1 and stoich["F"] == +1:
-            self.reactants_smiles.append("F")
-        elif stoich["H"] == -2 and stoich["O"] == -1:
-            self.products_smiles.append("O")
-        elif stoich["H"] == +2 and stoich["O"] == +1:
-            self.reactants_smiles.append("O")
-        elif stoich["H"] == -2 and stoich["S"] == -1:
-            self.products_smiles.append("S")
-        elif stoich["H"] == +2 and stoich["S"] == +1:
-            self.reactants_smiles.append("S")
+        while self._fix_single_stoichoimetry(stoich):
+            pass
+
 
 
     def get_molecules_dict(self) -> Dict[str, plams.Molecule]:
@@ -333,6 +370,9 @@ class AMSReactionBoostJob(plams.AMSMDJob):
 
         for line in bond_making_lines:
             splitline = line.split()
+            target_value = float(splitline[5])  # bohr
+            if target_value > 5:
+                continue
             bond_making_tuples.append((
                 int(splitline[2]), 
                 int(splitline[3]),
@@ -341,6 +381,9 @@ class AMSReactionBoostJob(plams.AMSMDJob):
 
         for line in bond_breaking_lines:
             splitline = line.split() # missing space so use other indices
+            initial_value = float(splitline[3])  # bohr
+            if initial_value > 5:
+                continue
             bond_breaking_tuples.append((
                 int(splitline[1]),
                 int(splitline[2]),
