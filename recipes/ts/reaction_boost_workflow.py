@@ -1,5 +1,6 @@
 #!/usr/bin/env amspython
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass
 from natsort import natsorted
 from pathlib import Path
@@ -10,7 +11,7 @@ import scm.plams as plams
 import scm.reactmap
 import warnings
 
-__all__ = ["SMILESReaction", "XYZReaction", "run_ts_workflow"]
+__all__ = ["SMILESReaction", "XYZReaction", "MoleculeReaction", "run_ts_workflow"]
 
 class BoostReaction(ABC):
     @abstractmethod
@@ -25,6 +26,8 @@ class BoostReaction(ABC):
             reactant=scm.reactmap.Molecule(plams_mol=reactant),
             product=scm.reactmap.Molecule(plams_mol=product)
         )
+        if not reaction.is_feasible():
+            raise ValueError(f"Unfeasible reaction: {reaction}")
         scm.reactmap.Map(reaction, settings=settings)
 
         plams.log("SCM Reaction Mapping enabled!")
@@ -60,6 +63,7 @@ def reaction_examples(i: int) -> BoostReaction:
 def run_ts_workflow(
     reaction: BoostReaction,
     engine_settings : plams.Settings,
+    reaction_boost_strength : float = 0.7,
     do_ts_search: bool = True, 
     do_irc: bool = True,
     run_equilibration: bool = True,
@@ -71,7 +75,8 @@ def run_ts_workflow(
     boost_job = run_reaction(
         reaction.get_molecules_dict(), 
         engine_settings = engine_settings,
-        run_equilibration=run_equilibration
+        run_equilibration=run_equilibration,
+        strength = reaction_boost_strength,
     )
 
     md_forward_barrier, md_backward_barrier = boost_job.get_barriers()
@@ -104,12 +109,50 @@ def run_ts_workflow(
 class SMILESReaction(BoostReaction):
     reactants_smiles: List[str]
     products_smiles: List[str]
+    fix_stoichiometry: bool = True
 
     def get_molecules(self) -> Tuple[plams.Molecule, plams.Molecule]:
+        if self.fix_stoichiometry:
+            self.add_molecules_if_needed()
+
         reactants = self.get_combined(self.reactants_smiles)
         products = self.get_combined(self.products_smiles)
         products = self.mapping(reactants, products)
         return reactants, products
+
+    def add_molecules_if_needed(self):
+        """ modifies self.reactants_smiles and self.products_smiles """
+        rmols = [plams.from_smiles(x) for x in self.reactants_smiles]
+        pmols = [plams.from_smiles(y) for y in self.products_smiles]
+        stoich = defaultdict(lambda: 0)
+        for mol in rmols:
+            for k, v in mol.get_formula(as_dict=True).items():
+                stoich[k] -= v
+        for mol in pmols:
+            for k, v in mol.get_formula(as_dict=True).items():
+                stoich[k] += v
+
+        if stoich["H"] == -1 and stoich["Cl"] == -1:
+            self.products_smiles.append("Cl")
+        elif stoich["H"] == +1 and stoich["Cl"] == +1:
+            self.reactants_smiles.append("Cl")
+        elif stoich["H"] == -1 and stoich["Br"] == -1:
+            self.products_smiles.append("Br")
+        elif stoich["H"] == +1 and stoich["Br"] == +1:
+            self.reactants_smiles.append("Br")
+        elif stoich["H"] == -1 and stoich["F"] == -1:
+            self.products_smiles.append("F")
+        elif stoich["H"] == +1 and stoich["F"] == +1:
+            self.reactants_smiles.append("F")
+        elif stoich["H"] == -2 and stoich["O"] == -1:
+            self.products_smiles.append("O")
+        elif stoich["H"] == +2 and stoich["O"] == +1:
+            self.reactants_smiles.append("O")
+        elif stoich["H"] == -2 and stoich["S"] == -1:
+            self.products_smiles.append("S")
+        elif stoich["H"] == +2 and stoich["S"] == +1:
+            self.reactants_smiles.append("S")
+
 
     def get_molecules_dict(self) -> Dict[str, plams.Molecule]:
         r, p = self.get_molecules()
@@ -131,8 +174,27 @@ class SMILESReaction(BoostReaction):
         return ret
 
 @dataclass
+class MoleculeReaction(BoostReaction):
+    reactant: plams.Molecule
+    product: plams.Molecule
+    do_mapping: bool = False
+
+    def get_molecules_dict(self) -> Dict[str, plams.Molecule]:
+        """ Returns a molecule dictionary """
+        if self.do_mapping:
+            product = self.mapping(self.reactant, self.product)
+        else:
+            product = self.product
+        ret = {
+            "": self.reactant,
+            "final": self.mapping(self.reactant, product)
+        }
+        return ret
+
+@dataclass
 class XYZReaction(BoostReaction):
     folder: Path   # a folder with .xyz files
+    charge: float = 0
 
     def get_molecules_dict(self) -> Dict[str, plams.Molecule]:
         """ 
@@ -145,6 +207,11 @@ class XYZReaction(BoostReaction):
         sorted_keys = list(natsorted(molecules.keys()))
         molecules[""] = molecules.pop(sorted_keys[0])  # the first molecule must have key ''
         sorted_keys.pop(0)
+
+        if self.charge != 0:
+            for mol in molecules.values():
+                mol.properties.charge = self.charge
+            
 
         # molecules[""].hydrogen_to_deuterium()  # slow down hydrogen motions
         # molecules[''].lattice = [[9, 0, 0], [0, 9, 0], [0, 0, 9]]  # optional, add lattice
@@ -334,6 +401,7 @@ def run_reaction(
     molecules_dict: Dict[str, plams.Molecule],
     engine_settings: plams.Settings,
     run_equilibration: bool = True,
+    strength: float = 1.0,
 ) -> AMSReactionBoostJob:
     """ Runs equilibration and produciton boost MD. Returns the production job """
 
@@ -360,7 +428,7 @@ def run_reaction(
         molecule = molecules_dict,
         name = "prod",
         nsteps = 1000,
-        strength = 0.7,
+        strength = strength,
         post_reaction_relaxation_steps = 20,
         temperature = 300,
         samplingfreq = 10,
@@ -400,7 +468,6 @@ def run_ts(
     s.input.ams.GeometryOptimization.CoordinateType = coordinate_type   
     s.input.ams.GeometryOptimization.MaxIterations = 500
     s.input.ams.GeometryOptimization.PretendConverged = "Yes"
-    s.input.ams.GeometryOptimization.InitialHessian.Type = "Calculate"
 
     if preoptimization and rc_atoms:
         my_s = s.copy()
@@ -415,6 +482,7 @@ def run_ts(
         approximate_ts_molecule = preoptimization_job.results.get_main_molecule()
 
 
+    s.input.ams.GeometryOptimization.InitialHessian.Type = "Calculate"
     s.input.ams.GeometryOptimization.Convergence.Gradients = 1e-4   # hartree/angstrom
     # s.input.ams.GeometryOptimization.Convergence.Quality = "Basic"
 
