@@ -169,7 +169,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 self.chemical_systems = {0:1}
                 secname = 'ChemicalSystem(1)'
                 if not 'SystemVersionHistory' in self.file_object.sections() :
-                        secname = 'InputMolecule'
+                        if 'InputMolecule' in self.file_object:
+                                secname = 'InputMolecule'
+                        elif 'Molecule' in self.file_object:
+                                secname = 'Molecule'
                 RKFTrajectoryFile._read_header (self, molecule_section=secname)
 
                 # Now store the added and removed atoms along the trajectory
@@ -188,12 +191,12 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         self.removed_atoms[i] = {}
                         # Now look for the added and removed atoms
                         removed_atoms = []
-                        if 'RemovedAtoms(%i)'%(new_version) in self.file_object.reader._sections['SystemVersionHistory'] :
+                        if ('SystemVersionHistory', 'RemovedAtoms(%i)'%(new_version)) in self.file_object:
                                 removed_atoms = self.file_object.read('SystemVersionHistory','RemovedAtoms(%i)'%(new_version))
                         if not isinstance(removed_atoms,list) :
                                 removed_atoms = [removed_atoms]
                         added_atoms = []
-                        if 'AddedAtoms(%i)'%(new_version) in self.file_object.reader._sections['SystemVersionHistory'] :
+                        if ('SystemVersionHistory', 'AddedAtoms(%i)'%(new_version)) in self.file_object:
                                 added_atoms = self.file_object.read('SystemVersionHistory','AddedAtoms(%i)'%(new_version))
                         if not isinstance(added_atoms,list) :
                                 added_atoms = [added_atoms]
@@ -263,7 +266,8 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 Write Molecule info to file (elements, periodicity)
                 """
                 # First write the general section
-                write_general_section(self.file_object,self.program)
+                if "General" not in self.file_object:
+                        write_general_section(self.file_object,self.program)
 
                 # Then write the input molecule
                 self._update_celldata(cell)
@@ -273,7 +277,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 self.chemical_systems = {}
                 if self.include_mddata :
                         # Start setting up the MDHistory section as well
-                        self.file_object.write('MDHistory','blockSize',100)
+                        self.file_object.write(self.mdhistory_name,'blockSize',100)
 
                 self.added_atoms = {}
                 self.removed_atoms = {}
@@ -566,7 +570,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 Store all chemical systems from the file
                 """
                 self.system_version_elements = {}
-                keys = [key for key in self.file_object.reader._sections.keys() if 'ChemicalSystem' in key]
+                keys = [key for key in self.file_object.get_skeleton().keys() if 'ChemicalSystem' in key]
                 nums = [int(k.split('(')[1].split(')')[0])-1 for k in keys]
                 for num,key in zip(nums,keys) :
                         atnums = self.file_object.read(key,'AtomicNumbers')
