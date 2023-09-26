@@ -242,6 +242,8 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 """
                 Set up info required for reading frames
                 """
+                if not molecule_section in self.file_object:
+                    return
                 self.elements = self.file_object.read(molecule_section,'AtomSymbols')
                 # If read from memory and not from file (write mode), it is already a list
                 if isinstance(self.elements,str) :

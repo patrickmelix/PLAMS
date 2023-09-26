@@ -173,6 +173,8 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 secname = 'InputMolecule'
                         elif 'Molecule' in self.file_object:
                                 secname = 'Molecule'
+                if not secname in self.file_object:
+                    return
                 RKFTrajectoryFile._read_header (self, molecule_section=secname)
 
                 # Now store the added and removed atoms along the trajectory
