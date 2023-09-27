@@ -80,6 +80,7 @@ def run_ts_workflow(
     do_ts_search: bool = True, 
     do_irc: bool = True,
     run_equilibration: bool = True,
+    temperature: float = 200,
 ):
     """ Runs all the steps """
 
@@ -108,6 +109,7 @@ def run_ts_workflow(
         preoptimize_after_equilibration = True,
         nsteps = reaction_boost_nsteps,
         strength = reaction_boost_strength,
+        temperature = temperature,
     )
 
     md_forward_barrier, md_backward_barrier = boost_job.get_barriers()
@@ -459,9 +461,16 @@ def run_reaction(
     nsteps: int = 1000,
     strength: float = 1.0,
     preoptimize_after_equilibration : bool = True,
+    temperature : float = 200,
 ) -> AMSReactionBoostJob:
     """ Runs equilibration and produciton boost MD. Returns the production job """
 
+    for i, at in enumerate(molecules_dict[""], 1):
+        if "Constraints" in engine_settings.input.ams and "Atom" in engine_settings.input.ams.Constraints and i not in engine_settings.input.ams.Constraints.Atom:
+            plams.AMSJob._add_region(at, "thermostatted")
+        else:
+            plams.AMSJob._add_region(at, "frozen")
+        
     if run_equilibration:
         equilibration_engine_settings = equilibration_engine_settings or engine_settings.copy()
         eq_job = AMSReactionBoostJob(
@@ -475,6 +484,7 @@ def run_reaction(
             tau=5,  # very short time constant (fs) to cool the system down
             timestep=1.0,  # fs
             thermostat="NHC",
+            thermostat_region="thermostatted",
         )
         eq_job.run()
 
@@ -500,12 +510,13 @@ def run_reaction(
         nsteps = nsteps,
         strength = strength,
         post_reaction_relaxation_steps = 20,
-        temperature = 200,
+        temperature = temperature,
         samplingfreq = 10,
         tau=3.0,  # very short time constant (fs) to cool the system down
         timestep = 0.5,
         thermostat="NHC",
         writeenginegradients=True,
+        thermostat_region="thermostatted",
     )
 
     prod_job.run()
