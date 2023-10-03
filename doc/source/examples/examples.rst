@@ -33,6 +33,7 @@ Molecule analysis
    MoleculeSubstitution/MoleculeSubstitutionExample
    ConvertToAMSRKFTrajectory
    PlotCorrelation/PlotCorrelation
+   MapMoleculesAndConvertToDCD
 
 MD trajectory analysis
 ----------------------
