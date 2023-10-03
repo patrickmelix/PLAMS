@@ -2188,6 +2188,7 @@ class Molecule:
             diffvec = (molcoords[neighbors] - molcoords[iat].reshape((1,3))*ones).transpose()
             shift = np.rint(s_inv @ diffvec)
             rnew = (s @ (rfractional-shift)).transpose()
+            shift = shift.transpose()
             return rnew, -shift
 
         # Only do something for a periodic system
@@ -2227,7 +2228,7 @@ class Molecule:
                 unique_indices = [i for i,jat in enumerate(neighbors) if not jat in to_explore]
 
                 # Compute the translation for all the neighbors
-                if (box - latticevecs.sum(axis=1)).any()>1e-10:
+                if (box - latticevecs.sum(axis=1)).any()<1e-10:
                     # Orthorhombic (faster)
                     dcoords, shift = get_translation_vectors(iat,neighbors,molcoords)
                     newcoords = molcoords[neighbors] - dcoords
@@ -2245,16 +2246,16 @@ class Molecule:
                 neighbors = [neighbors[i] for i in unique_indices]
                 molcoords[neighbors] = newcoords[unique_indices]
                 # Update the cell shifts
-                for jat in neighbors:
+                for j,jat in enumerate(neighbors):
                     bond = self.find_bond(self.atoms[atoms[iat]],self.atoms[atoms[jat]])
                     if bond.has_cell_shifts():
-                        cell_shifts = np.array([int(cs) for cs in bond.properties.suffix.split()]) + shift
+                        cell_shifts = np.array([int(cs) for cs in bond.properties.suffix.split()]) + shift[j]
                         if np.all(cell_shifts == 0):
                             # All 0 cell shifts are not written out explicitly
                             if 'suffix' in bond.properties:
                                 del bond.properties.suffix
                         else:
-                            bond.properties.suffix = " ".join(str(cs) for cs in cell_shifts)
+                            bond.properties.suffix = " ".join(str(int(cs)) for cs in cell_shifts)
                 to_explore += neighbors
             if not periodic:
                 coords[atoms] = molcoords
