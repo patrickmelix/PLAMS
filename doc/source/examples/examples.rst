@@ -62,6 +62,7 @@ Workflows
    ChargeTransferIntegralsADF
    gammascan
    ConformersGeneration/ConformersGeneration
+   ReactionsDiscovery/ReactionsDiscovery
 
 COSMO-RS and property prediction
 -----------------------------------
