@@ -5,11 +5,7 @@ from scm.conformers import ConformersJob
 init()
 
 mol = from_smiles("CC(=O)O")
-
-conf_sett = Settings()
-conf_sett.input.AMS.Generator.RDKit
-conf_sett.input.AMS.Generator.RDKit.InitialNConformers = 7
-conf_job = ConformersJob(name="conformers_uff", molecule=mol, settings=conf_sett)
+InitialConformers = 7
 
 dftb_sett = Settings()
 dftb_sett.input.AMS.Task = "Optimize"
@@ -20,7 +16,7 @@ fil2 = ADFCOSMORSConfFilter(2,10)
 
 a = ADFCOSMORSConfJob(
     mol,
-    conf_gen     = conf_job,
+    initial_conformers = InitialConformers,
     first_filter = fil1,
     additional   = [(dftb_sett,fil2)],
     coskf_name   = "acetic_acid",
