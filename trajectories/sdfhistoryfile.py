@@ -116,9 +116,15 @@ class SDFHistoryFile (SDFTrajectoryFile) :
                 # Get the coordinates and cell
                 cell = mol.lattice
                 if len(cell) == 0 : cell = None
-                bonds = None
                 if len(mol.bonds) > 0 :
-                        bonds = [[iat for iat in mol.index(b)] for b in mol.bonds]
+                        conect = {}
+                        for bond in mol.bonds:
+                                iat = min(mol.index(b))
+                                jat = max(mol.index(b))
+                                if not iat in conect:
+                                        conect[iat] = []
+                                conect[iat].append(jat)
+                        self.conect = conect
 
                 # If the elements changed, update the molecule
                 if elements != self.elements :
@@ -156,7 +162,7 @@ class SDFHistoryFile (SDFTrajectoryFile) :
                         self.historydata = historydata
 
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds)
+                        self._set_plamsmol(self.coords,cell,molecule)
 
                 return self.coords, cell
 

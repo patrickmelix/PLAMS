@@ -114,6 +114,27 @@ class TrajectoryFile (object) :
 
                 Sets self.ntap and self.coords to proper value/size
                 """
+                pass
+
+        def _move_cursor_to_append_pos (self) :
+                """
+                Get file ready to append
+                """
+                filename = self.file_object.name
+                mode = self.file_object.mode
+                read_mode = ''.join(['r',mode[1:]])
+
+                # Read header info (requires read mode)
+                #file_object = self.file_object
+                self.file_object.close()
+                self.file_object = open(filename,read_mode)
+                self._read_header()
+                self.position = self.get_length()
+                self.file_object.close()
+
+                # Reinstate in original file in append mode
+                #self.file_object = file_object
+                self.file_object = open(filename,mode)
 
         def get_plamsmol (self) :
                 """
@@ -132,6 +153,25 @@ class TrajectoryFile (object) :
                         self.read_next(read=False)
 
                 return plamsmol
+
+        @property               
+        def connection_table (self):    
+                """                     
+                Symmetrize the connection table and remove bond orders
+                """     
+                if not hasattr(self,'conect'):
+                        return None
+                conect_sym = {}
+                for i, tuples_i in self.conect.items() :
+                        conect_sym[i] = [t[0] for t in tuples_i]
+                        for j,bo in tuples_i:
+                                if j not in conect_sym.keys() :
+                                        conect_sym[j] = []
+                                if j in self.conect :
+                                        conect_sym[j] = [t[0] for t in self.conect[j]]
+                                if i not in conect_sym[j] :
+                                        conect_sym[j].append(i)
+                return conect_sym
 
         def close (self) :
                 """
@@ -177,6 +217,7 @@ class TrajectoryFile (object) :
                 """
                 Reads and checks If the end of file is reached.
                 """
+                pass
 
         def read_frame (self, frame, molecule=None) :
                 """
@@ -201,7 +242,7 @@ class TrajectoryFile (object) :
 
                 return crd,cell
 
-        def _set_plamsmol (self, coords, cell, plamsmol, bonds=None) :
+        def _set_plamsmol (self, coords, cell, plamsmol) :
                 """
                 If molecule objects have been passed as arguments, update their coordinates and lattice
                 """
@@ -211,14 +252,23 @@ class TrajectoryFile (object) :
                                 plamsmol.lattice = cell
                                 if isinstance(cell,numpy.ndarray) :
                                         plamsmol.lattice = cell.tolist()
-                if bonds is not None :
+                if not hasattr(self,'conect'):
+                        return
+                if self.conect is not None :
                         plamsmol.delete_all_bonds()
-                        for bond in bonds :
-                                order = 1.
-                                if len(bond) == 3 :
-                                        order = bond[2]
-                                b = Bond(plamsmol[bond[0]],plamsmol[bond[1]],order)
-                                plamsmol.add_bond(b)
+                        bonds = []
+                        for i,tuples_i in self.conect.items():
+                                for t in tuples_i:
+                                        j = t
+                                        bo = 1.
+                                        if isinstance(t,tuple):
+                                                j = t[0]
+                                                bo = t[1]
+                                        if sorted([i,j]) in bonds:
+                                                continue
+                                        b = Bond(plamsmol[i],plamsmol[j],bo)
+                                        plamsmol.add_bond(b)
+                                        bonds.append(sorted([i,j]))
 
         def write_next (self, coords=None, molecule=None, cell=[0.,0.,0.], energy=0., step=None, conect=None) :
                 """
@@ -246,7 +296,7 @@ class TrajectoryFile (object) :
                         cell = None
                 return cell
 
-        def _read_plamsmol (self, plamsmol) :
+        def _read_plamsmol (self, plamsmol, read_props=True) :
                 """
                 Read the coordinates and cell vectors from the molecule objects, if provided
 
@@ -257,7 +307,7 @@ class TrajectoryFile (object) :
                 if len(plamsmol.lattice) > 0 : cell = plamsmol.lattice
                 elements = [at.symbol for at in plamsmol.atoms]
                 # Get the connection table
-                plamsmol.set_atoms_id()
+                #plamsmol.set_atoms_id()
                 conect = {}
                 for bond in plamsmol.bonds :
                         iat1 = plamsmol.index(bond.atom1)
@@ -270,11 +320,12 @@ class TrajectoryFile (object) :
                                 conect[iat2] = []
                         conect[iat2].append((iat1,order))
                 # Get the properties
-                #props = [at.properties.suffix if 'suffix' in at.properties else '' for at in plamsmol.atoms]
-                from scm.plams.interfaces.adfsuite.ams import AMSJob
-                props = [AMSJob._atom_suffix(at) for at in plamsmol.atoms]
-                #props = [at.properties if len(at.properties)>0 else None for at in plamsmol.atoms]
-                if sum([len(s) for s in props]) == 0 : props = None
+                props = None
+                if read_props:
+                    from scm.plams.interfaces.adfsuite.ams import AMSJob
+                    props = [AMSJob._atom_suffix(at) for at in plamsmol.atoms]
+                    #props = [at.properties if len(at.properties)>0 else None for at in plamsmol.atoms]
+                    if sum([len(s) for s in props]) == 0 : props = None
                 return coords, cell, elements, conect, props
 
         def rewind (self,nframes=None) :
@@ -310,6 +361,8 @@ class TrajectoryFile (object) :
                 """
                 Get the number of frames in the file
                 """
+                if self.file_object.mode[0] == 'a' or self.file_object.mode[0] == 'w':
+                    return self.position
                 oldposition = self.position
                 while True :
                         crd,cell = self.read_next(read=False)

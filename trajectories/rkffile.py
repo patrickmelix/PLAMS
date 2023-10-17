@@ -160,6 +160,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.mdblocksize = None
                 self.mditems = None
                 self.mdblockitems = None
+                self._mdblock = {}
                 self.include_historydata = False       # Any additional data along the history section will be stored
                 self.historydata = None
                 self.historyitems = None
@@ -168,14 +169,16 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 if self.mode == 'rb' :
                         self._read_header()
                 elif self.mode == 'wb' :
-                         new_sections = ['InputMolecule','Molecule','History',self.mdhistory_name,'MDResults']
-                         new_sections += ['SystemVersionHistory']
-                         sections = self.file_object.sections()
-                         if len(sections) > 0 :
+                        new_sections = ['InputMolecule','Molecule','History',self.mdhistory_name,'MDResults']
+                        new_sections += ['SystemVersionHistory']
+                        sections = self.file_object.sections()
+                        if len(sections) > 0 :
                                 for secname in sections:
                                         if secname in new_sections or 'ChemicalSystem' in secname:
                                                 self.file_object.delete_section(secname)
-                         #       raise PlamsError ('RKF file %s already exists'%(filename))
+                        #       raise PlamsError ('RKF file %s already exists'%(filename))
+                elif self.mode == 'ab':
+                        self._move_cursor_to_append_pos()
                 else :
                         raise PlamsError ('Mode %s is invalid. Only "rb" and "wb" are allowed.'%(self.mode))
 
@@ -186,7 +189,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 * ``rkf`` -- If in write mode an RKFTrajectoryFile object in read mode needs to be passed to extract unit info
                 """
                 self.include_mddata = True
-                if 'r' in self.mode :
+                if 'r' in self.mode or 'a' in self.mode :
                         self._set_mddata_units()
                         self._set_mddata_items()
                 elif 'w' in self.mode :
@@ -312,6 +315,13 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.mditems = items
                 self.mdblockitems = blockitems
 
+        def _move_cursor_to_append_pos (self):
+                """
+                Get the instance ready for appending
+                """
+                self._read_header()
+                self.position = self.get_length()
+
         def _write_header (self, coords, cell, molecule=None) :
                 """
                 Write Molecule info to file (elements, periodicity)
@@ -326,6 +336,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self._write_molecule_section(coords, cell, section='InputMolecule', molecule=molecule)
                 if self.include_mddata :
                         # Start setting up the MDHistory section as well
+                        self.mdblocksize = 100
                         self.file_object.write(self.mdhistory_name,'blockSize',100)
 
                 # Now make sure that it is possible to read from the file as well
@@ -382,12 +393,12 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 conect = None
                 bonds = None
                 if self.read_bonds :
-                        conect, bonds = self._read_bond_data(section='History', step=i)
+                        conect = self._read_bond_data(section='History', step=i)
                 self.conect = conect
 
                 # Read the coordinates, and possible pass them to molecule
                 try :
-                        self._read_coordinates(i, molecule, cell, bonds)
+                        self._read_coordinates(i, molecule, cell)
                         # This has changed self.coords behind the scenes
                 except (KeyError,AttributeError) :
                         return None, None
@@ -408,7 +419,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 self.position = i
                 return self.coords, cell
 
-        def _read_coordinates (self, i, molecule, cell, bonds) :
+        def _read_coordinates (self, i, molecule, cell) :
                 """
                 Read the coordinates at step i, and possible pass them to molecule
                 """
@@ -424,7 +435,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         cell_reduced = None
                         if cell is not None :
                                 cell_reduced = cell[:self.nvecs]
-                        self._set_plamsmol(self.coords,cell_reduced,molecule,bonds)
+                        self._set_plamsmol(self.coords,cell_reduced,molecule)
 
         def _read_cell_data (self, i) :
                 """
@@ -446,13 +457,12 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 Read the bond data from the rkf file
                 """
                 conect = None
-                bonds = None
                 try :
                         step_txt = ''
                         if step is not None :
                                 step_txt = '(%i)'%(step+1)
                         if not ('History','Bonds.Index%s'%(step_txt)) in self.file_object :
-                            return conect, bonds
+                            return conect
                         indices = self.file_object.read(section,'Bonds.Index%s'%(step_txt))
                         connection_table = self.file_object.read(section,'Bonds.Atoms%s'%(step_txt))
                         if isinstance(connection_table,int) :
@@ -461,27 +471,22 @@ class RKFTrajectoryFile (TrajectoryFile) :
                         if isinstance(bond_orders,float) :
                                 bond_orders = [bond_orders]
                         conect = {}
-                        bonds = []
                         for i,(start,end) in enumerate(zip(indices[:-1],indices[1:])) :
                                 if end-start > 0 :
-                                        conect[i+1] = connection_table[start-1:end-1]
-                                        for j in range(start-1,end-1) :
-                                                bonds.append([i+1,connection_table[j],bond_orders[j]])
+                                        #conect[i+1] = connection_table[start-1:end-1]
+                                        conect[i+1] = [(ia,o) for ia,o in zip(connection_table[start-1:end-1],bond_orders[start-1:end-1])]
                         # Now correct the connection table
-                        conect_sym = {}
-                        for i, neighbors_i in conect.items() :
-                                conect_sym[i] = neighbors_i
-                                for j in neighbors_i :
-                                        if not j in conect_sym.keys() :
-                                                conect_sym[j] = []
-                                        if j in conect.keys() :
-                                                conect_sym[j] = conect[j]
-                                        if not i in conect_sym[j] :
-                                                conect_sym[j].append(i)
-                        conect = conect_sym
+                        #conect = self.symmetrize_conect(conect)
                 except (KeyError, AttributeError) :
                         pass
-                return conect, bonds
+                return conect
+
+        def get_regular_connection_table (self):
+                """
+                Get the connection table without the bond orders
+                """
+                conect = self.symmetrize_conect(self.conect)
+                
 
         def _store_mddata_for_step (self, istep) :
                 """
@@ -499,6 +504,13 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 for item in self.mdblockitems:
                         block = int(istep/self.mdblocksize)
                         pos = istep%self.mdblocksize
+                        # First check if this block was already stored in memory
+                        if item in self._mdblock:
+                                if block+1 in self._mdblock[item]:
+                                        values = self._mdblock[item][block+1]
+                                        self.mddata[item] = values[pos]
+                                        continue
+                        # If not, try to read the block
                         if not (section,'%s(%i)'%(item,block+1)) in self.file_object:
                                 continue
                         values = self.file_object.read(section,'%s(%i)'%(item,block+1))
@@ -506,6 +518,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 values = values.split()
                         if not isinstance(values,list) : 
                                 values = [values]
+                        self._mdblock[item] = {block+1:values}
                         self.mddata[item] = values[pos]
 
         def _store_historydata_for_step (self, istep) :
@@ -575,7 +588,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                                 raise PlamsError('The PLAMS molecule needs to be passed as the second argument (molecule)')
 
                 if isinstance(molecule,Molecule) :
-                        coords, cell, elements, conect, props = self._read_plamsmol(molecule)
+                        coords, cell, elements, conect, _ = self._read_plamsmol(molecule,read_props=False)
                         if self.position == 0 : self.elements = elements
                 # Make sure that the cell consists of vectors
                 cell = self._convert_cell(cell)
@@ -590,6 +603,7 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 # If this is the first step, write the header
                 if self.position == 0 :
                         self._write_header(coords,cell,molecule)
+                        self.firsttime = False
 
                 # Define some local variables
                 step = self.position
@@ -678,25 +692,40 @@ class RKFTrajectoryFile (TrajectoryFile) :
                     connections[k] = [t[0] if isinstance(t,tuple) else t for t in conect[k]]
                     orders[k] = [t[1] if isinstance(t,tuple) else 1. for t in conect[k]]
 
-                # Create the index list (correct for double counting)
-                connection_table = [[at for at in connections[iat+1] if at>iat+1] if iat+1 in connections else [] for iat in range(nats)]
-                orders = [[o for o,at in zip(orders[iat+1],connections[iat+1]) if at>iat+1] if iat+1 in connections else [] for iat in range(nats)]
-                numbonds = [len(neighbors) for neighbors in connection_table]
+                numbonds = 0
+                indices = [1]
+                connection_table = []
+                bond_orders = []
+                for iat in range(1,nats+1):
+                    connections = []
+                    if iat in conect:
+                        connections = conect[iat]
+                    neighbors = []
+                    bos = []
+                    for t in connections:
+                        jat = t
+                        bo = 1.
+                        if isinstance(t,tuple):
+                            jat = t[0]
+                            bo = t[1]
+                        # Correct for double counting
+                        if jat <= iat:
+                            continue
+                        neighbors.append(jat)
+                        bos.append(bo)
+                    numbonds += len(bos)
+                    indices.append(numbonds+1)
+                    connection_table += neighbors
+                    bond_orders += bos
 
-                indices = [sum(numbonds[:i])+1 for i in range(nats+1)]
                 self.file_object.write('History','Bonds.Index(%i)'%(self.position+1),indices)
                 self.file_object.write('History','ItemName(%i)'%(counter),'%s'%('Bonds.Index'))
                 counter += 1
 
-                # Flatten the connection table
-                connection_table = [at for i in range(nats) for at in connection_table[i]]
                 self.file_object.write('History','Bonds.Atoms(%i)'%(self.position+1),connection_table)
                 self.file_object.write('History','ItemName(%i)'%(counter),'%s'%('Bonds.Atoms'))
                 counter += 1
 
-                # Flatten the bond orders
-                bond_orders = [order for i in range(nats) for order in orders[i]]
-                #bond_orders = [1.0 for bond in connection_table]
                 self.file_object.write('History','Bonds.Orders(%i)'%(self.position+1),bond_orders)
                 self.file_object.write('History','ItemName(%i)'%(counter),'%s'%('Bonds.Orders'))
                 counter += 1
@@ -782,21 +811,27 @@ class RKFTrajectoryFile (TrajectoryFile) :
                 If the data is to be written as blocks, then step and values need to be replaced.
                 """
                 if dim==1 and not perAtom and not (isinstance(values,list) or isinstance(values,str)) :
-                        try :
-                                blocksize = self.file_object.read(section,'blockSize')
-                        except AttributeError :
+                        if not self.include_mddata :
                                 raise Exception ('Set include_mddata to write the MD section.')
-                        iblock = int((step-1)/blocksize) + 1
-                        if step%blocksize != 1 :
+                        iblock = int((step-1)/self.mdblocksize) + 1
+                        if step%self.mdblocksize != 1 :
                                 old_values = []
-                                if (section,'%s(%i)'%(key,iblock)) in self.file_object:
-                                        old_values = self.file_object.read(section,'%s(%i)'%(key,iblock))
-                                        if not isinstance(old_values,list) :
-                                                old_values = [old_values]
+                                if key in self._mdblock:
+                                        if iblock in self._mdblock[key]:
+                                                if len(self._mdblock[key][iblock]) == step%self.mdblocksize-1:
+                                                        old_values = self._mdblock[key][iblock]
+                                if len(old_values) == 0 :
+                                        if (section,'%s(%i)'%(key,iblock)) in self.file_object:
+                                                old_values = self.file_object.read(section,'%s(%i)'%(key,iblock))
+                                                if not isinstance(old_values,list) :
+                                                        old_values = [old_values]
                                 values = old_values + [values] # Values is a scalar
                         else :
                                 self.file_object.write(section,'nBlocks',iblock)
                         step = iblock
+                        self._mdblock[key] = {iblock:values}
+                        if not isinstance(values,list):
+                                self._mdblock[key] = {iblock:[values]}
                 return step, values
 
         def rewind (self, nframes=None) :

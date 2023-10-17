@@ -279,12 +279,13 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 self.chemical_systems = {}
                 if self.include_mddata :
                         # Start setting up the MDHistory section as well
+                        self.mdblocksize = 100
                         self.file_object.write(self.mdhistory_name,'blockSize',100)
 
                 self.added_atoms = {}
                 self.removed_atoms = {}
 
-        def _read_coordinates (self, i, molecule, cell, bonds) :
+        def _read_coordinates (self, i, molecule, cell) :
                 """
                 Read the coordinates at step i
                 """
@@ -350,7 +351,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         cell_reduced = None
                         if cell is not None :
                                 cell_reduced = cell[:self.nvecs]
-                        self._set_plamsmol(self.coords,cell_reduced,molecule,bonds)
+                        self._set_plamsmol(self.coords,cell_reduced,molecule)
 
         def _read_elements_for_frame (self, frame) :
                 """

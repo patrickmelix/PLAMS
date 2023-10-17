@@ -105,6 +105,8 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 # Required setup before frames can be read/written
                 if self.mode == 'r' :
                         self._read_header()
+                elif self.mode == 'a':
+                        self._move_cursor_to_append_pos()
 
         def store_historydata (self) :
                 """

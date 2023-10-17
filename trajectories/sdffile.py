@@ -99,14 +99,17 @@ class SDFTrajectoryFile (TrajectoryFile) :
 
                 # SDF specific attributes
                 self.name = 'PlamsMol'
-
-                # Required setup before frames can be read/written
-                if self.mode == 'r' :
-                        self._read_header()
+                self.conect = None
 
                 # Specific SDF stuff
                 self.include_historydata = False
                 self.historydata = None
+
+                # Required setup before frames can be read/written
+                if self.mode == 'r' :
+                        self._read_header()
+                elif self.mode == 'a':
+                        self._move_cursor_to_append_pos()
 
         def store_historydata (self) :
                 """
@@ -192,9 +195,15 @@ class SDFTrajectoryFile (TrajectoryFile) :
                 cell = mol.lattice
                 if len(cell) == 0 : cell = None
                 self.coords[:,:] = mol.as_array()
-                bonds = None
                 if len(mol.bonds) > 0 :
-                        bonds = [[iat for iat in mol.index(b)] for b in mol.bonds]
+                        conect = {}
+                        for bond in mol.bonds:
+                                iat = min(mol.index(bond))
+                                jat = max(mol.index(bond))
+                                if not iat in conect:
+                                        conect[iat] = []
+                                conect[iat].append((jat,bond.order))
+                        self.conect = conect
 
                 # Read the additional data
                 if self.include_historydata :
@@ -217,7 +226,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         self.historydata = historydata
 
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds)
+                        self._set_plamsmol(self.coords,cell,molecule)
 
                 return self.coords, cell
 
@@ -271,11 +280,16 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         bondlist = []
                         if conect is not None :
                                 for iat,neighbors in conect.items() :
-                                        for jat in neighbors :
+                                        for t in neighbors:
+                                                jat = t
+                                                bo = 1.
+                                                if isinstance(t,tuple):
+                                                        jat = t[0]
+                                                        bo = t[1]
                                                 indices = tuple(sorted([iat,jat]))
                                                 if not indices in bondlist :
                                                         bondlist.append(indices)
-                                                        bond = Bond(molecule.atoms[iat],molecule.atoms[jat])
+                                                        bond = Bond(molecule[iat],molecule[jat])
                                                         molecule.add_bond(bond)
 
                 self._write_moldata(molecule, historydata)

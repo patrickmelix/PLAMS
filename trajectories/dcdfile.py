@@ -94,6 +94,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 # Skip to the trajectory part of the file
                 if self.mode == 'rb' :
                         self._read_header()
+                elif self.mode == 'ab':
+                        self._move_cursor_to_append_pos()
                 #elif self.mode == 'wb' :
                 #        self._write_header()
 

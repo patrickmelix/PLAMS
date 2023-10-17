@@ -172,7 +172,7 @@ class XYZHistoryFile (XYZTrajectoryFile) :
 
                 # Assign the data to the molecule object
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds=None)
+                        self._set_plamsmol(self.coords,cell,molecule)
 
                 return coords, cell
 
