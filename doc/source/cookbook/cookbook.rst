@@ -3,6 +3,21 @@ Cookbook
 
 This is a collection of code snippets showing how to perform recurrent PLAMS tasks.
 
+init and finish
+******************
+
+Get the workdir created by plams.init
+-------------------------------------
+
+The :func:`~scm.plams.init` function creates a unique folder. If there is another folder with the same name it generate a unique name adding ".00x" to the end of the folder name. To get the actual absolute folder path of the plams workdir you should use:
+
+.. code-block:: python
+
+    import scm.plams as plams
+    folder_path = "plams_workdir"
+    plams.init(folder=folder_path)
+    real_absolute_folder_path = plams.config.default_jobmanager.workdir
+
 
 Settings and input
 ******************
