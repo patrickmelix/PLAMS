@@ -9,6 +9,10 @@ Reactions Discovery
 
 Example illustrating how to use Reactions Discovery with AMS.
 
+**Question to be answered**:  NH₂-CH₂-CH₂-OH + CO₂ + H₂O → ???
+
+**Answer from this example**: Side products include NH₃, NH₂-CH₂-CH=O, OH-NH-CH₂-CH₂-OH, ...
+
 To follow along, either
 
 * Download :download:`reactions_discovery.py` (run as ``$AMSBIN/amspython reactions_discovery.py``).
