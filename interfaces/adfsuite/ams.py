@@ -24,6 +24,13 @@ except ImportError:
     _has_scm_pisa = False
 
 try:
+    from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
+    _has_scm_unichemsys = True
+except ImportError:
+    _has_scm_unichemsys = False
+
+
+try:
     from watchdog.events import FileModifiedEvent, PatternMatchingEventHandler
     from watchdog.observers import Observer
     _has_watchdog = True
@@ -2021,47 +2028,66 @@ class AMSJob(SingleJob):
         If the ``molecule`` attribute is a dictionary, the returned list is of the same length as the size of the dictionary. Keys from the dictionary are used as headers of returned ``system`` blocks.
         """
 
+        def serialize_to_settings(name, mol):
+            if isinstance(mol, Molecule):
+                sett = serialize_molecule_to_settings(mol)
+            elif _has_scm_unichemsys and isinstance(mol, ChemicalSystem):
+                sett = serialize_unichemsys_to_settings(mol)
+
+            if name:
+                sett._h = name
+
+            return sett
+
+
+        def serialize_unichemsys_to_settings(mol):
+            from scm.libbase import InputParser
+            sett = InputParser().to_settings(AMSJob._command, str(mol))
+            return sett.ams.system[0]
+
+
+        def serialize_molecule_to_settings(mol):
+            sett = Settings()
+
+            if len(mol.lattice) in [1,2] and mol.align_lattice():
+                log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self._full_name()), 3)
+
+            sett.Atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
+                                      suffix=self._atom_suffix(atom)) for atom in mol]
+
+            if mol.lattice:
+                sett.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in mol.lattice]
+
+            if len(mol.bonds)>0:
+                lines = ['{} {} {}'.format(mol.index(b.atom1), mol.index(b.atom2), b.order) for b in mol.bonds]
+                # Add bond properties if they are defined
+                sett.BondOrders._1 = ['{} {}'.format(text,mol.bonds[i].properties.suffix) if 'suffix' in mol.bonds[i].properties else text for i,text in enumerate(lines)]
+
+            if 'charge' in mol.properties:
+                sett.Charge = mol.properties.charge
+
+            if 'regions' in mol.properties:
+                #sett.Region = [Settings({'_h':name, '_1':['%s=%s'%(k,str(v)) for k,v in data.items()]}) for name, data in molecule.properties.regions.items()]
+                sett.Region = [Settings({'_h':name, 'Properties':Settings({'_1':[line for line in data]})}) for name, data in mol.properties.regions.items() if isinstance(data,list)]
+
+            return sett
+
+
         if self.molecule is None:
             return Settings()
 
         moldict = {}
-        if isinstance(self.molecule, Molecule):
-            moldict = {'':self.molecule}
+        if isinstance(self.molecule, Molecule) or (_has_scm_unichemsys and isinstance(self.molecule, ChemicalSystem)):
+            moldict = {'': self.molecule}
         elif isinstance(self.molecule, dict):
             moldict = self.molecule
         else:
-            raise JobError("Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a dictionary or None, and not {}".format(self._full_name(), type(self.molecule)))
+            raise JobError("Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a UnifiedChemicalSystem, a dictionary or None, and not {}".format(self._full_name(), type(self.molecule)))
 
-        ret = []
-        for name, molecule in moldict.items():
-            newsystem = Settings()
-            if name:
-                newsystem._h = name
-
-            if len(molecule.lattice) in [1,2] and molecule.align_lattice():
-                log("The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(name if name else 'main', self._full_name()), 3)
-
-            newsystem.Atoms._1 = [atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10,
-                                           suffix=self._atom_suffix(atom)) for atom in molecule]
-
-            if molecule.lattice:
-                newsystem.Lattice._1 = ['{:16.10f} {:16.10f} {:16.10f}'.format(*vec) for vec in molecule.lattice]
-
-            if len(molecule.bonds)>0:
-                lines = ['{} {} {}'.format(molecule.index(b.atom1), molecule.index(b.atom2), b.order) for b in molecule.bonds]
-                # Add bond properties if they are defined
-                newsystem.BondOrders._1 = ['{} {}'.format(text,molecule.bonds[i].properties.suffix) if 'suffix' in molecule.bonds[i].properties else text for i,text in enumerate(lines)]
-
-            if 'charge' in molecule.properties:
-                newsystem.Charge = molecule.properties.charge
-
-            if 'regions' in molecule.properties :
-                #newsystem.Region = [Settings({'_h':name, '_1':['%s=%s'%(k,str(v)) for k,v in data.items()]}) for name, data in molecule.properties.regions.items()]
-                newsystem.Region = [Settings({'_h':name, 'Properties':Settings({'_1':[line for line in data]})}) for name, data in molecule.properties.regions.items() if isinstance(data,list)]
-
-            ret.append(newsystem)
+        ret = [serialize_to_settings(name, molecule) for name, molecule in moldict.items()]
 
         return ret
+
 
     #=========================================================================
 
