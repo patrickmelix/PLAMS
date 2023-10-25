@@ -41,6 +41,7 @@ MD trajectory analysis
 .. toctree::
 
   IonicConductivityFromMD.rst
+  IRSpectrumFromMD
 
 Benchmarks
 -----------------

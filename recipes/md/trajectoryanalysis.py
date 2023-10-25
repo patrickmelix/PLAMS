@@ -181,6 +181,12 @@ class AMSVACFResults(AMSAnalysisResults):
 
         return freq, y
 
+    def get_acf(self):
+        return self.get_vacf()
+
+    def get_spectrum(self, max_freq=None):
+        return self.get_power_spectrum(max_freq=max_freq)
+
 class AMSVACFJob(AMSConvenientAnalysisJob):
     """A class for calculating the velocity autocorrelation function and its power spectrum
     """
@@ -237,6 +243,92 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
 
             freq, intens = self.results.get_power_spectrum()
             with open(self.path+'/power_spectrum.txt', 'w') as f:
+                f.write("#Frequency(cm^-1) Intensity(arb.units)")
+                for x,y in zip(freq, intens):
+                    f.write(f'{x} {y}\n')
+        except:
+            pass
+
+class AMSDipoleDerivativeACFResults(AMSAnalysisResults):
+    """Results class for AMSVACFJob
+    """
+    def get_acf(self):
+        xy = self.get_xy()
+        time = np.array(xy.x[0]) # fs
+        y = np.array(xy.y)
+
+        return time, y
+
+    def get_ir_spectrum(self, max_freq=None):
+        max_freq = max_freq or self.job.max_freq or 5000
+        xy = self.get_xy('Spectrum')
+        freq = np.array(xy.x[0])
+        y = np.array(xy.y)
+
+        y = y[freq < max_freq]
+        freq = freq[freq < max_freq]
+
+        return freq, y
+
+    def get_spectrum(self, max_freq=None):
+        return self.get_ir_spectrum(max_freq=max_freq)
+
+class AMSDipoleDerivativeACFJob(AMSConvenientAnalysisJob):
+    """A class for calculating the velocity autocorrelation function and its power spectrum
+    """
+
+    _result_type = AMSDipoleDerivativeACFResults
+    _parent_write_atoms = True
+
+    def __init__(self,
+                 previous_job,  # needs to be finished
+                 max_correlation_time_fs=5000, # fs
+                 max_freq=5000, # cm^-1
+                 atom_indices=None,
+
+                 **kwargs):
+        """
+        previous_job: AMSJob
+            An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
+
+        max_correlation_time_fs: float
+            Maximum correlation time in femtoseconds
+
+        max_freq: float
+            The maximum frequency for the power spectrum in cm^-1
+
+        atom_indices: List[int]
+            Atom indices (starting with 1). If None, use all atoms.
+
+        """
+        AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
+
+        self.max_correlation_time_fs = max_correlation_time_fs
+        self.max_freq = max_freq
+
+    def prerun(self):  # noqa F811
+        """
+        Creates final settings
+        """
+        self._parent_prerun('AutoCorrelation') # trajectory and atom_indices handled
+        max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
+        self.settings.input.Task = 'AutoCorrelation'
+        self.settings.input.AutoCorrelation.Property = 'DipoleDerivativeFromCharges'
+        self.settings.input.AutoCorrelation.MaxFrame = max_dt_frames
+
+    def postrun(self):
+        """
+        Creates dipolederivativeacf.txt and ir_spectrum.txt
+        """
+        try:
+            time, acf = self.results.get_acf()
+            with open(self.path+'/dipolederivativeacf.txt', 'w') as f:
+                f.write("#Time(fs) DipoleDerivativeACF")
+                for x,y in zip(time, acf):
+                    f.write(f'{x} {y}\n')
+
+            freq, intens = self.results.get_ir_spectrum()
+            with open(self.path+'/ir_spectrum.txt', 'w') as f:
                 f.write("#Frequency(cm^-1) Intensity(arb.units)")
                 for x,y in zip(freq, intens):
                     f.write(f'{x} {y}\n')
