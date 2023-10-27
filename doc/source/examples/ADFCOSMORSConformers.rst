@@ -20,12 +20,20 @@ First, we'll import the necessary classes:
     from scm.plams import Molecule, from_smiles, init, finish, Settings
     from scm.conformers import ConformersJob
 
-Now, we'll input the acetic acid molecule with the ``from_smiles`` function and specify the initial number of strucutres that generated with the default RDKitGenerator. 
+Now, we'll input the acetic acid molecule with the ``from_smiles`` function
 
 .. code-block:: python
 
     mol = from_smiles("CC(=O)O")
-    InitialConformers = 7
+
+Now, we'll specify a conformer generator (identical to the default) that generates only 7 initial structures:
+
+.. code-block:: python
+
+    conf_sett = Settings()
+    conf_sett.input.AMS.Generator.RDKit
+    conf_sett.input.AMS.Generator.RDKit.InitialNConformers = 7
+    conf_job = ConformersJob(name="conformers_uff", molecule=mol, settings=conf_sett)
 
 Let's also specify an additional step to add to the default workflow.  Here, we'll add a DFTB geometry optimization.
 
@@ -48,7 +56,7 @@ Finally, we give this information to the ``ADFCOSMORSConfJob`` class.  We also s
 
     a = ADFCOSMORSConfJob(
         mol,
-        initial_conformers = InitialConformers
+        conf_gen     = conf_job,
         first_filter = fil1,
         additional   = [(dftb_sett,fil2)],
         coskf_name   = "acetic_acid",
