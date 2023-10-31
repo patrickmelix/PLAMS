@@ -231,6 +231,12 @@ or::
     myjob = AMSJob(...)
     myjob.molecule = mol
 
+
+.. note::
+    
+    Instead of passing a |Molecule| object to |AMSJob|, you have the option to use a `Chemical System <../../Scripting/LibBase/ChemicalSystem.html>`_ as well.
+
+
 A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`_ for details).
 Various details of this process can be adjusted based on attributes of the supplied |Molecule|.
 If ``mol.lattice`` is nonempty, the information about periodicity vectors is printed to the ``lattice`` subblock of the ``system`` block.
