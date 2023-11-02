@@ -467,8 +467,8 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         #self.system_version_elements.append(elements[:])
                         if len(self.system_version_elements) in self.system_version_elements.keys() :
                                 raise Exception('self.system_version_elements is not consecutively numbered')
-                        self.system_version_elements[len(self.system_version_elements)] = elements[:]
                         self.system_version_props[len(self.system_version_elements)] = props
+                        self.system_version_elements[len(self.system_version_elements)] = elements[:]
                         chemsysversion = len(self.system_version_elements)
 
                 # Now add an entry to SystemVersionHistory
