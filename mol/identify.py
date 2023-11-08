@@ -302,8 +302,8 @@ if has_networkx:
 
         # Get the connectivigty matrix (remove bond orders)
         matrix = mol.bond_matrix()
-        matrix = matrix.astype(np.int32)
         matrix[matrix>0] = 1
+        matrix = matrix.astype(np.int32)
 
         # Multilpy the graph entries with the unique labels for each atom
         identifiers = np.array([dic[at.IDname] if at.IDname in dic.keys() else None for at in mol.atoms])
