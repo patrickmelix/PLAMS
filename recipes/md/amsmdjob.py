@@ -4,6 +4,8 @@ from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 import numpy as np
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.units import Units
+from typing import List, Dict, Union, Tuple
+import scm.plams as plams
 
 __all__ = ['AMSMDJob', 'AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
 
@@ -127,8 +129,8 @@ class AMSMDJob(AMSJob):
         self,
         velocities=None,
         timestep=None,
-        samplingfreq=None,
-        nsteps=None,
+        samplingfreq: int=None,
+        nsteps: int=None,
         checkpointfrequency=None,
         writevelocities=None,
         writebonds=None,
@@ -136,8 +138,8 @@ class AMSMDJob(AMSJob):
         writecharges=None,
         writeenginegradients=None,
         calcpressure=None,
-        molecule=None,
-        temperature=None,
+        molecule: Union[plams.Molecule, AMSJob, AMSResults]=None,
+        temperature: float=None,
         thermostat=None,
         tau=None,
         thermostat_region=None,

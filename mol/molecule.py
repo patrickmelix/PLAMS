@@ -2630,7 +2630,7 @@ class Molecule:
         f: file
             An open file handle.
 
-        see also the write method: `molecule.write("my_molecule.xyz")`
+        See also the write method: `molecule.write("my_molecule.xyz")`
 
         example:
 
@@ -3153,16 +3153,16 @@ class Molecule:
         self.translate(vector, unit='angstrom')
 
         if watch:
-                import matplotlib.pyplot as plt
-                from scm.plams.tools.plot import plot_molecule
-                fig, ax = plt.subplots(1, 2)
-                ax[0].set_title('before alignment')
-                plot_molecule(molecule_ref, ax=ax[0], keep_axis=True)
-                plot_molecule(mol_initial, ax=ax[0], keep_axis=True)
-                ax[1].set_title('after alignment')
-                plot_molecule(molecule_ref, ax=ax[1], keep_axis=True)
-                plot_molecule(self, ax=ax[1], keep_axis=True)
-                print(f'Root mean square deviation: {rmsd_value:0.3} Ang')
+            import matplotlib.pyplot as plt
+            from scm.plams.tools.plot import plot_molecule
+            fig, ax = plt.subplots(1, 2)
+            ax[0].set_title('before alignment')
+            plot_molecule(molecule_ref, ax=ax[0], keep_axis=True)
+            plot_molecule(mol_initial, ax=ax[0], keep_axis=True)
+            ax[1].set_title('after alignment')
+            plot_molecule(molecule_ref, ax=ax[1], keep_axis=True)
+            plot_molecule(self, ax=ax[1], keep_axis=True)
+            print(f'Root mean square deviation: {rmsd_value:0.3} Ang')
 
     @property
     def numbers(self) -> 'np.ndarray':
