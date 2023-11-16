@@ -119,8 +119,8 @@ class SDFHistoryFile (SDFTrajectoryFile) :
                 if len(mol.bonds) > 0 :
                         conect = {}
                         for bond in mol.bonds:
-                                iat = min(mol.index(b))
-                                jat = max(mol.index(b))
+                                iat = min(mol.index(bond))
+                                jat = max(mol.index(bond))
                                 if not iat in conect:
                                         conect[iat] = []
                                 conect[iat].append(jat)

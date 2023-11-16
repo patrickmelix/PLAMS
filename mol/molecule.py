@@ -2662,7 +2662,7 @@ class Molecule:
             line = f.readline().rstrip()
             if line:
                 spl = line.split()
-                if spl[-1] == 'V2000':
+                if spl[-1].lower() == 'V2000'.lower():
                     if len(line) == 39:
                         natom = int(line[0:3])
                         nbond = int(line[3:6])
