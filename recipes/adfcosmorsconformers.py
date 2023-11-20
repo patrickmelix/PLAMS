@@ -54,12 +54,12 @@ class ADFCOSMORSConfJob(MultiJob):
 
     def __init__(self,
         molecule : Molecule,
-        conf_gen=None,
-        first_filter=None,
-        additional=None,
+        conf_gen = None,
+        first_filter = None,
+        additional = None,
         final_filter = None,
         adf_singlepoint = False,
-        initial_conformers=500,
+        initial_conformers = 500,
         coskf_dir = None,
         coskf_name = None,
         **kwargs):
@@ -83,13 +83,19 @@ class ADFCOSMORSConfJob(MultiJob):
         
         self.initial_conformers = initial_conformers
 
-        self.filters        = [first_filter]
+        self.filters        = [None, first_filter]
+
         self.job_settings   = [None]
         if additional is not None:
             for js, f in additional:
                 self.job_settings.append(js)
                 self.filters.append(f)
 
+        if final_filter is not None:
+            self.filters.append(final_filter)
+        else:
+            self.filters.append(None)
+        
         if not self.has_valid_filter_settings():
             pass
 
@@ -103,7 +109,7 @@ class ADFCOSMORSConfJob(MultiJob):
                 self.conf_gen = conf_gen
 
         self.children['job_0'] = self.conf_gen
-        self._add_filter(self.children['job_0'].settings)
+        #self._add_filter(self.children['job_0'].settings)
 
     def default_confgen(self):
 
@@ -127,7 +133,8 @@ class ADFCOSMORSConfJob(MultiJob):
         else:
             sett.input.AMS.Task = 'Score'
         sett.input.AMS.InputConformersSet = self.children[f'job_{self.job_count-1}'].results
-        
+        self._add_filter(sett)
+
         return ConformersJob(name="adf_conformers", settings=sett)
     
     def make_cosmo_job(self):
@@ -137,6 +144,8 @@ class ADFCOSMORSConfJob(MultiJob):
         self.children['adf_job'].results.wait()
         sett.input.AMS.Replay.File = self.children['adf_job'].results["conformers.rkf"]
         sett.input.AMS.Replay.StoreAllResultFiles = "True"
+        #self._add_filter(sett) ##the filter cannot be set here
+
         return AMSJob(name="replay", settings=sett)
 
     def new_children(self):
@@ -183,13 +192,14 @@ class ADFCOSMORSConfJob(MultiJob):
 
     def _add_filter(self,sett):
 
+        job_count = self.job_count 
         filt = self.filters[self.job_count]
         if filt is not None:
             if filt.max_num_confs is not None:
                 sett.input.AMS.InputMaxConfs = filt.max_num_confs
+                #print('job_count=',job_count, ' max_num_confs=',filt.max_num_confs, ' max_energy_range=', filt.max_energy_range)
             if filt.max_energy_range is not None:
                 sett.input.AMS.InputMaxEnergy = filt.max_energy_range
-
 
     def has_valid_filter_settings(self):
 
