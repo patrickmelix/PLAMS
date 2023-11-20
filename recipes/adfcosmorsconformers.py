@@ -83,9 +83,18 @@ class ADFCOSMORSConfJob(MultiJob):
         
         self.initial_conformers = initial_conformers
 
+        if conf_gen is None:
+            self.conf_gen = self.default_confgen()
+        else:
+            if not isinstance(conf_gen,ConformersJob):
+                print("Wrong type for argument conf_gen.  Expected ConformersJob instance.  Using the default conformer generator.")
+                self.conf_gen = self.default_confgen()
+            else:
+                self.conf_gen = conf_gen
+
+        self.job_settings   = [self.conf_gen.settings]
         self.filters        = [None, first_filter]
 
-        self.job_settings   = [None]
         if additional is not None:
             for js, f in additional:
                 self.job_settings.append(js)
@@ -99,17 +108,7 @@ class ADFCOSMORSConfJob(MultiJob):
         if not self.has_valid_filter_settings():
             pass
 
-        if conf_gen is None:
-            self.conf_gen = self.default_confgen()
-        else:
-            if not isinstance(conf_gen,ConformersJob):
-                print("Wrong type for argument conf_gen.  Expected ConformersJob instance.  Using the default conformer generator.")
-                self.conf_gen = self.default_confgen()
-            else:
-                self.conf_gen = conf_gen
-
         self.children['job_0'] = self.conf_gen
-        #self._add_filter(self.children['job_0'].settings)
 
     def default_confgen(self):
 
@@ -145,6 +144,7 @@ class ADFCOSMORSConfJob(MultiJob):
         sett.input.AMS.Replay.File = self.children['adf_job'].results["conformers.rkf"]
         sett.input.AMS.Replay.StoreAllResultFiles = "True"
         #self._add_filter(sett) ##the filter cannot be set here
+        #return ConformersJob(name="replay", settings=sett)
 
         return AMSJob(name="replay", settings=sett)
 
