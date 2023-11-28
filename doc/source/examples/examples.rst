@@ -34,6 +34,7 @@ Molecule analysis
    ConvertToAMSRKFTrajectory
    PlotCorrelation/PlotCorrelation
    MapMoleculesAndConvertToDCD
+   HydrogenBondsFromMD
 
 MD trajectory analysis
 ----------------------
