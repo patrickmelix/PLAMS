@@ -124,9 +124,11 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 self.system_version_elements = {}
                 self.frame = -1
                 self.props = None
+                self.charge = None
 
                 # This is for writing only
                 self.system_version_props = {}
+                self.system_version_charge = {}
                 self.version_history_items = []
 
         def set_elements (self, elements) :
@@ -255,9 +257,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 # Check the regions
                 section_dict = self.file_object.read_section(sectionname)
                 plamsmol = Molecule._mol_from_rkf_section(section_dict)
-                print (0,plamsmol.atoms[0].properties.suffix)
+                print ('Checking the regions: ',0,[k for k in plamsmol.atoms[0].properties])
                 for aa in added_atoms :
-                        print (aa-1,plamsmol.atoms[aa-1].properties.suffix)
+                        print (aa-1,[k for k in plamsmol.atoms[aa-1].properties])
                 ###################
                 return chemSysNum, elements
 
@@ -297,7 +299,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         update_molecule = True
                 if isinstance(molecule,Molecule) :
                         _, _, mol_elements, _, props = self._read_plamsmol(molecule)
-                        if mol_elements != self.elements or props != self.props : # This molecule has nothing to do with the previously read one
+                        charge = None
+                        if 'charge' in molecule.properties:
+                                charge = molecule.properties.charge
+                        if mol_elements != self.elements or props != self.props or charge != self.charge: # This molecule has nothing to do with the previously read one
                                 update_molecule = True
                         prev_frames = [iframe for iframe in self.chemical_systems.keys() if iframe<=i]
                         ifr = 0
@@ -333,6 +338,9 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                         #atom = Atom(PT.get_atomic_number(el))
                                         molecule.add_atom(atom)
                                 _, _, _, _, self.props = self._read_plamsmol(molecule)
+                                if 'charge' in new_mol.properties:
+                                        molecule.properties.charge = new_mol.properties.charge
+                                        self.charge = molecule.properties.charge
                                 # Now what if the elements found in this ChemicalSystem section
                                 # do not match the expected elements (self.elements)?
                                 new_elements = [at.symbol for at in molecule.atoms]
@@ -398,8 +406,11 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 raise PlamsError('The PLAMS molecule needs to be passed as the second argument (molecule)')
 
                 props = None
+                charge = None
                 if isinstance(molecule,Molecule) :
                         coords, cell, elements, conect, props = self._read_plamsmol(molecule)
+                        if 'charge' in molecule.properties:
+                                charge = molecule.properties.charge
                 # Make sure that the cell consists of three vectors
                 cell = self._convert_cell(cell)
                 if conect is not None :
@@ -410,6 +421,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 if self.position == 0 :
                         self.elements = elements
                         self.props = props
+                        self.charge = charge
                         self._write_header(coords,cell,molecule=molecule)
                         # This is specific for the history-file object
                         self.input_elements = elements[:]
@@ -433,11 +445,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         self._write_mdhistory_entry(mddata)
 
                 # If a change took place, write it.
-                # Note: The chemical system is only written if the elements change. Changes in the atom properties are not checked
-                if elements != self.elements or props != self.props or self.position==0 :
+                if elements != self.elements or props != self.props or self.position==0 or charge != self.charge:
                         # version history has to be checked before the elements can be updated
-                        chemsysversion = self._check_for_chemical_system(elements, props=props)
-                        self._write_version_history(elements, coords, cell, props)
+                        chemsysversion = self._check_for_chemical_system(elements, props=props, charge=charge)
+                        self._write_version_history(elements, coords, cell, props, charge)
                         # Now update the elements and props
                         self.elements = elements
                         self.props = props
@@ -453,7 +464,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 if self.saving_freq is not None :
                         if self.position%self.saving_freq == 0 : self.file_object.save()
 
-        def _write_version_history (self, elements, coords, cell, props) :
+        def _write_version_history (self, elements, coords, cell, props, charge) :
                 """
                 Write the version history
                 """
@@ -462,12 +473,13 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                 version = self.versionhistory_length
 
                 # Find the corresponding ChemicalSystem and write it
-                chemsysversion = self._check_for_chemical_system(elements, props=props)
+                chemsysversion = self._check_for_chemical_system(elements, props=props, charge=charge)
                 if chemsysversion is None :
                         #self.system_version_elements.append(elements[:])
                         if len(self.system_version_elements) in self.system_version_elements.keys() :
                                 raise Exception('self.system_version_elements is not consecutively numbered')
                         self.system_version_props[len(self.system_version_elements)] = props
+                        self.system_version_charge[len(self.system_version_elements)] = charge
                         self.system_version_elements[len(self.system_version_elements)] = elements[:]
                         chemsysversion = len(self.system_version_elements)
 
@@ -542,7 +554,7 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                         self.added_atoms[self.position][iat+1] = elements[iat]
                 return added_atoms, removed_atoms
 
-        def _check_for_chemical_system (self, elements, compare_elements=True, props=None) :
+        def _check_for_chemical_system (self, elements, compare_elements=True, props=None, charge=None) :
                 """
                 Check if the new chemical system was encountered before
                 """
@@ -563,6 +575,10 @@ class RKFHistoryFile (RKFTrajectoryFile) :
                                 # This only occurs when writing, otherwise system_version_props is empty
                                 if i in self.system_version_props.keys() :
                                         if props != self.system_version_props[i] :
+                                                equal = False
+                        if charge is not None and equal:
+                                if i in self.system_version_charge:
+                                        if charge != self.system_version_charge[i]:
                                                 equal = False
                         if equal :
                                 version = i+1
