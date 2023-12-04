@@ -100,10 +100,8 @@ class ADFCOSMORSConfJob(MultiJob):
                 self.job_settings.append(js)
                 self.filters.append(f)
 
-        if final_filter is not None:
-            self.filters.append(final_filter)
-        else:
-            self.filters.append(None)
+        self.final_filter = final_filter
+        self.filters.append(final_filter)
         
         if not self.has_valid_filter_settings():
             pass
@@ -135,16 +133,28 @@ class ADFCOSMORSConfJob(MultiJob):
         self._add_filter(sett)
 
         return ConformersJob(name="adf_conformers", settings=sett)
+
+    def make_filter_job(self):
+        sett = Settings()
+        sett.input.AMS.Task = 'Filter'
+        sett.input.AMS.InputConformersSet = self.children['adf_job'].results
+        self._add_filter(sett)
+
+        return ConformersJob(name="adf_filter", settings=sett)
     
     def make_cosmo_job(self):
 
         sett = ADFCOSMORSCompoundJob.adf_settings(True,elements=list(set(at.symbol for at in self.mol)))
         sett.input.AMS.Task = "Replay"
-        self.children['adf_job'].results.wait()
-        sett.input.AMS.Replay.File = self.children['adf_job'].results["conformers.rkf"]
+
+        if(self.final_filter is not None):
+            previous_job = 'filter_job'
+        else:
+            previous_job = 'adf_job'
+
+        self.children[previous_job].results.wait()
+        sett.input.AMS.Replay.File = self.children[previous_job].results["conformers.rkf"]
         sett.input.AMS.Replay.StoreAllResultFiles = "True"
-        #self._add_filter(sett) ##the filter cannot be set here
-        #return ConformersJob(name="replay", settings=sett)
 
         return AMSJob(name="replay", settings=sett)
 
@@ -162,6 +172,9 @@ class ADFCOSMORSConfJob(MultiJob):
         if 'adf_job' not in self.children:
             return {'adf_job':self.make_adf_job()}
 
+        if 'filter_job' not in self.children and self.final_filter is not None:
+            return {'filter_job':self.make_filter_job()}
+
         if 'cosmo_job' not in self.children:
             return {'cosmo_job':self.make_cosmo_job()}
 
@@ -173,9 +186,14 @@ class ADFCOSMORSConfJob(MultiJob):
     def _make_coskfs(self):
 
         base_name = self.coskf_name if self.coskf_name is not None else "conformer"
+        if self.final_filter is not None:
+            previous_job = 'filter_job'
+        else:
+            previous_job = 'adf_job'
+        
         if self.coskf_dir is None:
-            self.coskf_dir = self.children['adf_job'].path
-        for i, E in enumerate(self.children['adf_job'].results.get_energies("Ha")):
+            self.coskf_dir = self.children[previous_job].path
+        for i, E in enumerate(self.children[previous_job].results.get_energies("Ha")):
             if f"Frame{i+1}.rkf" in self.children['cosmo_job'].results:
                 cosmo_section = self.children['cosmo_job'].results.read_rkf_section("COSMO", f"Frame{i+1}")
                 cosmo_section["Gas Phase Bond Energy"] = E
@@ -197,7 +215,6 @@ class ADFCOSMORSConfJob(MultiJob):
         if filt is not None:
             if filt.max_num_confs is not None:
                 sett.input.AMS.InputMaxConfs = filt.max_num_confs
-                #print('job_count=',job_count, ' max_num_confs=',filt.max_num_confs, ' max_energy_range=', filt.max_energy_range)
             if filt.max_energy_range is not None:
                 sett.input.AMS.InputMaxEnergy = filt.max_energy_range
 
