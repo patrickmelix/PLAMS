@@ -75,7 +75,6 @@ def toASE(molecule, set_atomic_charges=False):
     set_atomic_charges: bool
         If True, set_initial_charges() will be called with the average atomic charge (taken from molecule.properties.charge). The purpose is to preserve the total charge, not to set any reasonable initial charges.
     """
-    aseMol = ase.Atoms()
 
     #iterate over PLAMS atoms
     for atom in molecule:
@@ -84,8 +83,7 @@ def toASE(molecule, set_atomic_charges=False):
         if not all(isinstance(x, (int,float)) for x in atom.coords):
             raise ValueError("Non-Number in Atomic Coordinates, not compatible with ASE")
 
-        #append atom to aseMol
-        aseMol.append(ase.Atom(atom.atnum, atom.coords))
+    aseMol = ase.Atoms(numbers=molecule.numbers, positions=molecule.as_array())
 
     #get lattice info if any
     lattice = np.zeros((3,3))

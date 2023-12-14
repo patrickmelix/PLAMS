@@ -45,7 +45,8 @@ class ADFCOSMORSConfJob(MultiJob):
         initial_conformers : the (integer) number of initially sampled conformers.  This is only applied if the default conformer generation strategy is used.  
         coskf_dir : a directory to put all the .coskf files generated for the conformers.  If this keyword is not specified, the .coskf files are put in the directory containing the adf gas phase calculation results
         coskf_name : a base name to be used with conformers.  All conformers will have the name *coskf_name*_i where i is the index of the unique conformer.  If not specified, the base name becomes simply *conformer*
-        name : an optional name for the calculation directory
+        name : an optional name for the calculation directory.
+        mol_info (dict) : an optional dictionary containing information will be written to the Compound Data section within the COSKF file.
 
     '''
 
@@ -62,6 +63,7 @@ class ADFCOSMORSConfJob(MultiJob):
         initial_conformers = 500,
         coskf_dir = None,
         coskf_name = None,
+        mol_info = {},
         **kwargs):
 
         super().__init__(children = {}, **kwargs)
@@ -69,6 +71,7 @@ class ADFCOSMORSConfJob(MultiJob):
         self.job_count = 0
 
         self.mol = molecule
+        self.mol_info = mol_info
 
         self.adf_results   = False
         self.cosmo_results = False
@@ -206,6 +209,11 @@ class ADFCOSMORSConfJob(MultiJob):
                 coskf = KFFile(os.path.join(self.coskf_dir, name), autosave=False)
                 for key, val in cosmo_section.items():
                     coskf.write("COSMO", key, val)
+
+                for key, value in self.mol_info.items():
+                    #print(f"write to coskf {key}: {value}")
+                    coskf.write('Compound Data',key,value)
+
                 coskf.save()
 
     def _add_filter(self,sett):

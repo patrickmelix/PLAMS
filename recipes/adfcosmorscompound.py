@@ -56,17 +56,20 @@ class ADFCOSMORSCompoundJob(MultiJob):
         singlepoint (bool) :  Run a singlepoint in gasphase and with solvation to generate the .coskf file on the given Molecule. (no geometry optimization). Cannot be combined with ``preoptimization``.
         settings (Settings) : A |Settings| object.  settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
         name : an optional name for the calculation directory
+        mol_info (dict) : an optional dictionary containing information will be written to the Compound Data section within the COSKF file.
+
     Example:
 
         .. code-block:: python
             
             mol = from_smiles('O')
             job = ADFCOSMORSCompoundJob( 
-                molecule=mol, 
-                preoptimization='UFF',
-                coskf_dir = "coskfs/", 
-                coskf_name = "Water",
-                name= "H2O",
+                molecule = mol, 
+                preoptimization = 'UFF',
+                coskf_dir = 'coskfs', 
+                coskf_name = 'Water',
+                name = 'H2O',
+                mol_info = {'CAS':'7732-18-5'}
             )
             job.run()
             print(job.results.coskfpath())
@@ -75,7 +78,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
     _result_type = ADFCOSMORSCompoundResults
 
-    def __init__(self, molecule:Molecule, coskf_name = None, coskf_dir = None, preoptimization=None, singlepoint=False, settings=None, **kwargs):
+    def __init__(self, molecule:Molecule, coskf_name = None, coskf_dir = None, preoptimization=None, singlepoint=False, settings=None, mol_info={}, **kwargs):
         """
 
             Class for running the equivalent of "COSMO-RS Compound" in the AMS
@@ -99,6 +102,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         MultiJob.__init__(self, children=OrderedDict(), **kwargs)
         self.input_molecule = molecule
+        self.mol_info = mol_info
         self.settings = settings or Settings()
 
         self.coskf_name = coskf_name
@@ -160,7 +164,8 @@ class ADFCOSMORSCompoundJob(MultiJob):
                 os.path.join(
                     self.parent.coskf_dir if self.parent.coskf_dir is not None else self.parent.path , 
                     self.parent.coskf_name if self.parent.coskf_name is not None else self.parent.name+'.coskf'
-                )
+                ),
+                self.parent.mol_info
             )
 
         self.children['solv'] = solv_job
@@ -233,14 +238,16 @@ class ADFCOSMORSCompoundJob(MultiJob):
         return s
 
     @staticmethod
-    def convert_to_coskf(rkf: str, coskf: str):
+    def convert_to_coskf(rkf: str, coskf: str, mol_info: dict):
         """ rkf: absolute path to adf.rkf, coskf: path to write out the resulting .coskf file  """
         f = KFFile(rkf)
         cosmo = f.read_section("COSMO")
         coskf_file = KFFile(coskf,autosave=False)
         for k,v in cosmo.items():
             coskf_file.write("COSMO",k,v)
-
+        for key, value in mol_info.items():
+            #print(f"write to coskf {key}: {value}")
+            coskf_file.write('Compound Data',key,value)
         coskf_file.save()
 
 
