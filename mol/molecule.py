@@ -304,11 +304,11 @@ class Molecule:
         else:
             raise MoleculeError('add_bond: bonded atoms have to belong to the molecule')
 
-
     def delete_bond(self, arg1, arg2=None):
         """Delete a bond from the molecule.
 
-        Just like :meth:`add_bond`, this method accepts either a single argument that is a |Bond| instance, or two arguments being instances of |Atom|. In both cases objects used as arguments have to belong to the molecule.
+        Just like :meth:`add_bond`, this method accepts either a single argument that is a |Bond| instance, or two
+        arguments being instances of |Atom|. In both cases objects used as arguments have to belong to the molecule.
         """
         if isinstance(arg1, Atom) and isinstance(arg2, Atom):
             delbond = self.find_bond(arg1, arg2)
@@ -324,12 +324,13 @@ class Molecule:
 
     def delete_all_bonds(self):
         """Delete all bonds from the molecule."""
-        for b in reversed(self.bonds):
-            self.delete_bond(b)
-
+        self.bonds.clear()
+        for atom in self:
+            atom.bonds.clear()
 
     def find_bond(self, atom1, atom2):
-        """Find and return a bond between *atom1* and *atom2*. Both atoms have to belong to the molecule. If no bond between chosen atoms exists, the retured value is ``None``."""
+        """Find and return a bond between *atom1* and *atom2*. Both atoms have to belong to the molecule. If no bond
+        between chosen atoms exists, the retured value is ``None``."""
         if atom1.mol != self or atom2.mol != self:
             raise MoleculeError('find_bond: atoms passed as arguments have to belong to the molecule')
         for b in atom1.bonds:

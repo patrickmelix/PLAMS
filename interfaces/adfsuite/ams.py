@@ -14,7 +14,7 @@ from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.converters import gaussian_output_to_ams, qe_output_to_ams, vasp_output_to_ams
-from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.kftools import KFFile, KFReader
 from scm.plams.tools.units import Units
 
 try:
@@ -138,6 +138,21 @@ class AMSResults(Results):
         ret.remove('ams')
         return ret
 
+
+    def read_hybrid_term_rkf(self, section: str, variable: str, term:int, file='engine'):
+        """Reads a Hybrid-termX-subengine.rkf file.
+
+        The engine.rkf file contains a section EngineResults with Files(1), Files(2) etc. that point
+        to the individual term .rkf files.
+
+        This method reads the corresponding individual term .rkf file.
+
+        Example: job.results.read_hybrid_term_rkf("AMSResults", "Energy", file="engine", term=1)
+        """
+
+        kf_file = self.readrkf("EngineResults", f"Files({term})", file=file)
+        kf = KFReader(os.path.join(self.job.path, kf_file))
+        return kf.read(section, variable)
 
     def rkfpath(self, file='ams'):
         """Return the absolute path of a chosen ``.rkf`` file.
