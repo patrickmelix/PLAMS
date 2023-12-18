@@ -16,6 +16,7 @@ from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.converters import gaussian_output_to_ams, qe_output_to_ams, vasp_output_to_ams
 from scm.plams.tools.kftools import KFFile, KFReader
 from scm.plams.tools.units import Units
+from typing import List
 
 try:
     from scm.pisa.block import DriverBlock
@@ -2511,3 +2512,40 @@ class AMSJob(SingleJob):
         if name is None:
             return
         atom.properties.region.add(name)
+
+
+def hybrid_committee_engine_settings(settings_list: List[Settings]) -> Settings:
+    """
+    Creates the Settings for an AMS Hybrid engine that takes the average of all subengines as the prediction (for energies and forces).
+
+    settings_list: list of Settings
+        The Settings (at the top level) for each subengine.
+
+    Returns: Settings (at the top level) for a Hybrid engine.
+
+    """
+
+    def get_partial_settings(x: int) -> Settings:
+        original_settings = settings_list[x]
+        pure_settings = None
+        pure_engine_name = ""
+        for e in original_settings.input:
+            if e != "ams":
+                pure_engine_name = e
+                pure_settings = original_settings.input[e]
+                break
+
+        assert pure_settings is not None
+
+        pure_settings._h = f"{pure_engine_name} Engine{x+1}"
+
+        return pure_settings
+
+    N = len(settings_list)
+    s = Settings()
+    s.input.Hybrid.Engine = [get_partial_settings(x) for x in range(N)]
+    s.input.Hybrid.Energy.Term = [f'Factor={1/N} Region=* UseCappingAtoms=No EngineID=Engine{x+1}' for x in range(N)]
+    s.runscript.preamble_lines = ['export OMP_NUM_THREADS=1']
+
+    return s
+

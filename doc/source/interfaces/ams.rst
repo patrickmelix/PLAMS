@@ -363,3 +363,10 @@ AMSResults API
     :no-private-members:
 
 
+
+Other functions
+~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: hybrid_committee_engine_settings
+    
+
