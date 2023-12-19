@@ -5,7 +5,7 @@ Reactions Discovery
 
 .. seealso::
    
-   * The `Reactions Discovery documentation <../../../AMS/Utilities/ReactionsDiscovery.html>`__ in AMS.
+   * The `Reactions Discovery documentation <../../../Workflows/ReactionsDiscovery/ReactionsDiscovery.html>`__ in AMS.
 
 Example illustrating how to use Reactions Discovery with AMS.
 
