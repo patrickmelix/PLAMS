@@ -595,15 +595,15 @@ class AMSResults(Results):
         return self._process_engine_results(properties, engine)
 
 
-    def get_energy(self, unit='au', engine=None):
-        """Return final energy, expressed in *unit*.
-
+    def get_energy(self, unit='hartree', engine=None):
+        """Return final energy, expressed in *unit*. The final energy is found in AMSResults%Energy of the engine rkf file. You can find the meaning of final energy in the engine documentation.
+        
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read('AMSResults', 'Energy'), engine) * Units.conversion_ratio('au', unit)
 
 
-    def get_gradients(self, energy_unit='au', dist_unit='au', engine=None):
+    def get_gradients(self, energy_unit='hartree', dist_unit='bohr', engine=None) -> np.ndarray:
         """Return the gradients of the final energy, expressed in *energy_unit* / *dist_unit*.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -611,7 +611,7 @@ class AMSResults(Results):
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'Gradients'), engine)).reshape(-1,3) * Units.conversion_ratio('au', energy_unit) / Units.conversion_ratio('au', dist_unit)
 
 
-    def get_stresstensor(self, engine=None):
+    def get_stresstensor(self, engine=None) -> np.ndarray:
         """Return the final stress tensor, expressed in atomic units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -619,7 +619,7 @@ class AMSResults(Results):
         return np.asarray(self._process_engine_results(lambda x: x.read('AMSResults', 'StressTensor'), engine)).reshape(len(self.get_input_molecule().lattice),-1)
 
 
-    def get_hessian(self, engine=None):
+    def get_hessian(self, engine=None) -> np.ndarray:
         """Return the Hessian matrix, i.e. the second derivative of the total energy with respect to the nuclear coordinates, expressed in atomic units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.

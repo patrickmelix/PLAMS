@@ -185,7 +185,7 @@ class Units:
     dicts['stress'] = stress
 
 
-    # Precompute a dict mapping lowercased unit names to quantityName:conversionFactor pairs
+    # Precomputed a dict mapping lowercased unit names to quantityName:conversionFactor pairs
     quantities_for_unit = {}
     for quantity in dicts:
         for unit, factor in dicts[quantity].items():
