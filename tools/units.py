@@ -35,10 +35,15 @@ class Units:
 
     *   angle:
 
-        -    ``degree``, ``deg``,
-        -    ``radian``, ``rad``,
+        -    ``degree``, ``deg``
+        -    ``radian``, ``rad``
         -    ``grad``
         -    ``circle``
+    
+    *   charge:
+        
+        -    ``coulomb``, ``C``
+        -    ``e``
 
     *   energy:
 
@@ -51,9 +56,20 @@ class Units:
 
     *   dipole moment:
 
-        -   ``au``, ``a.u.``
-        -   ``Cm``
+        -   ``au``, ``a.u.``, ``e*bohr``
         -   ``Debye``, ``D``
+        -  All charge units multiplied by distance units, for example
+        -   ``eA``,  ``e*A``
+        -   ``Cm``,  ``C*m``
+
+    *   molecular polarizability:
+        
+        -   ``au``, ``a.u.``, ``(e*bohr)^2/hartree``
+        -   ``e*A^2/V``
+        -   ``C*m^2/V``
+        -   ``cm^3``
+        -   ``bohr^3``
+        -   ``A^3``, ``angstrom^3``, ``Ang^3``
 
     *   forces:
 
@@ -96,16 +112,16 @@ class Units:
     """
 
     constants = {}
-    constants['Bohr_radius']                         =  0.529177210903  #http://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
-    constants['Avogadro_constant'] = constants['NA'] =  6.022140857e23   #http://physics.nist.gov/cgi-bin/cuu/Value?na
-    constants['speed_of_light'] = constants['c']     =  299792458   #http://physics.nist.gov/cgi-bin/cuu/Value?c
-    constants['electron_charge'] = constants['e']    =  1.6021766208e-19   #http://physics.nist.gov/cgi-bin/cuu/Value?e
+    constants['Bohr_radius']                         =  0.529177210903  #A     http://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
+    constants['Avogadro_constant'] = constants['NA'] =  6.022140857e23  #1/mol http://physics.nist.gov/cgi-bin/cuu/Value?na
+    constants['speed_of_light'] = constants['c']     =  299792458   #m/s http://physics.nist.gov/cgi-bin/cuu/Value?c
+    constants['electron_charge'] = constants['e']    =  1.6021766208e-19  #C http://physics.nist.gov/cgi-bin/cuu/Value?e
     constants['Boltzmann'] = constants['k_B'] = 1.380649e-23 #J/K
-
+    constants['vacuum_electric_permittivity'] = 8.8541878128e-12 #F*m-1=C/(V*m) https://physics.nist.gov/cgi-bin/cuu/Value?ep0
 
     distance = {}
     distance['A'] = distance['Angstrom']                 =  1.0
-    distance['Bohr'] = distance['a.u.'] = distance['au'] =  1.0 / constants['Bohr_radius']
+    distance['Bohr'] = distance['bohr'] = distance['a.u.'] = distance['au'] =  1.0 / constants['Bohr_radius']
     distance['nm']                                       = distance['A'] / 10.0
     distance['pm']                                       = distance['A'] * 100.0
     distance['m']                                        = distance['A'] * 1e-10
@@ -144,24 +160,40 @@ class Units:
     angle['grad']   =  100.0 / 90.0
     angle['circle'] =  1.0 / 360.0
 
+    charge = {}
+    charge['a.u.'] = charge['au'] = charge['e'] = 1
+    charge['C'] = charge['coulomb'] = constants['e']
+
     dipole = {}
-    dipole['au'] = dipole['a.u.'] =  1.0
-    dipole['Cm']                  =  constants['e'] * constants['Bohr_radius'] * 1e-10
-    dipole['Debye'] = dipole['D'] =  dipole['Cm'] * constants['c']* 1e21
+    for k,v in charge.items():
+        if (k == 'au') or (k == 'a.u.'): #remove 'au','a.u.' options
+            continue
+        for k1, v1 in distance.items():
+            if (k1 == 'au') or (k1 == 'a.u.'):
+                continue
+            dipole[k+'*'+k1]= v*v1
+            dipole[k+k1]    = v*v1
+    dipole['au'] = dipole['a.u.'] = dipole['e*bohr'] =  1.0
+    dipole['debye'] = dipole['D'] =  dipole['Cm'] * constants['c']* 1e21
+
+    # from support info https://doi.org/10.48550/arXiv.2310.13310 it is preferable to highlight that this is molecular polarizability,
+    # it should be also /mol units but it is usually omitted and for consistency in the dipole units I removed, but both dipole and molecular_polarizability should have /mol
+    molecular_polarizability = {} 
+    molecular_polarizability['au']      = molecular_polarizability['a.u.']       = molecular_polarizability['e^2*bohr^2/hartree'] = molecular_polarizability['(e*bohr)^2/hartree'] =  1.0
+    molecular_polarizability['e*A^2/V'] = molecular_polarizability['e^2*A^2/eV'] = molecular_polarizability['(e*A)^2/eV']         = constants['Bohr_radius']**2 / energy['eV']
+    molecular_polarizability['C*m^2/V']                                                                                           = molecular_polarizability['e*A^2/V'] * 1e-20 * constants['e']
+    molecular_polarizability['cm^3']                                                                                              = molecular_polarizability['C*m^2/V'] / (4*np.pi*constants['vacuum_electric_permittivity']) * 1e6 # form https://en.wikipedia.org/wiki/Polarizability that refs Atkins book
+    molecular_polarizability['A^3']     = molecular_polarizability['Ang^3'] = molecular_polarizability['Angstrom^3']              = molecular_polarizability['cm^3'] * 1e24
+    molecular_polarizability['bohr^3']                                                                                            = molecular_polarizability['Ang^3'] / constants['Bohr_radius']**3
 
     forces = {}
     hessian = {}
     stress = {}
     for k,v in energy.items():
-        forces[k+'/Angstrom'] = forces[k+'/Ang'] = forces[k+'/A'] = v * rec_distance['1/Angstrom']
-        hessian[k+'/Angstrom^2'] = hessian[k+'/Ang^2'] = hessian[k+'/A^2'] = v  * rec_distance['1/Angstrom']**2
-        stress[k+'/Angstrom^3'] = stress[k+'/Ang^3'] = stress[k+'/A^3'] = v  * rec_distance['1/Angstrom']**3
-        forces[k+'/bohr'] = forces[k+'/au'] = forces[k+'/a.u.'] = v * rec_distance['1/Bohr']
-        hessian[k+'/bohr^2'] = hessian[k+'/au^2'] = hessian[k+'/a.u.^2'] = v * rec_distance['1/Bohr']**2
-        stress[k+'/bohr^3'] = stress[k+'/au^3'] = stress[k+'/a.u.^3'] = v * rec_distance['1/Bohr']**3
-        forces[k+'/m'] = v * rec_distance['1/m']
-        hessian[k+'/m^2'] = v  * rec_distance['1/m']**2
-        stress[k+'/m^3'] = v  * rec_distance['1/m']**3
+        for k1, v1 in distance.items():
+            forces[k+'/'+k1] = v / v1
+            hessian[k+'/'+k1+'^2'] = v / v1**2
+            stress[k+'/'+k1+'^3'] = v / v1**3
     forces['au'] = forces['a.u.'] = forces['Ha/bohr']
     hessian['au'] = hessian['a.u.'] = hessian['Ha/bohr^2']
     stress['au'] = stress['a.u.'] = stress['Ha/bohr^3']
@@ -183,6 +215,8 @@ class Units:
     dicts['forces'] = forces
     dicts['hessian'] = hessian
     dicts['stress'] = stress
+    dicts['charge'] = charge
+    dicts['molecular_polarizability'] = molecular_polarizability
 
 
     # Precomputed a dict mapping lowercased unit names to quantityName:conversionFactor pairs
@@ -264,6 +298,6 @@ class Units:
         """
         if string is None:
             return ''
-        ret = string.replace('^-1', '⁻¹').replace('angstrom', 'Å').replace('^2','²').replace('^3','³').replace('degree', '°').replace('deg.', '°')
+        ret = string.replace('^-1', '⁻¹').replace('angstrom', 'Å').replace('^2','²').replace('^3','³').replace('degree', '°').replace('deg.', '°').replace('Ang', 'Å').replace('*', '⋅')
         return ret
 
