@@ -2542,6 +2542,27 @@ class AMSJob(SingleJob):
         atom.properties.region.add(name)
 
 
+def extract_engine_settings(settings: Settings) -> Settings:
+    """
+    Extracts the engine setttings from a Settings object.
+
+    Example:
+    s.input.ams.Task = "singlepoint"
+    s.runscript.nproc = 1
+    s.input.ForceField.Type = "UFF"
+    extract_engine_settings(s) will return Settings with s.input.ForceField.Type = "UFF"
+    """
+
+    ret = Settings()
+
+    if "input" in settings:
+        for e in settings.input:
+            if e != "ams":
+                ret.input[e] = settings.input[e].copy()
+                break
+
+    return ret
+
 def hybrid_committee_engine_settings(settings_list: List[Settings]) -> Settings:
     """
     Creates the Settings for an AMS Hybrid engine that takes the average of all subengines as the prediction (for energies and forces).
