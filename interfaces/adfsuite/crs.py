@@ -114,12 +114,19 @@ class CRSResults(SCMResults):
         # first get the two ranges for the indices
         ncomp  = self.readkf(section, 'ncomp')
         nitems = self.readkf(section, 'nitems')
+        nstruct = self.readkf(section, 'nstruct')
 
         np_dict = { "section" : section }
+        np_dict['ncomp'] = ncomp
         for prop in props:
             tmp = self.readkf(section,prop)
-            if prop == "filename":
-                np_dict[prop] = [str(x).strip() for x in tmp.split()]
+            if ((prop == "filename") or (prop == "name")):
+                chunk_length = len(tmp)//ncomp
+                np_dict[prop] = [tmp[i:i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
+                continue
+            if prop == 'struct names':
+                chunk_length = len(tmp)//nstruct
+                np_dict[prop] = [tmp[i:i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
                 continue
             if not isinstance(tmp,list):
                 np_dict[prop] = tmp

@@ -173,7 +173,7 @@ class Units:
                 continue
             dipole[k+'*'+k1]= v*v1
             dipole[k+k1]    = v*v1
-    dipole['au'] = dipole['a.u.'] = dipole['e*bohr'] =  1.0
+    dipole['au'] = dipole['a.u.'] = dipole['e*bohr']
     dipole['debye'] = dipole['D'] =  dipole['Cm'] * constants['c']* 1e21
 
     # from support info https://doi.org/10.48550/arXiv.2310.13310 it is preferable to highlight that this is molecular polarizability,
