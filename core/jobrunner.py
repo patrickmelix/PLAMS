@@ -1,16 +1,14 @@
-import os
 import functools
+import os
 import threading
 import time
-
 from os.path import join as opj
 from subprocess import DEVNULL, PIPE
 
-from .errors import PlamsError
-from .functions import config, log
-from .private import saferun
-from .settings import Settings
-
+from scm.plams.core.errors import PlamsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.private import saferun
+from scm.plams.core.settings import Settings
 
 __all__ = ['JobRunner', 'GridRunner']
 

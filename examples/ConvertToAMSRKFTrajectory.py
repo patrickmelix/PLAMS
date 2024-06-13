@@ -1,6 +1,8 @@
 #!/usr/bin/env amspython
-from scm.plams import *
 import os
+
+from scm.plams import *
+
 
 def main():
     # the first argument needs to be a file readable by ASE

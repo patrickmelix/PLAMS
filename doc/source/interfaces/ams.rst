@@ -11,6 +11,11 @@ You can find more information about the AMS driver in the `corresponding part of
 Preparing input
 ~~~~~~~~~~~~~~~
 
+.. important::
+
+    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
+    
+
 .. note::
 
     Input files handling in the AMS driver is case insensitive.
@@ -209,6 +214,8 @@ The only adjustable option (apart from usual ``pre``, ``post``, ``shebang`` and 
 
 
 
+.. _AMSMoleculeHandling:
+
 Molecule handling
 ~~~~~~~~~~~~~~~~~
 
@@ -223,6 +230,12 @@ or::
     mol = Molecule('/path/to/some/file.xyz')
     myjob = AMSJob(...)
     myjob.molecule = mol
+
+
+.. note::
+    
+    Instead of passing a |Molecule| object to |AMSJob|, you have the option to use a `Chemical System <../../Scripting/LibBase/ChemicalSystem.html>`_ as well.
+
 
 A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`_ for details).
 Various details of this process can be adjusted based on attributes of the supplied |Molecule|.
@@ -349,4 +362,11 @@ AMSResults API
     :exclude-members: __init__
     :no-private-members:
 
+
+
+Other functions
+~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: hybrid_committee_engine_settings
+    
 

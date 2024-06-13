@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 
 import io
+
+from scm.plams.core.errors import TrajectoryError
 import numpy
-from ..mol.atom import Atom
-from ..mol.bond import Bond
-from ..mol.molecule import Molecule
-from ..core.errors import TrajectoryError
-from ..tools.geometry import cell_shape
-from ..tools.geometry import cellvectors_from_shape
-from .trajectoryfile import TrajectoryFile
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.bond import Bond
+from scm.plams.mol.molecule import Molecule
+from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 
 __all__ = ['SDFTrajectoryFile','create_sdf_string']
 
@@ -25,8 +24,8 @@ class SDFTrajectoryFile (TrajectoryFile) :
         *   ``elements``    -- The elements of the atoms in the system (needs to be constant throughout)
 
         An |SDFTrajectoryFile| object behaves very similar to a regular file object.
-        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
-        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`)
+        that read and write from/to the position of the cursor in the ``file_object`` attribute.
         If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
         the cursor to any frame in the file and reads from there.
         The amount of information stored in memory is kept to a minimum, as only information from the current frame
@@ -74,9 +73,9 @@ class SDFTrajectoryFile (TrajectoryFile) :
             >>> sdfout.close()
 
         By default the write mode will create a minimal version of the SDF file, containing only elements
-        and coordinates. 
+        and coordinates.
         Additional information can be written to the file by supplying additional arguments
-        to the :meth:`write_next` method. 
+        to the :meth:`write_next` method.
         The additional keywords `step` and `energy` trigger the writing of a remark containing
         the molecule name, the step number, the energy, and the lattice vectors.
 
@@ -100,14 +99,17 @@ class SDFTrajectoryFile (TrajectoryFile) :
 
                 # SDF specific attributes
                 self.name = 'PlamsMol'
-
-                # Required setup before frames can be read/written
-                if self.mode == 'r' :
-                        self._read_header()
+                self.conect = None
 
                 # Specific SDF stuff
                 self.include_historydata = False
                 self.historydata = None
+
+                # Required setup before frames can be read/written
+                if self.mode == 'r' :
+                        self._read_header()
+                elif self.mode == 'a':
+                        self._move_cursor_to_append_pos()
 
         def store_historydata (self) :
                 """
@@ -166,7 +168,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         self.firsttime = False
 
                 self.position += 1
-                
+
                 return self.coords, cell
 
         def _read_coordinates (self, molecule) :
@@ -193,9 +195,15 @@ class SDFTrajectoryFile (TrajectoryFile) :
                 cell = mol.lattice
                 if len(cell) == 0 : cell = None
                 self.coords[:,:] = mol.as_array()
-                bonds = None
                 if len(mol.bonds) > 0 :
-                        bonds = [[iat for iat in mol.index(b)] for b in mol.bonds]
+                        conect = {}
+                        for bond in mol.bonds:
+                                iat = min(mol.index(bond))
+                                jat = max(mol.index(bond))
+                                if not iat in conect:
+                                        conect[iat] = []
+                                conect[iat].append((jat,bond.order))
+                        self.conect = conect
 
                 # Read the additional data
                 if self.include_historydata :
@@ -218,7 +226,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         self.historydata = historydata
 
                 if isinstance(molecule,Molecule) :
-                        self._set_plamsmol(self.coords,cell,molecule,bonds)
+                        self._set_plamsmol(self.coords,cell,molecule)
 
                 return self.coords, cell
 
@@ -231,7 +239,7 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         line = self.file_object.readline()
                         if len(line) == 0 :
                                 end = True
-                                break 
+                                break
                         if len(line) < 4 : continue
                         if line[:4] == '$$$$' :
                                 break
@@ -272,11 +280,16 @@ class SDFTrajectoryFile (TrajectoryFile) :
                         bondlist = []
                         if conect is not None :
                                 for iat,neighbors in conect.items() :
-                                        for jat in neighbors :
+                                        for t in neighbors:
+                                                jat = t
+                                                bo = 1.
+                                                if isinstance(t,tuple):
+                                                        jat = t[0]
+                                                        bo = t[1]
                                                 indices = tuple(sorted([iat,jat]))
                                                 if not indices in bondlist :
                                                         bondlist.append(indices)
-                                                        bond = Bond(molecule.atoms[iat],molecule.atoms[jat])
+                                                        bond = Bond(molecule[iat],molecule[jat])
                                                         molecule.add_bond(bond)
 
                 self._write_moldata(molecule, historydata)
@@ -321,7 +334,7 @@ def create_sdf_string (molecule, step=None, historydata=None) :
                         energy = historydata['energies']
         else :
                 historydata = {}
-        
+
         if 'Step' in historydata :
                 step = historydata['Step']
 
@@ -348,7 +361,7 @@ def get_molecule (lines) :
         for i,line in enumerate(lines) :
                 if line[:6] == 'M  END' :
                         end = i+1
-                        break 
+                        break
         moltext = ''.join(lines[:end])
         f = io.StringIO(moltext)
         mol = Molecule()

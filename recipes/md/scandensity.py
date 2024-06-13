@@ -1,15 +1,7 @@
-from collections import OrderedDict
-from ...core.functions import add_to_instance
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob, AMSResults
-from ...tools.units import Units
-from .amsmdjob import AMSNVTJob
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSResults
 import numpy as np
-from scipy.optimize import curve_fit
+from scm.plams.recipes.md.amsmdjob import AMSNVTJob
 
 __all__ = ['AMSMDScanDensityJob', 'AMSMDScanDensityResults']
 
@@ -26,7 +18,7 @@ class AMSMDScanDensityResults(AMSResults):
 
     def get_lowest_energy_molecule(self, variable='TotalEnergy'):
         return self.get_history_molecule(self.get_lowest_energy_index(variable, 'MDHistory'))
-        
+
 
 class AMSMDScanDensityJob(AMSNVTJob):
     """A class for scanning the density using MD Deformations
@@ -42,13 +34,13 @@ class AMSMDScanDensityJob(AMSNVTJob):
         density_ratio = from_density / scan_density_upper
         new_length = [x *  density_ratio**0.333333 for x in orig_length]
 
-        nsteps = self.settings.input.ams.MolecularDynamics.NSteps
+        self.settings.input.ams.MolecularDynamics.NSteps
 
         self.scan_density_upper = scan_density_upper
         self.startstep = startstep or 1
 
         s = Settings()
-        s.input.ams.MolecularDynamics.Deformation.TargetLength = ' '.join([str(x) for x in new_length]) 
+        s.input.ams.MolecularDynamics.Deformation.TargetLength = ' '.join([str(x) for x in new_length])
         s.input.ams.MolecularDynamics.Deformation.StartStep = self.startstep
 
         self.settings += s

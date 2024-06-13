@@ -1,5 +1,6 @@
-from setuptools import setup, find_packages
 from os.path import join as opj
+
+from setuptools import find_packages, setup
 
 packages = ['scm.plams'] + ['scm.plams.'+i for i in find_packages('.')]
 
@@ -31,6 +32,6 @@ setup(
     install_requires = ['dill>=0.2.4', 'numpy', 'scipy', 'natsort'],
     packages         = packages,
     package_dir      = {'scm.plams': '.'},
-    package_data     = {'scm.plams' : ['plams_defaults', 'examples/*', 'unit_tests/*', 'unit_tests/xyz/*']},
+    package_data     = {'scm.plams' : ['.flake8', 'plams_defaults', 'examples/*', 'unit_tests/*', 'unit_tests/xyz/*']},
     scripts          = [opj('scripts','plams')]
 )

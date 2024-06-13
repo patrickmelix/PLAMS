@@ -1,6 +1,5 @@
-from ...core.errors import PlamsError
-from ...core.errors import FileError
-from .scmjob import SCMJob, SCMResults
+from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
 
 __all__ = ['AMSAnalysisJob', 'AMSAnalysisResults','convert_to_unicode']
 
@@ -189,7 +188,6 @@ class AMSAnalysisResults(SCMResults):
             if 'History' in section: continue
             name_part = section.split('(')[0]
             num_part = int(section.split('(')[1].split(')')[0])
-            outfilename = '%s_%i.dat'%(name_part,num_part)
             xy = self.get_xy(name_part,num_part)
             plots.append(xy)
         return plots

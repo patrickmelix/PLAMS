@@ -7,14 +7,21 @@ from scm.plams import *
 from ase.optimize import BFGS
 from ase.build import molecule as ase_build_molecule
 from ase.visualize.plot import plot_atoms
-from ase.build import fcc111
+from ase.build import fcc111, bulk
 import matplotlib.pyplot as plt
 
 
 # ## Helper functions
 
 def printsummary(mol, details=None):
-    s = f'{len(mol)} atoms, density = {mol.get_density()*1e-3:.3f} g/cm^3, box = {mol.lattice[0][0]:.3f}, {mol.lattice[1][1]:.3f}, {mol.lattice[2][2]:.3f}, formula = {mol.get_formula()}'
+    if details:
+        density = details["density"]
+    else:
+        density = mol.get_density() * 1e-3
+    s = f'{len(mol)} atoms, density = {density:.3f} g/cm^3'
+    if mol.lattice:
+        s += f', box = {mol.lattice[0][0]:.3f}, {mol.lattice[1][1]:.3f}, {mol.lattice[2][2]:.3f}'
+    s += f', formula = {mol.get_formula()}'
     if details:
         s+= f'\n#added molecules per species: {details["n_molecules"]}, mole fractions: {details["mole_fractions"]}'
     print(s)
@@ -94,7 +101,10 @@ x_water = 0.666                # mole fraction
 x_acetonitrile = 1-x_water     # mole fraction
 density = (x_water*1.0 + x_acetonitrile*0.76) / (x_water + x_acetonitrile)  # weighted average of pure component densities
 
-print(f'\nMIXTURES. x_water = {x_water:.3f}, x_acetonitrile = {x_acetonitrile:.3f}, target density = {density:.3f} g/cm^3\n')
+print("MIXTURES")
+print(f"x_water = {x_water:.3f}")
+print(f"x_acetonitrile = {x_acetonitrile:.3f}")
+print(f"target density = {density:.3f} g/cm^3")
 
 
 # By setting ``return_details=True``, you can get information about the mole fractions of the returned system. They may not exactly match the mole fractions you put in.
@@ -133,11 +143,80 @@ out.write('water-acetonitrile-4.xyz')
 show(out)
 
 
+# ## Pack inside sphere
+# 
+# Set ``sphere=True`` to pack in a sphere (non-periodic) instead of in a periodic box. The sphere will be centered near the origin.
+
+print('water in a sphere from exact density and number of molecules')
+out, details = packmol(
+    molecules=[water],
+    n_molecules=[100],
+    density=1.0, 
+    return_details=True,
+    sphere=True
+)
+printsummary(out, details)
+print(f"Radius  of sphere: {details['radius']:.3f} ang.")
+print(f"Center of mass xyz (ang): {out.get_center_of_mass()}")
+out.write('water-sphere.xyz')
+show(out)
+
+
+print('2-1 water-acetonitrile in a sphere from exact density (in g/cm^3) and approximate number of atoms and mole fractions')
+out, details = packmol(
+    molecules=[water, acetonitrile], 
+    mole_fractions=[x_water, x_acetonitrile], 
+    n_atoms=500,
+    density=density, 
+    return_details=True,
+    sphere=True
+)
+printsummary(out, details)
+out.write('water-acetonitrile-sphere.xyz')
+show(out)
+
+
+# ## Packing ions, total system charge
+# 
+# The total system charge will be sum of the charges of the constituent molecules.
+# 
+# In PLAMS, ``molecule.properties.charge`` specifies the charge:
+
+ammonium = from_smiles("[NH4+]")  # ammonia.properties.charge == +1
+chloride = from_smiles("[Cl-]")   # chloride.properties.charge == -1
+print('3 water molecules, 3 ammonium, 1 chloride (non-periodic)')
+print("Initial charges:")
+print(f"Water: {water.properties.get('charge', 0)}")
+print(f"Ammonia: {ammonium.properties.get('charge', 0)}")
+print(f"Chloride: {chloride.properties.get('charge', 0)}")
+out = packmol(
+    molecules=[water, ammonium, chloride], 
+    n_molecules=[3, 3, 1],
+    density=0.4, 
+    sphere=True
+)
+tot_charge = out.properties.get("charge", 0)
+print(f"Total charge of packmol-generated system: {tot_charge}")
+out.write('water-ammonium-chloride.xyz')
+show(out)
+
+
+# ## Microsolvation
+# ``packmol_microsolvation`` can create a microsolvation sphere around a solute.
+
+out = packmol_microsolvation(solute=acetonitrile, solvent=water, density=1.5, threshold=4.0)
+# for microsolvation it's a good idea to have a higher density than normal to get enough solvent molecules
+print(f"Microsolvated structure: {len(out)} atoms.")
+out.write('acetonitrile-microsolvated.xyz')
+
+figsize = (3,3)
+show(out, figsize=figsize)
+
+
 # ## Solid-liquid or solid-gas interfaces
 # First, create a slab using the ASE ``fcc111`` function
 
 rotation = ('90x,0y,0z')  # sideview of slab
-figsize = (3,3)
 slab = fromASE(fcc111('Al', size=(4,6,3), vacuum=15.0, orthogonal=True, periodic=True))
 show(slab, figsize=figsize, rotation=rotation)
 
@@ -156,14 +235,24 @@ out.write('al-water-acetonitrile.xyz')
 show(out, figsize=figsize, rotation=rotation)
 
 
-# ## Microsolvation
-# ``packmol_microsolvation`` can create a microsolvation sphere around a solute.
+# ## Pack inside voids in crystals
+# 
+# Use the ``packmol_in_void`` function. You can decrease ``tolerance`` if you need to pack very tightly. The default value for ``tolerance`` is 2.0.
 
-out = packmol_microsolvation(solute=acetonitrile, solvent=water, density=1.5, threshold=4.0)
-# for microsolvation it's a good idea to have a higher density than normal to get enough solvent molecules
-print(f"Microsolvated structure: {len(out)} atoms.")
-out.write('acetonitrile-microsolvated.xyz')
-show(out, figsize=figsize)
+bulk_Al = fromASE(bulk('Al', cubic=True).repeat((3, 3, 3)))
+rotation = ('90x,5y,5z')
+show(bulk_Al, rotation=rotation, radii=0.4)
+
+
+out = packmol_in_void(
+    host=bulk_Al,
+    molecules=[from_smiles("[H]"), from_smiles("[He]")],
+    n_molecules=[50, 20],
+    tolerance=1.5
+)
+show(out, rotation=rotation, radii=0.4)
+printsummary(out)
+out.write('al-bulk-with-h-he.xyz')
 
 
 # ## Bonds, atom properties (force field types, regions, ...)

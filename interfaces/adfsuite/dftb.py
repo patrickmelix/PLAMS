@@ -1,7 +1,7 @@
-from .scmjob import SCMJob, SCMResults
-from ...core.errors import ResultsError
-from ...core.functions import log
-from ...tools.units import Units
+from scm.plams.core.errors import ResultsError
+from scm.plams.core.functions import log
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.tools.units import Units
 
 __all__ = ['DFTBJob', 'DFTBResults']
 
@@ -136,7 +136,7 @@ class DFTBJob(SCMJob):
     def _remove_mol(self):
         s = self.settings.input
         if 'system' in s:
-            if 'atoms' in s[system]:
+            if 'atoms' in s.system:
                 del s.system.atoms
             if 'lattice' in s.system:
                 del s.system.lattice

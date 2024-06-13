@@ -1,20 +1,18 @@
-import numpy as np
 from collections import OrderedDict
 from itertools import combinations
 
+import numpy as np
+
 try:
     import networkx
-    from networkx.algorithms import isomorphism
     has_networkx = True
 except ImportError:
     has_networkx = False
 
-from .atom import Atom
-from .molecule import Molecule
-from ..core.private import sha256
-from ..core.functions import add_to_class
-from ..tools.units import Units
-
+from scm.plams.core.functions import add_to_class
+from scm.plams.core.private import sha256
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.units import Units
 
 __all__ = ['label_atoms']
 
@@ -304,8 +302,8 @@ if has_networkx:
 
         # Get the connectivigty matrix (remove bond orders)
         matrix = mol.bond_matrix()
-        matrix = matrix.astype(np.int32)
         matrix[matrix>0] = 1
+        matrix = matrix.astype(np.int32)
 
         # Multilpy the graph entries with the unique labels for each atom
         identifiers = np.array([dic[at.IDname] if at.IDname in dic.keys() else None for at in mol.atoms])
@@ -323,7 +321,7 @@ if has_networkx:
     @add_to_class(Molecule)
     def find_permutation(self, other, level=1):
         """
-        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed. 
+        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed.
         """
         # Get bonds and unique atomIDs if needed
         if len(self.bonds) == 0:
@@ -344,7 +342,7 @@ if has_networkx:
             return None
 
         # Match
-        GM = isomorphism.GraphMatcher(graph, graph2, edge_match=isomorphism.categorical_edge_match('weight',1))
+        GM = networkx.isomorphism.GraphMatcher(graph, graph2, edge_match=networkx.isomorphism.categorical_edge_match('weight',1))
         isomorphic = GM.is_isomorphic()
         if not isomorphic:
             return None

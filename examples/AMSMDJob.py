@@ -1,6 +1,6 @@
 #!/usr/bin/env amspython
 from scm.plams import *
-import os
+
 
 def main():
     mol = packmol(from_smiles("CCO"), density=0.8, n_molecules=4) # 4 ethanol molecules in cubic box

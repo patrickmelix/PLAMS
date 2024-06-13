@@ -1,11 +1,10 @@
 import os
-
 from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.private import saferun
-from ...core.results import Results
-from ...core.settings import Settings
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.private import saferun
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
 
 __all__ = ['DiracJob', 'DiracResults']
 

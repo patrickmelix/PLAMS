@@ -1,22 +1,18 @@
 import os
-import re
-import sys
-import numpy as np
-
 from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.errors import PlamsError, ResultsError, FileError, JobError
-from ...core.functions import log, parse_heredoc
-from ...core.private import sha256, UpdateSysPath
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...tools.kftools import KFFile
-from ...tools.units import Units
-from .ams import AMSJob
+import numpy as np
 
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
+from scm.plams.core.functions import log, parse_heredoc
+from scm.plams.core.private import sha256
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.units import Units
 
 
 class SCMResults(Results):
@@ -184,7 +180,7 @@ class SCMResults(Results):
         return t([data[mapping[i]-1] for i in range(len(mapping))])
 
 
-    def readarray(self, section: str, subsection: str, **kwargs) -> np.ndarray:
+    def readarray(self, section: str, subsection: str, **kwargs) -> 'np.ndarray':
         """Read data from *section*/*subsection* of the main KF file and return as NumPy array.
 
         All additional provided keyword arguments will be passed onto the numpy.array_ function.

@@ -1,18 +1,12 @@
-import os
 import inspect
+import os
 import subprocess
 from itertools import cycle
 
 import numpy as np
 
-try:
-    import pandas as pd
-    PANDAS = True
-except ImportError:
-    PANDAS = False
-
-from .scmjob import (SCMJob, SCMResults)
-from ...tools.units import Units
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.tools.units import Units
 
 __all__ = ['CRSResults', 'CRSJob']
 
@@ -120,12 +114,19 @@ class CRSResults(SCMResults):
         # first get the two ranges for the indices
         ncomp  = self.readkf(section, 'ncomp')
         nitems = self.readkf(section, 'nitems')
+        nstruct = self.readkf(section, 'nstruct')
 
         np_dict = { "section" : section }
+        np_dict['ncomp'] = ncomp
         for prop in props:
             tmp = self.readkf(section,prop)
-            if prop == "filename":
-                np_dict[prop] = [str(x).strip() for x in tmp.split()]
+            if ((prop == "filename") or (prop == "name")):
+                chunk_length = len(tmp)//ncomp
+                np_dict[prop] = [tmp[i:i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
+                continue
+            if prop == 'struct names':
+                chunk_length = len(tmp)//nstruct
+                np_dict[prop] = [tmp[i:i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
                 continue
             if not isinstance(tmp,list):
                 np_dict[prop] = tmp
@@ -154,7 +155,7 @@ class CRSResults(SCMResults):
                     valid_structs[j].append(struct_names[i])
 
         compositions = [ {vs:[] for vs in valid_structs[i]} for i in range(ncomp) ]
-        idx = 0 
+        idx = 0
         for i in range(ncomp):
             for nfrac in range(num_points):
                 for j in range(len(valid_structs[i])):
@@ -164,7 +165,7 @@ class CRSResults(SCMResults):
         return compositions
 
 
-    def plot(self, *arrays: np.ndarray, x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
+    def plot(self, *arrays: 'np.ndarray', x_axis: str = None, plot_fig: bool = True, x_label = None, y_label = None):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
 
         Accepts the output of, *e.g.*, :meth:`CRSResults.get_sigma_profile`:
@@ -307,7 +308,9 @@ class CRSResults(SCMResults):
     @staticmethod
     def _dict_to_df(array_dict: dict, section: str, x_axis: str):
         """Attempt to convert a dictionary into a DataFrame."""
-        if not PANDAS:
+        try:
+            import pandas as pd
+        except ImportError:
             method = inspect.stack()[2][3]
             raise ImportError("{}: as_df=True requires the 'pandas' package".format(method))
 
@@ -322,7 +325,7 @@ class CRSJob(SCMJob):
     _command = 'crs'
     _result_type = CRSResults
     _subblock_end = 'end'
-    
+
     def __init__(self, **kwargs) -> None:
         """Initialize a :class:`CRSJob` instance."""
         super().__init__(**kwargs)

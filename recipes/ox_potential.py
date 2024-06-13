@@ -1,5 +1,18 @@
-import os, sys
-from scm.plams import *
+import os
+import sys
+
+from scm.plams import (
+    AMSJob,
+    CRSJob,
+    KFFile,
+    Molecule,
+    Results,
+    Settings,
+    Units,
+    config,
+    finish,
+    init,
+)
 
 __all__ = ['OxidationPotentialCalculator']
 
@@ -111,10 +124,6 @@ class OxidationPotentialCalculator:
         return 
 
 
-    def __call__(self, *args, **kwargs):
-        return self.oxidation_potential(*args, **kwargs)
-
-
     def oxidation_potential(self, 
                             molecule            :Molecule, 
                             method              :str        = 'screening',
@@ -130,7 +139,7 @@ class OxidationPotentialCalculator:
         if name is None:
             name = molecule.properties.name
 
-        self.log(f'========================================================================')
+        self.log('========================================================================')
         self.log(f'Starting oxidation potential calculation for molecule {name}:\n')
 
         #set paths for the jobs:
@@ -401,7 +410,7 @@ class OxidationPotentialCalculator:
                     if frequencies: 
                         gibbs_energy = res.readrkf('Thermodynamics', 'Gibbs free Energy', 'adf')
             
-            self.log(f'\tResults:')
+            self.log('\tResults:')
             if not bond_energy is None: 
                 result_dict['bond_energy'] = Units.convert(bond_energy, 'hartree', 'eV')
                 self.log(f'\t\tBond Energy  = {result_dict["bond_energy"]:.4f} eV')
@@ -422,7 +431,7 @@ class OxidationPotentialCalculator:
                 self.log(f'\t\tdG_solvation = {result_dict["dG_solvation"]:.4f} eV')
 
         else:
-            self.log(f'\tSuccessfull          = False')
+            self.log('\tSuccessfull          = False')
             if task == 'GeometryOptimization':
                 molecule.write(os.path.join(self.not_geo_opt_dir, name + '_' + job_desc + '.xyz'))
 

@@ -1,27 +1,30 @@
 import os
 from pathlib import Path
+import pytest
 
 import numpy as np
+
 try:
     import dill as pickle
 except ImportError:
     import pickle
 
-from scm.plams import Molecule, Atom, MoleculeError
-from scm.plams import read_all_molecules_in_xyz_file
+from scm.plams import Atom, Molecule, MoleculeError, read_all_molecules_in_xyz_file
+from scm.plams.interfaces.molecule.rdkit import from_smiles
 
 
-PATH = Path('.') / 'xyz'
+@pytest.fixture
+def BENZENE(xyz_folder):
+    b = Molecule(xyz_folder / "benzene.xyz")
+    b.guess_bonds()
+    return b
 
-BENZENE = Molecule(PATH / 'benzene.xyz')
-BENZENE.guess_bonds()
 
-
-def test_index():
+def test_index(BENZENE):
     """Test :meth:`Molecule.index`."""
     atom = BENZENE[1]
     bond = BENZENE[1, 2]
-    atom_test = Atom(coords=[0, 0, 0], symbol='H')
+    atom_test = Atom(coords=[0, 0, 0], symbol="H")
 
     assert BENZENE.index(atom) == 1
     assert BENZENE.index(bond) == (1, 2)
@@ -41,7 +44,7 @@ def test_index():
         raise AssertionError("'BENZENE.index(atom_test)' failed to raise a 'MoleculeError'")
 
 
-def test_set_integer_bonds():
+def test_set_integer_bonds(BENZENE):
     """Test :meth:`Molecule.set_integer_bonds`."""
     ref1 = np.array([1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1, 1, 1, 1, 1, 1], dtype=float)
     ref2 = np.array([1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1], dtype=float)
@@ -53,33 +56,41 @@ def test_set_integer_bonds():
     np.testing.assert_array_equal([b.order for b in benzene.bonds], ref2)
 
 
-def test_round_coords():
+def test_round_coords(BENZENE):
     """Test :meth:`Molecule.round_coords`."""
     benzene = BENZENE.copy()
-    ref1 = np.array([[ 1., -1.,  0.],
-                     [ 1.,  1.,  0.],
-                     [ 0.,  1.,  0.],
-                     [-1.,  1.,  0.],
-                     [-1., -1.,  0.],
-                     [ 0., -1.,  0.],
-                     [ 2., -1.,  0.],
-                     [ 2.,  1.,  0.],
-                     [ 0.,  2.,  0.],
-                     [-2.,  1.,  0.],
-                     [-2., -1.,  0.],
-                     [ 0., -2.,  0.]])
-    ref2 = np.array([[ 1.19, -0.69,  0.  ],
-                     [ 1.19,  0.69,  0.  ],
-                     [ 0.  ,  1.38,  0.  ],
-                     [-1.19,  0.69,  0.  ],
-                     [-1.19, -0.69,  0.  ],
-                     [-0.  , -1.38,  0.  ],
-                     [ 2.13, -1.23, -0.  ],
-                     [ 2.13,  1.23, -0.  ],
-                     [ 0.  ,  2.46, -0.  ],
-                     [-2.13,  1.23, -0.  ],
-                     [-2.13, -1.23, -0.  ],
-                     [-0.  , -2.46, -0.  ]])
+    ref1 = np.array(
+        [
+            [1.0, -1.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [-1.0, 1.0, 0.0],
+            [-1.0, -1.0, 0.0],
+            [0.0, -1.0, 0.0],
+            [2.0, -1.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [0.0, 2.0, 0.0],
+            [-2.0, 1.0, 0.0],
+            [-2.0, -1.0, 0.0],
+            [0.0, -2.0, 0.0],
+        ]
+    )
+    ref2 = np.array(
+        [
+            [1.19, -0.69, 0.0],
+            [1.19, 0.69, 0.0],
+            [0.0, 1.38, 0.0],
+            [-1.19, 0.69, 0.0],
+            [-1.19, -0.69, 0.0],
+            [-0.0, -1.38, 0.0],
+            [2.13, -1.23, -0.0],
+            [2.13, 1.23, -0.0],
+            [0.0, 2.46, -0.0],
+            [-2.13, 1.23, -0.0],
+            [-2.13, -1.23, -0.0],
+            [-0.0, -2.46, -0.0],
+        ]
+    )
 
     benzene2 = round(benzene)
     np.testing.assert_array_equal(benzene2, ref1)
@@ -89,7 +100,7 @@ def test_round_coords():
 
 
 IMMUTABLE_TYPE = (int, float, tuple)
-ATTR_EXCLUDE = frozenset({'mol', 'bonds', 'atoms', 'atom1', 'atom2', '_dummysymbol'})
+ATTR_EXCLUDE = frozenset({"mol", "bonds", "atoms", "atom1", "atom2", "_dummysymbol"})
 
 
 def _compare_attrs(obj1, obj2, eval_eq=True):
@@ -106,16 +117,17 @@ def _compare_attrs(obj1, obj2, eval_eq=True):
             assert attr is not attr_ref
 
 
-def test_copy(mol_list=None):
-    """Tests for :meth:`Molecule.copy`, :meth:`Molecule.__copy__` and :meth:`Molecule.__deepcopy__`."""
-    if mol_list is None:
-        mol_list = [
-            BENZENE.copy(),
-            BENZENE.__copy__(),
-            BENZENE.__deepcopy__({})
-        ]
+def test_set_get_state(BENZENE, tmp_path):
+    """Tests for :meth:`Molecule.__setstate__` and :meth:`Molecule.__getstate__`."""
+    mol = BENZENE.copy()
+    dill_new = tmp_path / "benzene_new.dill"
 
-    for mol in mol_list:
+    with open(dill_new, "wb") as f:
+        pickle.dump(mol, f)
+    with open(dill_new, "rb") as f:
+        mol_new = pickle.load(f)
+
+    for mol in [mol_new, mol]:
         _compare_attrs(mol, BENZENE, eval_eq=False)
 
         for at, at_ref in zip(mol.atoms, BENZENE.atoms):
@@ -125,59 +137,64 @@ def test_copy(mol_list=None):
             _compare_attrs(bond, bond_ref)
 
 
-def test_set_get_state():
-    """Tests for :meth:`Molecule.__setstate__` and :meth:`Molecule.__getstate__`."""
-    mol = BENZENE.copy()
-    dill_new = PATH / 'benzene_new.dill'
-
-    try:
-        with open(dill_new, 'wb') as f:
-            pickle.dump(mol, f)
-        with open(dill_new, 'rb') as f:
-            mol_new = pickle.load(f)
-
-        test_copy(mol_list=[mol_new, mol])
-    finally:
-        os.remove(dill_new) if os.path.isfile(dill_new) else None
-
-
-def test_read_multiple_molecules_from_xyz():
+def test_read_multiple_molecules_from_xyz(xyz_folder):
     """Test for read_all_molecules_in_xyz_file"""
-    
-    filename = os.path.join(PATH,'multiple_mols_in_xyz.xyz')
+
+    filename = os.path.join(xyz_folder, "multiple_mols_in_xyz.xyz")
 
     mols = read_all_molecules_in_xyz_file(filename)
-    
+
     assert len(mols) == 12
 
-    for mol, n_atoms in zip(mols, [3,5,6,3,5,6,3,5,6]):
+    for mol, n_atoms in zip(mols, [3, 5, 6, 3, 5, 6, 3, 5, 6]):
         assert len(mol.atoms) == n_atoms
 
-    for mol, n_lattice_vec in zip(mols, [0,0,0,0,0,0,1,2,3,1,2,3]):
+    for mol, n_lattice_vec in zip(mols, [0, 0, 0, 0, 0, 0, 1, 2, 3, 1, 2, 3]):
         assert len(mol.lattice) == n_lattice_vec
 
 
-def test_write_multiple_molecules_to_xyz():
+def test_write_multiple_molecules_to_xyz(xyz_folder, tmp_path):
     """Test for append mode of Molecule.write and read_all_molecules_in_xyz_file"""
 
-    new_xyz_file = PATH / 'test_write_multiple_molecules.xyz'
+    new_xyz_file = tmp_path / "test_write_multiple_molecules.xyz"
+    mols_ref = read_all_molecules_in_xyz_file(xyz_folder / "multiple_mols_in_xyz.xyz")
 
-    try:
-        mols_ref = read_all_molecules_in_xyz_file(PATH / 'multiple_mols_in_xyz.xyz')
+    assert len(mols_ref) > 1
 
-        assert len(mols_ref) > 1
+    for mol in mols_ref:
+        mol.write(new_xyz_file, mode="a")
 
-        for mol in mols_ref:
-            mol.write(new_xyz_file, mode='a')
+    mols = read_all_molecules_in_xyz_file(new_xyz_file)
+    assert len(mols_ref) == len(mols)
 
-        mols = read_all_molecules_in_xyz_file(new_xyz_file)
-        assert len(mols_ref) == len(mols)
+    for mol, mol_ref in zip(mols, mols_ref):
+        for at, at_ref in zip(mol.atoms, mol_ref.atoms):
+            assert at.symbol == at_ref.symbol
+            np.testing.assert_allclose(at.coords, at_ref.coords, atol=1e-08)
 
-        for mol, mol_ref in zip(mols, mols_ref):
-            for at, at_ref in zip(mol.atoms, mol_ref.atoms):
-                assert at.symbol == at_ref.symbol
-                np.testing.assert_allclose(at.coords, at_ref.coords, atol=1e-08)
 
-    finally:
-        if os.path.isfile(new_xyz_file):
-            os.remove(new_xyz_file)
+def test_as_array_context():
+    expected = np.array(
+        [
+            [-0.000816, 0.366378, -0.000000],
+            [-0.812316, -0.183482, -0.000000],
+            [0.813132, -0.182896, 0.000000],
+        ]
+    )
+    mol = from_smiles("O")
+    with mol.as_array as coord_array:
+        np.testing.assert_allclose(coord_array, expected, rtol=1e-2)
+        coord_array += 1
+    np.testing.assert_allclose(mol.as_array(), expected + 1, rtol=1e-2)
+
+
+def test_as_array_function():
+    expected = np.array(
+        [
+            [-0.000816, 0.366378, -0.000000],
+            [-0.812316, -0.183482, -0.000000],
+            [0.813132, -0.182896, 0.000000],
+        ]
+    )
+    mol = from_smiles("O")
+    np.testing.assert_allclose(mol.as_array(), expected, rtol=1e-2)

@@ -1,18 +1,28 @@
-import numpy
 import os
 import shutil
 import struct
-
+import subprocess
 from bisect import bisect
 from collections import OrderedDict
-from subprocess import DEVNULL
+from typing import Dict, Set
 
-from ..core.private import saferun
-from ..core.errors import FileError
-from ..core.functions import log
-
+from scm.plams.core.errors import FileError
+from scm.plams.core.functions import log
+from scm.plams.core.private import saferun
+import numpy
 
 __all__ = ['KFFile', 'KFReader', 'KFHistory']
+
+
+def _run_kftool(*args, **kwargs):
+    startupinfo = None
+    if os.name == 'nt':
+        # Prevent unwanted console windows from popping up on Windows
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+
+    return saferun(*args, **kwargs, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, startupinfo=startupinfo)
 
 
 
@@ -277,9 +287,9 @@ class KFFile:
 
         mykf = KFFile('someexistingkffile.kf')
         #all three below are equivalent
-        x = mykf['General%Termination Status']
-        x = mykf[('General','Termination Status')]
-        x = mykf.read('General','Termination Status')
+        x = mykf['General%termination status']
+        x = mykf[('General','termination status')]
+        x = mykf.read('General','termination status')
 
         #all three below are equivalent
         mykf['Geometry%xyz'] = somevariable
@@ -333,7 +343,7 @@ class KFFile:
 
         if section not in self.tmpdata:
             self.tmpdata[section] = OrderedDict()
-            
+
         if trick_value:
             self.tmpdata[section][variable] = trick_value
         else:
@@ -356,9 +366,9 @@ class KFFile:
             self.tmpdata = OrderedDict()
 
             tmpfile = self.path+'.tmp' if self.reader else self.path
-            saferun(['udmpkf', tmpfile], input=txt.encode('iso8859'), stdout=DEVNULL, stderr=DEVNULL)
+            _run_kftool(['udmpkf', tmpfile], input=txt.encode('iso8859'))
             if self.reader:
-                saferun(['cpkf', tmpfile, self.path] + newvars, stdout=DEVNULL, stderr=DEVNULL)
+                _run_kftool(['cpkf', tmpfile, self.path] + newvars)
                 os.remove(tmpfile)
             self.reader = KFReader(self.path)
 
@@ -372,7 +382,7 @@ class KFFile:
                 self.reader._create_index()
             if section in self.reader._sections:
                 tmpfile = self.path+'.tmp'
-                saferun(['cpkf', self.path, tmpfile, '-rm', section], stdout=DEVNULL, stderr=DEVNULL)
+                _run_kftool(['cpkf', self.path, tmpfile, '-rm', section])
                 shutil.move(tmpfile, self.path)
                 self.reader = KFReader(self.path)
 
@@ -405,15 +415,17 @@ class KFFile:
             log("WARNING: Section '{}' not present in {} or present, but empty. Returning empty dictionary".format(section, self.path), 1)
         return ret
 
-
-    def keys(self) -> set:
+    def keys(self) -> Set[str]:
         """ Returns all sections in the current instance """
-        return set([sec for sec,var in self])
+        return set([sec for sec, var in self])
 
-    def get_skeleton(self):
-        """Return a dictionary reflecting the structure of this KF file. Each key in that dictionary corresponds to a section name of the KF file with the value being a set of variable names."""
+    def get_skeleton(self) -> Dict[str, Set[str]]:
+        """Return a dictionary reflecting the structure of this KF file.
+
+        Each key in that dictionary corresponds to a section name of the KF file
+        with the value being a set of variable names."""
         ret = {}
-        for sec,var in self:
+        for sec, var in self:
             if sec not in ret:
                 ret[sec] = set()
             ret[sec].add(var)
@@ -455,7 +467,7 @@ class KFFile:
             try:
                 self.read(*arg)
                 return True
-            except KeyError:
+            except (KeyError,AttributeError):
                 return False
         raise TypeError("'in <KFFile>' requires string of a pair of strings as left operand")
 

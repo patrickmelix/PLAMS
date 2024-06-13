@@ -1,8 +1,8 @@
-import numpy as np
-from .units import Units
-from ..interfaces.adfsuite.ams import AMSJob
-from ..mol.molecule import Molecule
 import os
+
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+import numpy as np
+from scm.plams.mol.molecule import Molecule
 
 __all__ = ['get_stoichiometry', 'balance_equation', 'reaction_energy']
 
@@ -25,7 +25,7 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
                 d = AMSJob.load_external(r).molecule.get_formula(as_dict=as_dict)
         else:
             raise ValueError("The path {} does not exist.".format(r))
-                
+
     else:
         raise TypeError("expected type AMSJob or dict but received {}".format(type(r)))
 
@@ -33,20 +33,23 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
 
 def balance_equation(reactants, products, normalization='r0', normalization_value=1.0):
     """
-    Calculate stoichiometric coefficients 
-    This only works if 
-        number_of_chemical_elements == len(reactants)+len(products), OR
-        number_of_chemical_elements == len(reactants)+len(products)-1
+    Calculate stoichiometric coefficients
+    This only works if
+    * number_of_chemical_elements == len(reactants)+len(products), OR
+    * number_of_chemical_elements == len(reactants)+len(products)-1
 
     Returns: a 2-tuple (coeffs_reactants, coeffs_products)
         coeffs_reactants is a list with length == len(reactants)
         coeffs_products is a list with length == len(products)
 
     reactants: a list of amsjobs, or a list of paths to ams.results folders or ams.rkf files or .xyz files, or a list of Molecules, or a list of stoichiometry dicts, or a list of Molecules
+        The reactants
 
     products: a list of amsjobs, or a list of paths to ams.results folders or ams.rkf files, or a list of Molecules or .xyz files, or a list of stoichiometry dicts, or a list of Molecules
+        The products
 
-    normalization: 'r0' for the first reactant, 'r1' for the second reactant, etc.
+    normalization: str
+        'r0' for the first reactant, 'r1' for the second reactant, etc.
         'p0' for the first product, 'p1' for the second product, etc.
         This normalizes the chemical equation such that the coefficient in front of the specified species is normalization_value
 
@@ -54,6 +57,8 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
         The coefficient to normalize to
 
     EXAMPLE:
+
+    .. code-block:: python
 
         balance_equation(
             reactants=[
@@ -65,8 +70,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
                 {'H': 2, 'O': 1}
             ])
 
-        returns
-        ([1.0], [1.0, 1.0, 1.0, 4.0])
+    The above returns a tuple ``([1.0], [1.0, 1.0, 1.0, 4.0])``
 
 
     """
@@ -86,7 +90,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
             if normalization_index >= num_reactants:
                 raise ValueError("Reactant index {} specified, but max value allowed is {}".format(normalization_index, num_reactants-1))
         elif normalization.startswith('p'):
-            normalization_index = int(normalization.split('p')[1]) 
+            normalization_index = int(normalization.split('p')[1])
             if normalization_index >= num_products:
                 raise ValueError("Product index {} specified, but max value allowed is {}".format(normalization_index, num_products-1))
             normalization_index += num_reactants
@@ -116,7 +120,7 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
     #  [0 -2    2 1]] #O
     #  CH4 O2 CO2 H2O
     #
-    # Al2(SO4)3 + Ca(OH)2 → Al(OH)3 + CaSO4 
+    # Al2(SO4)3 + Ca(OH)2 → Al(OH)3 + CaSO4
     # mat = np.array([[-2,-3,-12,0,0,0],[0,0,0,-1,-2,-2],[1,0,0,0,3,3],[0,1,4,1,0,0]]).T
 
     mat = []
@@ -149,6 +153,8 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
         raise RuntimeError("Something went wrong when solving the system of linear equations. Verify that the chemical equation can be balanced at all, and that it can be balanced uniquely except for multiplication by a constant.")
 
     normalization_index = get_normalization_index(normalization)
+    if np.abs(coeffs[normalization_index]) < 1e-12:
+        raise RuntimeError("Trying to normalize an extremely small coefficient (close to zero): {coeffs[normalization_index]}.")
     coeffs /= coeffs[normalization_index]
     coeffs *= normalization_value
 
@@ -159,18 +165,24 @@ def balance_equation(reactants, products, normalization='r0', normalization_valu
     return list(coeffs[:num_reactants]), list(coeffs[num_reactants:])
 
 def reaction_energy(reactants, products, normalization='r0', unit='hartree'):
-    """ 
+    """
 
     Calculates a reaction energy from an unbalanced chemical equation (the equation is first balanced)
 
     reactants: a list of amsjobs or paths to ams results folders,
+        The recatnts
     products: a list of amsjobs or paths to ams results folders
-    normalization: normalize the chemical equation by setting the corresponding coefficient to 1.
-        'r0': first reactant
-        'r1': second reactant, ...
-        'p0: first product,
-        'p1': second product, ...
-    unit: Unit of the reaction energy
+        The products
+    normalization: str
+        normalize the chemical equation by setting the corresponding coefficient to 1.
+
+        * 'r0': first reactant
+        * 'r1': second reactant, ...
+        * 'p0: first product,
+        * 'p1': second product, ...
+
+    unit: str
+        Unit of the reaction energy
 
     Returns: a 3-tuple (coeffs_reactants, coeffs_products, reaction_energy)
 

@@ -1,21 +1,16 @@
 #!/usr/bin/env python
 
-import os
-import time
 import datetime
+import os
 import threading
-from ...mol.atom import Atom
-from ...mol.bond import Bond
-from ...mol.molecule import Molecule
-from ...interfaces.adfsuite.ams import AMSJob
-from ...core.settings import Settings
-from ...tools.units import Units
-from ...core.errors import FileError
-from ...core.errors import PlamsError
-from ...interfaces.adfsuite.amsworker import AMSWorkerPool
-from ...interfaces.adfsuite.amsworker import AMSWorker
-from ...core.jobrunner import JobRunner
-from ...core.functions import log
+import time
+
+from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.core.functions import log
+from scm.plams.core.jobrunner import JobRunner
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.interfaces.adfsuite.amsworker import AMSWorkerPool
 
 __all__ = ['Optimizer']
 
@@ -177,7 +172,8 @@ class Optimizer :
 
         # Remove files
         keep = self.keep
-        if len(molecules) == 1 or task == 'SinglePoint' : keep = 'all'
+        #if len(molecules) == 1 or task == 'SinglePoint' : keep = 'all'
+        if len(molecules) == 1: keep = 'all'
         for i,r in enumerate(resultlist) :
             r._clean(keep)
             if keep is None :
@@ -203,22 +199,24 @@ class Optimizer :
         # Lift out geometry optimization settings (now only 'Type')
         kwargs = {}
         kwargs["quiet"] = False
-        for key in self.go_settings.keys():
-            if key.lower() == "geometryoptimization":
-                keys = [k.lower() for k in self.go_settings[key].keys()]
-                if "convergence" in keys:
-                    convkeys = [k.lower() for k in self.go_settings[key].convergence.keys()]
-                    if "Energy" in convkeys:
-                        kwargs["convenergy"] = self.go_settings[key].Convergence.Energy
-                    if "Gradients" in convkeys:
-                        kwargs["convgradients"] = self.go_settings[key].Convergence.Gradients
-                if 'method' in keys:
-                    kwargs["method"] = self.go_settings[key].method
-                if 'maxiterations' in keys:
-                    kwargs["maxiterations"] = self.go_settings[key].maxiterations
-                if 'coordinatetype' in keys:
-                    kwargs['coordinatetype'] = self.go_settings[key].coordinatetype
 
+        for key in self.go_settings.input.ams.keys():
+            if key.lower() == "geometryoptimization":
+                go_sett = self.go_settings.input.ams[key]
+                if "convergence" in go_sett:
+                    convkeys = [k.lower() for k in go_sett.convergence.keys()]
+                    if "Energy" in convkeys:
+                        kwargs["convenergy"] = go_sett.Convergence.Energy
+                    if "Gradients" in convkeys:
+                        kwargs["convgradients"] = go_sett.Convergence.Gradients
+                if 'method' in go_sett:
+                    kwargs["method"] = go_sett.method
+                if 'maxiterations' in go_sett:
+                    kwargs["maxiterations"] = go_sett.maxiterations
+                if 'coordinatetype' in go_sett:
+                    kwargs['coordinatetype'] = go_sett.coordinatetype
+                if 'pretendconverged' in go_sett:
+                    kwargs['pretendconverged'] = go_sett.pretendconverged
         # Run the tasks
         molecule_list = []
         for i, mol in enumerate(molecules) :
@@ -326,7 +324,11 @@ class Optimizer :
             if nsteps > 0 :
                 energy = r.get_property_at_step(nsteps,'Energy') #* Units.conversion_ratio('Hartree','kcal/mol')
             else :
-                energy = r.get_energy() #* Units.conversion_ratio('Hartree','kcal/mol')
+                try:
+                    energy = r.get_energy() #* Units.conversion_ratio('Hartree','kcal/mol')
+                except FileError:
+                    energy = None
+
             coords = r.get_main_molecule().as_array()
             optimized_geometries.append(coords)
             energies.append(energy)

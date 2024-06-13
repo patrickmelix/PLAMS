@@ -3,8 +3,6 @@
 from scm.plams import Settings
 
 
-
-
 ### ==== DFT SETTINGS ==== ###
 def DFT():
     s = Settings()  

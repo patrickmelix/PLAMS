@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
+from scm.plams.core.errors import TrajectoryError
 import numpy
-from ..mol.molecule import Molecule
-from ..core.errors import TrajectoryError
-from ..tools.geometry import cell_shape
-from ..tools.geometry import cellvectors_from_shape
-from .trajectoryfile import TrajectoryFile
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.geometry import cell_shape, cellvectors_from_shape
+from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 
 __all__ = ['XYZTrajectoryFile','create_xyz_string']
 
@@ -22,8 +21,8 @@ class XYZTrajectoryFile (TrajectoryFile) :
         *   ``elements``    -- The elements of the atoms in the system (needs to be constant throughout)
 
         An |XYZTrajectoryFile| object behaves very similar to a regular file object.
-        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
-        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`)
+        that read and write from/to the position of the cursor in the ``file_object`` attribute.
         If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
         the cursor to any frame in the file and reads from there.
         The amount of information stored in memory is kept to a minimum, as only information from the current frame
@@ -71,9 +70,9 @@ class XYZTrajectoryFile (TrajectoryFile) :
             >>> xyzout.close()
 
         By default the write mode will create a minimal version of the XYZ file, containing only elements
-        and coordinates. 
+        and coordinates.
         Additional information can be written to the file by supplying additional arguments
-        to the :meth:`write_next` method. 
+        to the :meth:`write_next` method.
         The additional keywords `step` and `energy` trigger the writing of a remark containing
         the molecule name, the step number, the energy, and the lattice vectors.
 
@@ -106,6 +105,8 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 # Required setup before frames can be read/written
                 if self.mode == 'r' :
                         self._read_header()
+                elif self.mode == 'a':
+                        self._move_cursor_to_append_pos()
 
         def store_historydata (self) :
                 """
@@ -128,7 +129,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
                 line = self.file_object.readline()
                 self.ntap = int(line.split()[0])
                 if self.coords.shape == (0,3) :
-                        self.coords = numpy.zeros((self.ntap,3)) 
+                        self.coords = numpy.zeros((self.ntap,3))
 
                 self.file_object.readline()
 
@@ -168,7 +169,7 @@ class XYZTrajectoryFile (TrajectoryFile) :
                         self.firsttime = False
 
                 self.position += 1
-                
+
                 return self.coords, cell
 
         def _read_coordinates (self, molecule) :

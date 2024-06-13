@@ -3,12 +3,11 @@
 
 # ## Initial imports
 
-from scm.plams import *
-import numpy as np
-import os
-import matplotlib.pyplot as plt
 from typing import List
 
+import matplotlib.pyplot as plt
+import numpy as np
+from scm.plams import *
 
 # ## Function definitions
 # 
@@ -165,7 +164,7 @@ def preliminary_md(
         plumed_input += f" STEP2={2*nsteps//4} KAPPA2={kappa/100}"
         plumed_input += f" STEP3={3*nsteps//4} KAPPA3={kappa/10}"
         plumed_input += f" STEP4={4*nsteps//4} KAPPA4={kappa}"
-        plumed_input += f"\n"
+        plumed_input += "\n"
 
     plumed_input += "   End"
     settings.input.ams.MolecularDynamics.Plumed.Input = plumed_input
@@ -273,4 +272,3 @@ plt.title('State 3 (Transition state)');
 # ## Finish plams
 
 finish()
-

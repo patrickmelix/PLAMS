@@ -3,10 +3,9 @@
 
 # ## Initial imports
 
-from scm.plams import *
-import os
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from scm.plams import *
 
 init()
 

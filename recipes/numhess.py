@@ -1,10 +1,10 @@
 from collections import OrderedDict
 from itertools import product
-import numpy as np
 
-from ..core.results import Results
-from ..core.basejob import MultiJob
-from ..tools.units import Units
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.results import Results
+import numpy as np
+from scm.plams.tools.units import Units
 
 __all__ = ['NumHessJob', 'NumHessResults'] #names exported to the main namespace
 
@@ -45,7 +45,7 @@ class NumHessJob(MultiJob):
         self.jobtype = jobtype   #who is going to calculate single points
         self.gradient = gradient   #function extracting gradients from children
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         for (atom,axis,step) in product(range(1,1+len(self.molecule)), range(3), [-1,1]):
             vec = [0,0,0]
             vec[axis] = self.step * step

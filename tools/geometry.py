@@ -1,11 +1,12 @@
 import numpy as np
+
 try:
     from scipy.spatial.distance import cdist
     scipy_present = True
 except ImportError:
     scipy_present = False
 
-from .units import Units
+from scm.plams.tools.units import Units
 
 __all__ = ['rotation_matrix', 'axis_rotation_matrix', 'distance_array', 'angle','dihedral','cell_shape','cellvectors_from_shape']
 
@@ -20,7 +21,7 @@ def rotation_matrix(vec1, vec2):
     # avoid division by zero in case of antiparallel vectors
     if abs(1+np.dot(a,b)) < 1E-8:
         return -np.eye(3)
-    
+
     v1,v2,v3 = np.cross(a,b)
     M = np.array([[0, -v3, v2], [v3, 0, -v1], [-v2, v1, 0]])
     return (np.identity(3) + M + np.dot(M,M)/(1+np.dot(a,b)))
@@ -151,7 +152,7 @@ def cell_angles(lattice, unit='degree'):
 
 def cellvectors_from_shape (box) :
     """
-    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors 
+    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors
     """
     a = box[0]
     b = box[1]

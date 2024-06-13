@@ -224,7 +224,7 @@ class ForceFieldPatch :
         """
         step = 3
         positions = [2+(i*step) for i in range(nats)]
-        intervals = [((i*step),(i*step)+step-1) for i in range(nats-1)]
+        intervals = [((i*step),(i*step)+step-1) for i in range(nats)]
 
         atomlist = []
         line_list = []

@@ -1,17 +1,15 @@
-import numpy as np
 import os
 import shutil
-
 from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.errors import FileError
-from ...core.functions import log
-from ...core.settings import Settings
-from ...tools.units import Units
-from .scmjob import SCMResults
-from .scmjob import SCMJob, SCMResults
+import numpy as np
 
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import FileError
+from scm.plams.core.functions import log
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.tools.units import Units
 
 __all__ = ['ReaxFFJob', 'ReaxFFResults', 'load_reaxff_control', 'reaxff_control_to_settings']
 
@@ -249,7 +247,7 @@ def reaxff_control_to_settings(fpath:str) -> Settings:
         else:
             raise Exception(f"Could not understand imetho = {v}")
     else:
-        raise Exception(f"Could not find a task. Is this a control file?")
+        raise Exception("Could not find a task. Is this a control file?")
 
 
     if s.input.ams.task == 'moleculardynamics':

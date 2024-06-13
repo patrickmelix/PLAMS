@@ -1,17 +1,12 @@
 import os
-import threading
 import re
 import shutil
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
-
+import threading
 from os.path import join as opj
 
-from .basejob import MultiJob
-from .errors import PlamsError, FileError
-from .functions import config, log
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.core.functions import config, log
 
 __all__ = ['JobManager']
 
@@ -87,6 +82,11 @@ class JobManager:
 
         See |pickling| for details.
         """
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
         def setstate(job, path, parent=None):
             job.parent = parent
             job.jobmanager = self

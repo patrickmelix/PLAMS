@@ -7,12 +7,12 @@ see documentation for an example
 """
 from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.settings import Settings
-from ...core.results import Results
-from ...tools.units import Units
-from ...core.errors import MoleculeError
-from ...mol.molecule import Molecule
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import MoleculeError
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.units import Units
 
 __all__ = ['DFTBPlusJob', 'DFTBPlusResults']
 

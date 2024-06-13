@@ -1,17 +1,13 @@
-import os
-import sys
 import copy
 import hashlib
+import os
 import subprocess
+import sys
 import time
 import warnings
-from typing import Callable, Dict, NoReturn
-
-from os.path import join as opj
 from contextlib import AbstractContextManager
-
-
-
+from os.path import join as opj
+from typing import Callable, Dict, NoReturn
 
 __all__ = []
 
@@ -46,7 +42,7 @@ def sha256(string):
 
 def saferun(*args, **kwargs):
     """A wrapper around :func:`subprocess.run` repeating the call ``config.saferun.repeat`` times with ``config.saferun.delay`` interval in case of :exc:`BlockingIOError` being raised (any other exception is not caught and directly passed above). All arguments (*args* and *kwargs*) are passed directly to :func:`~subprocess.run`. If all attempts fail, the last raised :exc:`BlockingIOError` is reraised."""
-    from .functions import config, log
+    from scm.plams.core.functions import config, log
     attempt = 0
     (repeat, delay) = (config.saferun.repeat, config.saferun.delay) if ('saferun' in config) else (5,1)
     while attempt <= repeat:

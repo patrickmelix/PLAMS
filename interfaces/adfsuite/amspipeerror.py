@@ -1,4 +1,4 @@
-from ...core.errors import PlamsError
+from scm.plams.core.errors import PlamsError
 
 __all__ = ["AMSPipeError", "AMSPipeDecodeError", "AMSPipeLogicError", "AMSPipeRuntimeError", "AMSPipeUnknownVersionError", "AMSPipeUnknownMethodError", "AMSPipeUnknownArgumentError", "AMSPipeInvalidArgumentError"]
 

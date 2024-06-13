@@ -1,5 +1,6 @@
-from scm.plams import Molecule, Atom
-from scm.plams.interfaces.molecule.rdkit import to_smiles, from_smiles
+from scm.plams import Atom, Molecule
+from scm.plams.interfaces.molecule.rdkit import from_smiles, to_smiles
+
 
 def test_smiles():
    # Super basic test: water molecule

@@ -1,7 +1,7 @@
-from .scmjob import SCMJob, SCMResults
-from ...core.errors import ResultsError
-from ...core.functions import log
-from ...tools.units import Units
+from scm.plams.core.errors import ResultsError
+from scm.plams.core.functions import log
+from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.tools.units import Units
 
 __all__ = ['BANDJob', 'BANDResults']
 

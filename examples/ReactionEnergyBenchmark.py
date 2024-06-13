@@ -6,7 +6,6 @@ Modify the s_engine_dict variable below to specify which settings will be used.
 
 A table with reaction energies will be printed to summary.txt
 """
-import os
 
 summary_fname = 'summary.txt'
 with open(summary_fname, 'w', buffering=1) as summary_file:
