@@ -38,7 +38,8 @@ class VASPResults(Results):
 
     def get_energy_without_entropy(self, index=-1, unit='a.u.'):
         """Returns energy without entropy."""
-        s = self.grep_output("energy without entropy")[index]
+        # without leading energy, as sometimes there are multiple whitespaces
+        s = self.grep_output("without entropy")[index]
         res = self._handle_unit_conversion(s, index, unit, subindex=-4)
         return res
 
