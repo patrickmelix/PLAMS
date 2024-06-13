@@ -7,7 +7,7 @@ from os.path import join as opj
 from ...core.basejob import SingleJob
 from ...core.settings import Settings
 from ...core.results import Results
-from ...core.errors import ResultsError
+from ...core.errors import ResultsError, PlamsError
 from ...tools.units import Units
 from ...mol.molecule import Molecule
 from ...mol.atom import Atom
@@ -531,11 +531,23 @@ class Cp2kJob(SingleJob):
         nDim = len(self.molecule.lattice)
         keys = ['A', 'B', 'C']
         periodic = ['X', 'XY', 'XYZ']
-        for iDim in range(0, nDim):
-            inp.cell[keys[iDim]] = "{:} {:} {:}".format(
-                *self.molecule.lattice[iDim])
+        # Solve problem of Molecule not being able to store 1D or 2D PBC while
+        # still defining the length of the vectors, even though this is needed
+        # for CP2K. Achieve this by not overwriting cell.periodic
         if nDim > 0:
-            inp.cell.periodic = periodic[nDim - 1]
+            if nDim < 3:
+                msg = """The CP2K molecule parser suffers from a limitation of
+                         the Molecule class: We need all three vectors for
+                         CP2K, but only the periodic ones are available. Set
+                         the PERIODIC keyword in the settings and use a
+                         Molecule with 3D PBC definition to prevent this."""
+                raise PlamsError(msg)
+            for iDim in range(0, 3):
+                inp.cell[keys[iDim]] = "{:} {:} {:}".format(
+                    *self.molecule.lattice[iDim])
+            # prevent overwriting from periodicity key
+            if 'periodic' not in [key.lower() for key in inp.cell]:
+                inp.cell.periodic = periodic[nDim - 1]
 
         # get block of: symbol coords
         coord_sec = ""
