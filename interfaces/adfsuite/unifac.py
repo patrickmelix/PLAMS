@@ -1,20 +1,19 @@
-import stat
 import os
-
-from typing import List, Union, Optional
-from os.path import join as opj
-from itertools import chain
+import stat
 from collections.abc import Iterable
+from itertools import chain
+from os.path import join as opj
+from typing import List, Optional, Union
 
-from .crs import CRSResults
-from ...core.settings import Settings
-from ...core.basejob import SingleJob
-from ...core.errors import JobError, ResultsError, FileError
-from ...mol.molecule import Molecule
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import FileError, JobError, ResultsError
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.crs import CRSResults
+from scm.plams.mol.molecule import Molecule
 
 try:
+    from scm.plams.interfaces.molecule.rdkit import from_smiles
     from rdkit.Chem import MolToSmiles, RemoveHs
-    from ..molecule.rdkit import from_smiles
     RDKIT_EX = None
 except ImportError as ex:
     RDKIT_EX = ex

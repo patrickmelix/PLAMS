@@ -47,6 +47,13 @@ A small module for converting VASP output to AMS-like output, and for converting
 
 .. automodule:: scm.plams.tools.converters
 
+.. _ReactionEnergies:
+
+Reaction energies
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: scm.plams.tools.reaction_energies
+
 .. _PlottingTools:
 
 Plotting tools

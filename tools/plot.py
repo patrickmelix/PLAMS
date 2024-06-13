@@ -1,12 +1,14 @@
-from ..mol.molecule import Molecule
+from scm.plams.mol.molecule import Molecule
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from typing import Tuple, Union, List
 
-__all__ = ['plot_band_structure', 'plot_molecule']
+__all__ = ['plot_band_structure', 'plot_molecule', 'plot_correlation']
 
 def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, show=False):
     """
     Plots an electronic band structure from DFTB or BAND with matplotlib.
 
-    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc. 
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
     manually outside this function.
 
     x: list of float
@@ -36,7 +38,7 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
         zero = 0
     elif zero == 'fermi':
         assert fermi_energy is not None
-        zero = fermi_energy 
+        zero = fermi_energy
     elif zero in ['vbm', 'vbmax']:
         assert fermi_energy is not None
         zero = y_spin_up[y_spin_up <= fermi_energy].max()
@@ -84,11 +86,11 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
 
 
 
-def plot_molecule(molecule, figsize=None, ax=None, **kwargs):
+def plot_molecule(molecule, figsize=None, ax=None, keep_axis:bool=False, **kwargs):
     """ Show a molecule in a Jupyter notebook """
-    from ase.visualize.plot import plot_atoms
     import matplotlib.pyplot as plt
-    from ..interfaces.molecule.ase import toASE
+    from ase.visualize.plot import plot_atoms
+    from scm.plams.interfaces.molecule.ase import toASE
 
     if isinstance(molecule, Molecule):
         molecule = toASE(molecule)
@@ -98,9 +100,234 @@ def plot_molecule(molecule, figsize=None, ax=None, **kwargs):
 
     plot_atoms(molecule, ax=ax, **kwargs)
 
-    if ax:
-        ax.axis('off')
-    else:
-        plt.axis('off')
+    if not keep_axis:
+        if ax:
+            ax.axis('off')
+        else:
+            plt.axis('off')
+
+
+def get_correlation_xy(
+    job1 : Union[AMSJob, List[AMSJob]],
+    job2 : Union[AMSJob, List[AMSJob]],
+    section : str,
+    variable : str,
+    alt_section : str = None,
+    alt_variable : str = None,
+    file : str = "ams",
+    multiplier : float = 1.0
+) -> Tuple:
+    import numpy as np
+    def tolist(x):
+        if isinstance(x, list):
+            return x
+        return [x]
+
+    job1 = tolist(job1)
+    job2 = tolist(job2)
+
+    alt_section = alt_section or section
+    alt_variable = alt_variable or variable
+
+    data1 = []
+    data2 = []
+    for j1, j2 in zip (job1, job2):
+        try:
+            d1 = j1.results.readrkf(section, variable, file=file)
+        except KeyError:
+            d1 = j1.results.get_history_property(variable, history_section=section)
+        d1 = np.ravel(d1)*multiplier
+
+        try:
+            d2 = j2.results.readrkf(alt_section, alt_variable, file=file)
+        except KeyError:
+            d2 = j2.results.get_history_property(alt_variable, history_section=alt_section)
+        d2 = np.ravel(d2)*multiplier
+
+        data1.extend(list(d1))
+        data2.extend(list(d2))
+
+    data1 = np.array(data1)
+    data2 = np.array(data2)
+
+    return data1, data2
+
+def plot_correlation(
+        job1 : Union[AMSJob, List[AMSJob]],
+        job2 : Union[AMSJob, List[AMSJob]],
+        section : str,
+        variable : str,
+        alt_section : str = None,
+        alt_variable : str = None,
+        file : str = "ams",
+        multiplier : float = 1.0,
+        unit : str = None,
+        save_txt : bool =None,
+        ax=None,
+        show_xy : bool = True,
+        show_linear_fit : bool = True,
+        show_mad : bool = True,
+        show_rmsd : bool = True,
+        xlabel : str = None,
+        ylabel : str = None,
+    ):
+    """
+
+    Plot a correlation plot from AMS .rkf files
+
+    job1: AMSJob or List[AMSJob]
+        Job(s) plotted on x-axis
+
+    job2: AMSJob or List[AMSJob]
+        job2: Job(s) plotted on y-axis
+
+    section: str
+        section: section to read on .rkf files
+
+    variable: str
+        variable: variable to read
+
+    alt_section: str
+        Section to read on .rkf files for job2. If not specified it will be the same as ``section``
+
+    alt_variable : str
+        Variable to read for job2. If not specified it will be the same as ``variable``.
+
+    file: str, optional
+        file: "ams" or "engine", defaults to "ams"
+
+    multiplier: float, optional
+        multiplier: Numbers will be multiplied by this number, defaults to 1.0
+
+    unit: str, optional
+        unit: unit will be shown in the plot, defaults to None
+
+    save_txt: str, optional
+        save_txt: If not None, save the xy data to this text file, defaults to None
+
+    ax: matplotlib axis, optional
+        ax: matplotlib axis, defaults to None
+
+    show_xy: bool, optional
+        show_xy: Whether to show y=x line, defaults to True
+
+    show_linear_fit: bool, optional
+        show_linear_fit: Whether to perform and show a linear fit, defaults to True
+
+    show_mad: bool, optional
+        show_mad: Whether to show mean absolute deviation, defaults to True
+
+    show_rmsd: bool, optional
+        show_rmsd: Whether to show root-mean-square deviation, defaults to True
+
+    xlabel: str, optional
+        xlabel: The x-label. If not given will be a list of job names, defaults to None
+
+    ylabel: str, optional
+        ylabel: THe y-label. If not given will be al ist of job names, defaults to None
+
+    Returns: A matplotlib axis
+
+    """
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    def tolist(x):
+        if isinstance(x, list):
+            return x
+        return [x]
+
+    job1 = tolist(job1)
+    job2 = tolist(job2)
+
+    alt_section = alt_section or section
+    alt_variable = alt_variable or variable
+
+    data1, data2 = get_correlation_xy(
+        job1,
+        job2,
+        section,
+        variable,
+        alt_section,
+        alt_variable,
+        file,
+        multiplier
+    )
+
+
+    def add_unit(s: str):
+        if unit is not None:
+            return f"{s} ({unit})"
+
+        return s
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    complete_data = np.stack((data1, data2), axis=1)
+
+    min_data = np.min(complete_data)
+    max_data = np.max(complete_data)
+    min_max = np.array([min_data, max_data])
+
+    legend = []
+    title = [f"{section}%{variable}"]
+    if show_xy:
+        ax.plot(min_max, min_max, '-')
+        legend.append("y=x")
+
+    stats_title = ""
+
+    if show_mad:
+        mad = np.mean(np.abs(data2-data1))
+        stats_title += add_unit(f" MAD: {mad:.5f}")
+
+    if show_rmsd:
+        rmsd = np.sqrt(np.mean((data2-data1)**2))
+        stats_title += add_unit(f" RMSD: {rmsd:.5f}")
+
+    linear_fit_title = None
+    if show_linear_fit:
+        from scipy.stats import linregress
+        result = linregress(data1, data2)
+        min_max_linear_fit = result.slope * min_max + result.intercept
+        r2 = result.rvalue**2
+        ax.plot(min_max, min_max_linear_fit, '-')
+        legend.append(f"Fit")
+        stats_title += f" R^2: {r2:.3f}"
+        linear_fit_title = f"Linear fit slope={result.slope:.3f} intercept={result.intercept:.3f}"
+
+    if stats_title:
+        title.append(stats_title)
+
+    if linear_fit_title:
+        title.append(linear_fit_title)
+
+    ax.plot(data1, data2, '.')
+    legend.append("data")
+
+    if xlabel is None:
+        xlabel = ", ".join(x.name for x in job1)
+        if len(xlabel) > 40:
+            xlabel = xlabel[:35] + "..."
+    if ylabel is None:
+        ylabel = ", ".join(x.name for x in job2)
+        if len(ylabel) > 40:
+            ylabel = ylabel[:35] + "..."
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    ax.set_title("\n".join(title))
+    ax.legend(legend)
+
+    ax.set_box_aspect(1)
+    ax.set_xlim(*min_max)
+    ax.set_ylim(*min_max)
+
+    if save_txt is not None:
+        np.savetxt(save_txt, complete_data, header=f"{xlabel} {ylabel}")
+
+    return ax
 
 

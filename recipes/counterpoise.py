@@ -1,12 +1,13 @@
 from collections import OrderedDict
-from ..core.functions import add_to_instance
-from ..core.basejob import MultiJob
-from ..core.results import Results
-from ..core.settings import Settings
-from ..mol.molecule import Molecule
-from ..mol.atom import Atom
-from ..interfaces.adfsuite.ams import AMSJob
-from ..tools.units import Units
+
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.functions import add_to_instance
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.units import Units
 
 __all__ = ['CounterpoiseEnergyJob', 'CounterpoiseEnergyResults']
 
@@ -116,7 +117,7 @@ class CounterpoiseEnergyJob(MultiJob):
         s.input.ams.Task = 'SinglePoint'
         job = AMSJob(settings=s, name=name)
         @add_to_instance(job)
-        def prerun(self):
+        def prerun(self):  # noqa F811
             mol = main_child.results.get_main_molecule()
             for i in range(1, len(mol)+1):
                 mol[i].properties.ghost = not i in ids_state_A
@@ -128,7 +129,7 @@ class CounterpoiseEnergyJob(MultiJob):
         s.input.ams.Task = 'SinglePoint'
         job = AMSJob(settings=s, name=name)
         @add_to_instance(job)
-        def prerun(self):
+        def prerun(self):  # noqa F811
             mainmol = main_child.results.get_main_molecule()
             mol = Molecule()
             mol.lattice = mainmol.lattice
@@ -144,7 +145,7 @@ class CounterpoiseEnergyJob(MultiJob):
         s.input.ams.Task = 'SinglePoint'
         job = AMSJob(settings=s, name=name)
         @add_to_instance(job)
-        def prerun(self):
+        def prerun(self):  # noqa F811
             mol = main_child.results.get_main_molecule()
             for i in range(1, len(mol)+1):
                 mol[i].properties.ghost = i in ids_state_A
@@ -156,7 +157,7 @@ class CounterpoiseEnergyJob(MultiJob):
         s.input.ams.Task = 'SinglePoint'
         job = AMSJob(settings=s, name=name)
         @add_to_instance(job)
-        def prerun(self):
+        def prerun(self):  # noqa F811
             mainmol = main_child.results.get_main_molecule()
             mol = Molecule()
             mol.lattice = mainmol.lattice
@@ -173,7 +174,7 @@ class CounterpoiseEnergyJob(MultiJob):
                 job.molecule = X
             else:
                 @add_to_instance(job)
-                def prerun(self):
+                def prerun(self):  # noqa F811
                     mainmol = main_child.results.get_main_molecule()
                     mol = Molecule()
                     mol.lattice = mainmol.lattice

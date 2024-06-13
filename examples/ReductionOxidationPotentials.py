@@ -1,5 +1,7 @@
 #!/usr/bin/env amspython
 from scm.plams import *
+from scm.plams.recipes.redox import AMSRedoxScreeningJob, AMSRedoxDirectJob, AMSRedoxThermodynamicCycleJob
+
 
 def main():
     mol = from_smiles('C1=CC(=O)C=CC1=O', forcefield='uff')  # benzoquinone

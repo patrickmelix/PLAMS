@@ -3,6 +3,11 @@
 General
 ============
 
+What's new in PLAMS for AMS2024?
+--------------------------------------
+
+* :ref:`Packmol interface <PackmolInterface>` has been extended to pack in crystal voids and to get the total system charge from the sum of the constituent molecules
+
 
 What's new in PLAMS for AMS2023?
 --------------------------------------

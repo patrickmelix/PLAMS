@@ -1,7 +1,8 @@
 #!/usr/bin/env amspython
-from scm.plams import *
 from ase.optimize import BFGS
-import os
+from scm.plams import *
+from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
+
 
 def get_atoms():
     # water in a box

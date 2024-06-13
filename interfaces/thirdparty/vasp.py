@@ -1,11 +1,11 @@
 from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.settings import Settings
-from ...core.errors import PlamsError
-from ...mol.molecule import Molecule
-from ...core.results import Results
-from ...tools.units import Units
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import PlamsError
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.units import Units
 
 __all__ = ['VASPJob', 'VASPResults']
 

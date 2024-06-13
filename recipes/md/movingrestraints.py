@@ -1,21 +1,17 @@
-from collections import OrderedDict
-from ...core.functions import add_to_instance
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob
-from ...interfaces.molecule.rdkit import writepdb
-from ...tools.units import Units
-from ...tools.periodic_table import PeriodicTable
-from ...trajectories.rkfhistoryfile import molecules_to_rkf
-from .amsmdjob import AMSMDJob
-from typing import List, Tuple
-import numpy as np
+from scm.plams.interfaces.molecule.rdkit import writepdb
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.periodic_table import PeriodicTable
+from scm.plams.trajectories.rkfhistoryfile import molecules_to_rkf
+
+try:
+    from scm.plams.interfaces.molecule.ase import toASE
+except ImportError:
+    pass
 import os
-from scipy.optimize import curve_fit
-from dataclasses import dataclass
+from typing import List, Tuple
+
+from scm.plams.recipes.md.amsmdjob import AMSMDJob
+
 """
 
 
@@ -77,7 +73,7 @@ class AMSMovingRestraintBondSwitchJob(AMSMDJob):
         self.kappa_others = tolist(kappa_others) if kappa_others is not None else self.kappa
 
         previous_mol = self.molecule.copy()
-        assert previous_mol is not None, f"You must specify a molecule when initializing AMSMovingRestraintBondSwitchJob"
+        assert previous_mol is not None, "You must specify a molecule when initializing AMSMovingRestraintBondSwitchJob"
 
         if not previous_mol.bonds:
             previous_mol.guess_bonds()
@@ -153,22 +149,26 @@ class AMSMovingRestraintBondSwitchJob(AMSMDJob):
 
     @staticmethod
     def _get_bond_switches(mol1:Molecule, mol2:Molecule) -> Tuple[List[Tuple[int, int, float]]]:
-        assert len(mol1) == len(mol2), f"mol1 and mol2 have different lengths!"
+        assert len(mol1) == len(mol2), "mol1 and mol2 have different lengths!"
         bonds1 = set(tuple(sorted((mol1.index(b.atom1), mol1.index(b.atom2)))) for b in mol1.bonds)
         bonds2 = set(tuple(sorted((mol2.index(b.atom1), mol2.index(b.atom2)))) for b in mol2.bonds)
 
         all_reactive_atoms = set()
+
+        atoms2 = toASE(mol2)
 
         # changed bonds
         targets = []
         t1 = bonds1 - bonds2
         t2 = bonds2 - bonds1
         for t in t1:
-            targets.append( (t[0], t[1], mol2[t[0]].distance_to(mol2[t[1]])) )
+            d = atoms2.get_distance(t[0]-1, t[1]-1, mic=True)
+            targets.append( (t[0], t[1], d ) )
             all_reactive_atoms.add(t[0])
             all_reactive_atoms.add(t[1])
         for t in t2:
-            targets.append( (t[0], t[1], mol2[t[0]].distance_to(mol2[t[1]])) )
+            d = atoms2.get_distance(t[0]-1, t[1]-1, mic=True)
+            targets.append( (t[0], t[1], d ) )
             all_reactive_atoms.add(t[0])
             all_reactive_atoms.add(t[1])
 
@@ -182,7 +182,8 @@ class AMSMovingRestraintBondSwitchJob(AMSMDJob):
         for ob in other_bonds:
             i1, i2 = ob
             #other.append( (i1, i2, 0.5*(mol1[i1].distance_to(mol1[i2]) + mol2[i1].distance_to(mol2[i2]))) )
-            other.append( (i1, i2, mol2[i1].distance_to(mol2[i2])) )
+            d = atoms2.get_distance(i1-1, i2-1, mic=True)
+            other.append( (i1, i2, d) )
 
         # other nonbonded
         nonbonded = []
@@ -226,9 +227,8 @@ class AMSMovingRestraintRMSDJob(AMSMDJob):
     def _get_pdb_file_names(self):
         return [f'mol{i}.pdb' for i in range(len(self.visit_molecules))]
         
-    def prerun(self):
+    def prerun(self):  # noqa F811
         plumed_sett_list = ['']
-        counter = 0
         current_step = self.start_step
         nsteps_part = (self.nsteps - self.start_step) // len(self.visit_molecules)
         nsteps_per_kappa = nsteps_part // len(self.kappa)
@@ -279,5 +279,4 @@ class AMSMovingRestraintRMSDJob(AMSMDJob):
         finally:
             if os.path.exists(temporary_pdb):
                 os.remove(temporary_pdb)
-
 

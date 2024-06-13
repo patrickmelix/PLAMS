@@ -1,21 +1,23 @@
+import collections
+import datetime
+import functools
 import os
+import queue
 import shutil
 import signal
-import subprocess
-import time
-import datetime
-import threading
-import queue
 import struct
-import weakref
+import subprocess
 import tempfile
-import functools
-import numpy as np
-import collections
-from typing import *
-from ..molecule.ase import toASE
-from ...core.private import retry
+import threading
+import time
+import weakref
 from numbers import Integral
+from typing import Dict, Tuple
+
+import numpy as np
+
+from scm.plams.core.private import retry
+from scm.plams.interfaces.molecule.ase import toASE
 
 TMPDIR = os.environ['SCM_TMPDIR'] if 'SCM_TMPDIR' in os.environ else None
 
@@ -71,13 +73,12 @@ try:
 except ImportError:
     __all__ = []
 
-from ...mol.molecule import Molecule
-from ...core.settings import Settings
-from ...core.errors import PlamsError, JobError, ResultsError
-from ...tools.units import Units
-from ...core.functions import config, log
-from .ams import AMSJob
-from .amspipeerror import *
+from scm.plams.core.errors import JobError, PlamsError, ResultsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.interfaces.adfsuite.amspipeerror import AMSPipeError, AMSPipeRuntimeError
+from scm.plams.tools.units import Units
 
 
 def _restrict(func):
@@ -487,8 +488,10 @@ class AMSWorker:
                                    60000,        # Timeout in ms (unused unless someone calls Wait)
                                    None)
         else:
-            for filename in ["call_pipe", "reply_pipe"]:
-                os.mkfifo(os.path.join(self.workerdir, filename))
+            call_pipe_path = os.path.join(self.workerdir, 'call_pipe')
+            os.mkfifo(call_pipe_path)
+            reply_pipe_path = os.path.join(self.workerdir, 'reply_pipe')
+            os.mkfifo(reply_pipe_path)
 
         # Launch the worker process
 
@@ -529,12 +532,18 @@ class AMSWorker:
                 self.callpipe = os.fdopen(pipefd, 'r+b')
                 self.replypipe = self.callpipe
             else:
-                self.callpipe  = open(os.path.join(self.workerdir, 'call_pipe'), 'wb')
-                self.replypipe = open(os.path.join(self.workerdir, 'reply_pipe'), 'rb')
+                self.callpipe  = open(call_pipe_path, 'wb')
+                self.replypipe = open(reply_pipe_path, 'rb')
         finally:
             # Both open()s are either done or have failed, we don't need the watcher thread anymore.
             self._stop_watcher.set()
             self._watcher.join()
+            if os.name != 'nt':
+                # The special files have already served their purpose. Better remove them already
+                # so that they don't stay lying around if we crash. This also ensures that someone
+                # else doesn't accidentally open them and interfere with our communication.
+                os.unlink(call_pipe_path)
+                os.unlink(reply_pipe_path)
 
         # Raise a nice error message if the worker failed to start. Otherwise, we'd get
         # a less descriptive error from the call to Hello below.
@@ -697,9 +706,9 @@ class AMSWorker:
 
                 self.proc.wait()
             self.proc = None
-            with open(os.path.join(self.workerdir, 'ams.out'), 'r') as amsoutput:
+            with open(os.path.join(self.workerdir, 'ams.out'), 'r', errors="backslashreplace") as amsoutput:
                 stdout = amsoutput.readlines()
-            with open(os.path.join(self.workerdir, 'ams.err'), 'r') as amserror:
+            with open(os.path.join(self.workerdir, 'ams.err'), 'r', errors="backslashreplace") as amserror:
                 stderr = amserror.readlines()
 
         # At this point the worker is down. We definitely don't have anything in the restart cache anymore ...
@@ -750,7 +759,7 @@ class AMSWorker:
         '''
 
         try:
-            args = AMSWorker._settings_to_args(s)
+            AMSWorker._settings_to_args(s)
             return True
         except NotImplementedError:
             return False
@@ -1109,6 +1118,7 @@ class AMSWorker:
 
     def _flatten_arrays(self, d):
         out = {}
+        # import numpy as np
         for key, val in d.items():
 
             if (isinstance(val, collections.abc.Sequence) or isinstance(val, np.ndarray)) and not isinstance(val, str):
@@ -1219,7 +1229,6 @@ class AMSWorkerPool:
     """
 
     def __init__(self, settings, num_workers, workerdir_root=TMPDIR, workerdir_prefix='awp', keep_crashed_workerdir=False):
-
         self.workers = num_workers * [None]
         if num_workers == 1:
             # Do all the work in the main thread

@@ -1,8 +1,20 @@
 """ Deprecated, do not use """
 
-import os, sys
-from scm.plams import *
 import argparse
+import os
+
+from scm.plams import (
+    AMSJob,
+    CRSJob,
+    KFFile,
+    Molecule,
+    Results,
+    Settings,
+    Units,
+    finish,
+    init,
+)
+
 # import redox_defaults as defaults
 
 
@@ -250,7 +262,7 @@ def calculation_step(molecule            :Molecule,
                 if frequencies: 
                     gibbs_energy = res.readrkf('Thermodynamics', 'Gibbs free Energy', 'adf')
         
-        print(f'\tResults:')
+        print('\tResults:')
         if not bond_energy is None: 
             result_dict['bond_energy'] = Units.convert(bond_energy, 'hartree', 'eV')
             print(f'\t\tBond Energy  = {result_dict["bond_energy"]:.4f} eV')
@@ -269,7 +281,7 @@ def calculation_step(molecule            :Molecule,
             print(f'\t\tdG_solvation = {result_dict["dG_solvation"]:.4f} eV')
 
     else:
-        print(f'\tSuccessfull          = False')
+        print('\tSuccessfull          = False')
 
     return result_dict
 
@@ -293,7 +305,7 @@ def redox_potential(molecule            :Molecule,
     if name is None:
         name = molecule.properties.name
 
-    print(f'========================================================================')
+    print('========================================================================')
     print(f'Starting redox potential calculation for molecule {name}:\n')
 
     print('\nInitial coordinates:')

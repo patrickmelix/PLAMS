@@ -1,6 +1,5 @@
-import textwrap
 import contextlib
-import re
+import textwrap
 from functools import wraps
 
 __all__ = ['Settings']

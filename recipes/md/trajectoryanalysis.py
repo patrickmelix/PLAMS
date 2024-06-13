@@ -1,21 +1,16 @@
 from collections import OrderedDict, defaultdict
-from ...core.functions import add_to_instance
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob
-from ...interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
-from ...tools.units import Units
-from .amsmdjob import AMSNVEJob
-import numpy as np
 from typing import List
+
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.results import Results
+from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
+import numpy as np
+from scm.plams.tools.units import Units
 
 __all__ = ['AMSRDFJob', 'AMSMSDJob', 'AMSMSDResults', 'AMSVACFJob', 'AMSVACFResults']
 
 class AMSConvenientAnalysisJob(AMSAnalysisJob):
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  atom_indices=None,
                  **kwargs):
@@ -81,9 +76,9 @@ class AMSMSDResults(AMSAnalysisResults):
 
 
         y = y[time >= start_time_fit_fs]
-        time = time[time >= start_time_fit_fs] 
-        y = y[time <= end_time_fit_fs] 
-        time = time[time <= end_time_fit_fs] 
+        time = time[time >= start_time_fit_fs]
+        y = y[time <= end_time_fit_fs]
+        time = time[time <= end_time_fit_fs]
 
         result = linregress(time, y)
         fit_x = time
@@ -106,7 +101,7 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
     _result_type = AMSMSDResults
     _parent_write_atoms = True
 
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  max_correlation_time_fs:float=10000,
                  start_time_fit_fs:float=2000,
@@ -134,7 +129,7 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.max_correlation_time_fs = max_correlation_time_fs
         self.start_time_fit_fs = start_time_fit_fs
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """
         Constructs the final settings
         """
@@ -164,14 +159,14 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         D = self.results.get_diffusion_coefficient()
         with open(self.path+'/D.txt', 'w') as f:
             f.write(f'{D}\n')
-        
+
 class AMSVACFResults(AMSAnalysisResults):
     """Results class for AMSVACFJob
     """
     def get_vacf(self):
         xy = self.get_xy()
         time = np.array(xy.x[0]) # fs
-        y = np.array(xy.y) 
+        y = np.array(xy.y)
 
         return time, y
 
@@ -186,6 +181,12 @@ class AMSVACFResults(AMSAnalysisResults):
 
         return freq, y
 
+    def get_acf(self):
+        return self.get_vacf()
+
+    def get_spectrum(self, max_freq=None):
+        return self.get_power_spectrum(max_freq=max_freq)
+
 class AMSVACFJob(AMSConvenientAnalysisJob):
     """A class for calculating the velocity autocorrelation function and its power spectrum
     """
@@ -193,7 +194,7 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
     _result_type = AMSVACFResults
     _parent_write_atoms = True
 
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  max_correlation_time_fs=5000, # fs
                  max_freq=5000, # cm^-1
@@ -206,10 +207,10 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
 
         max_correlation_time_fs: float
             Maximum correlation time in femtoseconds
-        
+
         max_freq: float
             The maximum frequency for the power spectrum in cm^-1
-        
+
         atom_indices: List[int]
             Atom indices (starting with 1). If None, use all atoms.
 
@@ -219,7 +220,7 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         self.max_correlation_time_fs = max_correlation_time_fs
         self.max_freq = max_freq
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """
         Creates final settings
         """
@@ -248,6 +249,92 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         except:
             pass
 
+class AMSDipoleDerivativeACFResults(AMSAnalysisResults):
+    """Results class for AMSVACFJob
+    """
+    def get_acf(self):
+        xy = self.get_xy()
+        time = np.array(xy.x[0]) # fs
+        y = np.array(xy.y)
+
+        return time, y
+
+    def get_ir_spectrum(self, max_freq=None):
+        max_freq = max_freq or self.job.max_freq or 5000
+        xy = self.get_xy('Spectrum')
+        freq = np.array(xy.x[0])
+        y = np.array(xy.y)
+
+        y = y[freq < max_freq]
+        freq = freq[freq < max_freq]
+
+        return freq, y
+
+    def get_spectrum(self, max_freq=None):
+        return self.get_ir_spectrum(max_freq=max_freq)
+
+class AMSDipoleDerivativeACFJob(AMSConvenientAnalysisJob):
+    """A class for calculating the velocity autocorrelation function and its power spectrum
+    """
+
+    _result_type = AMSDipoleDerivativeACFResults
+    _parent_write_atoms = True
+
+    def __init__(self,
+                 previous_job,  # needs to be finished
+                 max_correlation_time_fs=5000, # fs
+                 max_freq=5000, # cm^-1
+                 atom_indices=None,
+
+                 **kwargs):
+        """
+        previous_job: AMSJob
+            An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
+
+        max_correlation_time_fs: float
+            Maximum correlation time in femtoseconds
+
+        max_freq: float
+            The maximum frequency for the power spectrum in cm^-1
+
+        atom_indices: List[int]
+            Atom indices (starting with 1). If None, use all atoms.
+
+        """
+        AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, atom_indices=atom_indices, **kwargs)
+
+        self.max_correlation_time_fs = max_correlation_time_fs
+        self.max_freq = max_freq
+
+    def prerun(self):  # noqa F811
+        """
+        Creates final settings
+        """
+        self._parent_prerun('AutoCorrelation') # trajectory and atom_indices handled
+        max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
+        self.settings.input.Task = 'AutoCorrelation'
+        self.settings.input.AutoCorrelation.Property = 'DipoleDerivativeFromCharges'
+        self.settings.input.AutoCorrelation.MaxFrame = max_dt_frames
+
+    def postrun(self):
+        """
+        Creates dipolederivativeacf.txt and ir_spectrum.txt
+        """
+        try:
+            time, acf = self.results.get_acf()
+            with open(self.path+'/dipolederivativeacf.txt', 'w') as f:
+                f.write("#Time(fs) DipoleDerivativeACF")
+                for x,y in zip(time, acf):
+                    f.write(f'{x} {y}\n')
+
+            freq, intens = self.results.get_ir_spectrum()
+            with open(self.path+'/ir_spectrum.txt', 'w') as f:
+                f.write("#Frequency(cm^-1) Intensity(arb.units)")
+                for x,y in zip(freq, intens):
+                    f.write(f'{x} {y}\n')
+        except:
+            pass
+
 class AMSRDFResults(AMSAnalysisResults):
     """Results class for AMSRDFJob
     """
@@ -259,8 +346,8 @@ class AMSRDFResults(AMSAnalysisResults):
         rdf: numpy array of float
         """
         xy = self.get_xy()
-        r = np.array(xy.x[0]) 
-        y = np.array(xy.y) 
+        r = np.array(xy.x[0])
+        y = np.array(xy.y)
 
         return r, y
 
@@ -303,7 +390,7 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
         self.rmax = rmax
         self.rstep = rstep
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """
         Creates the final settings. Do not call or override this method.
         """
@@ -343,7 +430,7 @@ class AMSConvenientAnalysisPerRegionResults(Results):
 
     def get_diffusion_coefficient(self, **kwargs):
         return self._getter(AMSMSDJob, 'get_diffusion_coefficient', kwargs)
-    
+
     def get_msd(self, **kwargs):
         return self._getter(AMSMSDJob, 'get_msd', kwargs)
 
@@ -384,7 +471,7 @@ class AMSConvenientAnalysisPerRegionJob(MultiJob):
 
         return regions_dict
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         regions_dict = self.regions_dict or self.get_regions_dict(self.previous_job.results.get_main_molecule(), per_element=self.per_element)
 
         for region in regions_dict:
@@ -409,7 +496,6 @@ class AMSConvenientAnalysisPerRegionJob(MultiJob):
         if isinstance(list_of_jobs, dict):
             list_of_jobs = [x for x in list_of_jobs.values()]
 
-        frequencies = None # same for all jobs
         all_x = defaultdict(lambda: [])
         all_y = defaultdict(lambda: [])
         for vacfjob in list_of_jobs:

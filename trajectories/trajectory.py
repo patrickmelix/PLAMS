@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 from weakref import WeakValueDictionary
-from ..core.settings import Settings
-from ..core.errors import PlamsError
-from ..tools.kftools import KFFile
-from ..interfaces.adfsuite.amsanalysis import AMSAnalysisJob
-from .rkffile import RKFTrajectoryFile
-from .rkfhistoryfile import RKFHistoryFile
+
+from scm.plams.core.errors import PlamsError
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob
+from scm.plams.tools.kftools import KFFile
+from scm.plams.trajectories.rkffile import RKFTrajectoryFile
+from scm.plams.trajectories.rkfhistoryfile import RKFHistoryFile
 
 __all__ = ['Trajectory']
 

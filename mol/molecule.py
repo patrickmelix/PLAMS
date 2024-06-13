@@ -1,25 +1,30 @@
 import copy
 import heapq
+import io
 import itertools
 import math
-import numpy as np
 import os
-import io
-
 from collections import OrderedDict
 
-from .atom import Atom
-from .bond import Bond
-from .pdbtools import PDBHandler, PDBRecord
-
-from ..core.errors import MoleculeError, PTError, FileError
-from ..core.functions import log
-from ..core.private import smart_copy, parse_action
-from ..core.settings import Settings
-from ..tools.periodic_table import PT
-from ..tools.geometry import rotation_matrix, axis_rotation_matrix, distance_array, cell_lengths, cell_angles
-from ..tools.units import Units
-from ..tools.kftools import KFFile
+from scm.plams.core.errors import FileError, MoleculeError, PTError
+from scm.plams.core.functions import log
+from scm.plams.core.private import parse_action, smart_copy
+from scm.plams.core.settings import Settings
+import numpy as np
+from scm.plams.mol.atom import Atom
+from scm.plams.mol.bond import Bond
+from scm.plams.mol.context import AsArrayContext
+from scm.plams.mol.pdbtools import PDBHandler, PDBRecord
+from scm.plams.tools.geometry import (
+    axis_rotation_matrix,
+    cell_angles,
+    cell_lengths,
+    distance_array,
+    rotation_matrix,
+)
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.periodic_table import PT
+from scm.plams.tools.units import Units
 
 input_parser_available = 'AMSBIN' in os.environ
 
@@ -128,20 +133,21 @@ class Molecule:
 
         elif positions is not None:
             positions = np.array(positions)
-            assert positions.ndim == 2, f"`Positions` must be a 2d array"
-            assert positions.shape[-1] == 3, f"Inner dim of `positions` must be 3"
+            assert positions.ndim == 2, "`Positions` must be a 2d array"
+            assert positions.shape[-1] == 3, "Inner dim of `positions` must be 3"
             if numbers is None:
                 numbers = len(positions)*[0]
-            assert len(numbers) == len(positions), f"Length or `numbers` and `positions` does not match"
+            assert len(numbers) == len(positions), "Length or `numbers` and `positions` does not match"
             for num,xyz in zip(numbers, positions):
                 self.add_atom( Atom(atnum=num, coords=xyz) )
             if lattice is not None:
                 lattice = np.array(lattice)
-                assert lattice.ndim      == 2, f"`Lattice` must be a 2d array"
-                assert lattice.shape[ 0] <= 3, f"`Lattice` shoud be a 3x3 vector at most"
-                assert lattice.shape[-1] == 3, f"Inner dim of `lattice` must be 3"
+                assert lattice.ndim      == 2, "`Lattice` must be a 2d array"
+                assert lattice.shape[ 0] <= 3, "`Lattice` shoud be a 3x3 vector at most"
+                assert lattice.shape[-1] == 3, "Inner dim of `lattice` must be 3"
                 self.lattice = lattice.tolist()
-
+        # create as_array method as an object that supports both direct calling and use as context manager
+        self._as_array = AsArrayContext(self)
 
 
 #===========================================================================
@@ -158,7 +164,9 @@ class Molecule:
         if atoms is None:
             atoms = self.atoms
 
-        ret = smart_copy(self, owncopy=['properties'], without=['atoms','bonds'])
+        # _as_array is an object that contains a reference to the Molecule object and should thus be excluded from
+        # the copy. It will be recreated on Molecule.__init__
+        ret = smart_copy(self, owncopy=['properties'], without=['atoms','bonds', '_as_array'])
 
         bro = {} # mapping of original to copied atoms
         for at in atoms:
@@ -189,7 +197,10 @@ class Molecule:
 
         """
         if margin >= 0:
-            dx, dy, dz = np.max(self.as_array(), axis=0) - np.min(other.as_array(), axis=0) + margin
+            if len(self) == 0:
+                dx, dy, dz = 0, 0, 0
+            else:
+                dx, dy, dz = np.max(self.as_array(), axis=0) - np.min(other.as_array(), axis=0) + margin
             copy = True
 
         other = other.copy() if copy else other
@@ -293,11 +304,11 @@ class Molecule:
         else:
             raise MoleculeError('add_bond: bonded atoms have to belong to the molecule')
 
-
     def delete_bond(self, arg1, arg2=None):
         """Delete a bond from the molecule.
 
-        Just like :meth:`add_bond`, this method accepts either a single argument that is a |Bond| instance, or two arguments being instances of |Atom|. In both cases objects used as arguments have to belong to the molecule.
+        Just like :meth:`add_bond`, this method accepts either a single argument that is a |Bond| instance, or two
+        arguments being instances of |Atom|. In both cases objects used as arguments have to belong to the molecule.
         """
         if isinstance(arg1, Atom) and isinstance(arg2, Atom):
             delbond = self.find_bond(arg1, arg2)
@@ -313,12 +324,13 @@ class Molecule:
 
     def delete_all_bonds(self):
         """Delete all bonds from the molecule."""
-        for b in reversed(self.bonds):
-            self.delete_bond(b)
-
+        self.bonds.clear()
+        for atom in self:
+            atom.bonds.clear()
 
     def find_bond(self, atom1, atom2):
-        """Find and return a bond between *atom1* and *atom2*. Both atoms have to belong to the molecule. If no bond between chosen atoms exists, the retured value is ``None``."""
+        """Find and return a bond between *atom1* and *atom2*. Both atoms have to belong to the molecule. If no bond
+        between chosen atoms exists, the retured value is ``None``."""
         if atom1.mol != self or atom2.mol != self:
             raise MoleculeError('find_bond: atoms passed as arguments have to belong to the molecule')
         for b in atom1.bonds:
@@ -660,7 +672,7 @@ class Molecule:
         """
         Return a list of guessed charges, one for each atom, based on connectivity
 
-        * ``depth`` -- The electronegativity of an atom is determined all its neighbors up to depth 
+        * ``depth`` -- The electronegativity of an atom is determined all its neighbors up to depth
         * ``electronegativities`` -- A dictionary containing electronegativity values for the electronegative elements
 
         Note: Fairly basic implementation that will not always yield reliable results
@@ -689,8 +701,8 @@ class Molecule:
                 en += get_electronegativities(other_at,prevats,search_depth)
                 prevats += [self.index(other_at)-1]
             return en
-   
-        if electronegativities is None: 
+
+        if electronegativities is None:
             # https://pubchem.ncbi.nlm.nih.gov/periodic-table/electronegativity/
             electronegativities = {'Te': 2.1, 'P': 2.19, 'At': 2.2, 'C': 2.55, 'Se': 2.55, 'S': 2.58, 'I': 2.66, 'Br': 2.96, 'N': 3.04, 'Cl': 3.16, 'O': 3.44, 'F': 3.98, }
         charges = [0. for atom in self.atoms]
@@ -1135,7 +1147,7 @@ class Molecule:
             try:
                 action_func(err)
             except MoleculeError as ex:  # Restore the initial bond orders
-                for b, order in zip(mol.bonds, reversed(order_before)):
+                for b, order in zip(self.bonds, reversed(order_before)):
                     b.order = order
                 raise ex
 
@@ -1482,7 +1494,7 @@ class Molecule:
         """
         import networkx
         matrix = self.bond_matrix()
-        matrix = matrix.astype(numpy.int32)
+        matrix = matrix.astype(np.int32)
         matrix[matrix>0] = 1
         graph = networkx.from_numpy_matrix(matrix)
         rings = networkx.cycle_basis(graph)
@@ -1881,7 +1893,7 @@ class Molecule:
         The atoms in the unit cell will be strained accordingly, keeping the fractional atomic coordinates constant.
 
         If ``voigt_form=False``, *strain* should be a container with n*n numerical values, where n is the number of ``lattice`` vectors. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (e.g. ``[e_xx, e_xy, e_xz, e_yx, e_yy, e_yz, e_zx, e_zy, e_zz]``) or in two-level fashion (e.g. ``[[e_xx, e_xy, e_xz],[e_yx, e_yy, e_yz],[e_zx, e_zy, e_zz]]``).
-        If ``voigt_form=True``, *strain* should be passed in voigt form (for 3D periodic systems: ``[e_xx, e_yy, e_zz, gamma_yz, gamma_xz, gamma_xy]``; for 2D periodic systems: ``[e_xx, e_yy, gamma_xy]``; for 1D periodic systems: ``[e_xx]``  with e_xy = gamma_xy/2,...). Example usage::
+        If ``voigt_form=True``, *strain* should be passed in Voigt form (for 3D periodic systems: ``[e_xx, e_yy, e_zz, gamma_yz, gamma_xz, gamma_xy]``; for 2D periodic systems: ``[e_xx, e_yy, gamma_xy]``; for 1D periodic systems: ``[e_xx]``  with e_xy = gamma_xy/2,...). Example usage::
 
             >>> graphene = Molecule('graphene.xyz')
             >>> print(graphene)
@@ -1930,7 +1942,7 @@ class Molecule:
         else:
             try:
                 strain = np.array(strain).reshape(n,n)
-            except:
+            except Exception:
                 raise MoleculeError('apply_strain: could not convert the strain to a (%i,%i) numpy array'%(n,n))
 
         if n==1:
@@ -2152,6 +2164,103 @@ class Molecule:
         _ligand.from_array(best_lig)
         self.add_molecule(_ligand)
         self.add_bond(stay, stay_lig)
+
+    def map_atoms_to_bonds (self):
+        """
+        Corrects for lattice displacements along bonds
+
+        Uses a breadth-first search to map the atoms bond by bond
+        """
+        def get_translation_vectors (iat, neighbors, molcoords):
+            """
+            Compute the translation of the neighbors
+            """
+            ones = np.ones((len(neighbors),3))
+            boxarray = box.reshape((1,3)) * ones
+            dcoords = np.rint((molcoords[neighbors]-molcoords[iat].reshape((1,3))*ones)/boxarray)*boxarray
+            return dcoords, -np.rint(dcoords/boxarray)
+
+        def get_translated_vectors (iat, neighbors, molcoords):
+            """
+            Compute the translation vectors for non-orthorhombic boxes
+            """
+            ones = np.ones((len(neighbors),3))
+            rfractional = s_inv @ molcoords[neighbors].transpose()
+            diffvec = (molcoords[neighbors] - molcoords[iat].reshape((1,3))*ones).transpose()
+            shift = np.rint(s_inv @ diffvec)
+            rnew = (s @ (rfractional-shift)).transpose()
+            shift = shift.transpose()
+            return rnew, -shift
+
+        # Only do something for a periodic system
+        if len(self.lattice)==0:
+            return
+
+        # Get the lattice vectors, and make sure there are 3 of them
+        nats = len(self)
+        latticevecs = []
+        for i in range(3):
+            if i<len(self.lattice):
+                latticevecs.append(self.lattice[i])
+            else:
+                v = [1.e10 if j==i else 0. for j in range(3)]
+                latticevecs.append(v)
+        latticevecs = np.array(latticevecs)
+
+        # Get the inversion matrix from fractional coordinates to cartesian and vice versa
+        s = latticevecs.transpose()
+        s_inv = np.linalg.inv(s)
+        box = np.sqrt((latticevecs**2).sum(axis=1))
+
+        mol_indices = [indices for indices in self.get_molecule_indices()]
+        #connectivity = self.get_connection_table()
+        coords = self.as_array()
+        for imol,atoms in enumerate(mol_indices) :
+            periodic = False
+            molcoords = coords[atoms].copy()
+            mol_indices = {iat:i for i,iat in enumerate(atoms)}
+            explored = []
+            to_explore = [0]
+            for iat in to_explore:
+                if iat in explored: continue
+                explored.append(iat)
+                #neighbors = [mol_indices[i] for i in connectivity[atoms[iat]]]
+                neighbors = [mol_indices[self.index(at)-1] for at in self.neighbors(self.atoms[atoms[iat]])]
+                unique_indices = [i for i,jat in enumerate(neighbors) if not jat in to_explore]
+
+                # Compute the translation for all the neighbors
+                if (box - latticevecs.sum(axis=1)).any()<1e-10:
+                    # Orthorhombic (faster)
+                    dcoords, shift = get_translation_vectors(iat,neighbors,molcoords)
+                    newcoords = molcoords[neighbors] - dcoords
+                else:
+                    # Non-orthorhombic
+                    newcoords, shift = get_translated_vectors(iat,neighbors,molcoords)
+                    dcoords = newcoords - molcoords[neighbors]
+
+                # Check for bonds across lattice (A neighbor that was already moved will require movement again)
+                if True in [abs(dcoords[i]).sum()>1e-14 for i,jat in enumerate(neighbors) if jat in explored]:
+                    periodic = True
+                    break
+
+                # Now move only the unique neighbors
+                neighbors = [neighbors[i] for i in unique_indices]
+                molcoords[neighbors] = newcoords[unique_indices]
+                # Update the cell shifts
+                for j,jat in enumerate(neighbors):
+                    bond = self.find_bond(self.atoms[atoms[iat]],self.atoms[atoms[jat]])
+                    if bond.has_cell_shifts():
+                        cell_shifts = np.array([int(cs) for cs in bond.properties.suffix.split()]) + shift[j]
+                        if np.all(cell_shifts == 0):
+                            # All 0 cell shifts are not written out explicitly
+                            if 'suffix' in bond.properties:
+                                del bond.properties.suffix
+                        else:
+                            bond.properties.suffix = " ".join(str(int(cs)) for cs in cell_shifts)
+                to_explore += neighbors
+            if not periodic:
+                coords[atoms] = molcoords
+        self.from_array(coords)
 
 
 #===========================================================================
@@ -2376,29 +2485,36 @@ class Molecule:
             mol.add_atom(at)
         return mol
 
-    def as_array(self, atom_subset=None):
-        """Return cartesian coordinates of this molecule's atoms as a numpy array.
+    @property
+    def as_array(self):
+        """
+        Property that can either be called directly as a method: ``mol.as_array()`` or as a context manager ``with mol.as_array``. Take care of when to add the parentheses.
+
+        Return cartesian coordinates of this molecule's atoms as a numpy array.
 
         *atom_subset* argument can be used to specify only a subset of atoms, it should be an iterable container with atoms belonging to this molecule.
 
         Returned value is a n*3 numpy array where n is the number of atoms in the whole molecule, or in *atom_subset*, if used.
+
+        Alternatively, this property can be used in conjunction with the ``with`` statement,
+        which automatically calls :meth:`Molecule.from_array` upon exiting the context manager.
+        Note that the molecules' coordinates will be updated based on the array that was originally returned,
+        so creating and operating on a copy thereof will not affect the original molecule.
+
+        .. code-block:: python
+
+            >>> from scm.plams import Molecule
+            >>> mol = Molecule(...)
+            >>> with mol.as_array as xyz_array:
+            >>>     xyz_array += 5.0
+            >>>     xyz_array[0] = [0, 0, 0]
+            # Or equivalently
+            >>> xyz_array = mol.as_array()
+            >>> xyz_array += 5.0
+            >>> xyz_array[0] = [0, 0, 0]
+            >>> mol.from_array(xyz_array)
         """
-        atom_subset = atom_subset or self.atoms
-
-        try:
-            at_len = len(atom_subset)
-        except TypeError:  # atom_subset is an iterator
-            count = -1
-            shape = -1, 3
-        else:
-            count = at_len * 3
-            shape = at_len, 3
-
-        atom_iterator = itertools.chain.from_iterable(at.coords for at in atom_subset)
-        xyz_array = np.fromiter(atom_iterator, count=count, dtype=float)
-        xyz_array.shape = shape
-        return xyz_array
-
+        return self._as_array
 
     def from_array(self, xyz_array, atom_subset=None):
         """Update the cartesian coordinates of this |Molecule|, containing n atoms, with coordinates provided by a (≤n)*3 numpy array *xyz_array*.
@@ -2511,6 +2627,19 @@ class Molecule:
 
 
     def writexyz(self, f, space=16, decimal=8):
+        """
+        f: file
+            An open file handle.
+
+        See also the write method: `molecule.write("my_molecule.xyz")`
+
+        example:
+
+        .. code-block:: python
+
+            with open(path_to_xyz_molecule_file, 'w') as f:
+                molecule.writexyz(f)
+        """
         f.write(str(len(self)) + '\n')
         if 'comment' in self.properties:
             comment = self.properties['comment']
@@ -2534,7 +2663,7 @@ class Molecule:
             line = f.readline().rstrip()
             if line:
                 spl = line.split()
-                if spl[-1] == 'V2000':
+                if spl[-1].lower() == 'V2000'.lower():
                     if len(line) == 39:
                         natom = int(line[0:3])
                         nbond = int(line[3:6])
@@ -2753,10 +2882,19 @@ class Molecule:
         pdb.write(f)
 
 
+    def hydrogen_to_deuterium(self):
+        """
+        Modifies the current molecule so that all hydrogen atoms get mass 2.014 by modifying the atom.properties.mass
+        """
+
+        for at in self:
+            if at.atnum == 1:
+                at.properties.mass = 2.014
+
     @staticmethod
     def _mol_from_rkf_section(sectiondict):
         """Return a |Molecule| instance constructed from the contents of the whole ``.rkf`` file section, supplied as a dictionary returned by :meth:`KFFile.read_section<scm.plams.tools.kftools.KFFile.read_section>`."""
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
 
         ret = Molecule()
         coords = [sectiondict['Coords'][i:i+3] for i in range(0,len(sectiondict['Coords']),3)]
@@ -2816,8 +2954,10 @@ class Molecule:
 
         * ``filename`` -- Name of the RKF file that contains ForceField data
         """
-        from ..interfaces.adfsuite.forcefieldparams import ForceFieldPatch, forcefield_params_from_kf
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.forcefieldparams import (
+            forcefield_params_from_kf,
+        )
 
         # Read atom types and charges
         kf = KFFile(filename)
@@ -2834,7 +2974,7 @@ class Molecule:
         if patch is not None:
             self.properties.forcefieldpatch = patch
 
-    def readrkf(self, filename, section='Molecule', **other):
+    def readrkf(self, filename: str, section: str = "Molecule", **other):
         kf = KFFile(filename)
         sectiondict = kf.read_section(section)
         self.__dict__.update(Molecule._mol_from_rkf_section(sectiondict).__dict__)
@@ -2847,7 +2987,7 @@ class Molecule:
         if not input_parser_available:
             raise NotImplementedError('Reading from System blocks from AMS input files requires the scm.libbase library to be available.')
         from scm.libbase import InputParser
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
         sett = Settings()
         sett.input.AMS = Settings(InputParser().to_dict('ams', f.read(), string_leafs=True))
         if 'System' not in sett.input.AMS: raise ValueError('No System block found in file.')
@@ -2860,7 +3000,7 @@ class Molecule:
 
     def writein(self, f, **other):
         """Write the Molecule instance to a file as a System block from the AMS driver input files."""
-        from ..interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.ams import AMSJob
         f.write(AMSJob(molecule={other.get('sysname',''):self}).get_input())
 
 
@@ -2936,15 +3076,19 @@ class Molecule:
                 3         H      0.327778       0.033891      -0.901672
 
         """
-        from subprocess import Popen, DEVNULL
+        from subprocess import DEVNULL, Popen
         from tempfile import NamedTemporaryFile
-        with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_in:
+        with NamedTemporaryFile(mode='w+', suffix='.xyz', delete=False) as f_in:
             self.writexyz(f_in)
-            f_in.seek(0)
-            with NamedTemporaryFile(mode='w+', suffix='.xyz') as f_out:
-                p = Popen(f'amsprep -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True, stdout=DEVNULL)
+            f_in.close()
+            with NamedTemporaryFile(mode='w+', suffix='.xyz', delete=False) as f_out:
+                f_out.close()
+                amsprep = os.path.join(os.environ['AMSBIN'], "amsprep")
+                p = Popen(f'sh {amsprep} -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}', shell=True, stdout=DEVNULL)
                 p.communicate()
                 retmol = self.__class__(f_out.name)
+                os.remove(f_out.name)
+            os.remove(f_in.name)
         return retmol
 
 
@@ -2987,14 +3131,42 @@ class Molecule:
         if check:
             nums1 = np.array([i.atnum for i in mol1])
             nums2 = np.array([i.atnum for i in mol2])
-            assert (nums1 == nums2).all(), f"\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
+            assert (nums1 == nums2).all(), "\nAtoms are not the same (or not in the same order). Use `check==False` if you do not care about this.\n"
         if ignore_hydrogen is True:
             mol1 = [at.coords for at in mol1 if at.symbol != 'H']
             mol2 = [at.coords for at in mol2 if at.symbol != 'H']
         return kabsch(np.array(mol1), np.array(mol2), rotmat=return_rotmat)
 
+    def align2mol(self, molecule_ref, ignore_hydrogen:bool=False, watch:bool=False):
+        """
+        align the molecule to a reference molecule, they should be same molecule type and same order of atoms
+        it is an wrapper of the rmsd methods
+        if watch = True show the molecules (before and after) in a Jupyter notebook
+        """
+        if watch:
+            mol_initial = self.copy()
+        rmsd_value, R = Molecule.rmsd(self, molecule_ref, ignore_hydrogen=ignore_hydrogen, return_rotmat=True, check=True)
+        self.rotate(R, lattice=False)
+
+        center_m_var = self.get_center_of_mass(unit='angstrom')
+        center_m_ref = molecule_ref.get_center_of_mass(unit='angstrom')
+        vector = np.array(center_m_ref) - np.array(center_m_var)
+        self.translate(vector, unit='angstrom')
+
+        if watch:
+            import matplotlib.pyplot as plt
+            from scm.plams.tools.plot import plot_molecule
+            fig, ax = plt.subplots(1, 2)
+            ax[0].set_title('before alignment')
+            plot_molecule(molecule_ref, ax=ax[0], keep_axis=True)
+            plot_molecule(mol_initial, ax=ax[0], keep_axis=True)
+            ax[1].set_title('after alignment')
+            plot_molecule(molecule_ref, ax=ax[1], keep_axis=True)
+            plot_molecule(self, ax=ax[1], keep_axis=True)
+            print(f'Root mean square deviation: {rmsd_value:0.3} Ang')
+
     @property
-    def numbers(self) -> np.ndarray:
+    def numbers(self) -> 'np.ndarray':
         """ Return an array of all atomic numbers in the Molecule. Can also be used to set all numbers at once. """
         return np.array([i.atnum for i in self])
 
@@ -3006,7 +3178,7 @@ class Molecule:
 
 
     @property
-    def symbols(self) -> np.ndarray:
+    def symbols(self) -> 'np.ndarray':
         """ Return an array of all atomic symbols in the Molecule. Can also be used to set all symbols at once. """
         return np.array([i.symbol for i in self])
 
@@ -3118,9 +3290,3 @@ class Molecule:
                             ret[angleid] = self.index(at)-1+index_start, self.index(at2)-1+index_start, self.index(at3)-1+index_start
 
         return ret
-
-
-
-    if __name__ == '__main__':
-        main()
-

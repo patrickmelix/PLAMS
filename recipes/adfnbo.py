@@ -1,12 +1,13 @@
-from ..interfaces.adfsuite.ams import AMSJob
-from ..core.functions import log
 import os
+
+from scm.plams.core.functions import log
+from scm.plams.interfaces.adfsuite.ams import AMSJob
 
 __all__ = ['ADFNBOJob']
 
 class ADFNBOJob(AMSJob):
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         s = self.settings.input.ADF
         s.fullfock = True
         s.aomat2file = True

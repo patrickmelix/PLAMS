@@ -73,8 +73,9 @@ def gamma_scan(gammas, settings, molecule, name='scan', charge=0, spins=(1,0,1))
 # =============================================================
 
 
-import numpy as np
 import multiprocessing
+
+import numpy as np
 
 # Run as many jobs in parallel as there are cores:
 config.default_jobrunner = JobRunner(parallel=True, maxjobs=multiprocessing.cpu_count())

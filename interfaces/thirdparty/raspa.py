@@ -5,13 +5,13 @@ Contributed by Patrick Melix
 See the Documentation for an Example
 """
 import shutil
-from os.path import join as opj
 from os import symlink
+from os.path import join as opj
 
-from ...core.basejob import SingleJob
-from ...core.settings import Settings
-from ...core.results import Results
-from ...core.errors import ResultsError, JobError
+from scm.plams.core.basejob import SingleJob
+from scm.plams.core.errors import JobError, ResultsError
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
 
 __all__ = ['RaspaJob', 'RaspaResults']
 

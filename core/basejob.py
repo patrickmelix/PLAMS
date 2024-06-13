@@ -1,21 +1,22 @@
+import copy
 import os
 import stat
 import threading
 import time
-
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
-
 from os.path import join as opj
 
-from .errors import FileError, JobError, PlamsError, ResultsError
-from .functions import config, log
-from .private import sha256
-from .results import Results
-from .settings import Settings
-from ..mol.molecule import Molecule
+from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.private import sha256
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
+
+try:
+    from scm.pisa.block import DriverBlock
+    _has_scm_pisa = True
+except ImportError:
+    _has_scm_pisa = False
 
 __all__ = ['SingleJob', 'MultiJob']
 
@@ -77,6 +78,16 @@ class Job:
                 self.settings = settings.copy()
             if isinstance(settings, Job):
                 self.settings = settings.settings.copy()
+            if _has_scm_pisa:
+                # allow users to pass a driverblock as the settings argument
+                if isinstance(settings, DriverBlock):
+                    self.settings.input = copy.deepcopy(settings)
+                # scm specific input objects need to be deepcopied to prevent them sharing references across jobs
+                elif hasattr(self.settings, 'input') and isinstance(self.settings.input, DriverBlock):
+                    if isinstance(settings, Settings):
+                        self.settings.input = copy.deepcopy(settings.input)
+                    elif isinstance(settings, Job):
+                        self.settings.input = copy.deepcopy(settings.settings.input)
 
 
     #=======================================================================
@@ -118,6 +129,11 @@ class Job:
 
     def pickle(self, filename=None):
         """Pickle this instance and save to a file indicated by *filename*. If ``None``, save to ``[jobname].dill`` in the job folder."""
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
         filename = filename or opj(self.path, self.name+'.dill')
         with open(filename, 'wb') as f:
             try:
@@ -149,12 +165,11 @@ class Job:
         raise PlamsError('Trying to run an abstract method Job.hash()')
 
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """Actions to take before the actual job execution.
 
         This method is initially empty, it can be defined in subclasses or directly added to either the whole class or a single instance using |binding_decorators|.
         """
-        pass
 
 
     def postrun(self):
@@ -162,7 +177,6 @@ class Job:
 
         This method is initially empty, it can be defined in subclasses or directly added to either the whole class or a single instance using |binding_decorators|.
         """
-        pass
 
 
     #=======================================================================
@@ -445,6 +459,11 @@ class SingleJob(Job):
         Setting `strict = False` disables the check, allowing for signatures such as
         `SingleJob.load() -> AMSJob`.
         """
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
         if not os.path.exists(path):
             raise FileError(f"Path '{path}' does not exist")
         if os.path.isdir(path):

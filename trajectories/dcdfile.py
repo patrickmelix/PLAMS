@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
+import array
 import os
 import struct
-import array
+
+from scm.plams.core.errors import PlamsError
 import numpy
-from ..mol.molecule import Molecule
-from ..core.errors import PlamsError
-from .trajectoryfile import TrajectoryFile
+from scm.plams.mol.molecule import Molecule
+from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 
 __all__ = ['DCDTrajectoryFile']
 
@@ -22,8 +23,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
         *   ``ntap``        -- The number of atoms in the molecular system (needs to be constant throughout)
 
         An |DCDTrajectoryFile| object behaves very similar to a regular file object.
-        It has read and write methods (:meth:`read_next` and :meth:`write_next`) 
-        that read and write from/to the position of the cursor in the ``file_object`` attribute. 
+        It has read and write methods (:meth:`read_next` and :meth:`write_next`)
+        that read and write from/to the position of the cursor in the ``file_object`` attribute.
         If the file is in read mode, an additional method :meth:`read_frame` can be used that moves
         the cursor to any frame in the file and reads from there.
         The amount of information stored in memory is kept to a minimum, as only information from the current frame
@@ -93,6 +94,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 # Skip to the trajectory part of the file
                 if self.mode == 'rb' :
                         self._read_header()
+                elif self.mode == 'ab':
+                        self._move_cursor_to_append_pos()
                 #elif self.mode == 'wb' :
                 #        self._write_header()
 
@@ -108,7 +111,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 """
                 Reads a variable from a binary file
 
-                :note:: 
+                :note::
                         Assumes that the variable has been written on a machine
                         with the same bitsizes for the data
                 """
@@ -165,8 +168,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.namnf = self._read_variable('i')
 
                 # DELTA: The timestep
-                delta = self._read_variable('f')
-
+                self._read_variable('f')
                 # 10 blanc integers
                 dummies = array.array('i')
                 dummies.fromfile(self.file_object,10)
@@ -181,15 +183,12 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 # The size of the next block
                 input_integer = self._read_variable('i')
-        
+
                 if (input_integer-4)%80 == 0 :
                         # NTITLE: The number of 80 char title strings
                         ntitle = self._read_variable('i')
-
-                        for i in range(ntitle) :
-                                car = self.file_object.read(80).decode()
-                                #print car
-
+                        for _ in range(ntitle) :
+                                self.file_object.read(80).decode()
                         # The end size of this block
                         input_integer = self._read_variable('i')
                 else :
@@ -215,14 +214,14 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 if input_integer != 4 :
                         print('BAD DCD FORMAT')
                         raise PlamsError
-                
+
                 if self.namnf != 0 :
                         # This should be an int32
                         input_integer = self._read_variable('i')
                         if input_integer != (self.ntap-self.namnf)*4 :
                                 print('BAD DCD FORMAT')
                                 raise PlamsError
-                
+
                         # This should be an int32
                         dummies = array.array('i')
                         dummies.fromfile(self.file_object,(self.ntap-self.namnf))
@@ -261,8 +260,8 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 if not read and not self.firsttime :
                         return self._move_cursor_without_reading()
-               
-                # Read cell data 
+
+                # Read cell data
                 cell = numpy.zeros((3,3))
                 if self.celldata :
                         cell_array = array.array('d')
@@ -285,7 +284,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                         if input_integer != 4*self.ntap :
                                 print('BAD DCD FORMAT')
                                 raise PlamsError
-                
+
                 xcoords = array.array('f')
                 try :
                         xcoords.fromfile(self.file_object,self.ntap)
@@ -294,10 +293,10 @@ class DCDTrajectoryFile (TrajectoryFile) :
                                 xcoords.byteswap()
                 except EOFError :
                         return None, None
-              
-                for i in range(2) : 
+
+                for i in range(2) :
                         if self.firsttime :
-                                input_integer = self._read_variable('i') 
+                                input_integer = self._read_variable('i')
                                 if input_integer != 4*self.ntap :
                                         print('BAD DCD FORMAT')
                                         raise PlamsError
@@ -328,9 +327,9 @@ class DCDTrajectoryFile (TrajectoryFile) :
                                 zcoords.byteswap()
                 except EOFError :
                         return None, None
-              
-                if self.firsttime : 
-                        input_integer = self._read_variable('i') 
+
+                if self.firsttime :
+                        input_integer = self._read_variable('i')
                         if input_integer != 4*self.ntap :
                                 print('BAD DCD FORMAT')
                                 raise PlamsError
@@ -355,7 +354,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                         self._set_plamsmol(self.coords, cell, molecule)
 
                 self.position += 1
-              
+
                 return self.coords, cell
 
         def _is_endoffile (self) :
@@ -393,7 +392,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self._write_variable(0,'i')
 
                 # DELTA: The timestep
-                delta = self._write_variable(self.delta,'f')
+                self._write_variable(self.delta,'f')
 
                 # 10 blanc integers
                 dummies = array.array('i')
@@ -410,7 +409,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 # The size of the next block
                 self._write_variable(84,'i')
-       
+
                 ntitle = 1
                 self._write_variable(ntitle,'i')
                 title = 'REMARK Created with py_md'
@@ -420,7 +419,7 @@ class DCDTrajectoryFile (TrajectoryFile) :
                 self.file_object.write(title.encode())
 
                 self._write_variable(84,'i')
- 
+
                 ############################################################
 
                 # This should be an int32
@@ -459,33 +458,33 @@ class DCDTrajectoryFile (TrajectoryFile) :
 
                 # Invert the coords list [xcoords,ycoords,zcoords]
                 #coords = numpy.array(coords).transpose()
-                
+
                 # This should be an int32
                 self._write_variable(48,'i')
-             
+
                 cell = array.array('d',cell)
                 self.file_object.write(cell)
                 self._write_variable(0,'f')
-                        
+
                 # Coords
                 self._write_variable(4*self.ntap,'i')
-               
+
                 xcoords = array.array('f',coords[:,0])
                 self.file_object.write(xcoords)
-                
-                for i in range(2) : 
-                        self._write_variable(4*self.ntap,'i')
-               
-                ycoords = array.array('f',coords[:,1])
-                self.file_object.write(ycoords) 
-                
+
                 for i in range(2) :
                         self._write_variable(4*self.ntap,'i')
-               
-                zcoords = array.array('f',coords[:,2])
-                self.file_object.write(zcoords) 
 
-                self._write_variable(4*self.ntap,'i') 
+                ycoords = array.array('f',coords[:,1])
+                self.file_object.write(ycoords)
+
+                for i in range(2) :
+                        self._write_variable(4*self.ntap,'i')
+
+                zcoords = array.array('f',coords[:,2])
+                self.file_object.write(zcoords)
+
+                self._write_variable(4*self.ntap,'i')
 
                 self.position += 1
 

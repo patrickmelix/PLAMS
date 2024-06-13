@@ -3,13 +3,13 @@
 
 # ## Initial imports
 
-from scm.plams import *
+from typing import List
+
 import matplotlib.pyplot as plt
 from rdkit import Chem
-from rdkit.Chem import Draw
+from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw import IPythonConsole
-from rdkit.Chem import AllChem
-from typing import List
+from scm.plams import *
 
 IPythonConsole.ipython_useSVG = True
 IPythonConsole.molSize = 250, 250

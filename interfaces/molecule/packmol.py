@@ -1,25 +1,30 @@
 import os
-import numpy as np
-from typing import List, Union
-import tempfile
 import subprocess
+import tempfile
+from typing import List, Union
 
-from ...core.private import saferun
-from ...core.errors import MoleculeError
-from ...mol.molecule import Molecule
-from ...interfaces.adfsuite.ams import AMSJob
+import numpy as np
+
+from scm.plams.core.errors import MoleculeError
+from scm.plams.core.private import saferun
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.mol.molecule import Molecule
 
 try:
-    from .rdkit import readpdb, writepdb
+    from scm.plams.interfaces.molecule.rdkit import readpdb, writepdb
 except ImportError:
     pass
 
 __all__ = [
     "packmol",
+    "packmol_in_void",
     "packmol_on_slab",
     "packmol_microsolvation",
     "PackMolError",
 ]
+
+def tolist(x):
+    return x if isinstance(x, list) else [x]
 
 
 class PackMolError(MoleculeError):
@@ -86,8 +91,11 @@ class PackMolStructure:
                 if n_molecules or n_atoms:
                     raise ValueError("Cannot set all n_molecules or n_atoms together with (box_bounds AND density)")
                 n_molecules = self._get_n_molecules_from_density_and_box_bounds(self.molecule, box_bounds, density)
-            assert n_molecules or n_atoms
-            self.n_molecules = n_molecules or self._get_n_molecules(self.molecule, n_atoms)
+            assert n_molecules is not None or n_atoms is not None
+            if n_molecules is None:
+                self.n_molecules = self._get_n_molecules(self.molecule, n_atoms)
+            else:
+                self.n_molecules = n_molecules 
             assert box_bounds or density
             self.box_bounds = box_bounds or self._get_box_bounds(self.molecule, self.n_molecules, density)
             self.fixed = False
@@ -117,6 +125,8 @@ class PackMolStructure:
         return [0.0, 0.0, 0.0, side_length, side_length, side_length]
 
     def get_input_block(self, fname, tolerance):
+        if self.n_molecules == 0 and not self.fixed:
+            return ""
         if self.fixed:
             ret = f"""
             structure {fname}
@@ -186,7 +196,7 @@ class PackMol:
     def add_structure(self, structure: PackMolStructure):
         self.structures.append(structure)
 
-    def _get_complete_box_bounds(self):
+    def _get_complete_box_bounds(self) -> List[float]:
         min_x = min(s.box_bounds[0] for s in self.structures if s.box_bounds is not None)
         min_y = min(s.box_bounds[1] for s in self.structures if s.box_bounds is not None)
         min_z = min(s.box_bounds[2] for s in self.structures if s.box_bounds is not None)
@@ -197,7 +207,7 @@ class PackMol:
         # return min_x, min_y, min_z, max_x+self.tolerance, max_y+self.tolerance, max_z+self.tolerance
         return min_x, min_y, min_z, max_x, max_y, max_z
 
-    def _get_complete_lattice(self):
+    def _get_complete_lattice(self) -> List[List[float]]:
         """
         returns a 3x3 list using the smallest and largest x/y/z box_bounds for all structures
         """
@@ -216,6 +226,38 @@ class PackMol:
             [0.0, max_y - min_y, 0.0],
             [0.0, 0.0, max_z - min_z],
         ]
+
+    def _get_complete_radius(self) -> float:
+        """
+        Calculates radius of sphere with the same volume as the
+        cuboid from the box bounds
+
+        :return: Radius in angstrom
+        :rtype: float
+        """
+        volume = self._get_complete_volume()
+        radius = (3 * volume / (4 * 3.14159)) ** 0.3333
+
+        return radius
+
+    def _get_complete_volume(self) -> float:
+        """ Returns volume based on box bounds in ang^3
+
+        :return: Volume in ang^3
+        :rtype: float
+        """
+        (
+            min_x,
+            min_y,
+            min_z,
+            max_x,
+            max_y,
+            max_z,
+        ) = self._get_complete_box_bounds()
+
+        volume = (max_x - min_x) * (max_y - min_y) * (max_z - min_z)
+
+        return volume
 
     def run(self):
         """
@@ -238,7 +280,7 @@ class PackMol:
                             writepdb(structure.molecule, f)
                     else:
                         structure.molecule.write(structure_fname)
-                    input_file.write(structure.get_input_block(structure_fname, tolerance=2.0))
+                    input_file.write(structure.get_input_block(structure_fname, tolerance=self.tolerance))
 
             my_input = open(input_fname, "r")
             saferun(self.executable, stdin=my_input, stdout=subprocess.DEVNULL)
@@ -266,10 +308,12 @@ def packmol(
     box_bounds: List[float] = None,
     n_molecules: Union[List[int], int] = None,
     sphere: bool = False,
+    fix_first: bool = False,
     keep_bonds: bool = True,
     keep_atom_properties: bool = True,
     region_names: List[str] = None,
     return_details: bool = False,
+    tolerance: float = 2.0,
     executable: str = None,
 ):
     """
@@ -299,17 +343,28 @@ def packmol(
     sphere: bool
         Whether the molecules should be packed in a sphere. The radius is determined by getting the volume from the box bounds!
 
+    fix_first: bool
+        Whether to keep the first molecule fixed. This can only be used with ``n_molecules=[1, ..., ...]``. Defaults to False.
+
     keep_bonds : bool
         If True, the bonds from the constituent molecules will be kept in the returned Molecule
 
     keep_atom_properties : bool
-        If True, the atom.properties (e.g. force-field atom types) of the constituent molecules will be kept in the returned Molecule
+        If True, the atom.properties (e.g. force-field atom types) of the constituent molecules will be kept in
+        the returned Molecule
 
     region_names : str or list of str
-        Populate the region information for each atom. Should have the same length and order as ``molecules``. By default the regions are named ``mol0``, ``mol1``, etc.
+        Populate the region information for each atom. Should have the same length and order as ``molecules``.
+        By default the regions are named ``mol0``, ``mol1``, etc.
+
+    tolerance: float
+        The packmol tolerance (approximately the minimum intermolecular distance). When packing
+        a periodic box, half the tolerance will be excluded from each face of the box.
 
     return_details : bool
-        Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density', etc. They contain the actual details of the returned molecule, which may differ slightly from the requested quantities.
+        Return a 2-tuple (Molecule, dict) where the dict has keys like 'n_molecules', 'mole_fractions', 'density',
+        etc. They contain the actual details of the returned molecule, which may differ slightly from
+        the requested quantities.
 
         Returned keys:
 
@@ -320,6 +375,7 @@ def packmol(
         * 'molecule_type_indices': list of int of length n_atoms. For each atom, give an integer index for which TYPE of molecule it belongs to.
         * 'molecule_indices': list of int of length n_atoms. For each atom, give an integer index for which molecule it belongs to
         * 'atom_indices_in_molecule': list of int of length n_atoms. For each atom, give an integer index for which position in the molecule it is.
+        * 'volume': float. The volume of the bounding box / packed sphere in ang^3.
 
     executable : str
         The path to the packmol executable. If not specified, ``$AMSBIN/packmol.exe`` will be used (which is the correct path for the Amsterdam Modeling Suite).
@@ -362,6 +418,9 @@ def packmol(
         raise ValueError("Illegal combination of arguments: n_molecules, box_bounds and density specified at the same time")
     if mole_fractions is not None and n_molecules is not None:
         raise ValueError("Illegal combination of arguments: mole_fractions and n_molecules are mutually exclusive")
+    if fix_first:
+        if n_molecules is None or np.isscalar(n_molecules) or n_molecules[0] != 1:
+            raise ValueError(f"Illegal combination of arguments: fix_first requires that n_molecules is a list where the first element is 1. Received n_molecules={n_molecules}")
     if isinstance(molecules, list):
         if n_molecules is not None:
             if not isinstance(n_molecules, list):
@@ -386,17 +445,29 @@ def packmol(
         if region_names is not None and isinstance(region_names, list):
             raise ValueError("Illegal combination of arguments: region_names is a list, when molecules is not")
 
-    def tolist(x):
-        return x if isinstance(x, list) else [x]
-
     molecules = tolist(molecules)
     if mole_fractions is None:
         mole_fractions = [1.0 / len(molecules)] * len(molecules)
 
     if n_molecules:
         n_molecules = tolist(n_molecules)
+        sum_n_molecules = np.sum(n_molecules)
+        if np.isclose(sum_n_molecules, 0):
+            raise ValueError(f"The sum of n_molecules is {sum_n_molecules}, which is very close to 0. "
+                             f"Specify larger numbers. n_molecules specified: {n_molecules}")
+        if any(x < 0 for x in n_molecules):
+            raise ValueError(f"All n_molecules must be >= 0. "
+                             f"n_molecules specified: {n_molecules}")
 
     xs = np.array(mole_fractions)
+    sum_xs = np.sum(xs)
+    if np.isclose(sum_xs, 0):
+        raise ValueError(f"The sum of mole fractions is {sum_xs}, which is very close to 0. "
+                         f"Specify larger numbers. Mole fractions specified: {xs}")
+    if np.any(xs < 0):
+        raise ValueError(f"All mole fractions must be >= 0. "
+                         f"Mole fractions specified: {mole_fractions}")
+
     atoms_per_mol = np.array([len(a) for a in molecules])
     masses = np.array([m.get_mass(unit="g") for m in molecules])
 
@@ -429,7 +500,7 @@ def packmol(
             f"Illegal combination of arguments: n_atoms={n_atoms}, n_molecules={n_molecules}, box_bounds={box_bounds}, density={density}"
         )
 
-    pm = PackMol(executable=executable)
+    pm = PackMol(executable=executable, tolerance=tolerance)
     if sphere and len(molecules) == 2 and n_molecules and n_molecules[0] == 1:
         # Special case used by packmol_microsolvation
         pm.add_structure(
@@ -440,7 +511,10 @@ def packmol(
         )
     else:
         for i, (mol, n_mol) in enumerate(zip(molecules, coeffs)):
-            pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, sphere=sphere))
+            if fix_first and i == 0:
+                pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, sphere=False, fixed=True))
+            else:
+                pm.add_structure(PackMolStructure(mol, n_molecules=n_mol, box_bounds=box_bounds, sphere=sphere))
 
     out = pm.run()
 
@@ -460,6 +534,13 @@ def packmol(
     assert len(molecule_indices) == len(out)
     assert len(atom_indices_in_molecule) == len(out)
 
+    try:
+        volume = out.unit_cell_volume(unit='angstrom')
+        density = out.get_density() * 1e-3  # g / cm^3
+    except ValueError:  # not periodic, presumably when sphere=True
+        volume = pm._get_complete_volume()
+        mass = out.get_mass(unit='g')
+        density = mass / (volume * 1e-24)  # g / cm^3
     details = {
         "n_molecules": coeffs.tolist(),
         "mole_fractions": (coeffs / np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else [0.0] * len(coeffs),
@@ -467,12 +548,12 @@ def packmol(
         "molecule_type_indices": molecule_type_indices,  # for each atom, indicate which type of molecule it belongs to by an integer index (starts with 0)
         "molecule_indices": molecule_indices,  # for each atoms, indicate which molecule it belongs to by an integer index (starts with 0)
         "atom_indices_in_molecule": atom_indices_in_molecule,
+        "volume": volume,
+        "density": density,
     }
-    try:
-        details["density"] = out.get_density() * 1e-3
-    except ValueError:
-        details["density"] = None
-        pass  # if not periodict
+
+    if sphere:
+        details["radius"] = (volume * 3 / (4 * 3.1415926535)) ** (1 / 3.0)
 
     if keep_atom_properties:
         for at, molecule_type_index, atom_index_in_molecule in zip(
@@ -504,6 +585,13 @@ def packmol(
     for at, molindex in zip(out, molecule_type_indices):
         AMSJob._add_region(at, region_names[molindex])
 
+    tot_charge = sum(
+        mol.properties.get("charge", 0) * c 
+        for mol, c in zip(molecules, coeffs)
+    )
+    if tot_charge != 0:
+        out.properties.charge = tot_charge
+
     if return_details:
         return out, details
 
@@ -524,6 +612,58 @@ def get_packmol_solid_liquid_box_bounds(slab: Molecule):
         liquid_max_z - 1.5,
     ]
     return box_bounds
+
+
+def packmol_in_void(
+    host: Molecule,
+    molecules: Union[List[Molecule], Molecule],
+    n_molecules: Union[List[int], int],
+    keep_bonds: bool = True,
+    keep_atom_properties: bool = True,
+    region_names: List[str] = None,
+    tolerance: float = 2.0,
+    return_details: bool = False,
+    executable: str = None,
+):
+    """
+        Pack molecules inside voids in a crystal.
+
+        host: Molecule
+            The host molecule. Must be 3D-periodic and the cell must be orthorhombic (all angles 90 degrees) with the lattice vectors parallel to the cartesian axes (all off-diagonal components must be 0).
+
+        For the other arguments, see the ``packmol`` function.
+
+        Note: ``region_names`` needs to have one more element than the list of
+        ``molecules``. For example ``region_names=['host', 'guest1',
+        'guest2']``.
+
+    """
+    if len(host.lattice) != 3:
+        raise ValueError("host in packmol_in_void must be 3D periodic")
+    if host.cell_angles() != [90.0, 90.0, 90.0]:
+        raise ValueError("host in packmol_in_void must be have orthorhombic cell")
+
+    my_host = host.copy()
+    my_host.map_to_central_cell(around_origin=False)
+    box_bounds = [0., 0., 0., my_host.lattice[0][0], my_host.lattice[1][1], my_host.lattice[2][2]]
+
+    my_molecules = [my_host] + tolist(molecules)
+    my_n_molecules = [1] + tolist(n_molecules)
+
+    ret = packmol(
+        molecules=my_molecules,
+        n_molecules=my_n_molecules,
+        box_bounds=box_bounds,
+        keep_bonds=keep_bonds,
+        keep_atom_properties=keep_atom_properties,
+        region_names=region_names,
+        return_details=return_details,
+        fix_first=True,
+        tolerance=tolerance,
+        executable=executable,
+    )
+
+    return ret
 
 
 def packmol_on_slab(

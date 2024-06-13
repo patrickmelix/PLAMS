@@ -5,11 +5,11 @@ import sys
 
 try:
     from rdkit.Chem import AllChem, rdForceFieldHelpers
-    from ..interfaces.molecule.rdkit import to_rdmol, from_rdmol
+    from scm.plams.interfaces.molecule.rdkit import from_rdmol, to_rdmol
 except ImportError:
     pass
 
-from ..core.functions import init, finish
+from scm.plams.core.functions import finish, init
 
 
 def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=[1.0], job_type=False, path='.', **kwarg):

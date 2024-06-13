@@ -3,6 +3,10 @@
 Examples
 ========
 
+.. important::
+
+    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
+
 In this chapter we present example PLAMS scripts covering various applications, from very simple tasks (like running the same calculation for multiple molecules) to more advanced dynamic workflows.
 
 The example scripts use computational engines from the Amsterdam Modeling Suite, and you will need a license to run them. Contact license@scm.com for further questions.
@@ -15,6 +19,7 @@ Getting Started
 .. toctree::
  
    WaterOptimization
+   Settings/AMSSettingsSystem
    He2DissociationCurve
    ManyJobsInParallel
 
@@ -27,6 +32,17 @@ Molecule analysis
    MoleculesTable
    MoleculeSubstitution/MoleculeSubstitutionExample
    ConvertToAMSRKFTrajectory
+   PlotCorrelation/PlotCorrelation
+   MapMoleculesAndConvertToDCD
+   HydrogenBondsFromMD
+
+MD trajectory analysis
+----------------------
+
+.. toctree::
+
+  IonicConductivityFromMD.rst
+  IRSpectrumFromMD
 
 Benchmarks
 -----------------
@@ -48,6 +64,7 @@ Workflows
    ChargeTransferIntegralsADF
    gammascan
    ConformersGeneration/ConformersGeneration
+   ReactionsDiscovery/ReactionsDiscovery
 
 COSMO-RS and property prediction
 -----------------------------------
@@ -109,6 +126,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
 .. toctree::
 
     ADFCOSMORSCompound
+    ADFCOSMORSConformers
     MDJobs
     adffragment
     ReorganizationEnergy
@@ -118,4 +136,5 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     global_minimum
     pyAHFCDOS
     fcf_dos
+    ReuseForceFieldParams
 

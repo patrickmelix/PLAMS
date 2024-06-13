@@ -3,11 +3,13 @@
 
 # ## Initial imports
 
-from scm.plams import *
-from scm.conformers import ConformersJob, ConformersResults
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+from scm.conformers import ConformersJob
+from scm.plams import *
+
 init()
 
 

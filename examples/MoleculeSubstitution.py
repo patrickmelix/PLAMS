@@ -1,5 +1,6 @@
 #!/usr/bin/env amspython
 from scm.plams import *
+
 """
 Example illustrating the PLAMS Molecule.substitute() method
 

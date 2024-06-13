@@ -1,10 +1,11 @@
-from ...interfaces.adfsuite.ams import AMSJob, AMSResults
-from ...core.settings import Settings
-from ...tools.kftools import KFFile
-from ...tools.units import Units
-from ...core.functions import add_to_instance
-from typing import Union
+from scm.plams.core.functions import add_to_instance
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 import numpy as np
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.units import Units
+from typing import List, Dict, Union, Tuple
+import scm.plams as plams
 
 __all__ = ['AMSMDJob', 'AMSNVEJob', 'AMSNVTJob', 'AMSNPTJob']
 
@@ -86,7 +87,7 @@ class AMSMDJob(AMSJob):
         **Other options**:
 
         calcpressure: bool
-            Whether to calculate pressure for each frame. 
+            Whether to calculate pressure for each frame.
 
         binlog_time: bool
             Whether to log the time at every timestep in the BinLog section on ams.rkf
@@ -125,11 +126,11 @@ class AMSMDJob(AMSJob):
     default_binlog_pressuretensor = 'False'
 
     def __init__(
-        self, 
+        self,
         velocities=None,
         timestep=None,
-        samplingfreq=None,
-        nsteps=None,
+        samplingfreq: int=None,
+        nsteps: int=None,
         checkpointfrequency=None,
         writevelocities=None,
         writebonds=None,
@@ -137,8 +138,8 @@ class AMSMDJob(AMSJob):
         writecharges=None,
         writeenginegradients=None,
         calcpressure=None,
-        molecule=None,
-        temperature=None,
+        molecule: Union[plams.Molecule, AMSJob, AMSResults]=None,
+        temperature: float=None,
         thermostat=None,
         tau=None,
         thermostat_region=None,
@@ -239,7 +240,7 @@ class AMSMDJob(AMSJob):
     def get_velocities_from(self, other_job, frame=None, update_molecule=True):
         """
         Function to update the InitialVelocities block in self. It is normally not needed, instead use the e.g. AMSNVEJob.restart_from() function.
-        
+
         This function can be called in prerun() methods for MultiJobs
         """
         _, velocities, molecule, _ = self._get_restart_job_velocities_molecule(other_job, frame=frame)
@@ -313,7 +314,7 @@ class AMSMDJob(AMSJob):
         self.settings.input.ams.MolecularDynamics.Barostat.Pressure = pressure if pressure is not None else self.settings.input.ams.MolecularDynamics.Barostat.Pressure or self.default_pressure
         self.settings.input.ams.MolecularDynamics.Barostat.Tau = barostat_tau or self.settings.input.ams.MolecularDynamics.Barostat.Tau or float(self.settings.input.ams.MolecularDynamics.TimeStep) * AMSMDJob.default_barostat_tau_multiplier
         self.settings.input.ams.MolecularDynamics.Barostat.Scale = scale or self.settings.input.ams.MolecularDynamics.Barostat.Scale or self.default_scale
-        self.settings.input.ams.MolecularDynamics.Barostat.Equal = equal or self.settings.input.ams.MolecularDynamics.Barostat.Equal or self.default_equal 
+        self.settings.input.ams.MolecularDynamics.Barostat.Equal = equal or self.settings.input.ams.MolecularDynamics.Barostat.Equal or self.default_equal
         self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume = str(constantvolume) if constantvolume is not None else self.settings.input.ams.MolecularDynamics.Barostat.ConstantVolume or self.default_constantvolume
         return s
 
@@ -342,7 +343,7 @@ class AMSMDJob(AMSJob):
 
         if use_prerun:
             @add_to_instance(job)
-            def prerun(self):
+            def prerun(self):  # noqa F811
                 self.get_velocities_from(other_job, frame=frame, update_molecule=True)
 
         return job

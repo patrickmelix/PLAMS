@@ -3,9 +3,10 @@
 
 # ## Initial imports
 
-from scm.plams import *
 from ase import Atoms
 from ase.visualize.plot import plot_atoms
+from scm.plams import *
+from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
 
 # Before running AMS jobs, you need to call init()
 init()

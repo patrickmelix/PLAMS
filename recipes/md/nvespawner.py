@@ -1,22 +1,17 @@
 from collections import OrderedDict
-from ...core.functions import add_to_instance
-from ...core.basejob import MultiJob
-from ...core.results import Results
-from ...core.settings import Settings
-from ...mol.molecule import Molecule
-from ...mol.atom import Atom
-from ...interfaces.adfsuite.ams import AMSJob
-from ...tools.units import Units
-from .amsmdjob import AMSNVEJob
+
+from scm.plams.core.basejob import MultiJob
+from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
 import numpy as np
+from scm.plams.recipes.md.amsmdjob import AMSNVEJob
 
 __all__ = ['AMSNVESpawnerJob', 'AMSNVESpawnerResults']
 
 class AMSNVESpawnerResults(Results):
     """Results class for AMSNVESpawnerJob
     """
-    pass
-        
+
 
 class AMSNVESpawnerJob(MultiJob):
     """A class for running multiple NVE simulations with initial structures/velocities taken from an NVT trajectory. The NVT trajectory must contain the velocities!
@@ -30,7 +25,7 @@ class AMSNVESpawnerJob(MultiJob):
         s.input.ForceField.AnteChamberIntegration = 'Yes'
         return s
 
-    def __init__(self, 
+    def __init__(self,
                  previous_job,  # needs to be finished
                  n_nve=1,
                  name='nvespawnerjob',
@@ -52,7 +47,7 @@ class AMSNVESpawnerJob(MultiJob):
         self.nve_constructor_settings = kwargs
         self.nve_jobs = []
 
-    def prerun(self):
+    def prerun(self):  # noqa F811
         """
         Constructs the children jobs
         """

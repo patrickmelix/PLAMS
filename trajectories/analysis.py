@@ -12,7 +12,7 @@ def autocorrelation(np_data, max_dt=None, normalize=False):
         Smallest integer delta_time for which the correlation function is not calculated. If max_dt is greater than n_time_steps, n_time_steps is used instead. If None, the largest possible value is used.
     normalize : bool
         Whether to return a normalized autocorrelation function (where the first value is 1)
-        
+
     Returns : A numpy array of shape (max_dt,) or (max_dt, n_data_per_time_step) (depending on ``average``).
     """
     num_timesteps = np_data.shape[0]
@@ -38,12 +38,12 @@ def power_spectrum(times, C, max_freq=None, number_of_points=None):
     Calculate power spectrum from an autocorrelation function
     times : 1D numpy array
         times (in femtoseconds), same length as C. Only the delta between the first two points is needed.
-    C : numpy array 
-        Contains the autocorrelation function 
+    C : numpy array
+        Contains the autocorrelation function
     max_freq: float
         the maximum frequency (in cm-1) to be output
     number_of_points: int
-        number of points to include in the FFT. 
+        number of points to include in the FFT.
 
     Returns: a 2-tuple
         an (x, y) tuple where x = frequency in cm-1, and y = power spectrum as 1D numpy arrays only the real part of the power spectrum is returned

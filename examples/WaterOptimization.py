@@ -13,6 +13,7 @@
 # These two lines are not needed if you run PLAMS using the ``$AMSBIN/plams`` program. They are only needed if you use ``$AMSBIN/amspython``.
 
 from scm.plams import *
+
 init()
 
 
@@ -127,6 +128,7 @@ print("-----------")
 # ##  Dipole moment
 
 import numpy as np
+
 try:    
     dipole_moment = np.linalg.norm(np.array(job.results.get_dipolemoment()))
     dipole_moment *= Units.convert(1.0, 'au', 'debye')

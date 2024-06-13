@@ -1,20 +1,18 @@
 import os
 import re
 import shutil
+import subprocess
 import sys
 import threading
-import subprocess
 import time
 import types
-import warnings
-from typing import Callable, Dict, NoReturn
-
+from os.path import dirname, expandvars, isdir, isfile
 from os.path import join as opj
-from os.path import isfile, isdir, expandvars, dirname
+from typing import Dict
 
-from .errors import PlamsError, FileError
-from .settings import Settings
-from .private import retry
+from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.core.private import retry
+from scm.plams.core.settings import Settings
 
 __all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules', 'read_all_molecules_in_xyz_file']
 
@@ -36,7 +34,7 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_exi
     Then a |JobManager| instance is created as ``config.default_jobmanager`` using *path* and *folder* to determine the main working folder. Settings for this instance are taken from ``config.jobmanager``. If *path* is not supplied, the current directory is used. If *folder* is not supplied, ``plams_workdir`` is used.  If *use_existing_folder* is True and the working folder already exists, PLAMS will not create a new working folder with an incremental suffix (e.g. plams_workdir.002). Instead, it will just use the pre-existing folder (note: that this might lead to issues if the working folder is not empty).
 
     Optionally, an additional `dict` (or |Settings| instance) can be provided to the `config_settings` argument which will be used to update the values from the ``plams_defaults``.
-    
+
     .. warning::
       This function **must** be called before any other PLAMS command can be executed. Trying to do anything without it results in a crash. See also |master-script|.
     """
@@ -57,7 +55,7 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_exi
 
     config.update(config_settings or {})
 
-    from .jobmanager import JobManager
+    from scm.plams.core.jobmanager import JobManager
     config.default_jobmanager = JobManager(config.jobmanager, path, folder, use_existing_folder)
 
     if not quiet:
@@ -71,7 +69,7 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_exi
     config.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
 
     try:
-        import dill
+        import dill  # noqa F401
     except ImportError:
         log('WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling', 1)
 
@@ -231,7 +229,7 @@ def read_molecules(folder, formats=None):
 
         molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
     """
-    from ..mol.molecule import Molecule
+    from scm.plams.mol.molecule import Molecule
     extensions = formats or list(Molecule._readformat.keys())
     is_valid = lambda x: isfile(opj(folder,x)) and any([x.endswith('.'+ext) for ext in extensions])
     filenames = filter(is_valid, os.listdir(folder))
@@ -252,7 +250,7 @@ def read_all_molecules_in_xyz_file(filename):
 
     *filename*: path (absolute or relative to the current working directory) to the xyz file.
     """
-    from ..mol.molecule import Molecule
+    from scm.plams.mol.molecule import Molecule
     mols = []
     with open(filename, 'r') as f:
         while True:
@@ -291,8 +289,11 @@ def log(message, level=0):
                 with _stdlock:
                     print(message)
             if level <= config.log.file and 'default_jobmanager' in config:
-                with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
-                    f.write(message + '\n')
+                try:
+                    with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
+                        f.write(message + '\n')
+                except FileNotFoundError:
+                    pass
     elif level <= 3:
         # log() is called before plams.init() was called ...
         with _stdlock: print(message)
@@ -319,9 +320,9 @@ def add_to_class(classname):
 
     If *classname* is |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
-    from .results import _restrict, _MetaResults
+    from scm.plams.core.results import ApplyRestrict, _restrict
     def decorator(func):
-        if isinstance(classname, _MetaResults):
+        if isinstance(classname, ApplyRestrict):
             func = _restrict(func)
         setattr(classname, func.__name__, func)
     return decorator
@@ -348,7 +349,7 @@ def add_to_instance(instance):
 
     If *instance* is an instance of |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
-    from .results import _restrict, Results
+    from scm.plams.core.results import Results, _restrict
     def decorator(func):
         if isinstance(instance, Results):
             func = _restrict(func)

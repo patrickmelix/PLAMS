@@ -1,13 +1,13 @@
-from .units import Units
-from ..trajectories.rkffile import RKFTrajectoryFile
-from ..trajectories.rkfhistoryfile import RKFHistoryFile
-from ..core.private import saferun
-from .kftools import KFFile
-from ..interfaces.molecule.ase import toASE
-from ..mol.molecule import Molecule
-import re
 import os
+import re
 import tempfile
+
+from scm.plams.interfaces.molecule.ase import toASE
+from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.kftools import KFFile
+from scm.plams.tools.units import Units
+from scm.plams.trajectories.rkffile import RKFTrajectoryFile
+from scm.plams.trajectories.rkfhistoryfile import RKFHistoryFile
 
 __all__ = ['traj_to_rkf', 'vasp_output_to_ams', 'qe_output_to_ams', 'gaussian_output_to_ams', 'rkf_to_ase_traj', 'rkf_to_ase_atoms', 'file_to_traj']
 
@@ -17,7 +17,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
 
         trajfile : str
             path to a .traj file
-        rkftrajectoryfile : str 
+        rkftrajectoryfile : str
             path to the output .rkf file (will be created)
         task : str
             Which task to write. If None it is auto-determined.
@@ -25,12 +25,13 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
         timestep: float
             Which timestep to write when task == 'moleculardynamics'
 
-        
+
         Returns : 2-tuple (coords, cell)
             The final coordinates and cell in angstrom
     """
-    from ase.io import read, Trajectory
     import warnings
+
+    from ase.io import Trajectory
     warnings.filterwarnings('ignore', 'Creating an ndarray from ragged nested sequences')
     traj = Trajectory(trajfile)
     rkfout = RKFTrajectoryFile(rkftrajectoryfile, mode='wb')
@@ -78,7 +79,7 @@ def traj_to_rkf(trajfile,  rkftrajectoryfile, task=None, timestep:float=0.25):
 
             if 'PotentialEnergy' in mddata and 'KineticEnergy' in mddata:
                 mddata['TotalEnergy'] = mddata['PotentialEnergy'] + mddata['KineticEnergy']
-            
+
             if str(task).lower() == 'moleculardynamics' or len(mddata) > 0:
                 mddata['Time'] = timestep * i
 
@@ -128,7 +129,7 @@ def file_to_traj(outfile, trajfile):
     if os.path.exists(trajfile):
         os.remove(trajfile)
 
-    atoms = read(outfile, ':') 
+    atoms = read(outfile, ':')
     write(trajfile, atoms)
 
     if not os.path.exists(trajfile):
@@ -193,7 +194,7 @@ def _postprocess_vasp_amsrkf(kffile, outcar):
         kf.save()
 
 def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf=True, task:str=None, timestep:float=0.25):
-    """ 
+    """
         Converts VASP output (OUTCAR, ...) to AMS output (ams.rkf, vasp.rkf)
 
         Returns: a string containing the directory where ams.rkf was written
@@ -222,7 +223,7 @@ def vasp_output_to_ams(vasp_folder, wdir=None, overwrite=False, write_engine_rkf
         raise ValueError('Directory {} does not exist'.format(vasp_folder))
 
     outcar = os.path.join(vasp_folder, 'OUTCAR')
-    if not os.path.exists(outcar): 
+    if not os.path.exists(outcar):
         if os.path.exists(os.path.join(vasp_folder, 'XDATCAR')):
             outcar = os.path.join(vasp_folder, 'XDATCAR')
         else:
@@ -329,14 +330,16 @@ def text_out_file_to_ams(qe_outfile, wdir=None, overwrite=False, write_engine_rk
     # running standalone QE via the AMS GUI will print multiple jobs into the same output file
     # i.e. both the geo opt and band structure calculation into the same file, which causes
     # the ASE qe.out parser to crash
-    with tempfile.NamedTemporaryFile() as tf:
+    with tempfile.NamedTemporaryFile(delete=False) as tf:
         with open(qe_outfile, 'r') as instream:
             for line in instream:
                 tf.write(line.encode())
                 if 'JOB DONE' in line:
                     break
         tf.flush()
+        tf.file.close()
         trajfile = file_to_traj(tf.name, os.path.join(wdir, 'out.traj'))
+        os.remove(tf.name)
 
     # remove the target files first if overwrite
     kffile = os.path.join(wdir, 'ams.rkf')
@@ -401,13 +404,13 @@ def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf
 
 def rkf_to_ase_atoms(rkf_file, get_results=True):
     """
-        Convert an ams.rkf trajectory to a list of ASE atoms 
+        Convert an ams.rkf trajectory to a list of ASE atoms
 
         rkf_file: str
             Path to an ams.rkf file
 
-        out_file: str
-            Path to the .traj or .xyz file that will be created. If the file exists it will be overwritten. If a .xyz file is specified it will use the normal ASE format (not the AMS format).
+        get_results: bool
+            Whether to include results like energy, forces, and stress in the trajectory.
 
         Returns: a list of all the ASE Atoms objects.
     """
@@ -451,22 +454,38 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
         rkf.store_historydata()
         all_atoms = []
         for crd, cell in rkf:
-            energy, forces, stress = None, None, None
+            energy, stress = None, None
             if get_results:
-                energy = rkf.historydata.get('Energy', None)
+                energy = rkf.historydata.get('EngineEnergy', None)
+                if energy is None:
+                    energy = rkf.historydata.get('Energy', None)
                 gradients = rkf.historydata.get('EngineGradients', None)
-                if not gradients:
+                if gradients is None:
                     gradients = rkf.historydata.get('Gradients', None)
                 stress = rkf.historydata.get('StressTensor', None)
             atoms = get_ase_atoms(rkf.elements, crd, cell, energy, gradients, stress)
             all_atoms.append(atoms)
     else:
-        atoms = toASE(Molecule(rkf_filename)) 
+        atoms = toASE(Molecule(rkf_filename))
         all_atoms = [atoms]
 
     return all_atoms
 
 def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
+    """
+        Convert an ams.rkf trajectory to a different trajectory format (.xyz, .traj, anything supported by ASE)
+
+        rkf_file: str
+            Path to an ams.rkf file
+
+        out_file: str
+            Path to the .traj or .xyz file that will be created. If the file exists it will be overwritten. If a .xyz file is specified it will use the normal ASE format (not the AMS format).
+
+        get_results: bool
+            Whether to include results like energy, forces, and stress in the trajectory.
+
+    """
+
     from ase.io import write
     all_atoms = rkf_to_ase_atoms(rkf_file, get_results=get_results)
     write(out_file, all_atoms)

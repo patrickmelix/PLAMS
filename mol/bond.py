@@ -1,9 +1,7 @@
 import numpy as np
 
-from ..core.errors import MoleculeError
-from ..core.settings import Settings
-from ..tools.units import Units
-
+from scm.plams.core.errors import MoleculeError
+from scm.plams.core.settings import Settings
 
 __all__ = ['Bond']
 

@@ -6,15 +6,13 @@ import operator
 import os
 import shutil
 import threading
-
 from os.path import join as opj
 from subprocess import PIPE
 from typing import List
 
-from .private import saferun
-from .errors import ResultsError, FileError
-from .functions import config, log
-
+from scm.plams.core.errors import FileError, ResultsError
+from scm.plams.core.functions import config, log
+from scm.plams.core.private import saferun
 
 __all__ = ['Results']
 
@@ -42,7 +40,7 @@ def _privileged_access():
 
     Privileged access is granted to two |Job| methods: |postrun| and :meth:`~scm.plams.core.basejob.Job.check`, but only if they are called from :meth:`~scm.plams.core.basejob.Job._finalize` of the same |Job| instance.
     """
-    from .basejob import Job
+    from scm.plams.core.basejob import Job
     for frame in inspect.getouterframes(inspect.currentframe()):
         cal, arg = _caller_name_and_arg(frame[0])
         prev_cal, prev_arg = _caller_name_and_arg(frame[0].f_back)
@@ -117,14 +115,28 @@ def _restrict(func):
 
 
 
-class _MetaResults(type):
-    """Metaclass for |Results|. During new |Results| instance creation it wraps all methods with :func:`_restrict` decorator ensuring proper synchronization and thread safety. Methods listed in ``_dont_restrict`` as well as "magic methods" are not wrapped."""
-    _dont_restrict = ['refresh', 'collect', '_clean', 'get_errormsg', 'collect_rkfs']
-    def __new__(meta, name, bases, dct):
-        for attr in dct:
-            if not (attr.endswith('__') and attr.startswith('__')) and not type(dct[attr]) is type and callable(dct[attr]) and (attr not in _MetaResults._dont_restrict):
-                dct[attr] = _restrict(dct[attr])
-        return type.__new__(meta, name, bases, dct)
+class ApplyRestrict:
+    """Parent class that wraps all methods with :func:`_restrict` decorator when a subclass of it is defined
+    Used as parent class for |Results|, ensuring proper synchronization and thread safety.
+    Methods listed in ``_dont_restrict`` as well as "magic methods" are not wrapped."""
+    
+    def __init_subclass__(cls) -> None:
+        _dont_restrict = ['refresh', 'collect', '_clean', 'get_errormsg', 'collect_rkfs']
+        for name, attr in cls.__dict__.items():
+            # don't touch magic methods
+            if name.startswith('__') and name.endswith('__'):
+                continue
+            # don't apply decorator to attributes that are classes (copied over, unsure why necessary)
+            if type(attr) is type:
+                continue
+            # the _restrict decorator does not make sense for staticmethods, since they don't get `self` passed as the first argument
+            if isinstance(attr, (staticmethod, classmethod)):
+                continue
+            # Note that in python 3.10 staticmethod objects are considered callable, hence the previous line to be futureproof.
+            if callable(attr) and name not in _dont_restrict:
+                setattr(cls, name, _restrict(attr))
+
+
 
 
 
@@ -134,7 +146,7 @@ class _MetaResults(type):
 
 
 
-class Results(metaclass=_MetaResults):
+class Results(ApplyRestrict):
     """General concrete class for job results.
 
     ``job`` attribute stores a reference to associated job. ``files`` attribute is a list with contents of the job folder. ``_rename_map`` is a class attribute with the dictionary storing the default renaming scheme.
@@ -190,7 +202,6 @@ class Results(metaclass=_MetaResults):
 
             This is **not** an abstract method. It does exactly what it should: nothing. All the work is done by :func:`_restrict` decorator that is wrapped around it.
         """
-        pass
 
 
     def grep_file(self, filename, pattern='', options=''):

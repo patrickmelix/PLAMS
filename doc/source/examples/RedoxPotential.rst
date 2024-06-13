@@ -14,9 +14,9 @@ Definitions and introduction
 
 There are three PLAMS recipes for calculating one-electron reduction or oxidation potentials in implicit solvent:
 
-* ``AMSRedoxDirectJob``: The best method. Geometry optimizations (and optionally frequencies) are calculated for both neutral and reduced/oxidized species in implicit solvent. The solvent must be supported by ADF. Requires an ADF license.
+* ``AMSRedoxDirectJob``: The best method. Geometry optimizations (and optionally frequencies) are calculated for both neutral and reduced/oxidized species in implicit solvent. The solvent must be supported by ADF with the `COSMO solvation method <../../ADF/Input/COSMO.html>`__. Requires an ADF license.
 
-* ``AMSRedoxThermodynamicCycleJob``: Only useful if you include the vibrations (frequencies) and the molecule is large (in which case it is faster but less accurate than AMSRedoxDirectJob). The frequencies are only calculated for the gasphase molecule. A thermodynamic cycle gives the reduction or oxidation potential. The solvent must be supported by ADF. Requires an ADF license.
+* ``AMSRedoxThermodynamicCycleJob``: Only useful if you include the vibrations (frequencies) and the molecule is large (in which case it is faster but less accurate than AMSRedoxDirectJob). The frequencies are only calculated for the gasphase molecule. A thermodynamic cycle gives the reduction or oxidation potential. The solvent must be supported by ADF with the `COSMO solvation method <../../ADF/Input/COSMO.html>`__. Requires an ADF license.
 
 * ``AMSRedoxScreeningJob``: The fastest (and least accurate) method. Geometry optimizations are performed at the GFN1-xTB level of theory. The solvation free energy is evaluated by COSMO-RS. Vibrational effects are always implicitly accounted for. A ``.coskf`` file for the solvent is required - this can either be obtained from the ADFCRS-2018 database or generated with an ``ADFCOSMORSCompoundJob``. Requires DFTB, ADF, and COSMO-RS licenses.
 
