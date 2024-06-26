@@ -12,7 +12,7 @@ plams.init()
 
 
 # ## Define two engines to compare
-# 
+#
 # Here we choose GFNFF and GFN1-xTB
 
 e1 = plams.Settings()
@@ -33,11 +33,11 @@ plams.plot_molecule(glycine)
 sp = plams.Settings()
 sp.input.ams.Task = "SinglePoint"
 sp.input.ams.Properties.Gradients = "Yes"
-sp.runscript.nproc = 1   # run in serial
+sp.runscript.nproc = 1  # run in serial
 
 
-job1 = plams.AMSJob(settings=sp+e1, name="glycine-engine1", molecule=glycine)
-job2 = plams.AMSJob(settings=sp+e2, name="glycine-engine2", molecule=glycine)
+job1 = plams.AMSJob(settings=sp + e1, name="glycine-engine1", molecule=glycine)
+job2 = plams.AMSJob(settings=sp + e2, name="glycine-engine2", molecule=glycine)
 
 
 job1.run()
@@ -50,18 +50,12 @@ plot_correlation(
     section="AMSResults",
     variable="Gradients",
     file="engine",
-);
+)
 
 
 # To get the actual numbers, use ``get_correlation_xy``:
 
-x, y = plams.tools.plot.get_correlation_xy(
-    job1,
-    job2,
-    section="AMSResults",
-    variable="Gradients",
-    file="engine"
-)
+x, y = plams.tools.plot.get_correlation_xy(job1, job2, section="AMSResults", variable="Gradients", file="engine")
 print("x")
 print(x)
 print("y")
@@ -77,14 +71,8 @@ for mol in molecules:
     plams.plot_molecule(mol)
 
 
-jobs1 = [
-    plams.AMSJob(settings=sp+e1, name="e1"+name, molecule=mol) 
-    for name, mol in zip(names, molecules)
-]
-jobs2 = [
-    plams.AMSJob(settings=sp+e2, name="e2"+name, molecule=mol) 
-    for name, mol in zip(names, molecules)
-]
+jobs1 = [plams.AMSJob(settings=sp + e1, name="e1" + name, molecule=mol) for name, mol in zip(names, molecules)]
+jobs2 = [plams.AMSJob(settings=sp + e2, name="e2" + name, molecule=mol) for name, mol in zip(names, molecules)]
 
 
 for job in jobs1 + jobs2:
@@ -97,27 +85,27 @@ unit = "eV/angstrom"
 multiplier = plams.Units.convert(1.0, "hartree/bohr", unit)
 
 plot_correlation(
-    jobs1, 
-    jobs2, 
-    section="AMSResults", 
-    variable="Gradients", 
+    jobs1,
+    jobs2,
+    section="AMSResults",
+    variable="Gradients",
     file="engine",
     xlabel="Engine 1",
     ylabel="Engine 2",
     unit=unit,
-    multiplier=multiplier
-);
+    multiplier=multiplier,
+)
 
 
 plot_correlation(
-    jobs1, 
-    jobs2, 
-    section="AMSResults", 
-    variable="Charges", 
+    jobs1,
+    jobs2,
+    section="AMSResults",
+    variable="Charges",
     file="engine",
     xlabel="Engine 1",
     ylabel="Engine 2",
-);
+)
 
 
 # ## Use Task Replay to compare multiple frames from a trajectory
@@ -125,37 +113,29 @@ plot_correlation(
 # The forces from an MD job can be stored with ``writeenginegradients=True``
 
 md = plams.AMSNVEJob(
-    settings=e1, 
-    name='nve-md-e1',
+    settings=e1,
+    name="nve-md-e1",
     molecule=glycine,
     velocities=400,
     nsteps=100,
     samplingfreq=10,
-    writeenginegradients=True
+    writeenginegradients=True,
 )
 md.run()
 
 
-# 
+#
 
 # When using the Replay task, set ``Properties.Gradients`` to get the forces:
 
 replay_s = plams.Settings()
-replay_s.input.ams.Task = 'Replay'
-replay_s.input.ams.Properties.Gradients = 'Yes'
+replay_s.input.ams.Task = "Replay"
+replay_s.input.ams.Properties.Gradients = "Yes"
 replay_s.input.ams.Replay.File = md.results.rkfpath()
-replay = plams.AMSJob(settings=e2+replay_s, name='replay-e2')
+replay = plams.AMSJob(settings=e2 + replay_s, name="replay-e2")
 replay.run()
 
 
 # For the MD job the gradients (negative forces) are stored in ``History%EngineGradients``, but for the Replay job they are stored in ``History%Gradients``. Use the ``alt_variable`` to specify the variable for the second job:
 
-plot_correlation(
-    md,
-    replay,
-    section="History",
-    variable="EngineGradients",
-    alt_variable="Gradients",
-    file="ams"
-)
-
+plot_correlation(md, replay, section="History", variable="EngineGradients", alt_variable="Gradients", file="ams")

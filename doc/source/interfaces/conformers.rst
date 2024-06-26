@@ -29,3 +29,8 @@ The input options for the Conformers tool (described `here <../../AMS/Utilities/
 .. autoclass :: scm.conformers.ConformersJob
 
 .. autoclass :: scm.conformers.ConformersResults
+
+The ``plot_conformers()`` function (``from scm.conformers.plams.plot import plot_conformers``) lets you plot some example conformers in a Jupyter notebook:
+
+.. autofunction:: scm.conformers.plams.plot.plot_conformers
+

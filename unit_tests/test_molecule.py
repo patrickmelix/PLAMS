@@ -198,3 +198,24 @@ def test_as_array_function():
     )
     mol = from_smiles("O")
     np.testing.assert_allclose(mol.as_array(), expected, rtol=1e-2)
+
+
+def test_get_moments_of_inertia(BENZENE):
+    benzene = BENZENE.copy()
+    expected = np.array([86.81739308, 86.8173935, 173.63478658])
+    np.testing.assert_allclose(benzene.get_moments_of_inertia(), expected, rtol=1e-2)
+
+
+def test_get_gyration_radius(BENZENE):
+    benzene = BENZENE.copy()
+    expected = 1.6499992631225113
+    np.testing.assert_allclose(benzene.get_gyration_radius(), expected, rtol=1e-2)
+
+
+def test_separate():
+    # previously this failed due to exceeding the maximum recursion depth
+    # thus here we just make sure this doesn't throw an error now
+    mol = Molecule(positions=[[float(i)] * 3 for i in range(1000)])
+    for i in range(1, 1000):
+        mol.add_bond(mol[i], mol[i + 1])
+    mol.separate()

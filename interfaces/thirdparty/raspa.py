@@ -4,6 +4,7 @@ Contributed by Patrick Melix
 
 See the Documentation for an Example
 """
+
 import shutil
 from os import symlink
 from os.path import join as opj
@@ -13,7 +14,7 @@ from scm.plams.core.errors import JobError, ResultsError
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 
-__all__ = ['RaspaJob', 'RaspaResults']
+__all__ = ["RaspaJob", "RaspaResults"]
 
 
 class RaspaResults(Results):
@@ -29,10 +30,10 @@ class RaspaResults(Results):
         Set it to whatever comes first in the 'Output/System_0' folder.
         """
         Results.collect(self)
-        if 'out' not in self.job._filenames:
-            files = [f for f in self.files if 'Output/System_0' in f]
+        if "out" not in self.job._filenames:
+            files = [f for f in self.files if "Output/System_0" in f]
             if files:
-                self.job._filenames['out'] = files[0]
+                self.job._filenames["out"] = files[0]
 
     def get_block_value(self, search, file=None, get_std=False, get_unit=False):
         """Return a Block Value from Output File.
@@ -55,13 +56,12 @@ class RaspaResults(Results):
         Also return the unit of the value
         """
         if not file:
-            file = self.job._filenames['out']
+            file = self.job._filenames["out"]
 
-        chunk = self.grep_file(file, pattern=search, options='-A 8')
+        chunk = self.grep_file(file, pattern=search, options="-A 8")
         last_line = chunk[-1].strip()
-        if not last_line.startswith('Average'):
-            raise ResultsError(
-                "Unable to get the requested value from {:}".format(file))
+        if not last_line.startswith("Average"):
+            raise ResultsError("Unable to get the requested value from {:}".format(file))
 
         last_line = last_line.split()
         ret = [float(last_line[1])]
@@ -96,19 +96,18 @@ class RaspaResults(Results):
         Also return the unit of the value
         """
         if not file:
-            file = self.job._filenames['out']
+            file = self.job._filenames["out"]
 
         line = self.grep_file(file, pattern=search)[-1].split()
         # Two cases, with standard deviation and without
-        if '+/-' in line:
-            idx = line.index('+/-') - 1
+        if "+/-" in line:
+            idx = line.index("+/-") - 1
             ret = [float(line[idx])]
             if get_std:
                 ret.append(float(line[idx + 2]))
         else:
             if get_std:
-                raise ResultsError(
-                    "Did not find +/- in {:}. Does the value you requested have one?!".format(file))
+                raise ResultsError("Did not find +/- in {:}. Does the value you requested have one?!".format(file))
             # extract first float
             for s in line:
                 try:
@@ -121,16 +120,16 @@ class RaspaResults(Results):
         # and the second one is empty)
         if get_unit:
             line = " ".join(line)
-            idx1 = line.index('[')
-            idx2 = line.index(']')
-            ret.append(line[idx1 + 1:idx2])
+            idx1 = line.index("[")
+            idx2 = line.index("]")
+            ret.append(line[idx1 + 1 : idx2])
 
         if len(ret) > 1:
             return tuple(ret)
         else:
             return ret[0]
 
-    def get_from_all_files(self, *args, output_folder='Output/System_0/', method='get_value',**kwargs):
+    def get_from_all_files(self, *args, output_folder="Output/System_0/", method="get_value", **kwargs):
         """Wrapper to Execute Methods on all Output files.
 
         output_folder: string
@@ -161,10 +160,14 @@ class RaspaResults(Results):
         else:
             return ret
 
-    def get_isotherm(self, output_folder='Output/System_0/',
-            search_x='Partial pressure:',
-            search_y=r'Average loading excess \[cm^3 (STP)/gr',
-            get_std=False, get_unit=False):
+    def get_isotherm(
+        self,
+        output_folder="Output/System_0/",
+        search_x="Partial pressure:",
+        search_y=r"Average loading excess \[cm^3 (STP)/gr",
+        get_std=False,
+        get_unit=False,
+    ):
         """Try to automatically collect Isotherm Data.
 
         output_folder: string
@@ -185,27 +188,17 @@ class RaspaResults(Results):
         Returns two lists: `x_values`, `y_values`. Optionally after that `x_std`, `x_unit`, `y_unit`.
         """
         ret = []
-        x_info = self.get_from_all_files(
-            search_x, output_folder=output_folder, get_unit=get_unit)
-        y_info = self.get_from_all_files(
-            search_y,
-            output_folder=output_folder,
-            get_std=get_std,
-            get_unit=get_unit)
+        x_info = self.get_from_all_files(search_x, output_folder=output_folder, get_unit=get_unit)
+        y_info = self.get_from_all_files(search_y, output_folder=output_folder, get_std=get_std, get_unit=get_unit)
 
         if not get_std and not get_unit:
             ret = [x_info, y_info]
         elif get_std and not get_unit:
             ret = [x_info, *y_info]
         elif get_std:
-            ret = [x_info[0], *y_info[0:2], x_info[1]
-                   [0], y_info[2][0]]  # only one unit
+            ret = [x_info[0], *y_info[0:2], x_info[1][0], y_info[2][0]]  # only one unit
         else:
-            ret = [
-                x_info[0],
-                y_info[0],
-                x_info[1][0],
-                y_info[1][0]]  # only one unit
+            ret = [x_info[0], y_info[0], x_info[1][0], y_info[1][0]]  # only one unit
 
         return tuple(ret)
 
@@ -225,12 +218,9 @@ class RaspaJob(SingleJob):
 
     The environment variable ``$RASPA_DIR`` needs to be set for the runscript to work.
     """
+
     _result_type = RaspaResults
-    _filenames = {
-        'inp': 'simulation.input',
-        'run': '$JN.run',
-        'err': '$JN.err',
-        'stdout': '$JN.out'}
+    _filenames = {"inp": "simulation.input", "run": "$JN.run", "err": "$JN.err", "stdout": "$JN.out"}
 
     def __init__(self, copy=None, symlink=None, **kwargs):
         SingleJob.__init__(self, **kwargs)
@@ -264,16 +254,16 @@ class RaspaJob(SingleJob):
         It needs to have a key ``moleculename`` (case insensitive).
         """
 
-        def parse(key, value, indent=''):
+        def parse(key, value, indent=""):
             # transform bools to yes and no
             if value is True:
-                value = 'yes'
+                value = "yes"
             elif value is False:
-                value = 'no'
+                value = "no"
 
             ret = indent + key
 
-            if (key.lower() == 'component'):
+            if key.lower() == "component":
                 n_comp = len(value)
                 for i in range(n_comp):
                     # get component number
@@ -283,36 +273,36 @@ class RaspaJob(SingleJob):
                         number = "_{}".format(i)
                     else:
                         raise JobError(
-                            "Check that you have a valid component {:} in settings.input.component".format(i))
-                    ret += ' ' + str(i)
+                            "Check that you have a valid component {:} in settings.input.component".format(i)
+                        )
+                    ret += " " + str(i)
 
                     subkeys = list(value[number].keys())
-                    mol_name = subkeys[[sk.lower()
-                                        for sk in subkeys].index('moleculename')]
-                    ret += ' MoleculeName ' + str(value[number][mol_name])
-                    ret += '\n'
+                    mol_name = subkeys[[sk.lower() for sk in subkeys].index("moleculename")]
+                    ret += " MoleculeName " + str(value[number][mol_name])
+                    ret += "\n"
                     tmp_value = value[number].copy()
                     del tmp_value[mol_name]  # exclude MoleculeName
                     for el in tmp_value:
-                        ret += parse(el, tmp_value[el], indent + '  ')
-                    ret += '\n' + indent + key
+                        ret += parse(el, tmp_value[el], indent + "  ")
+                    ret += "\n" + indent + key
 
                 return ret
 
             elif isinstance(value, Settings):
-                if '_h' in value:
-                    ret += ' ' + str(value['_h'])
-                ret += '\n'
+                if "_h" in value:
+                    ret += " " + str(value["_h"])
+                ret += "\n"
 
                 for el in value:
-                    if el != '_h':
-                        ret += parse(el, value[el], indent + '  ')
+                    if el != "_h":
+                        ret += parse(el, value[el], indent + "  ")
             else:
-                ret += ' ' + str(value)
-            ret += '\n'
+                ret += " " + str(value)
+            ret += "\n"
             return ret
 
-        inp = ''
+        inp = ""
         for item in self.settings.input:
             inp += parse(item, self.settings.input[item])
 
@@ -320,15 +310,15 @@ class RaspaJob(SingleJob):
 
     def get_runscript(self):
         """$RASPA_DIR has to be set in the environment!"""
-        ret = 'export DYLD_LIBRARY_PATH=${RASPA_DIR}/lib'
-        ret += '\nexport LD_LIBRARY_PATH=${RASPA_DIR}/lib'
-        ret += '\n$RASPA_DIR/bin/simulate '
+        ret = "export DYLD_LIBRARY_PATH=${RASPA_DIR}/lib"
+        ret += "\nexport LD_LIBRARY_PATH=${RASPA_DIR}/lib"
+        ret += "\n$RASPA_DIR/bin/simulate "
         if self.settings.runscript.stdout_redirect:
-            ret += ' >' + self._filename('stdout')
-        ret += '\n\n'
+            ret += " >" + self._filename("stdout")
+        ret += "\n\n"
         return ret
 
     def check(self):
         """Look for the normal termination signal in output."""
-        s = self.results.grep_output('Simulation finished on')
+        s = self.results.grep_output("Simulation finished on")
         return bool(s)

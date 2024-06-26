@@ -9,7 +9,7 @@ If you run a reactive molecular dynamics simulation with for example ReaxFF, you
 
 It is also interesting to follow the number of bonds of a given type.
 A bond type is characterized by two elements making the bond and the order of the bond.
-The bond order is a real number and rounding off the value provides an indictation of the type of the bond.
+The bond order is a real number and rounding off the value provides an indication of the type of the bond.
 Rounding off the bond order to the next integer value gives 1, 2, 3, corresponding to single, double, triple bonds, respectively.
 Rounding off the bond order to half-integer values gives some additional details to the bond type.
 You can edit the ``round_type`` variable to either integer or half-integer.

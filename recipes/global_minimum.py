@@ -1,5 +1,4 @@
-
-__all__ = ['global_minimum']
+__all__ = ["global_minimum"]
 
 import sys
 
@@ -12,7 +11,7 @@ except ImportError:
 from scm.plams.core.functions import finish, init
 
 
-def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=[1.0], job_type=False, path='.', **kwarg):
+def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=[1.0], job_type=False, path=".", **kwarg):
     """
     Find the global minimum of the ligand (RDKit UFF or user-defined PLAMS |Job|) by systematically varying dihedral angles within the molecule.
 
@@ -35,12 +34,12 @@ def global_minimum(mol, n_scans=1, no_h=True, no_ring=True, bond_orders=[1.0], j
 
     # Search for the global minimum with RDKit UFF or with PLAMS at an user-defined level of theory
     if not job_type:
-        if 'rdkit.Chem.AllChem' not in sys.modules or 'rdkit.Chem.rdForceFieldHelpers' not in sys.modules:
-            raise ImportError('rdkit.chem module not found, aborting RDKit UFF optimization')
+        if "rdkit.Chem.AllChem" not in sys.modules or "rdkit.Chem.rdForceFieldHelpers" not in sys.modules:
+            raise ImportError("rdkit.chem module not found, aborting RDKit UFF optimization")
         if not no_ring:
-            raise TypeError('no_ring=False is not supported in combination with RDKit UFF')
+            raise TypeError("no_ring=False is not supported in combination with RDKit UFF")
         if not rdForceFieldHelpers.UFFHasAllMoleculeParams(to_rdmol(mol)):
-            raise ValueError('No UFF parameters found for one or more atoms')
+            raise ValueError("No UFF parameters found for one or more atoms")
 
         for i in range(n_scans):
             for bond in bond_list:
@@ -88,14 +87,14 @@ def find_bond(mol, no_h=True, no_ring=True, bond_orders=[1.0]):
             neighbors = [at for at in mol.neighbors(atom) if at.atnum != 1]
         if no_ring:
             neighbors = [mol.in_ring(at) for at in neighbors]
-        atom.mark = (len(neighbors) > 1)
+        atom.mark = len(neighbors) > 1
 
     # For each bond with both ends marked add one bond to the list
     ret = []
     for i, bond in enumerate(mol.bonds):
         if bond.atom1.mark and bond.atom2.mark and bond.order in bond_orders:
             at1, at2 = bond.atom1, bond.atom2
-            ret.append((at1.id-1 + 1, at2.id-1 + 1))
+            ret.append((at1.id - 1 + 1, at2.id - 1 + 1))
 
     # Clean up the molecule
     mol.unset_atoms_id()
@@ -123,7 +122,7 @@ def global_minimum_scan_plams(mol, bond_tuple, job_type, **kwarg):
     for angle, mol in zip(angles, mol_list):
         bond = mol[bond_tuple]
         atom = mol[bond_tuple[0]]
-        mol.rotate_bond(bond, atom, angle, unit='degree')
+        mol.rotate_bond(bond, atom, angle, unit="degree")
 
     # Optimize the geometry for all dihedral angles in angle_list
     # The geometry that yields the minimum energy is returned
@@ -155,7 +154,7 @@ def global_minimum_scan_rdkit(mol, bond_tuple):
     for angle, mol in zip(angles, mol_list):
         bond = mol[bond_tuple]
         atom = mol[bond_tuple[0]]
-        mol.rotate_bond(bond, atom, angle, unit='degree')
+        mol.rotate_bond(bond, atom, angle, unit="degree")
 
     # Optimize the geometry for all dihedral angles in angle_list
     # The geometry that yields the minimum energy is returned

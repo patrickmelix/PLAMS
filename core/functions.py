@@ -14,15 +14,27 @@ from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.private import retry
 from scm.plams.core.settings import Settings
 
-__all__ = ['init', 'finish', 'log', 'load', 'load_all', 'delete_job', 'add_to_class', 'add_to_instance', 'config', 'read_molecules', 'read_all_molecules_in_xyz_file']
+__all__ = [
+    "init",
+    "finish",
+    "log",
+    "load",
+    "load_all",
+    "delete_job",
+    "add_to_class",
+    "add_to_instance",
+    "config",
+    "read_molecules",
+    "read_all_molecules_in_xyz_file",
+]
 
 config = Settings()
 config.init = False
 
-#===========================================================================
+# ===========================================================================
 
 
-def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_existing_folder=False):
+def init(path=None, folder=None, config_settings: Dict = None, quiet=False, use_existing_folder=False):
     """Initialize PLAMS environment. Create global ``config`` and the default |JobManager|.
 
     An empty |Settings| instance is created and populated with default settings by executing ``plams_defaults``. The following locations are used to search for the defaults file, in order of precedence:
@@ -42,36 +54,40 @@ def init(path=None, folder=None, config_settings:Dict=None, quiet=False, use_exi
     if config.init:
         return
 
-    if 'PLAMSDEFAULTS' in os.environ and isfile(expandvars('$PLAMSDEFAULTS')):
-        defaults = expandvars('$PLAMSDEFAULTS')
-    elif 'AMSHOME' in os.environ and isfile(opj(expandvars('$AMSHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')):
-        defaults = opj(expandvars('$AMSHOME'), 'scripting', 'scm', 'plams', 'plams_defaults')
+    if "PLAMSDEFAULTS" in os.environ and isfile(expandvars("$PLAMSDEFAULTS")):
+        defaults = expandvars("$PLAMSDEFAULTS")
+    elif "AMSHOME" in os.environ and isfile(opj(expandvars("$AMSHOME"), "scripting", "scm", "plams", "plams_defaults")):
+        defaults = opj(expandvars("$AMSHOME"), "scripting", "scm", "plams", "plams_defaults")
     else:
-        defaults = opj(dirname(dirname(__file__)), 'plams_defaults')
+        defaults = opj(dirname(dirname(__file__)), "plams_defaults")
         if not isfile(defaults):
-            raise PlamsError('plams_defaults not found, please set PLAMSDEFAULTS or AMSHOME in your environment')
-    with open(defaults, 'r') as f:
-        exec(compile(f.read(), defaults, 'exec'))
+            raise PlamsError("plams_defaults not found, please set PLAMSDEFAULTS or AMSHOME in your environment")
+    with open(defaults, "r") as f:
+        exec(compile(f.read(), defaults, "exec"))
 
     config.update(config_settings or {})
 
     from scm.plams.core.jobmanager import JobManager
+
     config.default_jobmanager = JobManager(config.jobmanager, path, folder, use_existing_folder)
 
     if not quiet:
-        log('Running PLAMS located in {}'.format(dirname(dirname(__file__))), 5)
-        log('Using Python {}.{}.{} located in {}'.format(*sys.version_info[:3], sys.executable), 5)
-        log('PLAMS defaults were loaded from {}'.format(defaults), 5)
+        log("Running PLAMS located in {}".format(dirname(dirname(__file__))), 5)
+        log("Using Python {}.{}.{} located in {}".format(*sys.version_info[:3], sys.executable), 5)
+        log("PLAMS defaults were loaded from {}".format(defaults), 5)
 
-        log('PLAMS environment initialized', 5)
-        log('PLAMS working folder: {}'.format(config.default_jobmanager.workdir), 1)
+        log("PLAMS environment initialized", 5)
+        log("PLAMS working folder: {}".format(config.default_jobmanager.workdir), 1)
 
     config.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
 
     try:
         import dill  # noqa F401
     except ImportError:
-        log('WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling', 1)
+        log(
+            "WARNING: importing dill package failed. Falling back to the default pickle module. Expect problems with pickling",
+            1,
+        )
 
     config.init = True
 
@@ -83,7 +99,7 @@ def _init_slurm():
         log("Slurm setup aborted: SLURM_JOB_ID is not set")
         return None
     try:
-        srun = subprocess.run(['srun','--version'], stdout=subprocess.PIPE, timeout=60)
+        srun = subprocess.run(["srun", "--version"], stdout=subprocess.PIPE, timeout=60)
     except subprocess.TimeoutExpired:
         log("Slurm setup failed: timeout for srun --version")
         return None
@@ -91,7 +107,7 @@ def _init_slurm():
         log("Slurm setup failed: srun --version exited with non-zero return code")
         return None
     try:
-        ret.slurm_version = srun.stdout.decode().split()[1].split('.')
+        ret.slurm_version = srun.stdout.decode().split()[1].split(".")
         int(ret.slurm_version[0])
         int(ret.slurm_version[1])
     except Exception:
@@ -104,10 +120,10 @@ def _init_slurm():
         log("Slurm setup failed: SLURM_TASKS_PER_NODE is not set")
         return None
     ret.tasks_per_node = []
-    for tasks in os.environ["SLURM_TASKS_PER_NODE"].split(','):
+    for tasks in os.environ["SLURM_TASKS_PER_NODE"].split(","):
         try:
-            if '(' in tasks:
-                tasks, _, num_nodes = tasks.partition('(')
+            if "(" in tasks:
+                tasks, _, num_nodes = tasks.partition("(")
                 num_nodes = num_nodes[1:-1]
                 ret.tasks_per_node += [int(tasks)] * int(num_nodes)
             else:
@@ -129,7 +145,7 @@ def _init_slurm():
     return ret
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def finish(otherJM=None):
@@ -143,15 +159,15 @@ def finish(otherJM=None):
         return
 
     for thread in threading.enumerate():
-        if thread.name == 'plamsthread':
+        if thread.name == "plamsthread":
             thread.join()
 
     config.default_jobmanager._clean()
     if otherJM:
         for jm in otherJM:
             jm._clean()
-    log('PLAMS environment cleaned up successfully', 5)
-    log('PLAMS run finished. Goodbye', 3)
+    log("PLAMS environment cleaned up successfully", 5)
+    log("PLAMS run finished. Goodbye", 3)
 
     if config.erase_workdir is True:
         shutil.rmtree(config.default_jobmanager.workdir)
@@ -159,7 +175,7 @@ def finish(otherJM=None):
     config.init = False
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def load(filename):
@@ -167,7 +183,7 @@ def load(filename):
     return config.default_jobmanager.load_job(filename)
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def load_all(path, jobmanager=None):
@@ -185,39 +201,39 @@ def load_all(path, jobmanager=None):
     """
     jm = jobmanager or config.default_jobmanager
     loaded_jobs = {}
-    for foldername in filter(lambda x: isdir(opj(path,x)), os.listdir(path)):
-        maybedill = opj(path,foldername,foldername+'.dill')
+    for foldername in filter(lambda x: isdir(opj(path, x)), os.listdir(path)):
+        maybedill = opj(path, foldername, foldername + ".dill")
         if isfile(maybedill):
             job = jm.load_job(maybedill)
             if job:
                 loaded_jobs[os.path.abspath(maybedill)] = job
         else:
-            loaded_jobs.update(load_all(path=opj(path,foldername), jobmanager=jm))
+            loaded_jobs.update(load_all(path=opj(path, foldername), jobmanager=jm))
     return loaded_jobs
 
 
-#===========================================================================
+# ===========================================================================
 
 
 @retry()
 def delete_job(job):
     """Remove *job* from its corresponding |JobManager| and delete the job folder from the disk. Mark *job* as 'deleted'."""
 
-    if job.status != 'created':
+    if job.status != "created":
         job.results.wait()
 
-    #In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
+    # In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
     if job.jobmanager is not None:
         job.jobmanager.remove_job(job)
 
     if job.parent is not None:
         job.parent.remove_child(job)
 
-    job.status = 'deleted'
+    job.status = "deleted"
     job._log_status(5)
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def read_molecules(folder, formats=None):
@@ -230,17 +246,18 @@ def read_molecules(folder, formats=None):
         molecules = read_molecules('mymols', formats=['xyz', 'pdb'])
     """
     from scm.plams.mol.molecule import Molecule
+
     extensions = formats or list(Molecule._readformat.keys())
-    is_valid = lambda x: isfile(opj(folder,x)) and any([x.endswith('.'+ext) for ext in extensions])
+    is_valid = lambda x: isfile(opj(folder, x)) and any([x.endswith("." + ext) for ext in extensions])
     filenames = filter(is_valid, os.listdir(folder))
     ret = {}
     for f in filenames:
-        m = Molecule(opj(folder,f))
+        m = Molecule(opj(folder, f))
         ret[m.properties.name] = m
     return ret
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def read_all_molecules_in_xyz_file(filename):
@@ -251,8 +268,9 @@ def read_all_molecules_in_xyz_file(filename):
     *filename*: path (absolute or relative to the current working directory) to the xyz file.
     """
     from scm.plams.mol.molecule import Molecule
+
     mols = []
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         while True:
             try:
                 mol = Molecule()
@@ -263,43 +281,45 @@ def read_all_molecules_in_xyz_file(filename):
     return mols
 
 
-#===========================================================================
+# ===========================================================================
 
 
 _stdlock = threading.Lock()
 _filelock = threading.Lock()
+
 
 def log(message, level=0):
     """Log *message* with verbosity *level*.
 
     Logs are printed independently to the text logfile (a file called ``logfile`` in the main working folder) and to the standard output. If *level* is equal or lower than verbosity (defined by ``config.log.file`` or ``config.log.stdout``) the message is printed. Date and/or time can be added based on ``config.log.date`` and ``config.log.time``. All logging activity is thread safe.
     """
-    if config.init and 'log' in config:
+    if config.init and "log" in config:
         if level <= config.log.file or level <= config.log.stdout:
             message = str(message)
-            prefix = ''
+            prefix = ""
             if config.log.date:
-                prefix += '%d.%m|'
+                prefix += "%d.%m|"
             if config.log.time:
-                prefix += '%H:%M:%S'
+                prefix += "%H:%M:%S"
             if prefix:
-                prefix = '[' + prefix.rstrip('|') + '] '
+                prefix = "[" + prefix.rstrip("|") + "] "
                 message = time.strftime(prefix) + message
             if level <= config.log.stdout:
                 with _stdlock:
                     print(message)
-            if level <= config.log.file and 'default_jobmanager' in config:
+            if level <= config.log.file and "default_jobmanager" in config:
                 try:
-                    with _filelock, open(config.default_jobmanager.logfile, 'a') as f:
-                        f.write(message + '\n')
+                    with _filelock, open(config.default_jobmanager.logfile, "a") as f:
+                        f.write(message + "\n")
                 except FileNotFoundError:
                     pass
     elif level <= 3:
         # log() is called before plams.init() was called ...
-        with _stdlock: print(message)
+        with _stdlock:
+            print(message)
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def add_to_class(classname):
@@ -321,14 +341,16 @@ def add_to_class(classname):
     If *classname* is |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
     from scm.plams.core.results import ApplyRestrict, _restrict
+
     def decorator(func):
         if isinstance(classname, ApplyRestrict):
             func = _restrict(func)
         setattr(classname, func.__name__, func)
+
     return decorator
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def add_to_instance(instance):
@@ -350,18 +372,20 @@ def add_to_instance(instance):
     If *instance* is an instance of |Results| or any of its subclasses, the added method will be wrapped with the thread safety guard (see |parallel|).
     """
     from scm.plams.core.results import Results, _restrict
+
     def decorator(func):
         if isinstance(instance, Results):
             func = _restrict(func)
         func = types.MethodType(func, instance)
         setattr(instance, func.__func__.__name__, func)
+
     return decorator
 
 
-#===========================================================================
+# ===========================================================================
 
 
-def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
+def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
     """Take a string and isolate the content of a bash-style `Here Document`_.
 
     The input string, *bash_input*, is returned unaltered if no heredoc block is found.
@@ -416,13 +440,13 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
 
     """
     # Find the start of the heredoc block
-    start_pattern = r'<<(-)?(\s+)?{}'.format(heredoc_delimit)
+    start_pattern = r"<<(-)?(\s+)?{}".format(heredoc_delimit)
     start_heredoc = re.search(start_pattern, bash_input)
     if not start_heredoc:
         return bash_input
 
     # Find the end of the heredoc block
-    end_pattern = r'\n(\s+)?{}(\s+)?\n'.format(heredoc_delimit)
+    end_pattern = r"\n(\s+)?{}(\s+)?\n".format(heredoc_delimit)
     end_heredoc = re.search(end_pattern, bash_input)
 
     # Prepare the slices
@@ -433,5 +457,5 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = 'eor') -> str:
         raise ValueError(err).with_traceback(ex.__traceback__)
 
     # Grab heredoced block and parse it
-    _, ret = bash_input[i:j].split('\n', maxsplit=1)
+    _, ret = bash_input[i:j].split("\n", maxsplit=1)
     return ret

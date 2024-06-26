@@ -8,6 +8,9 @@ What's new in PLAMS for AMS2024?
 
 * :ref:`Packmol interface <PackmolInterface>` has been extended to pack in crystal voids and to get the total system charge from the sum of the constituent molecules
 
+* Additions to |AMSResults|: get_normal_modes(), get_polarizability(), get_ir_spectrum(), get_ir_spectrum_md(), get_frequency_spectrum(), get_force_constants()
+
+* Additions to |Molecule|: get_moments_of_inertia(), get_gyration_radius(), align2mol()
 
 What's new in PLAMS for AMS2023?
 --------------------------------------

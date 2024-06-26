@@ -50,7 +50,7 @@ def main():
         pdb.set_cellvectors(cell)
         for iat in indices:
             atomlists = (heavy_atoms, hydrogens)
-            atoms,hs = pdb.find_neighbours_using_cubes(iat,d_indices,boxlist,atomlists)
+            atoms, hs = pdb.find_neighbours_using_cubes(iat, d_indices, boxlist, atomlists)
             hbonds = pdb.get_hbonds(iat, atoms, hs)
             print("%8i %8i %s" % (istep, iat, str(hbonds)))
             values.append(len(hbonds))

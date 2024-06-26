@@ -5,7 +5,7 @@ from scm.plams.interfaces.adfsuite.adf import ADFJob
 import numpy as np
 from scm.plams.tools.units import Units
 
-__all__ = ['CSHessianADFJob', 'CSHessianADFResults']
+__all__ = ["CSHessianADFJob", "CSHessianADFResults"]
 
 try:
     from scm.csh import CSHessian
@@ -33,16 +33,15 @@ class CSHessianADFJob(MultiJob):
         self.threshold = conv_threshold
         self.step = step
 
-
     def prerun(self):  # noqa F811
-        self.restartjob = ADFJob(name='restart', molecule=self.molecule, settings=self.settings.gradient)
+        self.restartjob = ADFJob(name="restart", molecule=self.molecule, settings=self.settings.gradient)
         self.restartjob.parent = self
         self.restartjob.run()
 
         self.N = 3 * len(self.molecule)
         self.perm = np.random.permutation(self.N)
         self.pick = max(int(self.N * self.start), 1)
-        self.batch = self.perm[:self.pick]
+        self.batch = self.perm[: self.pick]
 
         self.basis = self.get_basis(self.basistype)
         self.csh = CSHessian(self.basis)
@@ -51,15 +50,14 @@ class CSHessianADFJob(MultiJob):
         self.scaling = [None] * self.N
         self.results.hessians = []
         for i in self.batch:
-            for step in [-1,1]:
+            for step in [-1, 1]:
                 self.children[(i, step)] = self.create_forces_job(i, step)
-
 
     def create_forces_job(self, column, step):
         vec = self.samp[:, column]
-        vec.shape = (-1,3)
+        vec.shape = (-1, 3)
 
-        #scale vec in such a way that most displaced atom is moved by self.disp
+        # scale vec in such a way that most displaced atom is moved by self.disp
         max_displ = 0.0
         for v in vec:
             max_displ = max(max_displ, np.linalg.norm(v))
@@ -69,55 +67,55 @@ class CSHessianADFJob(MultiJob):
         for at, v in zip(mol, vec):
             at.translate(self.scaling[column] * step * v)
 
-        newjob = ADFJob(name=f'{column}_{step}', molecule=mol, settings=self.settings.gradient)
+        newjob = ADFJob(name=f"{column}_{step}", molecule=mol, settings=self.settings.gradient)
         newjob.settings.input.restart.file = self.restartjob
-        newjob.settings.input.restart.nogeo = 'True'
+        newjob.settings.input.restart.nogeo = "True"
         return newjob
-
 
     def get_basis(self, arg):
         if isinstance(arg, str):
             if arg in self.settings.basis:
                 s = self.settings.basis[arg]
-                self.basisjob = s.jobtype(name='basis', molecule=self.molecule, settings=s)
+                self.basisjob = s.jobtype(name="basis", molecule=self.molecule, settings=s)
                 self.basisjob.parent = self
                 self.basisjob.run()
                 hess = s.get_hessian(self.basisjob.results)
                 hess.shape = (self.N, self.N)
 
-            elif arg == 'cart':
+            elif arg == "cart":
                 return np.eye(self.N)
 
             else:
-                raise JobError(f"CSHessianADFJob: I don't understand 'basistype={arg}' argument. My Settings should contain .basis.{arg} branch, but they do not.")
+                raise JobError(
+                    f"CSHessianADFJob: I don't understand 'basistype={arg}' argument. My Settings should contain .basis.{arg} branch, but they do not."
+                )
 
         else:
             try:
                 arg = np.array(arg)
                 arg.shape = (self.N, self.N)
             except:
-                raise JobError(f"CSHessianADFJob: argument supplied as 'basistype' cannot be transformed into numpy array of size ({self.N},{self.N})")
+                raise JobError(
+                    f"CSHessianADFJob: argument supplied as 'basistype' cannot be transformed into numpy array of size ({self.N},{self.N})"
+                )
             return arg
 
         evals, evecs = np.linalg.eigh(hess)
         return evecs
 
-
     def compare(self, x, y):
-        return np.linalg.norm(x-y) < self.threshold
-
+        return np.linalg.norm(x - y) < self.threshold
 
     def new_batch(self):
         previous = self.pick
         self.pick = min(self.pick + self.step, self.N)
-        return self.perm[previous:self.pick]
-
+        return self.perm[previous : self.pick]
 
     def new_children(self):
         for i in self.batch:
-            v1 = np.array(self.children[(i,-1)].results.readkf('GeoOpt', 'Gradients_InputOrder'))
-            v2 = np.array(self.children[(i,1)].results.readkf('GeoOpt', 'Gradients_InputOrder'))
-            grad_cart = Units.convert(v2 - v1, 'bohr', 'angstrom') / (2*self.scaling[i])
+            v1 = np.array(self.children[(i, -1)].results.readkf("GeoOpt", "Gradients_InputOrder"))
+            v2 = np.array(self.children[(i, 1)].results.readkf("GeoOpt", "Gradients_InputOrder"))
+            grad_cart = Units.convert(v2 - v1, "bohr", "angstrom") / (2 * self.scaling[i])
             grad_samp = np.dot(self.samp.T, grad_cart)
             self.csh.add_column(i, grad_samp)
 
@@ -129,8 +127,6 @@ class CSHessianADFJob(MultiJob):
         self.batch = self.new_batch()
         ret = {}
         for i in self.batch:
-            for step in [-1,1]:
-                ret[(i,step)] = self.create_forces_job(i, step)
+            for step in [-1, 1]:
+                ret[(i, step)] = self.create_forces_job(i, step)
         return ret
-
-

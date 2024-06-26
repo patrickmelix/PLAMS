@@ -61,7 +61,7 @@ If you decide to implement your own hashing method, it can be done by overriding
 
     It may happen that two jobs with the same input and runscript files correspond to different jobs (for example, if they rely on some external file that is supplied using relative path).
     Sometimes it's even a desired behavior to run multiple different copies of the same job (for example, multiple MD trajectories with the same starting point and random initial velocities).
-    If you are experiencing problems (PLAMS refuses to run a job, becasue it was already run in the past), you can disable the rerun prevention with ``config.default_jobmanager.settings.hashing = None``.
+    If you are experiencing problems (PLAMS refuses to run a job, because it was already run in the past), you can disable the rerun prevention with ``config.default_jobmanager.settings.hashing = None``.
 
 Hashing is disabled for |MultiJob| instances since they don't have inputs and runscripts.
 Of course single jobs that are children of multijobs are hashed in the normal way, so trying to run exactly the same multijob twice will not trigger rerun prevention on the multijob level, but rather for every children job separately, effectively preventing any doubled work.

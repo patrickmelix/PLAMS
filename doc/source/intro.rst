@@ -59,10 +59,6 @@ The most important features of PLAMS:
 Simple example
 ----------------------------
 
-.. important::
-
-    The recommended way of programmatically preparing input for AMS is through  `PISA <../pisa/index.html>`_.
-
 To provide some real life example: here is a simple PLAMS script which calculates a potential energy curve of a diatomic system
 
 .. literalinclude:: ../../examples/He2DissociationCurve.py
