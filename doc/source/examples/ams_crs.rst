@@ -20,4 +20,22 @@ using the property prediction tool, or the experimental numbers can be given
 
 .. literalinclude:: ../../../examples/ams_crs.py
 
+**Results**
 
+.. image:: /_static/ams_crs_benzene_sigmaprofile.png
+
+.. parsed-literal::
+
+   273.15 1.6797
+   274.15 1.7258
+   275.15 1.7731
+   276.15 1.8215
+   277.15 1.8711
+   278.15 1.9220
+   279.15 1.9603
+   280.15 1.9823
+   281.15 2.0046
+   282.15 2.0273
+   283.15 2.0503
+
+.. image:: /_static/ams_crs_benzene_solubility.png

@@ -1,10 +1,6 @@
 Settings
 -------------
 
-.. important::
-
-    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
-
 .. currentmodule:: scm.plams.core.settings
 
 The |Settings| class provides a general purpose data container for various kinds of information that need to be stored and processed by PLAMS environment.

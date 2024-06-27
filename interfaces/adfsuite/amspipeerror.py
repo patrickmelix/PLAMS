@@ -1,12 +1,23 @@
 from scm.plams.core.errors import PlamsError
 
-__all__ = ["AMSPipeError", "AMSPipeDecodeError", "AMSPipeLogicError", "AMSPipeRuntimeError", "AMSPipeUnknownVersionError", "AMSPipeUnknownMethodError", "AMSPipeUnknownArgumentError", "AMSPipeInvalidArgumentError"]
+__all__ = [
+    "AMSPipeError",
+    "AMSPipeDecodeError",
+    "AMSPipeLogicError",
+    "AMSPipeRuntimeError",
+    "AMSPipeUnknownVersionError",
+    "AMSPipeUnknownMethodError",
+    "AMSPipeUnknownArgumentError",
+    "AMSPipeInvalidArgumentError",
+]
+
 
 class AMSPipeError(PlamsError):
     """Base class for exceptions mapped to errors defined by the pipe protocol.
 
     Not to be used directly.
     """
+
     def __init__(self, message, argument=None):
         self.status = _class2code[self.__class__]
         self.message = message
@@ -35,24 +46,29 @@ class AMSPipeError(PlamsError):
         return msg
 
 
-
 class AMSPipeDecodeError(AMSPipeError):
     pass
+
 
 class AMSPipeLogicError(AMSPipeError):
     pass
 
+
 class AMSPipeRuntimeError(AMSPipeError):
     pass
+
 
 class AMSPipeUnknownVersionError(AMSPipeError):
     pass
 
+
 class AMSPipeUnknownMethodError(AMSPipeError):
     pass
 
+
 class AMSPipeUnknownArgumentError(AMSPipeError):
     pass
+
 
 class AMSPipeInvalidArgumentError(AMSPipeError):
     pass
@@ -65,6 +81,6 @@ _code2class = {
     4: AMSPipeUnknownVersionError,
     5: AMSPipeUnknownMethodError,
     6: AMSPipeUnknownArgumentError,
-    7: AMSPipeInvalidArgumentError
+    7: AMSPipeInvalidArgumentError,
 }
 _class2code = {c: i for i, c in _code2class.items()}

@@ -32,7 +32,7 @@ The value of a particular key adjusts the way in which keywords are printed in t
 *   ``myjob.settings.input.keyword = (val1, val2, ...)`` will print ``keyword=(val1,val2,...)`` (when value is a **tuple**)
 *   ``myjob.settings.input.keyword = [val1, val2, ...]`` will print ``keyword(val1,val2,...)`` (when value is a **list**)
 
-Moreover, if the keyword ``AUX`` is not supplied by the user, it is automatically inserted in the form ``AUX(0,PRECISSION=9)`` (for compatibility with AMSSuite GUI).
+Moreover, if the keyword ``AUX`` is not supplied by the user, it is automatically inserted in the form ``AUX(0,PRECISION=9)`` (for compatibility with AMSSuite GUI).
 
 The standalone MOPAC program allows to freeze each coordinate of each atom separately.
 This information is extracted from ``mopac_freeze`` key in each atom's properties.

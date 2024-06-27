@@ -1,3 +1,4 @@
+#!/usr/bin/env plams
 import copy
 import multiprocessing
 
@@ -41,24 +42,14 @@ for bas in basis:
     if bas != reference_basis:
         errors = []
         for name, molecule in molecules.items():
-            reference_energy = results[(name, reference_basis)].get_energy(
-                unit="kcal/mol"
-            )
+            reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
             energy = results[(name, bas)].get_energy(unit="kcal/mol")
             errors.append(abs(energy - reference_energy) / len(molecule))
-            print(
-                "Energy for {} using {} basis set: {} [kcal/mol]".format(
-                    name, bas, energy
-                )
-            )
+            print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
         average_errors[bas] = sum(errors) / len(errors)
 
 print("== Results ==")
 print("Average absolute error in bond energy per atom")
 for bas in basis:
     if bas != reference_basis:
-        print(
-            "Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(
-                bas, average_errors[bas]
-            )
-        )
+        print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, average_errors[bas]))

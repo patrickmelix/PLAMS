@@ -12,7 +12,6 @@ from typing import Callable, Dict, NoReturn
 __all__ = []
 
 
-
 def smart_copy(obj, owncopy=[], without=[]):
     """Return a copy of *obj*. Attributes of *obj* listed in *without* are ignored. Attributes listed in *owncopy* are copied by calling their own ``copy()`` methods. All other attributes are copied using :func:`copy.deepcopy`."""
 
@@ -25,7 +24,7 @@ def smart_copy(obj, owncopy=[], without=[]):
     return ret
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def sha256(string):
@@ -37,26 +36,27 @@ def sha256(string):
     return h.hexdigest()
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def saferun(*args, **kwargs):
     """A wrapper around :func:`subprocess.run` repeating the call ``config.saferun.repeat`` times with ``config.saferun.delay`` interval in case of :exc:`BlockingIOError` being raised (any other exception is not caught and directly passed above). All arguments (*args* and *kwargs*) are passed directly to :func:`~subprocess.run`. If all attempts fail, the last raised :exc:`BlockingIOError` is reraised."""
     from scm.plams.core.functions import config, log
+
     attempt = 0
-    (repeat, delay) = (config.saferun.repeat, config.saferun.delay) if ('saferun' in config) else (5,1)
+    (repeat, delay) = (config.saferun.repeat, config.saferun.delay) if ("saferun" in config) else (5, 1)
     while attempt <= repeat:
         try:
             return subprocess.run(*args, **kwargs)
         except OSError as e:
             attempt += 1
-            log('subprocess.run({}) attempt {} failed with {}'.format(args[0], attempt, e), 5)
+            log("subprocess.run({}) attempt {} failed with {}".format(args[0], attempt, e), 5)
             last_error = e
             time.sleep(delay)
     raise last_error
 
 
-#===========================================================================
+# ===========================================================================
 
 
 class UpdateSysPath(AbstractContextManager):
@@ -84,9 +84,11 @@ class UpdateSysPath(AbstractContextManager):
 
     def __init__(self, path: str = None) -> None:
         try:
-            parser_path = path if path is not None else opj(os.environ['AMSHOME'], 'scripting')
+            parser_path = path if path is not None else opj(os.environ["AMSHOME"], "scripting")
         except KeyError as ex:
-            raise EnvironmentError("The 'AMSHOME' environment variable has not been set").with_traceback(ex.__traceback__)
+            raise EnvironmentError("The 'AMSHOME' environment variable has not been set").with_traceback(
+                ex.__traceback__
+            )
 
         if parser_path not in sys.path:
             sys.path.append(parser_path)
@@ -109,7 +111,9 @@ class UpdateSysPath(AbstractContextManager):
             else:
                 del sys.path[idx]
 
-#===========================================================================
+
+# ===========================================================================
+
 
 def _raise(exc: Exception) -> NoReturn:
     """Raise *exc*; this tiny function is here because ``lambda`` expressions can't handle the ``raise`` statement."""
@@ -118,9 +122,9 @@ def _raise(exc: Exception) -> NoReturn:
 
 #: Map a :class:`str` representation of an action to an actual callable.
 _ACTION_DICT: Dict[str, Callable[[Exception], None]] = {
-    'ignore': lambda n: None,
-    'raise': lambda n: _raise(n),
-    'warn': lambda n: warnings.warn(str(n), stacklevel=2)
+    "ignore": lambda n: None,
+    "raise": lambda n: _raise(n),
+    "warn": lambda n: warnings.warn(str(n), stacklevel=2),
 }
 
 
@@ -135,24 +139,30 @@ def parse_action(action: str) -> Callable[[Exception], None]:
     try:
         return _ACTION_DICT[action]
     except KeyError as ex:
-        raise ValueError("`action` expected 'ignore', 'raise' or 'warn'; "
-                         f"observed value: {action!r}") from ex
+        raise ValueError("`action` expected 'ignore', 'raise' or 'warn'; " f"observed value: {action!r}") from ex
 
 
-#===========================================================================
+# ===========================================================================
 
 
 def retry(sleep=0.1, maxtries=10):
     # wrapper for sleep-retrying a function call. use with `@retry()`
     from time import sleep as _sleep
+
     def wrap1(f):
         def wrap2(*a, __count=0, **kw):
             try:
                 return f(*a, **kw)
             except Exception as e:
                 if __count > maxtries:
-                    raise e from None # ignores stack trace
+                    raise e from None  # ignores stack trace
                 _sleep(sleep)
-                wrap2(*a, __count=__count+1, **kw, )
+                wrap2(
+                    *a,
+                    __count=__count + 1,
+                    **kw,
+                )
+
         return wrap2
+
     return wrap1

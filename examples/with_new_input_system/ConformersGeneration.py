@@ -1,3 +1,4 @@
+#!/usr/bin/env plams
 from scm.conformers import ConformersJob, ConformersResults
 from scm.input_classes import DFTB, Conformers
 
@@ -5,9 +6,7 @@ from scm.input_classes import DFTB, Conformers
 
 
 def print_results(results: ConformersResults):
-    for i, (energy, mol) in enumerate(
-        zip(results.get_energies("kcal/mol"), results.get_conformers())
-    ):
+    for i, (energy, mol) in enumerate(zip(results.get_energies("kcal/mol"), results.get_conformers())):
         print(f"Energy conformer {i} = {energy} [kcal/mol]")
         print(mol)
 

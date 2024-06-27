@@ -52,7 +52,7 @@ This way you can use::
     settings.input.options.test = ''
     settings.input.options._h = 'FIRST'
 
-without the 'options' beeing printed, but the section will still be closed with an 'END'.
+without the 'options' being printed, but the section will still be closed with an 'END'.
 
 
 .. crystal-runscript:

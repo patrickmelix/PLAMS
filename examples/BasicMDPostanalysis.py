@@ -7,20 +7,21 @@ from scm.plams import *
 
 
 def run_md():
-    mol = packmol_liquid(from_smiles('O'), n_molecules=16, density=1.0)
+    mol = packmol(from_smiles("O"), n_molecules=16, density=1.0)
     s = Settings()
-    s.input.ams.Task = 'MolecularDynamics'
-    s.input.ReaxFF.ForceField = 'Water2017.ff'
-    s.input.ams.MolecularDynamics.CalcPressure = 'Yes'
+    s.input.ams.Task = "MolecularDynamics"
+    s.input.ReaxFF.ForceField = "Water2017.ff"
+    s.input.ams.MolecularDynamics.CalcPressure = "Yes"
     s.input.ams.MolecularDynamics.InitialVelocities.Temperature = 300
     s.input.ams.MolecularDynamics.Trajectory.SamplingFreq = 1
     s.input.ams.MolecularDynamics.TimeStep = 0.5
     s.input.ams.MolecularDynamics.NSteps = 2000
     s.runscript.nproc = 1
-    os.environ['OMP_NUM_THREADS'] = '1'
-    job = AMSJob(settings=s, molecule=mol, name='md')
+    os.environ["OMP_NUM_THREADS"] = "1"
+    job = AMSJob(settings=s, molecule=mol, name="md")
     job.run()
     return job
+
 
 def plot_results(results):
     plt.clf()
@@ -55,7 +56,7 @@ def plot_results(results):
     np.savetxt("plams_power_spectrum.txt", A, header="Frequency(cm^-1) PowerSpectrum")
 
     plt.clf()
-    t, viscosity = results.get_green_kubo_viscosity(start_fs=0, max_dt_fs=250) # do not do this for NPT simulations
+    t, viscosity = results.get_green_kubo_viscosity(start_fs=0, max_dt_fs=250)  # do not do this for NPT simulations
     plt.plot(t, viscosity)
     plt.xlabel("Time (fs)")
     plt.ylabel("Viscosity (mPa*s)")
@@ -65,7 +66,7 @@ def plot_results(results):
     np.savetxt("plams_green_kubo_viscosity.txt", A, header="Time(fs) Viscosity(mPa*s)")
 
     plt.clf()
-    z, density = results.get_density_along_axis(axis='z', density_type='mass', bin_width=0.2, atom_indices=None)
+    z, density = results.get_density_along_axis(axis="z", density_type="mass", bin_width=0.2, atom_indices=None)
     plt.plot(z, density)
     plt.xlabel("z coordinate (Å)")
     plt.ylabel("Density (g/cm³)")
@@ -74,12 +75,13 @@ def plot_results(results):
     A = np.stack((z, density), axis=1)
     np.savetxt("plams_density_along_z.txt", A, header="z(angstrom) density(g/cm^3)")
 
+
 def main():
     job = run_md()
     # alternatively:
     # job = AMSJob.load_external('/path/to/ams.rkf')
     plot_results(job.results)
 
-if __name__ == '__main__':
-    main()
 
+if __name__ == "__main__":
+    main()
