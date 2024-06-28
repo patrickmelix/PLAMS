@@ -3,11 +3,14 @@ Initial imports
 
 .. code:: ipython3
 
-    from scm.plams import *
-    from scm.conformers import ConformersJob, ConformersResults
+    import os
+    
     import matplotlib.pyplot as plt
     import numpy as np
-    import os
+    
+    from scm.conformers import ConformersJob
+    from scm.plams import *
+    
     init()
 
 Initial structure
@@ -15,7 +18,7 @@ Initial structure
 
 .. code:: ipython3
 
-    molecule = from_smiles('OC(CC1c2ccccc2Sc2ccccc21)CN1CCCC1')
+    molecule = from_smiles("OC(CC1c2ccccc2Sc2ccccc21)CN1CCCC1")
     plot_molecule(molecule)
 
 
@@ -39,10 +42,10 @@ Conformer generation settings
 .. code:: ipython3
 
     s = Settings()
-    s.input.ams.Task = 'Generate'                 # default
-    s.input.ams.Generator.Method = 'RDKit'        # default
-    s.input.ams.Generator.RDKit.InitialNConformers = 16    # optional, non-default
-    s.input.ForceField.Type = 'UFF'               # default
+    s.input.ams.Task = "Generate"  # default
+    s.input.ams.Generator.Method = "RDKit"  # default
+    s.input.ams.Generator.RDKit.InitialNConformers = 16  # optional, non-default
+    s.input.ForceField.Type = "UFF"  # default
 
 Conformer generation input file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -75,8 +78,8 @@ Run conformer generation
 
 .. code:: ipython3
 
-    generate_job = ConformersJob(name='generate', molecule=molecule, settings=s)
-    generate_job.run();
+    generate_job = ConformersJob(name="generate", molecule=molecule, settings=s)
+    generate_job.run()
 
 
 .. parsed-literal::
@@ -95,39 +98,34 @@ Some helper functions
 
 .. code:: ipython3
 
-    def get_main_results(job:ConformersJob, temperature=298, unit='kcal/mol', return_molecules:bool=True):
-        molecules = None
-        if return_molecules:
-            molecules = job.results.get_conformers()
+    def print_results(job: ConformersJob, temperature=298, unit="kcal/mol"):
         energies = job.results.get_relative_energies(unit)
         populations = job.results.get_boltzmann_distribution(temperature)
-        
-        return molecules, energies, populations
     
-    def print_results(job:ConformersJob, temperature=298, unit='kcal/mol'):
-        _, energies, populations = get_main_results(job, temperature, unit, return_molecules=False)
-        
         print(f"Total # conformers in set: {len(energies)}")
         dE_header = f"ΔE [{unit}]"
         pop_header = f"Pop. (T = {temperature} K)"
         print(f'{"#":>4s} {dE_header:>14s} {pop_header:>18s}')
-        
-        for i, (E, pop) in enumerate(zip(energies, populations)):
-            print(f'{i+1:4d} {E:14.2f} {pop:18.3f}')
     
-    def plot_conformers(job:ConformersJob, indices=None, temperature=298, unit='kcal/mol', lowest=True):
-        molecules, energies, populations = get_main_results(job)
-        
+        for i, (E, pop) in enumerate(zip(energies, populations)):
+            print(f"{i+1:4d} {E:14.2f} {pop:18.3f}")
+    
+    
+    def plot_conformers(job: ConformersJob, indices=None, temperature=298, unit="kcal/mol", lowest=True):
+        molecules = job.results.get_conformers()
+        energies = job.results.get_relative_energies(unit)
+        populations = job.results.get_boltzmann_distribution(temperature)
+    
         if isinstance(indices, int):
             N_plot = min(indices, len(energies))
             if lowest:
                 indices = list(range(N_plot))
             else:
-                indices = np.linspace(0, len(energies)-1, N_plot, dtype=np.int32)
+                indices = np.linspace(0, len(energies) - 1, N_plot, dtype=np.int32)
         if indices is None:
             indices = list(range(min(3, len(energies))))
-        
-        fig, axes = plt.subplots(1, len(indices), figsize=(12,3))
+    
+        fig, axes = plt.subplots(1, len(indices), figsize=(12, 3))
         if len(indices) == 1:
             axes = [axes]
     
@@ -137,7 +135,7 @@ Some helper functions
             population = populations[i]
     
             plot_molecule(mol, ax=ax)
-            ax.set_title(f"#{i+1}\nΔE = {E:.2f} kcal/mol\nPop.: {population:.3f} (T = {temperature} K)")    
+            ax.set_title(f"#{i+1}\nΔE = {E:.2f} kcal/mol\nPop.: {population:.3f} (T = {temperature} K)")
 
 Actual results
 ~~~~~~~~~~~~~~
@@ -152,15 +150,15 @@ specified temperature. The populations are calculated from the
 
 .. code:: ipython3
 
-    unit = 'kcal/mol'
+    unit = "kcal/mol"
     temperature = 298
 
 .. code:: ipython3
 
     print_results(generate_job, temperature=temperature, unit=unit)
     plot_conformers(generate_job, 4, temperature=temperature, unit=unit, lowest=True)  # plot 4 lowest conformers
-    #plot_conformers(generate_job, 4, temperature=temperature, unit=unit, lowest=False)  # plot 4 conformers from lowest to highest
-    #plot_conformers(generate_job, [0, 2], temperature=temperature, unit=unit) # plot first and third conformers
+    # plot_conformers(generate_job, 4, temperature=temperature, unit=unit, lowest=False)  # plot 4 conformers from lowest to highest
+    # plot_conformers(generate_job, [0, 2], temperature=temperature, unit=unit) # plot first and third conformers
 
 
 .. parsed-literal::
@@ -204,18 +202,18 @@ GFNFF, which gives more accurate geometries.
 .. code:: ipython3
 
     s = Settings()
-    s.input.ams.Task = 'Optimize'
+    s.input.ams.Task = "Optimize"
     s.input.ams.InputConformersSet = os.path.abspath(generate_job.results.rkfpath())  # must be absolute path
-    s.input.ams.InputMaxEnergy = 8.0   # only conformers within 8 kcal/mol at the PREVIOUS level of theory
+    s.input.ams.InputMaxEnergy = 8.0  # only conformers within 8 kcal/mol at the PREVIOUS level of theory
     s.input.GFNFF  # or choose a different engine if you don't have a GFNFF license
     
-    reoptimize_job = ConformersJob(settings=s, name='reoptimize')
+    reoptimize_job = ConformersJob(settings=s, name="reoptimize")
     print(reoptimize_job.get_input())
 
 
 .. parsed-literal::
 
-    InputConformersSet /home/user/temp/conformers/plams/plams_workdir/generate/conformers.rkf
+    InputConformersSet /path/plams_workdir/generate/conformers.rkf
     
     InputMaxEnergy 8.0
     
@@ -229,7 +227,7 @@ GFNFF, which gives more accurate geometries.
 
 .. code:: ipython3
 
-    reoptimize_job.run();
+    reoptimize_job.run()
 
 
 .. parsed-literal::
@@ -280,15 +278,15 @@ choose DFTB, although normally you may choose some DFT method.
 .. code:: ipython3
 
     s = Settings()
-    s.input.ams.Task = 'Score'
-    s.input.ams.InputConformersSet = os.path.abspath(reoptimize_job.results.rkfpath())   # must be absolute path
-    s.input.ams.InputMaxEnergy = 4.0   # only conformers within 4 kcal/mol at the PREVIOUS level of theory
-    s.input.DFTB.Model = 'GFN1-xTB'   # or choose a different engine if you don't have a DFTB license
-    #s.input.adf.XC.GGA = 'PBE'                       # to use ADF PBE
-    #s.input.adf.XC.DISPERSION = 'GRIMME3 BJDAMP'     # to use ADF PBE with Grimme D3(BJ) dispersion
+    s.input.ams.Task = "Score"
+    s.input.ams.InputConformersSet = os.path.abspath(reoptimize_job.results.rkfpath())  # must be absolute path
+    s.input.ams.InputMaxEnergy = 4.0  # only conformers within 4 kcal/mol at the PREVIOUS level of theory
+    s.input.DFTB.Model = "GFN1-xTB"  # or choose a different engine if you don't have a DFTB license
+    # s.input.adf.XC.GGA = 'PBE'                       # to use ADF PBE
+    # s.input.adf.XC.DISPERSION = 'GRIMME3 BJDAMP'     # to use ADF PBE with Grimme D3(BJ) dispersion
     
-    score_job = ConformersJob(settings=s, name='score')
-    score_job.run();
+    score_job = ConformersJob(settings=s, name="score")
+    score_job.run()
 
 
 .. parsed-literal::
@@ -345,11 +343,11 @@ kcal/mol of the minimum.
 .. code:: ipython3
 
     s = Settings()
-    s.input.ams.Task = 'Filter'
+    s.input.ams.Task = "Filter"
     s.input.ams.InputConformersSet = os.path.abspath(score_job.results.rkfpath())
     s.input.ams.InputMaxEnergy = 1.0
     
-    filter_job = ConformersJob(settings=s, name='filter')
+    filter_job = ConformersJob(settings=s, name="filter")
     filter_job.run()
     print_results(filter_job, temperature=temperature, unit=unit)
     plot_conformers(filter_job, 4, temperature=temperature, unit=unit, lowest=True)

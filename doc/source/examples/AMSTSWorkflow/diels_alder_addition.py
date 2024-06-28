@@ -10,14 +10,15 @@ import numpy as np
 from scm.plams import *
 
 # ## Function definitions
-# 
-# The ``addition()`` function 
-# 
+#
+# The ``addition()`` function
+#
 # * performs a preliminary MD simulation with UFF to arrange the two reactant molecules at an approximate transition state,
-# 
+#
 # * then does a transition state search with DFTB, specifying the known reaction coordinate (bond formation),
-# 
+#
 # * then uses the PESExploration LandscapeRefinement tool to get the two corresponding minima and energy landscape. Alternatively, one could also do an IRC (intrinsic reaction coordinate) calculation.
+
 
 def addition(
     mol1: Molecule,
@@ -27,13 +28,9 @@ def addition(
     mol1_ind = get_active_i(mol1)
     mol2_ind = get_active_i(mol2)
     if len(mol1_ind) != 2:
-        raise ValueError(
-            f"Set at.properties.active_bond for two atoms in mol1. Current mol1_ind: {mol1_ind}"
-        )
+        raise ValueError(f"Set at.properties.active_bond for two atoms in mol1. Current mol1_ind: {mol1_ind}")
     if len(mol2_ind) != 2:
-        raise ValueError(
-            f"Set at.properties.active_bond for two atoms in mol2. Current mol2_ind: {mol2_ind}"
-        )
+        raise ValueError(f"Set at.properties.active_bond for two atoms in mol2. Current mol2_ind: {mol2_ind}")
 
     target_distances = []
 
@@ -61,13 +58,11 @@ def addition(
     mol = ts_search_results.get_main_molecule()
 
     relax_from_saddle_results = relax_from_saddle(mol)
-    
+
     return preliminary_md_results, ts_search_results, relax_from_saddle_results
 
 
-def ts_search(
-    molecule, atom_indices_1: List[int], atom_indices_2: List[int], settings:Settings=None
-) -> AMSResults:
+def ts_search(molecule, atom_indices_1: List[int], atom_indices_2: List[int], settings: Settings = None) -> AMSResults:
     if settings is None:
         settings = Settings()
         settings.input.DFTB
@@ -88,7 +83,7 @@ def ts_search(
     return job.results
 
 
-def relax_from_saddle(molecule:Molecule, settings:Settings=None) -> AMSResults:
+def relax_from_saddle(molecule: Molecule, settings: Settings = None) -> AMSResults:
     if settings is None:
         settings = Settings()
         settings.input.DFTB
@@ -105,11 +100,11 @@ def relax_from_saddle(molecule:Molecule, settings:Settings=None) -> AMSResults:
 
     job = AMSJob(settings=s, name="refinement", molecule=m)
     job.run()
-    
+
     return job.results
 
 
-def irc(molecule:Molecule, settings:Settings=None):
+def irc(molecule: Molecule, settings: Settings = None):
     if settings is None:
         settings = Settings()
         settings.input.DFTB
@@ -170,7 +165,7 @@ def preliminary_md(
     settings.input.ams.MolecularDynamics.Plumed.Input = plumed_input
 
     job = AMSNVTJob(
-        name='preliminary_md',
+        name="preliminary_md",
         settings=settings,
         molecule=molecule,
         nsteps=nsteps,
@@ -192,7 +187,7 @@ def set_active(mol: Molecule, indices: List[int]):
 def get_active_i(mol: Molecule) -> List[int]:
     d = {}
     for i, at in enumerate(mol, 1):
-        if 'active_bond' in at.properties and at.properties.active_bond:
+        if "active_bond" in at.properties and at.properties.active_bond:
             d[i] = at.properties.active_bond
 
     return sorted(d, key=lambda x: d[x])
@@ -208,12 +203,14 @@ init()
 
 
 diene_smiles = "C1C=CC=C1"
-diene = from_smiles(diene_smiles)  # carbon 2, 4 will form bonds. Do diene.write('diene.xyz') and open diene.xyz in the AMS GUI to find out which atom indices are correct.
+diene = from_smiles(
+    diene_smiles
+)  # carbon 2, 4 will form bonds. Do diene.write('diene.xyz') and open diene.xyz in the AMS GUI to find out which atom indices are correct.
 set_active(diene, [2, 4])
 
 
 plot_molecule(diene)
-plt.title('Diene (cyclopentadiene)');
+plt.title("Diene (cyclopentadiene)")
 
 
 dienophile = from_smiles("N#CC=C")  # carbon 1, 2 will form bonds
@@ -221,7 +218,7 @@ set_active(dienophile, [1, 2])
 
 
 plot_molecule(dienophile)
-plt.title('Dienophile (acrylonitrile)');
+plt.title("Dienophile (acrylonitrile)")
 
 
 preliminary_md_results, ts_search_results, relax_from_saddle_results = addition(diene, dienophile)
@@ -231,14 +228,14 @@ preliminary_md_results, ts_search_results, relax_from_saddle_results = addition(
 
 final_md_system = preliminary_md_results.get_main_molecule()
 plot_molecule(final_md_system)
-plt.title('Final system from preliminary biased MD');
+plt.title("Final system from preliminary biased MD")
 
 
 # ## TS search results (DFTB)
 
 final_ts_system = ts_search_results.get_main_molecule()
 plot_molecule(final_ts_system)
-plt.title("DFTB-optimized transition state");
+plt.title("DFTB-optimized transition state")
 
 
 # ## Energy landscape refinement results (DFTB)
@@ -249,24 +246,24 @@ print(landscape)
 
 # Above we see that the forward and backward barriers are 2.27 and 0.39 eV, respectively.
 
-Ha2eV = Units.convert(1.0, 'hartree', 'eV')
+Ha2eV = Units.convert(1.0, "hartree", "eV")
 energies = landscape[1].energy, landscape[3].energy, landscape[2].energy
 energies = (np.array(energies) - landscape[1].energy) * Ha2eV
 plt.plot(energies)
-plt.ylabel('Relative energy (eV)')
-plt.xticks([0, 1, 2], ['State 1 (min)', 'State 3 (TS)', 'State 2 (min)']);
+plt.ylabel("Relative energy (eV)")
+plt.xticks([0, 1, 2], ["State 1 (min)", "State 3 (TS)", "State 2 (min)"])
 
 
 plot_molecule(landscape[1].molecule)
-plt.title('State 1 (minimum)');
+plt.title("State 1 (minimum)")
 
 
 plot_molecule(landscape[2].molecule)
-plt.title('State 2 (minimum)');
+plt.title("State 2 (minimum)")
 
 
 plot_molecule(landscape[3].molecule)
-plt.title('State 3 (Transition state)');
+plt.title("State 3 (Transition state)")
 
 
 # ## Finish plams

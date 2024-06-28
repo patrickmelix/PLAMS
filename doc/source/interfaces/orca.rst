@@ -37,7 +37,7 @@ The input generated during the execution of the ORCA job is similar to: ::
             * xyzfile +2 1 input.xyz
 
 Additional input files (molecules, restart files, ...) can be automatically copied to the jobs rundir by passing them to the
-|ORCAJob| initilization under ``copy`` (string or list). To reduce disk usage, symlinks can be used if the filesystem permits.
+|ORCAJob| initialization under ``copy`` (string or list). To reduce disk usage, symlinks can be used if the filesystem permits.
 
 .. _orcalibrary: https://sites.google.com/site/orcainputlibrary
 .. _manual: https://orcaforum.kofo.mpg.de/app.php/portal

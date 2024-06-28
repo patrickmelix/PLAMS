@@ -4,6 +4,7 @@ Initial imports
 .. code:: ipython3
 
     from scm.plams import *
+    from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
     from ase import Atoms
     from ase.visualize.plot import plot_atoms
     

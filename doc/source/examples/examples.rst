@@ -3,10 +3,6 @@
 Examples
 ========
 
-.. important::
-
-    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
-
 In this chapter we present example PLAMS scripts covering various applications, from very simple tasks (like running the same calculation for multiple molecules) to more advanced dynamic workflows.
 
 The example scripts use computational engines from the Amsterdam Modeling Suite, and you will need a license to run them. Contact license@scm.com for further questions.
@@ -42,7 +38,8 @@ MD trajectory analysis
 .. toctree::
 
   IonicConductivityFromMD.rst
-  IRSpectrumFromMD
+  IRSpectrumFromMD/IRSpectrumFromMD.rst
+  IRSpectrumFromMDH2ODimer.rst
 
 Benchmarks
 -----------------
@@ -64,12 +61,13 @@ Workflows
    ChargeTransferIntegralsADF
    gammascan
    ConformersGeneration/ConformersGeneration
+   ConformersMultipleMolecules/ConformersMultipleMolecules
    ReactionsDiscovery/ReactionsDiscovery
 
 COSMO-RS and property prediction
 -----------------------------------
 
-For more examples, see the `COSMO-RS documentation <../../COSMO-RS/Advanced_scripting.html>`__.
+For more examples, see the `COSMO-RS documentation <../../COSMO-RS/Python_Examples.html>`__.
 
 .. toctree::
 
@@ -88,10 +86,14 @@ Packmol and AMS-ASE interfaces
    i-PI-AMS
    SellaTransitionStateSearch
 
-ParAMS and pyZacros
------------------------
+ParAMS, Simple Active Learning, and pyZacros
+---------------------------------------------------
 
-See the `ParAMS <../../params/index.html>`__ and `pyZacros <../../pyzacros/index.html>`__ documentations.
+See the respective documentation pages:
+
+* `ParAMS <../../params/index.html>`__ 
+* `Simple Active Learning <../../Workflows/SimpleActiveLearning/SimpleActiveLearning.html>`__
+* `pyZacros <../../pyzacros/index.html>`__ 
 
 Other AMS calculations
 ------------------------
@@ -133,7 +135,6 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     adfnbo
     numgrad
     numhess
-    global_minimum
     pyAHFCDOS
     fcf_dos
     ReuseForceFieldParams

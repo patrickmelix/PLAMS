@@ -1,11 +1,28 @@
 from importlib.util import find_spec
+from typing import List, Literal, Optional, overload
 
-if find_spec('rdkit'):
-    __all__ = ['add_Hs', 'apply_reaction_smarts', 'apply_template',
-               'gen_coords_rdmol', 'get_backbone_atoms', 'modify_atom',
-               'to_rdmol', 'from_rdmol', 'from_sequence', 'from_smiles', 'from_smarts', 'to_smiles',
-               'partition_protein', 'readpdb', 'writepdb', 'get_substructure', 'get_conformations',
-               'yield_coords', 'canonicalize_mol']
+if find_spec("rdkit"):
+    __all__ = [
+        "add_Hs",
+        "apply_reaction_smarts",
+        "apply_template",
+        "gen_coords_rdmol",
+        "get_backbone_atoms",
+        "modify_atom",
+        "to_rdmol",
+        "from_rdmol",
+        "from_sequence",
+        "from_smiles",
+        "from_smarts",
+        "to_smiles",
+        "partition_protein",
+        "readpdb",
+        "writepdb",
+        "get_substructure",
+        "get_conformations",
+        "yield_coords",
+        "canonicalize_mol",
+    ]
 else:
     __all__ = []
 
@@ -40,6 +57,7 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     :rtype: |Molecule|
     """
     from rdkit import Chem
+
     if isinstance(rdkit_mol, Molecule):
         return rdkit_mol
     # Create PLAMS molecule
@@ -55,8 +73,7 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     for rd_atom in rdkit_mol.GetAtoms():
         pos = conf.GetAtomPosition(rd_atom.GetIdx())
         ch = rd_atom.GetFormalCharge()
-        pl_atom = Atom(
-            rd_atom.GetAtomicNum(), coords=(pos.x, pos.y, pos.z), rdkit={'charge':ch})
+        pl_atom = Atom(rd_atom.GetAtomicNum(), coords=(pos.x, pos.y, pos.z), rdkit={"charge": ch})
         if properties and rd_atom.GetPDBResidueInfo():
             pl_atom.properties.rdkit.pdb_info = get_PDBResidueInfo(rd_atom)
         plams_mol.add_atom(pl_atom)
@@ -64,10 +81,10 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
 
         # Check for R/S information
         stereo = str(rd_atom.GetChiralTag())
-        if stereo == 'CHI_TETRAHEDRAL_CCW':
-            pl_atom.properties.rdkit.stereo = 'counter-clockwise'
-        elif stereo == 'CHI_TETRAHEDRAL_CW':
-            pl_atom.properties.rdkit.stereo = 'clockwise'
+        if stereo == "CHI_TETRAHEDRAL_CCW":
+            pl_atom.properties.rdkit.stereo = "counter-clockwise"
+        elif stereo == "CHI_TETRAHEDRAL_CW":
+            pl_atom.properties.rdkit.stereo = "clockwise"
 
     # Add bonds to the PLAMS molecule
     for bond in rdkit_mol.GetBonds():
@@ -77,14 +94,14 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
 
         # Check for cis/trans information
         stereo, bond_dir = str(bond.GetStereo()), str(bond.GetBondDir())
-        if stereo == 'STEREOZ' or stereo == 'STEREOCIS':
-            plams_mol.bonds[-1].properties.rdkit.stereo = 'Z'
-        elif stereo == 'STEREOE' or stereo == 'STEREOTRANS':
-            plams_mol.bonds[-1].properties.rdkit.stereo = 'E'
-        elif bond_dir == 'ENDUPRIGHT':
-            plams_mol.bonds[-1].properties.rdkit.stereo = 'up'
-        elif bond_dir == 'ENDDOWNRIGHT':
-            plams_mol.bonds[-1].properties.rdkit.stereo = 'down'
+        if stereo == "STEREOZ" or stereo == "STEREOCIS":
+            plams_mol.bonds[-1].properties.rdkit.stereo = "Z"
+        elif stereo == "STEREOE" or stereo == "STEREOTRANS":
+            plams_mol.bonds[-1].properties.rdkit.stereo = "E"
+        elif bond_dir == "ENDUPRIGHT":
+            plams_mol.bonds[-1].properties.rdkit.stereo = "up"
+        elif bond_dir == "ENDDOWNRIGHT":
+            plams_mol.bonds[-1].properties.rdkit.stereo = "down"
 
     # Set charge and assign properties to PLAMS molecule and bonds if *properties* = True
     plams_mol.properties.charge = total_charge
@@ -112,6 +129,7 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
     :rtype: rdkit.Chem.Mol
     """
     from rdkit import Chem, Geometry
+
     if isinstance(plams_mol, Chem.Mol):
         return plams_mol
     # Create rdkit molecule
@@ -120,36 +138,36 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
     # Add atoms and assign properties to the RDKit atom if *properties* = True
     for pl_atom in plams_mol.atoms:
         rd_atom = Chem.Atom(int(pl_atom.atnum))
-        if 'rdkit' in pl_atom.properties:
-            if 'charge' in pl_atom.properties.rdkit:
+        if "rdkit" in pl_atom.properties:
+            if "charge" in pl_atom.properties.rdkit:
                 rd_atom.SetFormalCharge(pl_atom.properties.rdkit.charge)
         if properties:
-            if 'rdkit' in pl_atom.properties :
-                if 'pdb_info' in pl_atom.properties.rdkit:
+            if "rdkit" in pl_atom.properties:
+                if "pdb_info" in pl_atom.properties.rdkit:
                     set_PDBresidueInfo(rd_atom, pl_atom.properties.rdkit.pdb_info)
                 for prop in pl_atom.properties.rdkit:
-                    if prop not in ('charge', 'pdb_info', 'stereo'):
+                    if prop not in ("charge", "pdb_info", "stereo"):
                         prop_to_rdmol(rd_atom, prop, pl_atom.properties.rdkit.get(prop))
             prop_dic = {}
-            for prop in pl_atom.properties :
-                if prop != 'rdkit' :
+            for prop in pl_atom.properties:
+                if prop != "rdkit":
                     prop_dic[prop] = pl_atom.properties.get(prop)
-            if len(prop_dic) > 0 :
-                prop_to_rdmol(rd_atom, 'plams', prop_dic)
+            if len(prop_dic) > 0:
+                prop_to_rdmol(rd_atom, "plams", prop_dic)
 
         # Check for R/S information
         if pl_atom.properties.rdkit.stereo:
             stereo = pl_atom.properties.rdkit.stereo.lower()
-            if stereo == 'counter-clockwise':
+            if stereo == "counter-clockwise":
                 rd_atom.SetChiralTag(Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CCW)
-            elif stereo == 'clockwise':
+            elif stereo == "clockwise":
                 rd_atom.SetChiralTag(Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW)
         e.AddAtom(rd_atom)
 
     # Mapping of PLAMS bond orders to RDKit bond types:
     def plams_to_rd_bonds(bo):
         if 1.4 < bo < 1.6:
-            return 12 # bond type for aromatic bond
+            return 12  # bond type for aromatic bond
         else:
             return int(bo)
 
@@ -164,49 +182,51 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
     for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
         if pl_bond.properties.rdkit.stereo:
             stereo = pl_bond.properties.rdkit.stereo.lower()
-            if stereo == 'e' or stereo == 'trans':
+            if stereo == "e" or stereo == "trans":
                 rd_bond.SetStereo(Chem.rdchem.BondStereo.STEREOE)
-            elif stereo == 'z' or stereo == 'cis':
+            elif stereo == "z" or stereo == "cis":
                 rd_bond.SetStereo(Chem.rdchem.BondStereo.STEREOZ)
-            elif stereo == 'up':
+            elif stereo == "up":
                 rd_bond.SetBondDir(Chem.rdchem.BondDir.ENDUPRIGHT)
-            elif stereo == 'down':
+            elif stereo == "down":
                 rd_bond.SetBondDir(Chem.rdchem.BondDir.ENDDOWNRIGHT)
 
     # Assign properties to RDKit molecule and bonds if *properties* = True
     # All properties will be taken from 'rdkit' subsettings, except the molecular charge
     if properties:
         prop_dic = {}
-        for prop in plams_mol.properties :
-            if prop == 'rdkit' :
+        for prop in plams_mol.properties:
+            if prop == "rdkit":
                 for rdprop in plams_mol.properties.rdkit:
                     prop_to_rdmol(rdmol, rdprop, plams_mol.properties.rdkit.get(rdprop))
-            else :
-                #prop_dic[prop] = {'plams':plams_mol.properties.get(prop)}
+            else:
+                # prop_dic[prop] = {'plams':plams_mol.properties.get(prop)}
                 prop_dic[prop] = plams_mol.properties.get(prop)
-        if len(prop_dic) > 0 : prop_to_rdmol(rdmol, 'plams', prop_dic)
+        if len(prop_dic) > 0:
+            prop_to_rdmol(rdmol, "plams", prop_dic)
         prop_dic = {}
         for pl_bond, rd_bond in zip(plams_mol.bonds, rdmol.GetBonds()):
-            for prop in pl_bond.properties :
-                if prop == 'rdkit' :
+            for prop in pl_bond.properties:
+                if prop == "rdkit":
                     for rdprop in pl_bond.properties.rdkit:
-                        if rdprop != 'stereo' :
+                        if rdprop != "stereo":
                             prop_to_rdmol(rd_bond, rdprop, pl_bond.properties.rdkit.get(rdprop))
-                else :
+                else:
                     prop_dic[prop] = pl_bond.properties.get(prop)
-        if len(prop_dic) > 0 : prop_to_rdmol(rd_bond, 'plams', prop_dic)
+        if len(prop_dic) > 0:
+            prop_to_rdmol(rd_bond, "plams", prop_dic)
 
     if sanitize:
         try:
             Chem.SanitizeMol(rdmol)
         except ValueError as exc:
-            #rdkit_flag = Chem.SanitizeMol(rdmol,catchErrors=True)
-            #log ('RDKit Sanitization Error. Failed Operation Flag = %s'%(rdkit_flag))
-            log ('RDKit Sanitization Error.')
-            text = 'Most likely this is a problem with the assigned bond orders: '
-            text += 'Use chemical insight to adjust them.'
-            log (text)
-            log ('Note that the atom indices below start at zero, while the AMS-GUI indices start at 1.')
+            # rdkit_flag = Chem.SanitizeMol(rdmol,catchErrors=True)
+            # log ('RDKit Sanitization Error. Failed Operation Flag = %s'%(rdkit_flag))
+            log("RDKit Sanitization Error.")
+            text = "Most likely this is a problem with the assigned bond orders: "
+            text += "Use chemical insight to adjust them."
+            log(text)
+            log("Note that the atom indices below start at zero, while the AMS-GUI indices start at 1.")
             raise exc
     conf = Chem.Conformer()
     for i, atom in enumerate(plams_mol.atoms):
@@ -214,11 +234,11 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
         conf.SetAtomPosition(i, xyz)
     rdmol.AddConformer(conf)
     # REB: Assign all stereochemistry, if it wasn't already there
-    if assignChirality :
-        Chem.rdmolops.AssignAtomChiralTagsFromStructure(rdmol,confId=conf.GetId(),replaceExistingTags=False)
-        try :
-            Chem.AssignStereochemistryFrom3D(rdmol,confId=conf.GetId(),replaceExistingTags=False)
-        except AttributeError :
+    if assignChirality:
+        Chem.rdmolops.AssignAtomChiralTagsFromStructure(rdmol, confId=conf.GetId(), replaceExistingTags=False)
+        try:
+            Chem.AssignStereochemistryFrom3D(rdmol, confId=conf.GetId(), replaceExistingTags=False)
+        except AttributeError:
             pass
     return rdmol
 
@@ -236,6 +256,7 @@ def to_smiles(plams_mol, short_smiles=True, **kwargs):
     :return: the SMILES string
     """
     from rdkit import Chem
+
     if len(plams_mol.bonds) > 0:
         mol_with_bonds = plams_mol
     else:
@@ -248,7 +269,17 @@ def to_smiles(plams_mol, short_smiles=True, **kwargs):
     # Without this, the SMILES string for water would be "[H]O[H]". With this is just "O"
     if short_smiles:
         s = Chem.rdmolops.SanitizeFlags
-        rdkitSanitizeOptions = s.SANITIZE_ADJUSTHS or s.SANITIZE_CLEANUP or s.SANITIZE_CLEANUPCHIRALITY or s.SANITIZE_FINDRADICALS or s.SANITIZE_PROPERTIES or s.SANITIZE_SETAROMATICITY or s.SANITIZE_SETCONJUGATION or s.SANITIZE_SETHYBRIDIZATION or s.SANITIZE_SYMMRINGS
+        rdkitSanitizeOptions = (
+            s.SANITIZE_ADJUSTHS
+            or s.SANITIZE_CLEANUP
+            or s.SANITIZE_CLEANUPCHIRALITY
+            or s.SANITIZE_FINDRADICALS
+            or s.SANITIZE_PROPERTIES
+            or s.SANITIZE_SETAROMATICITY
+            or s.SANITIZE_SETCONJUGATION
+            or s.SANITIZE_SETHYBRIDIZATION
+            or s.SANITIZE_SYMMRINGS
+        )
         Chem.rdmolops.AssignRadicals(rd_mol)
         rd_mol = Chem.rdmolops.RemoveHs(rd_mol, updateExplicitCount=True, sanitize=False)
         Chem.rdmolops.SanitizeMol(rd_mol, rdkitSanitizeOptions)
@@ -257,25 +288,36 @@ def to_smiles(plams_mol, short_smiles=True, **kwargs):
 
 
 pdb_residue_info_items = [
-    'AltLoc', 'ChainId', 'InsertionCode', 'IsHeteroAtom', 'Name', 'Occupancy',
-    'ResidueName', 'ResidueNumber', 'SecondaryStructure', 'SegmentNumber',
-    'SerialNumber', 'TempFactor']
+    "AltLoc",
+    "ChainId",
+    "InsertionCode",
+    "IsHeteroAtom",
+    "Name",
+    "Occupancy",
+    "ResidueName",
+    "ResidueNumber",
+    "SecondaryStructure",
+    "SegmentNumber",
+    "SerialNumber",
+    "TempFactor",
+]
 # 'MonomerType' was excluded because it is an rdkit type that cannot easilty be serialized
 
 
 def get_PDBResidueInfo(rdkit_atom):
     pdb_info = {}
     for item in pdb_residue_info_items:
-        get_function = 'Get' + item
+        get_function = "Get" + item
         pdb_info[item] = rdkit_atom.GetPDBResidueInfo().__getattribute__(get_function)()
     return pdb_info
 
 
 def set_PDBresidueInfo(rdkit_atom, pdb_info):
     from rdkit import Chem
+
     atom_pdb_residue_info = Chem.AtomPDBResidueInfo()
     for item, value in pdb_info.items():
-        set_function = 'Set' + item
+        set_function = "Set" + item
         atom_pdb_residue_info.__getattribute__(set_function)(value)
     rdkit_atom.SetMonomerInfo(atom_pdb_residue_info)
 
@@ -296,14 +338,11 @@ def prop_to_rdmol(rd_obj, propkey, propvalue):
         import pickle
 
     obj = type(propvalue)
-    obj_dict = {bool: rd_obj.SetBoolProp,
-                float: rd_obj.SetDoubleProp,
-                int: rd_obj.SetIntProp,
-                str: rd_obj.SetProp}
+    obj_dict = {bool: rd_obj.SetBoolProp, float: rd_obj.SetDoubleProp, int: rd_obj.SetIntProp, str: rd_obj.SetProp}
     if obj_dict.get(obj):
         obj_dict[obj](propkey, propvalue)
     else:
-        name = propkey + '_pickled'
+        name = propkey + "_pickled"
         try:
             rd_obj.SetProp(name, pickle.dumps(propvalue, 0).decode())
         except (Exception, pickle.PicklingError):
@@ -326,24 +365,39 @@ def prop_from_rdmol(pl_obj, rd_obj):
 
     prop_dict = rd_obj.GetPropsAsDict()
     for propname in prop_dict.keys():
-        if propname == 'plams_pickled' :
+        if propname == "plams_pickled":
             plams_props = pickle.loads(prop_dict[propname].encode())
-            if not isinstance(plams_props,dict) : raise Exception('PLAMS property not properly stored in RDKit')
-            for key, value in plams_props.items() :
+            if not isinstance(plams_props, dict):
+                raise Exception("PLAMS property not properly stored in RDKit")
+            for key, value in plams_props.items():
                 pl_obj.properties[key] = value
-        else :
-            if propname == '__computedProps':
+        else:
+            if propname == "__computedProps":
                 continue
-            if '_pickled' not in propname:
+            if "_pickled" not in propname:
                 pl_obj.properties.rdkit[propname] = prop_dict[propname]
             else:
                 prop = prop_dict[propname]
-                propname = propname.rsplit('_pickled', 1)[0]
+                propname = propname.rsplit("_pickled", 1)[0]
                 propvalue = pickle.loads(prop.encode())
                 pl_obj.properties.rdkit[propname] = propvalue
 
 
-def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
+@overload
+def from_smiles(
+    smiles: str, nconfs: Literal[1] = ..., name: Optional[str] = ..., forcefield: Optional[str] = ..., rms: float = ...
+) -> Molecule: ...
+
+
+@overload
+def from_smiles(
+    smiles: str, nconfs: int = ..., name: Optional[str] = ..., forcefield: Optional[str] = ..., rms: float = ...
+) -> List[Molecule]: ...
+
+
+def from_smiles(
+    smiles: str, nconfs: int = 1, name: Optional[str] = None, forcefield: Optional[str] = None, rms: float = 0.1
+):
     """
     Generates PLAMS molecule(s) from a smiles strings.
 
@@ -359,10 +413,11 @@ def from_smiles(smiles, nconfs=1, name=None, forcefield=None, rms=0.1):
     :rtype: |Molecule| or list of PLAMS Molecules
     """
     from rdkit import Chem
+
     smiles = str(smiles.split()[0])
     smiles = Chem.CanonSmiles(smiles)
     rdkit_mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
-    rdkit_mol.SetProp('smiles', smiles)
+    rdkit_mol.SetProp("smiles", smiles)
     return get_conformations(rdkit_mol, nconfs, name, forcefield, rms)
 
 
@@ -384,16 +439,28 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     :rtype: |Molecule| or list of PLAMS Molecules
     """
     from rdkit import Chem
+
     smiles = str(smarts.split()[0])
     mol = Chem.MolFromSmarts(smiles)
     Chem.SanitizeMol(mol)
     molecule = Chem.AddHs(mol)
-    molecule.SetProp('smiles', smiles)
+    molecule.SetProp("smiles", smiles)
     return get_conformations(molecule, nconfs, name, forcefield, rms)
 
 
-def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforceChirality=False, useExpTorsionAnglePrefs='default', constraint_ats=None,
-                        EmbedParameters='EmbedParameters', randomSeed=1, best_rms=-1):
+def get_conformations(
+    mol,
+    nconfs=1,
+    name=None,
+    forcefield=None,
+    rms=-1,
+    enforceChirality=False,
+    useExpTorsionAnglePrefs="default",
+    constraint_ats=None,
+    EmbedParameters="EmbedParameters",
+    randomSeed=1,
+    best_rms=-1,
+):
     """
     Generates 3D conformation(s) for an rdkit_mol or a PLAMS Molecule
 
@@ -422,18 +489,20 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
     if isinstance(mol, Molecule):
         if not mol.bonds:
             mol.guess_bonds()
-        rdkit_mol = to_rdmol(mol,assignChirality=enforceChirality)
+        rdkit_mol = to_rdmol(mol, assignChirality=enforceChirality)
     else:
         rdkit_mol = mol
 
     def MMFFenergy(cid):
-        ff = AllChem.MMFFGetMoleculeForceField(
-            rdkit_mol, AllChem.MMFFGetMoleculeProperties(rdkit_mol), confId=cid)
+        ff = AllChem.MMFFGetMoleculeForceField(rdkit_mol, AllChem.MMFFGetMoleculeProperties(rdkit_mol), confId=cid)
         try:
             energy = ff.CalcEnergy()
         except:
-            msg = "MMFF energy calculation failed for molecule: " + Chem.MolToSmiles(rdkit_mol) + \
-                  "\nNo geometry optimization was performed."
+            msg = (
+                "MMFF energy calculation failed for molecule: "
+                + Chem.MolToSmiles(rdkit_mol)
+                + "\nNo geometry optimization was performed."
+            )
             warn(msg)
             energy = 1e9
         return energy
@@ -443,58 +512,62 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
         try:
             energy = ff.CalcEnergy()
         except:
-            msg = "MMFF energy calculation failed for molecule: " + Chem.MolToSmiles(rdkit_mol) + \
-                  "\nNo geometry optimization was performed."
+            msg = (
+                "MMFF energy calculation failed for molecule: "
+                + Chem.MolToSmiles(rdkit_mol)
+                + "\nNo geometry optimization was performed."
+            )
             warn(msg)
             energy = 1e9
         return energy
 
     def remove_some_Hs(m):
         res = Chem.RWMol(m)
-        c_hs = [x[0] for x in m.GetSubstructMatches(Chem.MolFromSmarts('[#1;$([#1]-[#6])]'))]
+        c_hs = [x[0] for x in m.GetSubstructMatches(Chem.MolFromSmarts("[#1;$([#1]-[#6])]"))]
         c_hs.sort(reverse=True)
         for aid in c_hs:
             res.RemoveAtom(aid)
         return res.GetMol()
 
     if name:
-        rdkit_mol.SetProp('name', name)
+        rdkit_mol.SetProp("name", name)
 
     if best_rms > 0:
-        if rms > 0: raise PlamsError('Cannot set both rms and best_rms')
+        if rms > 0:
+            raise PlamsError("Cannot set both rms and best_rms")
         rms = best_rms
 
-    #if enforceChirality :
+    # if enforceChirality :
     #    # This is how chirality is enforced in the GUI. The argument is not passed to AllChem.EmbedMultipleConfs
     #    Chem.AssignAtomChiralTagsFromStructure(rdkit_mol)
-    #param_obj = AllChem.ETKDG()
-    param_obj = getattr(AllChem,EmbedParameters)()
+    # param_obj = AllChem.ETKDG()
+    param_obj = getattr(AllChem, EmbedParameters)()
     param_obj.pruneRmsThresh = rms
     param_obj.randomSeed = randomSeed if randomSeed is not None else random.getrandbits(31)
     param_obj.enforceChirality = enforceChirality
-    if useExpTorsionAnglePrefs != 'default' : # The default (True of False) changes with rdkit versions
+    if useExpTorsionAnglePrefs != "default":  # The default (True of False) changes with rdkit versions
         param_obj.useExpTorsionAnglePrefs = True
-    if constraint_ats is not None :
+    if constraint_ats is not None:
         coordMap = {}
-        for i,iat in enumerate(constraint_ats) :
+        for i, iat in enumerate(constraint_ats):
             coordMap[iat] = rdkit_mol.GetConformer(0).GetAtomPosition(iat)
         param_obj.coordMap = coordMap
     try:
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
     except Exception:
-         # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
+        # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
         param_obj.useRandomCoords = True
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
-    if len(cids) == 0 :
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
+    if len(cids) == 0:
         # Sometimes rdkit does not crash (for large systems), but simply doe snot create conformers
         param_obj.useRandomCoords = True
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol,nconfs,param_obj))
+        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
 
     if forcefield:
         # Select the forcefield (UFF or MMFF)
         optimize_molecule, energy = {
-            'uff': [AllChem.UFFOptimizeMolecule, UFFenergy],
-            'mmff': [AllChem.MMFFOptimizeMolecule, MMFFenergy],
+            "uff": [AllChem.UFFOptimizeMolecule, UFFenergy],
+            "mmff": [AllChem.MMFFOptimizeMolecule, MMFFenergy],
         }[forcefield]
 
         # Optimize and sort conformations
@@ -514,7 +587,7 @@ def get_conformations(mol, nconfs=1, name=None, forcefield=None, rms=-1, enforce
         for cid in cids[1:]:
             for idx in keep:
                 try:
-                    #r = AllChem.AlignMol(rdkit_mol, rdkit_mol, cid, idx)
+                    # r = AllChem.AlignMol(rdkit_mol, rdkit_mol, cid, idx)
                     r = rms_function(rdmol_local, rdmol_local, cid, idx)
                 except Exception:
                     r = rms + 1
@@ -554,7 +627,7 @@ def from_sequence(sequence, nconfs=1, name=None, forcefield=None, rms=0.1):
     from rdkit import Chem
 
     rdkit_mol = Chem.AddHs(Chem.MolFromSequence(sequence))
-    rdkit_mol.SetProp('sequence', sequence)
+    rdkit_mol.SetProp("sequence", sequence)
     return get_conformations(rdkit_mol, nconfs, name, forcefield, rms)
 
 
@@ -570,6 +643,7 @@ def calc_rmsd(mol1, mol2):
     :rtype: float
     """
     from rdkit.Chem import AllChem
+
     rdkit_mol1 = to_rdmol(mol1)
     rdkit_mol2 = to_rdmol(mol2)
     try:
@@ -597,7 +671,7 @@ def modify_atom(mol, idx, element):
     else:
         e = Chem.EditableMol(rdmol)
         for neighbor in reversed(rdmol.GetAtomWithIdx(idx - 1).GetNeighbors()):
-            if neighbor.GetSymbol() == 'H':
+            if neighbor.GetSymbol() == "H":
                 e.RemoveAtom(neighbor.GetIdx())
         e.ReplaceAtom(idx - 1, Chem.Atom(element))
         newmol = e.GetMol()
@@ -624,8 +698,7 @@ def apply_template(mol, template):
     return from_rdmol(newmol)
 
 
-def apply_reaction_smarts(
-        mol, reaction_smarts, complete=False, forcefield=None, return_rdmol=False):
+def apply_reaction_smarts(mol, reaction_smarts, complete=False, forcefield=None, return_rdmol=False):
     """
     Applies reaction smirks and returns product.
     If returned as a PLAMS molecule, thismolecule.properties.orig_atoms
@@ -649,7 +722,7 @@ def apply_reaction_smarts(
     from rdkit.Chem import AllChem
 
     def react(reactant, reaction):
-        """ Apply reaction to reactant and return products """
+        """Apply reaction to reactant and return products"""
         ps = reaction.RunReactants([reactant])
         # if reaction doesn't apply, return the reactant
         if len(ps) == 0:
@@ -678,7 +751,7 @@ def apply_reaction_smarts(
     # RDKit removes fragments that are disconnected from the reaction center
     # In order to keep these, the molecule is first split in separate fragments
     # and the results, including non-reacting parts, are re-combined afterwards
-    frags = (Chem.GetMolFrags(mol, asMols=True))
+    frags = Chem.GetMolFrags(mol, asMols=True)
     product = Chem.Mol()
     unchanged = []  # List of atoms that have not changed
     for frag in frags:
@@ -697,7 +770,7 @@ def apply_reaction_smarts(
 
 
 def gen_coords(plamsmol):
-    """ Calculate 3D positions only for atoms without coordinates """
+    """Calculate 3D positions only for atoms without coordinates"""
     rdmol = to_rdmol(plamsmol)
     unchanged = gen_coords_rdmol(rdmol)
     conf = rdmol.GetConformer()
@@ -721,8 +794,7 @@ def gen_coords_rdmol(rdmol):
     # Put known coordinates in coordDict
     for i in range(rdmol.GetNumAtoms()):
         pos = conf.GetAtomPosition(i)
-        if (-0.0001 < pos.x < 0.0001) and (-0.0001 < pos.y < 0.0001) and \
-           (-0.0001 < pos.z < 0.0001):
+        if (-0.0001 < pos.x < 0.0001) and (-0.0001 < pos.y < 0.0001) and (-0.0001 < pos.z < 0.0001):
             continue  # atom without coordinates
         coordDict[i] = pos
         unchanged.append(i)
@@ -733,8 +805,7 @@ def gen_coords_rdmol(rdmol):
     # repeat embedding and alignment until the rms of mapped atoms is sufficiently small
     if rdmol.GetNumAtoms() > len(maps):
         while rms > 0.1:
-            AllChem.EmbedMolecule(rdmol, coordMap=coordDict, randomSeed=rs,
-                                  useBasicKnowledge=True)
+            AllChem.EmbedMolecule(rdmol, coordMap=coordDict, randomSeed=rs, useBasicKnowledge=True)
             # align new molecule to original coordinates
             rms = AllChem.AlignMol(rdmol, ref, atomMap=maps)
             rs += 1
@@ -746,8 +817,7 @@ def optimize_coordinates(rdkit_mol, forcefield, fixed=[]):
     from rdkit.Chem import AllChem
 
     def MMFFminimize():
-        ff = AllChem.MMFFGetMoleculeForceField(
-            rdkit_mol, AllChem.MMFFGetMoleculeProperties(rdkit_mol))
+        ff = AllChem.MMFFGetMoleculeForceField(rdkit_mol, AllChem.MMFFGetMoleculeProperties(rdkit_mol))
         for f in fixed:
             ff.AddFixedPoint(f)
         try:
@@ -763,9 +833,8 @@ def optimize_coordinates(rdkit_mol, forcefield, fixed=[]):
             ff.Minimize()
         except:
             warn("UFF geometry optimization failed for molecule: " + Chem.MolToSmiles(rdkit_mol))
-    optimize_molecule = {
-        'uff': UFFminimize,
-        'mmff': MMFFminimize}[forcefield]
+
+    optimize_molecule = {"uff": UFFminimize, "mmff": MMFFminimize}[forcefield]
     Chem.SanitizeMol(rdkit_mol)
     optimize_molecule()
     return
@@ -783,7 +852,7 @@ def readpdb(pdb_file, sanitize=True, removeHs=False, proximityBonding=False, ret
 
     :param pdb_file: The PDB file to read
     :type pdb_file: path- or file-like
-    :param bool sanitize: 
+    :param bool sanitize:
     :param bool removeHs: Hydrogens are removed if True
     :param bool return_rdmol: return a RDKit molecule if true, otherwise a PLAMS molecule
     :return: The molecule
@@ -792,7 +861,7 @@ def readpdb(pdb_file, sanitize=True, removeHs=False, proximityBonding=False, ret
     from rdkit import Chem
 
     try:
-        pdb_file = open(pdb_file, 'r')
+        pdb_file = open(pdb_file, "r")
     except TypeError:
         pass  # pdb_file is a file-like object... hopefully
 
@@ -812,7 +881,7 @@ def writepdb(mol, pdb_file=sys.stdout):
     from rdkit import Chem
 
     try:
-        pdb_file = open(pdb_file, 'w')
+        pdb_file = open(pdb_file, "w")
     except TypeError:
         pass  # pdb_file is a file-like object... hopefully
 
@@ -838,7 +907,7 @@ def add_Hs(mol, forcefield=None, return_rdmol=False):
     mol = to_rdmol(mol)
     retmol = Chem.AddHs(mol)
     for atom in retmol.GetAtoms():
-        if atom.GetPDBResidueInfo() is None and atom.GetSymbol() == 'H':
+        if atom.GetPDBResidueInfo() is None and atom.GetSymbol() == "H":
             bond = atom.GetBonds()[0]
             if bond.GetBeginAtom().GetIdx() == atom.GetIdx:
                 connected_atom = bond.GetEndAtom()
@@ -849,7 +918,7 @@ def add_Hs(mol, forcefield=None, return_rdmol=False):
                 if ResInfo is None:
                     continue  # Segmentation faults are raised if ResInfo is None
                 atom.SetMonomerInfo(ResInfo)
-                atomname = 'H' + atom.GetPDBResidueInfo().GetName()[1:]
+                atomname = "H" + atom.GetPDBResidueInfo().GetName()[1:]
                 atom.GetPDBResidueInfo().SetName(atomname)
             except:
                 pass
@@ -859,8 +928,7 @@ def add_Hs(mol, forcefield=None, return_rdmol=False):
     return retmol if return_rdmol else from_rdmol(retmol)
 
 
-def add_fragment(rwmol, frag, rwmol_atom_idx=None, frag_atom_idx=None,
-                 bond_order=None):
+def add_fragment(rwmol, frag, rwmol_atom_idx=None, frag_atom_idx=None, bond_order=None):
     from rdkit import Chem
 
     molconf = rwmol.GetConformer()
@@ -875,8 +943,7 @@ def add_fragment(rwmol, frag, rwmol_atom_idx=None, frag_atom_idx=None,
         ea = b.GetEndAtomIdx()
         rwmol.AddBond(new_indices[ba], new_indices[ea], b.GetBondType())
     if bond_order:
-        rwmol.AddBond(rwmol_atom_idx, new_indices[frag_atom_idx],
-                      Chem.BondType.values[bond_order])
+        rwmol.AddBond(rwmol_atom_idx, new_indices[frag_atom_idx], Chem.BondType.values[bond_order])
         rwmol.GetAtomWithIdx(new_indices[frag_atom_idx]).SetNumRadicalElectrons(0)
 
 
@@ -897,17 +964,16 @@ def get_fragment(mol, indices, incl_expl_Hs=True, neutralize=True):
         ba = b.GetBeginAtomIdx()
         ea = b.GetEndAtomIdx()
         if ba in indices and ea in indices:
-            fragment.AddBond(indices.index(ba), indices.index(ea),
-                             b.GetBondType())
+            fragment.AddBond(indices.index(ba), indices.index(ea), b.GetBondType())
             continue
         if not incl_expl_Hs:
             continue
-        if ba in indices and mol.GetAtomWithIdx(ea).GetSymbol() == 'H':
+        if ba in indices and mol.GetAtomWithIdx(ea).GetSymbol() == "H":
             hi = fragment.AddAtom(mol.GetAtomWithIdx(ea))
             fragconf.SetAtomPosition(hi, molconf.GetAtomPosition(ea))
             fragment.AddBond(indices.index(ba), hi, Chem.BondType.SINGLE)
             continue
-        if ea in indices and mol.GetAtomWithIdx(ba).GetSymbol() == 'H':
+        if ea in indices and mol.GetAtomWithIdx(ba).GetSymbol() == "H":
             hi = fragment.AddAtom(mol.GetAtomWithIdx(ba))
             fragconf.SetAtomPosition(hi, molconf.GetAtomPosition(ba))
             fragment.AddBond(indices.index(ea), hi, Chem.BondType.SINGLE)
@@ -949,7 +1015,7 @@ def partition_protein(mol, residue_bonds=None, split_heteroatoms=True, return_rd
                 if resinfa.GetResidueNumber() != resinfb.GetResidueNumber():
                     em.RemoveBond(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())
     # Split peptide bonds
-    pept_bond = Chem.MolFromSmarts('[C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)')
+    pept_bond = Chem.MolFromSmarts("[C;X4;H1,H2][CX3](=O)[NX3][C;X4;H1,H2][CX3](=O)")
     for match in mol.GetSubstructMatches(pept_bond):
         if residue_bonds:
             resa = mol.GetAtomWithIdx(match[1]).GetPDBResidueInfo().GetResidueNumber()
@@ -959,20 +1025,20 @@ def partition_protein(mol, residue_bonds=None, split_heteroatoms=True, return_rd
         cap = get_fragment(mol, match[0:5])
         cap = add_Hs(cap, return_rdmol=True)
         caps.append(cap if return_rdmol else from_rdmol(cap))
-        cap_o_ind = cap.GetSubstructMatch(Chem.MolFromSmarts('[C;X4][CX3]=O'))
+        cap_o_ind = cap.GetSubstructMatch(Chem.MolFromSmarts("[C;X4][CX3]=O"))
         cap_o = get_fragment(cap, cap_o_ind, neutralize=False)
-        cap_n_ind = cap.GetSubstructMatch(Chem.MolFromSmarts('O=[CX3][NX3][C;X4]'))[2:]
+        cap_n_ind = cap.GetSubstructMatch(Chem.MolFromSmarts("O=[CX3][NX3][C;X4]"))[2:]
         cap_n = get_fragment(cap, cap_n_ind, neutralize=False)
         em.RemoveBond(match[1], match[3])
         add_fragment(em, cap_o, match[3], 1, 1)
         add_fragment(em, cap_n, match[1], 0, 1)
     # Split disulfide bonds
-    ss_bond = Chem.MolFromSmarts('[C;X4;H1,H2]SS[C;X4;H1,H2]')
+    ss_bond = Chem.MolFromSmarts("[C;X4;H1,H2]SS[C;X4;H1,H2]")
     for match in mol.GetSubstructMatches(ss_bond):
         cap = get_fragment(mol, match[0:5])
         cap = add_Hs(cap, return_rdmol=True)
         caps.append(cap if return_rdmol else from_rdmol(cap))
-        cap_s_ind = cap.GetSubstructMatch(Chem.MolFromSmarts('[C;X4]SS[C;X4]'))
+        cap_s_ind = cap.GetSubstructMatch(Chem.MolFromSmarts("[C;X4]SS[C;X4]"))
         cap_s1 = get_fragment(cap, cap_s_ind[0:2], neutralize=False)
         cap_s2 = get_fragment(cap, cap_s_ind[2:4], neutralize=False)
         em.RemoveBond(match[1], match[2])
@@ -987,15 +1053,11 @@ def partition_protein(mol, residue_bonds=None, split_heteroatoms=True, return_rd
 def charge_AAs(mol, return_rdmol=False):
     from rdkit import Chem
 
-    ionizations = {
-        'ARG_NH2': 1,
-        'LYS_NZ': 1,
-        'GLU_OE2': -1,
-        'ASP_OD2': -1}
+    ionizations = {"ARG_NH2": 1, "LYS_NZ": 1, "GLU_OE2": -1, "ASP_OD2": -1}
     mol = to_rdmol(mol)
     for atom in mol.GetAtoms():
         resinfo = atom.GetPDBResidueInfo()
-        res_atom = resinfo.GetResidueName() + '_' + resinfo.GetName().strip()
+        res_atom = resinfo.GetResidueName() + "_" + resinfo.GetName().strip()
         try:
             atom.SetFormalCharge(ionizations[res_atom])
             Chem.SanitizeMol(mol)
@@ -1017,9 +1079,8 @@ def get_backbone_atoms(mol):
     :rtype: list
     """
     mol = from_rdmol(mol)
-    backbone = ['N', 'CA', 'C', 'O']
-    return [a for a in range(1, len(mol) + 1)
-            if str(mol[a].properties.pdb_info.Name).strip() in backbone]
+    backbone = ["N", "CA", "C", "O"]
+    return [a for a in range(1, len(mol) + 1) if str(mol[a].properties.pdb_info.Name).strip() in backbone]
 
 
 def get_substructure(mol, func_list):
@@ -1050,10 +1111,10 @@ def get_substructure(mol, func_list):
     from rdkit import Chem
 
     def _to_rdmol(functional_group):
-        """ Turn a SMILES strings, RDKit or PLAMS molecules into an RDKit molecule. """
+        """Turn a SMILES strings, RDKit or PLAMS molecules into an RDKit molecule."""
         if isinstance(functional_group, str):
             # RDKit tends to remove explicit hydrogens if SANITIZE_ADJUSTHS is enabled
-            sanitize = Chem.SanitizeFlags.SANITIZE_ALL^Chem.SanitizeFlags.SANITIZE_ADJUSTHS
+            sanitize = Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_ADJUSTHS
             ret = Chem.MolFromSmiles(functional_group, sanitize=False)
             Chem.rdmolops.SanitizeMol(ret, sanitizeOps=sanitize)
             return ret
@@ -1061,16 +1122,20 @@ def get_substructure(mol, func_list):
             return to_rdmol(functional_group)
         elif isinstance(functional_group, Chem.Mol):
             return functional_group
-        raise TypeError('get_substructure: ' + str(type(functional_group)) + ' is not a supported \
-                        object type')
+        raise TypeError(
+            "get_substructure: "
+            + str(type(functional_group))
+            + " is not a supported \
+                        object type"
+        )
 
     def _get_match(mol, rdmol, functional_group):
-        """ Perform a substructure match on "mol".
+        """Perform a substructure match on "mol".
         If a match is found, return a list of n-tuples consisting PLAMS |Atom|.
-        Otherwise return False. """
+        Otherwise return False."""
         matches = rdmol.GetSubstructMatches(functional_group)
         if matches:
-            return [tuple(mol[j+1] for j in idx_tup) for idx_tup in matches]
+            return [tuple(mol[j + 1] for j in idx_tup) for idx_tup in matches]
         return False
 
     rdmol = to_rdmol(mol)
@@ -1132,13 +1197,13 @@ def assign_chirality(self):
     pl_mol = from_rdmol(rd_mol)
 
     # Add R/S info to self
-    for iat,pl_atom in enumerate(pl_mol.atoms):
+    for iat, pl_atom in enumerate(pl_mol.atoms):
         # Check for R/S information
         if pl_atom.properties.rdkit.stereo:
             self.atoms[iat].properties.rdkit.stereo = pl_atom.properties.rdkit.stereo
 
     # Add cis/trans information to self
-    for ibond,pl_bond in enumerate(pl_mol.bonds):
+    for ibond, pl_bond in enumerate(pl_mol.bonds):
         if pl_bond.properties.rdkit.stereo:
             self.bonds[ibond] = pl_bond.properties.rdkit.stereo
 
@@ -1151,7 +1216,7 @@ def get_chirality(self):
     from rdkit import Chem
 
     rd_mol = to_rdmol(self, assignChirality=True)
-    return Chem.FindMolChiralCenters(rd_mol,force=True,includeUnassigned=True)
+    return Chem.FindMolChiralCenters(rd_mol, force=True, includeUnassigned=True)
 
 
 def canonicalize_mol(mol, inplace=False, **kwargs):

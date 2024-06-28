@@ -19,6 +19,10 @@ The source code of the whole module with both abovementioned classes:
 
 .. literalinclude:: ../../../recipes/adffragment.py
 
-An example usage:
+An example usage: (:download:`ethene.xyz <../../../../../../examples/scripting/plams_adffrag/ethene.xyz>`,
+:download:`butadiene.xyz <../../../../../../examples/scripting/plams_adffrag/butadiene.xyz>`,
+:download:`adffrag_test.py <../../../../../../examples/scripting/plams_adffrag/adffrag_test.py>`)
 
+.. literalinclude:: ../../../../../../examples/scripting/plams_adffrag/ethene.xyz
+.. literalinclude:: ../../../../../../examples/scripting/plams_adffrag/butadiene.xyz
 .. literalinclude:: ../../../../../../examples/scripting/plams_adffrag/adffrag_test.py

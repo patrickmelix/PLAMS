@@ -5,7 +5,7 @@ DFTB+
 
 .. currentmodule:: scm.plams.interfaces.thirdparty.dftbplus
 
-DFTB+ is a density-functional tight-binding implemenation.
+DFTB+ is a density-functional tight-binding implementation.
 More information about DFTB can be found on its `official website <http://www.dftb-plus.info>`_.
 
 PLAMS offers a simple and incomplete DFTB+ interface.

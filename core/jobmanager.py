@@ -8,8 +8,7 @@ from scm.plams.core.basejob import MultiJob
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.functions import config, log
 
-__all__ = ['JobManager']
-
+__all__ = ["JobManager"]
 
 
 class JobManager:
@@ -56,24 +55,23 @@ class JobManager:
         elif os.path.isdir(path):
             self.path = os.path.abspath(path)
         else:
-            raise PlamsError('Invalid path: {}'.format(path))
+            raise PlamsError("Invalid path: {}".format(path))
 
-        basename = os.path.normpath(folder) if folder else 'plams_workdir'
+        basename = os.path.normpath(folder) if folder else "plams_workdir"
         self.foldername = basename
 
         if not use_existing_folder:
             n = 2
             while os.path.exists(opj(self.path, self.foldername)):
-                self.foldername = basename + '.' + str(n).zfill(3)
+                self.foldername = basename + "." + str(n).zfill(3)
                 n += 1
 
         self.workdir = opj(self.path, self.foldername)
-        self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self.workdir, 'logfile')
-        self.input = opj(self.workdir, 'input')
+        self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self.workdir, "logfile")
+        self.input = opj(self.workdir, "input")
 
         if not (use_existing_folder and os.path.exists(self.workdir)):
             os.mkdir(self.workdir)
-
 
     def load_job(self, filename):
         """Load previously saved job from *filename*.
@@ -109,9 +107,9 @@ class JobManager:
         if os.path.isfile(filename):
             filename = os.path.abspath(filename)
         else:
-            raise FileError('File {} not present'.format(filename))
+            raise FileError("File {} not present".format(filename))
         path = os.path.dirname(filename)
-        with open(filename, 'rb') as f:
+        with open(filename, "rb") as f:
             try:
                 job = pickle.load(f)
             except Exception as e:
@@ -120,8 +118,6 @@ class JobManager:
 
         setstate(job, path)
         return job
-
-
 
     def remove_job(self, job):
         """Remove *job* from the job manager. Forget its hash."""
@@ -139,8 +135,6 @@ class JobManager:
                     self.remove_job(otherjob)
             shutil.rmtree(job.path)
 
-
-
     def _register(self, job):
         """Register the *job*. Register job's name (rename if needed) and create the job folder.
 
@@ -149,22 +143,22 @@ class JobManager:
         """
         with self._register_lock:
 
-            log('Registering job {}'.format(job.name), 7)
+            log("Registering job {}".format(job.name), 7)
             job.jobmanager = self
 
             # If the name ends with the counting suffix, e.g. ".002", remove it.
             # The suffix is just not part of a legitimate job name and users will have to live with it potentially changing.
             orgfname = job._full_name()
-            job.name = re.sub(r"(\.\d{%i})+$"%(self.settings.counter_len), "", job.name)
+            job.name = re.sub(r"(\.\d{%i})+$" % (self.settings.counter_len), "", job.name)
             fname = job._full_name()
             if fname in self.names:
                 self.names[fname] += 1
-                job.name += '.'+str(self.names[fname]).zfill(self.settings.counter_len)
+                job.name += "." + str(self.names[fname]).zfill(self.settings.counter_len)
                 fname = job._full_name()
             else:
                 self.names[fname] = 1
             if fname != orgfname:
-                log('Renaming job {} to {}'.format(orgfname, fname), 3)
+                log("Renaming job {} to {}".format(orgfname, fname), 3)
 
             if job.path is None:
                 if job.parent:
@@ -174,10 +168,8 @@ class JobManager:
             os.mkdir(job.path)
 
             self.jobs.append(job)
-            job.status = 'registered'
-            log('Job {} registered'.format(job.name), 7)
-
-
+            job.status = "registered"
+            log("Job {} registered".format(job.name), 7)
 
     def _check_hash(self, job):
         """Calculate the hash of *job* and, if it is not ``None``, search previously run jobs for the same hash. If such a job is found, return it. Otherwise, return ``None``"""
@@ -186,17 +178,15 @@ class JobManager:
             with self._register_lock:
                 if h in self.hashes:
                     prev = self.hashes[h]
-                    log('Job {} previously run as {}, using old results'.format(job.name, prev.name), 1)
+                    log("Job {} previously run as {}, using old results".format(job.name, prev.name), 1)
                     return prev
                 else:
                     self.hashes[h] = job
         return None
 
-
-
     def _clean(self):
         """Clean all registered jobs according to the ``save`` parameter in their ``settings``. If ``remove_empty_directories`` is ``True``,  traverse the working directory and delete all empty subdirectories."""
-        log('Cleaning job manager', 7)
+        log("Cleaning job manager", 7)
 
         for job in self.jobs:
             job.results._clean(job.settings.save)
@@ -208,5 +198,4 @@ class JobManager:
                     if not os.listdir(fullname):
                         os.rmdir(fullname)
 
-        log('Job manager cleaned', 7)
-
+        log("Job manager cleaned", 7)

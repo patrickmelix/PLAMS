@@ -10,7 +10,7 @@ Do I always need to run PLAMS scripts through $AMSBIN/plams myscript.py?
 Highly advisable as this ensures you get the right /compatible python libraries loaded.
 Alternatively you could import the plams packages:
 
-::
+.. code-block:: python
 
    from scm.plams import *
    init()

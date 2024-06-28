@@ -11,13 +11,14 @@ from scm.plams import *
     $AMSBIN/amspython MoleculesFromRKFTrajectory.py
 """
 
+
 def main():
-    job = AMSJob.load_external('ams.rkf') # modify to give the path to the ams.rkf file
+    job = AMSJob.load_external("ams.rkf")  # modify to give the path to the ams.rkf file
 
     trajectory = Trajectory(job.results.rkfpath())
     for i, mol in enumerate(trajectory, 1):
         print(f"frame {i}")
-        print(mol) # mol is a PLAMS Molecule
+        print(mol)  # mol is a PLAMS Molecule
         if i == 5:
             break
 
@@ -26,6 +27,6 @@ def main():
     print("Frame 23")
     print(mol)
 
-if __name__ == '__main__':
-    main()
 
+if __name__ == "__main__":
+    main()

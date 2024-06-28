@@ -1,4 +1,3 @@
-
 try:
     import dill as pickle  # noqa: F401
 except ImportError:
@@ -57,6 +56,7 @@ EndEngine
     job = AMSJob.from_input(AMSinput)
     assert job.get_input() == AMSinput
 
+
 def test_list_block_input():
     """test :meth:`AMSJob.get_input` for writing list-blocks"""
     AMSinput = """system
@@ -108,41 +108,42 @@ EndEngine
     job = AMSJob.from_input(AMSinput)
     assert job.get_input() == AMSinput
 
+
 def test_settings_to_molecule():
     s = Settings()
-    s.input.ams.system.Atoms._1 = '         H       0.0000000000       0.0000000000       0.0000000000 '
-    s.input.ams.system.Atoms._2 = '         O       1.0000000000       0.0000000000       0.0000000000 '
+    s.input.ams.system.Atoms._1 = "         H       0.0000000000       0.0000000000       0.0000000000 "
+    s.input.ams.system.Atoms._2 = "         O       1.0000000000       0.0000000000       0.0000000000 "
 
-    t=s.copy()
-    mol = AMSJob.settings_to_mol(t)['']
+    t = s.copy()
+    mol = AMSJob.settings_to_mol(t)[""]
 
-    assert AMSJob(settings = s).get_input() == AMSJob(settings = t, molecule = mol).get_input()
+    assert AMSJob(settings=s).get_input() == AMSJob(settings=t, molecule=mol).get_input()
 
     s = Settings()
-    s.input.ams.system.Atoms._1 = ['         H       0.0000000000       0.0000000000       0.0000000000 ', 
-                                   '         O       1.0000000000       0.0000000000       0.0000000000 ']
-
-    t=s.copy()
-    mol = AMSJob.settings_to_mol(t)['']
-    
-    assert AMSJob(settings = s).get_input() == AMSJob(settings = t, molecule = mol).get_input()
-
-
-    #test for headers:
-    s.input.ams.system.Atoms._h = '[A]'
     s.input.ams.system.Atoms._1 = [
-              '         O      -0.0509000000      -0.2754000000       0.6371000000 ForceField.Charge=-0.834 ForceField.Type=OW',
-              '         H       0.0157000000       0.5063000000       0.0531000000 ForceField.Charge=0.417 ForceField.Type=HW',
-              '         H      -0.0055000000      -1.0411000000       0.0658000000 ForceField.Charge=0.417 ForceField.Type=HW',
-              '         O       0.0981000000       1.7960000000      -1.2550000000 ForceField.Charge=-0.834 ForceField.Type=OW',
-              '         H      -0.6686000000       2.2908000000      -1.5343000000 ForceField.Charge=0.417 ForceField.Type=HW',
-              '         H       0.8128000000       2.3488000000      -1.5619000000 ForceField.Charge=0.417 ForceField.Type=HW',
-             ]
-    t=s.copy()
-    #currently plams completely ignores the [A] unit specifier, it might also not print it if it does
-    #get implemented and instead just convert the values in the molecule.
+        "         H       0.0000000000       0.0000000000       0.0000000000 ",
+        "         O       1.0000000000       0.0000000000       0.0000000000 ",
+    ]
+
+    t = s.copy()
+    mol = AMSJob.settings_to_mol(t)[""]
+
+    assert AMSJob(settings=s).get_input() == AMSJob(settings=t, molecule=mol).get_input()
+
+    # test for headers:
+    s.input.ams.system.Atoms._h = "[A]"
+    s.input.ams.system.Atoms._1 = [
+        "         O      -0.0509000000      -0.2754000000       0.6371000000 ForceField.Charge=-0.834 ForceField.Type=OW",
+        "         H       0.0157000000       0.5063000000       0.0531000000 ForceField.Charge=0.417 ForceField.Type=HW",
+        "         H      -0.0055000000      -1.0411000000       0.0658000000 ForceField.Charge=0.417 ForceField.Type=HW",
+        "         O       0.0981000000       1.7960000000      -1.2550000000 ForceField.Charge=-0.834 ForceField.Type=OW",
+        "         H      -0.6686000000       2.2908000000      -1.5343000000 ForceField.Charge=0.417 ForceField.Type=HW",
+        "         H       0.8128000000       2.3488000000      -1.5619000000 ForceField.Charge=0.417 ForceField.Type=HW",
+    ]
+    t = s.copy()
+    # currently plams completely ignores the [A] unit specifier, it might also not print it if it does
+    # get implemented and instead just convert the values in the molecule.
     del s.input.ams.system.Atoms._h
 
-    mol = AMSJob.settings_to_mol(t)['']
-    assert AMSJob(settings = s).get_input() == AMSJob(settings = t, molecule = mol).get_input()
-
+    mol = AMSJob.settings_to_mol(t)[""]
+    assert AMSJob(settings=s).get_input() == AMSJob(settings=t, molecule=mol).get_input()

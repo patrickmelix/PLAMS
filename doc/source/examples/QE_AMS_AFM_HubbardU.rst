@@ -3,7 +3,7 @@
 Quantum ESPRESSO as an AMS engine: Antiferromagnetic FeO
 ==============================================================
 
-**Note**: This example requires AMS2023 and that you have installed Quantum ESPRESSO from the AMS package manager.
+**Note**: This example requires AMS2024 and that you have installed Quantum ESPRESSO from the AMS package manager.
 
 .. seealso::
 
