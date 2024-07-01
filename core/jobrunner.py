@@ -10,43 +10,49 @@ from scm.plams.core.functions import config, log
 from scm.plams.core.private import saferun
 from scm.plams.core.settings import Settings
 
-__all__ = ['JobRunner', 'GridRunner']
-
+__all__ = ["JobRunner", "GridRunner"]
 
 
 def _in_thread(func):
     """Decorator for an instance method. If ``parallel`` attribute of given instance is ``True``, run decorated method in a separate :class:`~threading.Thread`. This thread is usually a daemon thread, the decision is based on ``config.daemon_threads`` entry."""
+
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.parallel:
-            t = threading.Thread(name='plamsthread', target=func, args=(self,)+args, kwargs=kwargs)
+            t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
             t.daemon = config.daemon_threads
             t.start()
         else:
             func(self, *args, **kwargs)
+
     return wrapper
 
 
 def _in_limited_thread(func):
     """More careful version of the ``in_thread`` decorator: a new job thread will only be launched if the currently active number of threads is below the ``maxthreads`` limit set in :meth:`~scm.plams.core.jobrunner.JobRunner.__init__`."""
+
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.parallel:
-            t = threading.Thread(name='plamsthread', target=func, args=(self,)+args, kwargs=kwargs)
+            t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
             t.daemon = config.daemon_threads
-            if self._jobthread_limit: self._jobthread_limit.acquire()
+            if self._jobthread_limit:
+                self._jobthread_limit.acquire()
             try:
                 t.start()
             except Exception as e:
-                if self._jobthread_limit: self._jobthread_limit.release()
+                if self._jobthread_limit:
+                    self._jobthread_limit.release()
                 raise e
         else:
             func(self, *args, **kwargs)
+
     return wrapper
 
 
 def _limit(func):
     """Decorator for an instance method. If ``semaphore`` attribute of given instance is not ``None``, use this attribute to wrap decorated method via :ref:`with<with-locks>` statement."""
+
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.semaphore:
@@ -54,22 +60,21 @@ def _limit(func):
                 return func(self, *args, **kwargs)
         else:
             return func(self, *args, **kwargs)
+
     return wrapper
 
 
 class _MetaRunner(type):
-    """Metaclass for |JobRunner|. During an instance creation wrap the :meth:`~scm.plams.core.jobrunner.JobRunner.call` method with :func:`_limit` decorator which enforces a limit on the number of simultaneous :meth:`~scm.plams.core.jobrunner.JobRunner.call` calls.
-    """
+    """Metaclass for |JobRunner|. During an instance creation wrap the :meth:`~scm.plams.core.jobrunner.JobRunner.call` method with :func:`_limit` decorator which enforces a limit on the number of simultaneous :meth:`~scm.plams.core.jobrunner.JobRunner.call` calls."""
+
     def __new__(meta, name, bases, dct):
-        dct['call'] = _limit(dct['call'])
+        dct["call"] = _limit(dct["call"])
         return type.__new__(meta, name, bases, dct)
 
 
-
-#===========================================================================
-#===========================================================================
-#===========================================================================
-
+# ===========================================================================
+# ===========================================================================
+# ===========================================================================
 
 
 class JobRunner(metaclass=_MetaRunner):
@@ -87,12 +92,11 @@ class JobRunner(metaclass=_MetaRunner):
     A |JobRunner| instance can be passed to |run| with a keyword argument ``jobrunner``. If this argument is omitted, the instance stored in ``config.default_jobrunner`` is used.
     """
 
-    def __init__ (self, parallel=False, maxjobs=0, maxthreads=256):
+    def __init__(self, parallel=False, maxjobs=0, maxthreads=256):
         self.parallel = parallel
-        self.maxjobs  = maxjobs
+        self.maxjobs = maxjobs
         self.semaphore = threading.BoundedSemaphore(maxjobs) if maxjobs else None
         self._jobthread_limit = threading.BoundedSemaphore(maxthreads) if maxthreads else None
-
 
     def call(self, runscript, workdir, out, err, runflags):
         """call(runscript, workdir, out, err, runflags)
@@ -109,17 +113,16 @@ class JobRunner(metaclass=_MetaRunner):
         .. note::
             This method is used automatically during |run| and should never be explicitly called in your script.
         """
-        log('Executing {}'.format(runscript), 5)
-        command = ['./'+runscript] if os.name == 'posix' else ['sh', runscript]
+        log("Executing {}".format(runscript), 5)
+        command = ["./" + runscript] if os.name == "posix" else ["sh", runscript]
         if out is not None:
-            with open(opj(workdir, err), 'w') as e, open(opj(workdir, out), 'w') as o:
+            with open(opj(workdir, err), "w") as e, open(opj(workdir, out), "w") as o:
                 process = saferun(command, cwd=workdir, stderr=e, stdout=o)
         else:
-            with open(opj(workdir, err), 'w') as e:
+            with open(opj(workdir, err), "w") as e:
                 process = saferun(command, cwd=workdir, stderr=e)
-        log('Execution of {} finished with returncode {}'.format(runscript, process.returncode), 5)
+        log("Execution of {} finished with returncode {}".format(runscript, process.returncode), 5)
         return process.returncode
-
 
     @_in_limited_thread
     def _run_job(self, job, jobmanager):
@@ -137,11 +140,9 @@ class JobRunner(metaclass=_MetaRunner):
                 self._jobthread_limit.release()
 
 
-
-#===========================================================================
-#===========================================================================
-#===========================================================================
-
+# ===========================================================================
+# ===========================================================================
+# ===========================================================================
 
 
 class GridRunner(JobRunner):
@@ -177,8 +178,8 @@ class GridRunner(JobRunner):
     """
 
     # GridRunner mechanism for testing if a job is finished:
-    #if [...].commands.finished exists it is used to check if the job is finished. It should be a function that takes a single string (job_id) as an argument and returns True or False
-    #otherwise [...].commands.check is combined with job_id, executed as a subprocess and returned exit code is tested (nonzero return code indicates that job has finished)
+    # if [...].commands.finished exists it is used to check if the job is finished. It should be a function that takes a single string (job_id) as an argument and returns True or False
+    # otherwise [...].commands.check is combined with job_id, executed as a subprocess and returned exit code is tested (nonzero return code indicates that job has finished)
 
     def __slurm_get_jobid(output):
         s = output.split()
@@ -191,45 +192,44 @@ class GridRunner(JobRunner):
         return [line.split()[0] for line in lines]
 
     def __pbs_get_jobid(output):
-        s = output.split('.')
+        s = output.split(".")
         if len(s) > 0 and all([ch.isdigit() for ch in s[0]]):
             return s[0]
         return None
 
     def __pbs_running(output):
         lines = output.splitlines()[2:]
-        return [line.split()[0].split('.')[0] for line in lines]
+        return [line.split()[0].split(".")[0] for line in lines]
 
     # Static config holding the preconfigured grids:
     config = Settings()
     # PBS
-    config.pbs.workdir = '-d'
-    config.pbs.output  = '-o'
-    config.pbs.error   = '-e'
-    config.pbs.special.nodes    = '-l nodes='
-    config.pbs.special.walltime = '-l walltime='
-    config.pbs.special.memory = '-l mem='
-    config.pbs.special.queue    = '-q '
-    config.pbs.commands.submit  = 'qsub'
-    config.pbs.commands.check  = 'qstat'
-    config.pbs.commands.getid   = __pbs_get_jobid
+    config.pbs.workdir = "-d"
+    config.pbs.output = "-o"
+    config.pbs.error = "-e"
+    config.pbs.special.nodes = "-l nodes="
+    config.pbs.special.walltime = "-l walltime="
+    config.pbs.special.memory = "-l mem="
+    config.pbs.special.queue = "-q "
+    config.pbs.commands.submit = "qsub"
+    config.pbs.commands.check = "qstat"
+    config.pbs.commands.getid = __pbs_get_jobid
     config.pbs.commands.running = __pbs_running
     # Slurm
-    config.slurm.workdir = '-D'
-    config.slurm.output  = '-o'
-    config.slurm.error   = '-e'
-    config.slurm.special.nodes    = '-N '
-    config.slurm.special.cores    = '-n '
-    config.slurm.special.walltime = '-t '
-    config.slurm.special.memory = '--mem='
-    config.slurm.special.queue    = '-p '
-    config.slurm.commands.submit  = 'sbatch'
-    config.slurm.commands.check  = 'squeue'
-    config.slurm.commands.getid   = __slurm_get_jobid
+    config.slurm.workdir = "-D"
+    config.slurm.output = "-o"
+    config.slurm.error = "-e"
+    config.slurm.special.nodes = "-N "
+    config.slurm.special.cores = "-n "
+    config.slurm.special.walltime = "-t "
+    config.slurm.special.memory = "--mem="
+    config.slurm.special.queue = "-p "
+    config.slurm.commands.submit = "sbatch"
+    config.slurm.commands.check = "squeue"
+    config.slurm.commands.getid = __slurm_get_jobid
     config.slurm.commands.running = __slurm_running
 
-
-    def __init__(self, grid='auto', sleepstep=5, parallel=True, maxjobs=0):
+    def __init__(self, grid="auto", sleepstep=5, parallel=True, maxjobs=0):
         JobRunner.__init__(self, parallel=parallel, maxjobs=maxjobs)
         self.sleepstep = sleepstep
         self._active_jobs = {}
@@ -238,17 +238,18 @@ class GridRunner(JobRunner):
 
         if isinstance(grid, Settings):
             self.settings = grid
-        elif grid == 'auto':
+        elif grid == "auto":
             self.settings = self._autodetect()
         elif grid in GridRunner.config:
             self.settings = GridRunner.config[grid]
             try:
-                saferun([self.settings.commands.submit, '--version'], stdout=DEVNULL, stderr=DEVNULL)
+                saferun([self.settings.commands.submit, "--version"], stdout=DEVNULL, stderr=DEVNULL)
             except OSError:
-                raise PlamsError('GridRunner: {} command not found'.format(self.settings.commands.submit))
+                raise PlamsError("GridRunner: {} command not found".format(self.settings.commands.submit))
         else:
-            raise PlamsError("GridRunner: invalid 'grid' argument. 'grid' should be either a Settings instance (see documentations for details) or a string occurring in GridRunner.config or 'auto' for autodetection")
-
+            raise PlamsError(
+                "GridRunner: invalid 'grid' argument. 'grid' should be either a Settings instance (see documentations for details) or a string occurring in GridRunner.config or 'auto' for autodetection"
+            )
 
     def call(self, runscript, workdir, out, err, runflags):
         """call(runscript, workdir, out, err, runflags)
@@ -303,26 +304,26 @@ class GridRunner(JobRunner):
             This method is used automatically during |run| and should never be explicitly called in your script.
         """
         s = self.settings
-        cmd = ' '.join([s.commands.submit, s.workdir, workdir, s.error, err])
+        cmd = " ".join([s.commands.submit, s.workdir, workdir, s.error, err])
         if out is not None:
-            cmd += ' '+s.output+' '+out
-        for k,v in runflags.items():
+            cmd += " " + s.output + " " + out
+        for k, v in runflags.items():
             if k in s.special:
-                cmd += ' '+s.special[k]+str(v)
+                cmd += " " + s.special[k] + str(v)
             else:
-                cmd += ' -'+k+' '+str(v)
-        cmd += ' ' + opj(workdir,runscript)
+                cmd += " -" + k + " " + str(v)
+        cmd += " " + opj(workdir, runscript)
 
-        log('Submitting {} with command {}'.format(runscript, cmd), 5)
-        process = saferun(cmd.split(' '), stdout=PIPE, stderr=PIPE)
+        log("Submitting {} with command {}".format(runscript, cmd), 5)
+        process = saferun(cmd.split(" "), stdout=PIPE, stderr=PIPE)
         subout = process.stdout.decode()
-        log('Output of {} submit command: {}'.format(runscript, subout), 5)
+        log("Output of {} submit command: {}".format(runscript, subout), 5)
 
         jobid = s.commands.getid(subout)
         if jobid is None:
-            log('Submitting of {} failed. Stderr of submit command:\n{}'.format(runscript, process.stderr.decode()), 1)
+            log("Submitting of {} failed. Stderr of submit command:\n{}".format(runscript, process.stderr.decode()), 1)
             return 1
-        log('{} submitted successfully as job {}'.format(runscript, jobid), 3)
+        log("{} submitted successfully as job {}".format(runscript, jobid), 3)
 
         event = threading.Event()
         with self._active_lock:
@@ -330,9 +331,8 @@ class GridRunner(JobRunner):
         self._check_queue()
         event.wait()
 
-        log('Execution of {} finished'.format(runscript), 5)
+        log("Execution of {} finished".format(runscript), 5)
         return 0
-
 
     @_in_thread
     def _check_queue(self):
@@ -357,7 +357,6 @@ class GridRunner(JobRunner):
             finally:
                 self._mainlock.release()
 
-
     def _autodetect(self):
         """Try to autodetect the type of queueing system.
 
@@ -367,9 +366,12 @@ class GridRunner(JobRunner):
         """
         for grid in GridRunner.config:
             try:
-                process = saferun([GridRunner.config[grid].commands.submit, '--version'], stdout=DEVNULL, stderr=DEVNULL)
-            except OSError: continue
+                process = saferun(
+                    [GridRunner.config[grid].commands.submit, "--version"], stdout=DEVNULL, stderr=DEVNULL
+                )
+            except OSError:
+                continue
             if process.returncode == 0:
                 log("Grid type autodetected as '{}'".format(grid), 5)
                 return GridRunner.config[grid]
-        raise PlamsError('GridRunner: Failed to autodetect grid type')
+        raise PlamsError("GridRunner: Failed to autodetect grid type")

@@ -4,6 +4,7 @@ Initial imports
 .. code:: ipython3
 
     from scm.plams import *
+    from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
     from ase.optimize import BFGS
     from ase.build import molecule as ase_build_molecule
     from ase.visualize.plot import plot_atoms

@@ -86,10 +86,6 @@ The nice thing is that all the unnecessary data present in job settings is simpl
 Contents of job settings
 ++++++++++++++++++++++++++
 
-.. important::
-
-    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
-
 The following keys and branches of job settings are meaningful for all kinds of jobs:
 
 *   ``myjob.settings.input`` is a branch storing settings regarding input file of a job.

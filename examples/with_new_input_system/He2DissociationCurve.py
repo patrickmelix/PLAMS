@@ -1,3 +1,4 @@
+#!/usr/bin/env plams
 import numpy as np
 from scm.input_classes import ADF, AMS
 

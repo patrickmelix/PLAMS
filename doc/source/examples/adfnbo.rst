@@ -18,5 +18,9 @@ The source code of the whole module:
 .. literalinclude:: ../../../recipes/adfnbo.py
 
 An example usage:
+(:download:`methane.xyz <../../../../../../examples/scripting/plams_adfnbo/methane.xyz>`,
+:download:`adfnbo_test.py <../../../../../../examples/scripting/plams_adfnbo/adfnbo_test.py>`)
 
+
+.. literalinclude:: ../../../../../../examples/scripting/plams_adfnbo/methane.xyz
 .. literalinclude:: ../../../../../../examples/scripting/plams_adfnbo/adfnbo_test.py

@@ -21,6 +21,8 @@ For details about the functions, see the |AMSResults| API.
     For real simulations, run longer MD simulations and carefully converge any
     calculated quantities.
 
+    The viscosity requires especially long MD simulations.
+
 .. note::
 
     More advanced analysis is possible by setting up an :class:`~scm.plams.interfaces.adfsuite.amsanalysis.AMSAnalysisJob` job.

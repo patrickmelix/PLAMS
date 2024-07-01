@@ -1,15 +1,15 @@
 from scm.plams.core.errors import PlamsError
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
 
-__all__ = ['FCFJob', 'FCFResults']
+__all__ = ["FCFJob", "FCFResults"]
 
 
 class FCFResults(SCMResults):
-    _kfext = '.t61'
-    _rename_map = {'TAPE61':'$JN'+_kfext}
+    _kfext = ".t61"
+    _rename_map = {"TAPE61": "$JN" + _kfext}
 
     def get_molecule(self, *args, **kwargs):
-        raise PlamsError('FCFResults do not support get_molecule() method. You can get molecules from job1 or job2')
+        raise PlamsError("FCFResults do not support get_molecule() method. You can get molecules from job1 or job2")
 
 
 class FCFJob(SCMJob):
@@ -20,12 +20,13 @@ class FCFJob(SCMJob):
 
     The resulting ``TAPE61`` file is renamed to ``jobname.t61``.
     """
+
     _result_type = FCFResults
-    _command = 'fcf'
-    _top = ['states', 'state1', 'state2']
+    _command = "fcf"
+    _top = ["states", "state1", "state2"]
 
     def __init__(self, inputjob1=None, inputjob2=None, **kwargs):
-        SCMJob.__init__(self,**kwargs)
+        SCMJob.__init__(self, **kwargs)
         self.inputjob1 = inputjob1
         self.inputjob2 = inputjob2
 
@@ -34,7 +35,7 @@ class FCFJob(SCMJob):
         self.settings.input.state2 = self.inputjob2
 
     def _remove_mol(self):
-        if 'state1' in self.settings.input:
+        if "state1" in self.settings.input:
             del self.settings.input.state1
-        if 'state2' in self.settings.input:
+        if "state2" in self.settings.input:
             del self.settings.input.state2

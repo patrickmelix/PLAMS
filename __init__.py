@@ -124,6 +124,8 @@ from scm.plams.recipes.numgrad import NumGradJob
 from scm.plams.recipes.numhess import NumHessJob
 from scm.plams.recipes.pestools.optimizer import Optimizer
 from scm.plams.recipes.reorganization_energy import ReorganizationEnergyJob
+from scm.plams.recipes.redox import AMSRedoxDirectJob, AMSRedoxScreeningJob, AMSRedoxThermodynamicCycleJob
+
 from scm.plams.tools.converters import (
     file_to_traj,
     gaussian_output_to_ams,
@@ -344,4 +346,7 @@ __all__ = [
     "NumGradJob",
     "NumHessJob",
     "Optimizer",
+    "AMSRedoxDirectJob",
+    "AMSRedoxScreeningJob",
+    "AMSRedoxThermodynamicCycleJob",
 ]

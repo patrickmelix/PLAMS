@@ -6,7 +6,7 @@ COSMO-RS
 .. currentmodule:: scm.plams.interfaces.adfsuite.crs
 
 COSMO-RS can be run from PLAMS using the |CRSJOb| class and the corresponding |CRSResults|,
-both respectivelly being subclasses of |SCMJob| and |SCMResults|.
+both respectively being subclasses of |SCMJob| and |SCMResults|.
 
 .. note:: There is also `a tutorial showing full code examples <../../COSMO-RS/PLAMS_COSMO-RS_scripting.html>`__ available in the COSMO-RS documentation.  There are several templates available that can easily be customized for other problem types, workflows, etc.
 
@@ -83,11 +83,11 @@ Example |Settings| with three compounds:
 
     >>> compound1, compound2, compound3 = Settings(), Settings(), Settings()
 
-    >>> compound1._h = '/path/to/coumpound1.t21'
+    >>> compound1._h = '/path/to/compound1.t21'
     >>> compound1.frac1 = 0.33
-    >>> compound2._h = '/path/to/coumpound2.t21'
+    >>> compound2._h = '/path/to/compound2.t21'
     >>> compound2.frac1 = 0.33
-    >>> compound3._h = '/path/to/coumpound3.t21'
+    >>> compound3._h = '/path/to/compound3.t21'
     >>> compound3.frac1 = 0.33
 
     >>> s = Settings()
@@ -100,15 +100,15 @@ Which yields the following input:
 
 .. code::
 
-    compound /path/to/coumpound1.t21
+    compound /path/to/compound1.t21
         frac1 0.33
     end
 
-    compound /path/to/coumpound2.t21
+    compound /path/to/compound2.t21
         frac1 0.33
     end
 
-    compound /path/to/coumpound3.t21
+    compound /path/to/compound3.t21
         frac1 0.33
     end
 
@@ -229,7 +229,7 @@ it to the :meth:`CRSResults.plot` method (*e.g.* :code:`CRSResults.plot(my_sigma
 
     >>> my_sigma_profile = my_results.get_sigma_profile()
     >>> with np.printoptions(threshold=0, edgeitems=5):
-    ...     print(sigma_profile)
+    ...     print(my_sigma_profile)
     {'Water.coskf': array([0., 0., 0., 0., 0., ..., 0., 0., 0., 0., 0.]),
      'σ (e/A**2)': array([-0.25, -0.24, -0.23, -0.22, -0.21, ...,  0.21,  0.22,  0.23,  0.24, 0.25])}
 

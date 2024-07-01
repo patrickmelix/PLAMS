@@ -3,11 +3,12 @@ import numpy as np
 from scm.plams.core.functions import add_to_class
 from scm.plams.mol.molecule import Atom, Molecule, MoleculeError
 
-__all__ = ['toASE', 'fromASE']
+__all__ = ["toASE", "fromASE"]
 ase_present = False
 
 try:
     import ase
+
     ase_present = True
 except ImportError:
     __all__ = []
@@ -33,13 +34,13 @@ def readase(self, f, **other):
     try:
         from ase import io as aseIO
     except ImportError:
-        raise MoleculeError('Asked for ASE IO engine but could not load ASE.io module')
+        raise MoleculeError("Asked for ASE IO engine but could not load ASE.io module")
 
     aseMol = aseIO.read(f, **other)
     mol = fromASE(aseMol)
-    #update self with the molecule read without overwriting e.g. settings
+    # update self with the molecule read without overwriting e.g. settings
     self += mol
-    #lattice does not survive soft update
+    # lattice does not survive soft update
     self.lattice = mol.lattice
     return
 
@@ -62,10 +63,10 @@ def writease(self, f, **other):
     aseMol.write(f, **other)
     return
 
-if ase_present:
-    Molecule._readformat['ase'] = Molecule.readase
-    Molecule._writeformat['ase'] = Molecule.writease
 
+if ase_present:
+    Molecule._readformat["ase"] = Molecule.readase
+    Molecule._writeformat["ase"] = Molecule.writease
 
 
 def toASE(molecule, set_atomic_charges=False):
@@ -76,43 +77,42 @@ def toASE(molecule, set_atomic_charges=False):
         If True, set_initial_charges() will be called with the average atomic charge (taken from molecule.properties.charge). The purpose is to preserve the total charge, not to set any reasonable initial charges.
     """
 
-    #iterate over PLAMS atoms
+    # iterate over PLAMS atoms
     for atom in molecule:
 
-        #check if coords only consists of floats or ints
-        if not all(isinstance(x, (int,float)) for x in atom.coords):
+        # check if coords only consists of floats or ints
+        if not all(isinstance(x, (int, float)) for x in atom.coords):
             raise ValueError("Non-Number in Atomic Coordinates, not compatible with ASE")
 
     aseMol = ase.Atoms(numbers=molecule.numbers, positions=molecule.as_array())
 
-    #get lattice info if any
-    lattice = np.zeros((3,3))
-    pbc = [False,False,False]
-    for i,vec in enumerate(molecule.lattice):
+    # get lattice info if any
+    lattice = np.zeros((3, 3))
+    pbc = [False, False, False]
+    for i, vec in enumerate(molecule.lattice):
 
-        #check if lattice only consists of floats or ints
-        if not all(isinstance(x, (int,float)) for x in vec):
+        # check if lattice only consists of floats or ints
+        if not all(isinstance(x, (int, float)) for x in vec):
             raise ValueError("Non-Number in Lattice Vectors, not compatible with ASE")
 
         pbc[i] = True
         lattice[i] = np.array(vec)
 
-    #save lattice info to aseMol
+    # save lattice info to aseMol
     if any(pbc):
         aseMol.set_pbc(pbc)
         aseMol.set_cell(lattice)
 
     if set_atomic_charges:
-        charge = molecule.properties.get('charge', 0)
+        charge = molecule.properties.get("charge", 0)
         if not charge:
-            atomic_charges = [0.0]*len(molecule)
+            atomic_charges = [0.0] * len(molecule)
         else:
-            atomic_charges = [float(charge)] + [0.0]*(len(molecule)-1)
+            atomic_charges = [float(charge)] + [0.0] * (len(molecule) - 1)
 
         aseMol.set_initial_charges(atomic_charges)
 
     return aseMol
-
 
 
 def fromASE(molecule, properties=None, set_charge=False):
@@ -122,26 +122,26 @@ def fromASE(molecule, properties=None, set_charge=False):
     """
     plamsMol = Molecule()
 
-    #iterate over ASE atoms
+    # iterate over ASE atoms
     for atom in molecule:
-        #add atom to plamsMol
+        # add atom to plamsMol
         plamsMol.add_atom(Atom(atnum=atom.number, coords=tuple(atom.position)))
 
-    #add Lattice if any
+    # add Lattice if any
     if any(molecule.get_pbc()):
         lattice = []
-        #loop over three booleans
-        for i,boolean in enumerate(molecule.get_pbc().tolist()):
+        # loop over three booleans
+        for i, boolean in enumerate(molecule.get_pbc().tolist()):
             if boolean:
                 lattice.append(tuple(molecule.get_cell()[i]))
 
-        #write lattice to plamsMol
+        # write lattice to plamsMol
         plamsMol.lattice = lattice.copy()
 
     if properties:
         plamsMol.properties.update(properties)
-    if (properties and 'charge' not in properties or not properties) and set_charge:
+    if (properties and "charge" not in properties or not properties) and set_charge:
         plamsMol.properties.charge = sum(molecule.get_initial_charges())
-        if 'charge'  in molecule.info:
-            plamsMol.properties.charge += molecule.info['charge']
+        if "charge" in molecule.info:
+            plamsMol.properties.charge += molecule.info["charge"]
     return plamsMol

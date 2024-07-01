@@ -71,7 +71,9 @@ If you obtained PLAMS using Git or ``pip`` please use the usual Git or ``pip`` m
 Running PLAMS
 -------------------------
 
-Inside your Python interpreter or in Python scripts PLAMS is visible as a subpackage of the ``scm`` package, so you can import it with one of the following commands::
+Inside your Python interpreter or in Python scripts PLAMS is visible as a subpackage of the ``scm`` package, so you can import it with one of the following commands
+
+.. code-block:: python
 
     import scm.plams
     from scm import plams
@@ -98,7 +100,9 @@ Without this initialization almost every PLAMS function or class call results in
 Similarly, at the end of the script public function |finish| needs to be called to properly clean the main working folder and ensure proper closure of parallel scripts.
 You can find more detailed information about these two functions in :ref:`public-functions` section.
 
-To sum up, a proper PLAMS script needs to look like this::
+To sum up, a proper PLAMS script needs to look like this
+
+.. code-block:: python
 
     from scm.plams import *
     init()
@@ -137,7 +141,9 @@ It gives an overview of what and how can be tweaked (it's not long, we promise).
 If you wish to globally change some setting you can do it by modifying the defaults file.
 Changes you make there are going to affect all future PLAMS runs.
 To tweak a particular setting just for a single script, copy a corresponding line from the defaults file and place it at the top of your script.
-For example::
+For example
+
+.. code-block:: python
 
     config.log.stdout = 1
     config.job.pickle = False
@@ -156,7 +162,9 @@ If your ``$PATH`` variable is configured properly, you can type in your command 
 The launch script provides a convenient way of executing PLAMS scripts and takes care of important things mentioned earlier in this chapter: properly importing and initializing PLAMS and cleaning after all the work is done.
 Thanks to that your actual script does not need to contain import, init or finish commands.
 
-Without the launcher::
+Without the launcher
+
+.. code-block:: python
 
     from scm.plams import *
     init()
@@ -168,7 +176,9 @@ Without the launcher::
 
 executed with ``python [filename]`` (or ``amspython [filename]``).
 
-With the launcher::
+With the launcher
+
+.. code-block:: python
 
     # =========
     # actual script here

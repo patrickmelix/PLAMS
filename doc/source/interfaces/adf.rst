@@ -17,7 +17,7 @@ The are subclasses of, respectively, |SCMJob| and |SCMResults|, which gather com
 Preparing input
 ~~~~~~~~~~~~~~~
 
-Input files for ADF consist of blocks and subblocks containg keys and values.
+Input files for ADF consist of blocks and subblocks containing keys and values.
 That kind of structure can be easily reflected by |Settings| objects since they are built in a similar way.
 
 The input file is generated based on ``input`` branch of job's |Settings|.
@@ -68,7 +68,7 @@ If you need to put a key without any value, ``True`` or empty string can be give
 
     writefock
 
-If a value of a particualr key is ``False``, that key is omitted.
+If a value of a particular key is ``False``, that key is omitted.
 To produce an empty block simply type::
 
     >>> myjob.settings.input.geometry  # this is equivalent to myjob.settings.input.geometry = Settings()
