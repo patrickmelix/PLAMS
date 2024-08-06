@@ -23,6 +23,9 @@ def config():
 
 @pytest.fixture
 def xyz_folder():
+    """
+    Returns the path to the XYZ folder
+    """
     p = Path(__file__).parent.absolute() / "xyz"
     assert p.exists()
     return p
@@ -34,5 +37,15 @@ def pdb_folder():
     Returns the path to the PDB folder
     """
     p = Path(__file__).parent.absolute() / "pdb"
+    assert p.exists()
+    return p
+
+
+@pytest.fixture
+def rkf_folder():
+    """
+    Returns the path to the RKF folder
+    """
+    p = Path(__file__).parent.absolute() / "rkf"
     assert p.exists()
     return p

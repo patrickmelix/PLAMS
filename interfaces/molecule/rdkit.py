@@ -230,7 +230,7 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False):
             raise exc
     conf = Chem.Conformer()
     for i, atom in enumerate(plams_mol.atoms):
-        xyz = Geometry.Point3D(atom._getx(), atom._gety(), atom._getz())
+        xyz = Geometry.Point3D(atom.x, atom.y, atom.z)
         conf.SetAtomPosition(i, xyz)
     rdmol.AddConformer(conf)
     # REB: Assign all stereochemistry, if it wasn't already there

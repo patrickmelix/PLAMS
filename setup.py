@@ -36,7 +36,15 @@ setup(
     packages=packages,
     package_dir={"scm.plams": "."},
     package_data={
-        "scm.plams": [".flake8", "plams_defaults", "examples/*", "unit_tests/*", "unit_tests/xyz/*", "unit_tests/pdb/*"]
+        "scm.plams": [
+            ".flake8",
+            "plams_defaults",
+            "examples/*",
+            "unit_tests/*",
+            "unit_tests/xyz/*",
+            "unit_tests/pdb/*",
+            "unit_tests/rkf/*",
+        ]
     },
     scripts=[opj("scripts", "plams")],
 )

@@ -1,12 +1,16 @@
 import math
 
 import numpy as np
+from typing import Iterable, Union, List, Tuple, TYPE_CHECKING
 
 from scm.plams.core.settings import Settings
 from scm.plams.tools.periodic_table import PT
 from scm.plams.tools.units import Units
 
 __all__ = ["Atom"]
+
+if TYPE_CHECKING:
+    from scm.plams.mol.bond import Bond
 
 
 class Atom:
@@ -128,35 +132,39 @@ class Atom:
         """Iteration through atom yields coordinates. Thanks to that instances of |Atom| can be passed to any method requiring as an argument a point or a vector in 3D space."""
         return iter(self.coords)
 
-    def _setx(self, value):
-        self.coords = (value, self.coords[1], self.coords[2])
-
-    def _sety(self, value):
-        self.coords = (self.coords[0], value, self.coords[2])
-
-    def _setz(self, value):
-        self.coords = (self.coords[0], self.coords[1], value)
-
-    def _getx(self):
+    @property
+    def x(self) -> float:
         return self.coords[0]
 
-    def _gety(self):
+    @x.setter
+    def x(self, value: float) -> None:
+        self.coords = (value, self.coords[1], self.coords[2])
+
+    @property
+    def y(self) -> float:
         return self.coords[1]
 
-    def _getz(self):
+    @y.setter
+    def y(self, value: float) -> None:
+        self.coords = (self.coords[0], value, self.coords[2])
+
+    @property
+    def z(self) -> float:
         return self.coords[2]
 
-    x = property(_getx, _setx)
-    y = property(_gety, _sety)
-    z = property(_getz, _setz)
+    @z.setter
+    def z(self, value: float) -> None:
+        self.coords = (self.coords[0], self.coords[1], value)
 
-    def _getsymbol(self):
+    @property
+    def symbol(self) -> str:
         if self.atnum == 0:
             return self._dummysymbol
         else:
             return PT.get_symbol(self.atnum)
 
-    def _setsymbol(self, symbol):
+    @symbol.setter
+    def symbol(self, symbol: str) -> None:
         if symbol.lower().capitalize() in PT.dummysymbols:
             self.atnum = 0
             self._dummysymbol = symbol.lower().capitalize()
@@ -164,34 +172,27 @@ class Atom:
             self.atnum = PT.get_atomic_number(symbol)
             self._dummysymbol = None
 
-    symbol = property(_getsymbol, _setsymbol)
-
-    def _getmass(self):
+    @property
+    def mass(self) -> float:
         return PT.get_mass(self.atnum)
 
-    mass = property(_getmass)
-
-    def _getradius(self):
+    @property
+    def radius(self) -> float:
         return PT.get_radius(self.atnum)
 
-    radius = property(_getradius)
-
-    def _getconnectors(self):
+    @property
+    def connectors(self) -> int:
         return PT.get_connectors(self.atnum)
 
-    connectors = property(_getconnectors)
-
-    def _ismetallic(self):
+    @property
+    def is_metallic(self) -> bool:
         return PT.get_metallic(self.atnum)
 
-    is_metallic = property(_ismetallic)
-
-    def _iselectronegative(self):
+    @property
+    def is_electronegative(self) -> bool:
         return PT.get_electronegative(self.atnum)
 
-    is_electronegative = property(_iselectronegative)
-
-    def translate(self, vector, unit="angstrom"):
+    def translate(self, vector: Iterable[float], unit: str = "angstrom") -> None:
         """Move this atom in space by *vector*, expressed in *unit*.
 
         *vector* should be an iterable container of length 3 (usually tuple, list or numpy array). *unit* describes unit of values stored in *vector*.
@@ -201,7 +202,7 @@ class Atom:
         ratio = Units.conversion_ratio(unit, "angstrom")
         self.coords = tuple(i + j * ratio for i, j in zip(self, vector))
 
-    def move_to(self, point, unit="angstrom"):
+    def move_to(self, point: Iterable[float], unit: str = "angstrom") -> None:
         """Move this atom to a given *point* in space, expressed in *unit*.
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*.
@@ -211,7 +212,7 @@ class Atom:
         ratio = Units.conversion_ratio(unit, "angstrom")
         self.coords = tuple(i * ratio for i in point)
 
-    def distance_to(self, point, unit="angstrom", result_unit="angstrom") -> float:
+    def distance_to(self, point: Iterable[float], unit: str = "angstrom", result_unit: str = "angstrom") -> float:
         """Measure the distance between this atom and *point*.
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
@@ -224,7 +225,9 @@ class Atom:
             res += (i - j * ratio) ** 2
         return Units.convert(math.sqrt(res), "angstrom", result_unit)
 
-    def vector_to(self, point, unit="angstrom", result_unit="angstrom"):
+    def vector_to(
+        self, point: Iterable[float], unit: str = "angstrom", result_unit: str = "angstrom"
+    ) -> Tuple[float, float, float]:
         """Calculate a vector from this atom to *point*.
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
@@ -235,7 +238,14 @@ class Atom:
         resultratio = Units.conversion_ratio("angstrom", result_unit)
         return tuple((i * ratio - j) * resultratio for i, j in zip(point, self))
 
-    def angle(self, point1, point2, point1unit="angstrom", point2unit="angstrom", result_unit="radian"):
+    def angle(
+        self,
+        point1: Iterable[float],
+        point2: Iterable[float],
+        point1unit: str = "angstrom",
+        point2unit: str = "angstrom",
+        result_unit: str = "radian",
+    ) -> float:
         """Calculate an angle between vectors pointing from this atom to *point1* and *point2*.
 
         *point1* and *point2* should be iterable containers of length 3 (for example: tuple, |Atom|, list, numpy array). Values stored in them are expressed in, respectively, *point1unit* and *point2unit*. Returned value is expressed in *result_unit*.
@@ -246,7 +256,7 @@ class Atom:
         den = self.distance_to(point1, point1unit) * self.distance_to(point2, point2unit)
         return Units.convert(math.acos(num / den), "radian", result_unit)
 
-    def rotate(self, matrix):
+    def rotate(self, matrix: Union[Iterable[float], Iterable[Iterable[float]]]) -> None:
         """Rotate this atom according to a rotation *matrix*.
 
         *matrix* should be a container with 9 numerical values. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
@@ -258,6 +268,6 @@ class Atom:
         matrix = np.array(matrix).reshape(3, 3)
         self.coords = tuple(np.dot(matrix, np.array(self.coords)))
 
-    def neighbors(self):
+    def neighbors(self) -> List["Bond"]:
         """Return a list of neighbors of this atom within the molecule. The list follows the same order as the ``bonds`` attribute."""
         return [b.other_end(self) for b in self.bonds]
