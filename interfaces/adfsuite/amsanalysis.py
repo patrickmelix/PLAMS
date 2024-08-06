@@ -1,5 +1,9 @@
+from typing import Dict, Union
+
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
 
 __all__ = ["AMSAnalysisJob", "AMSAnalysisResults", "convert_to_unicode"]
 
@@ -225,6 +229,36 @@ class AMSAnalysisResults(SCMResults):
         D_units = plot.y_units
         return D, D_units
 
+    def recreate_settings(self):
+        """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
+            
+        Extract user input from the kf file and parse it back to a |Settings| instance using ``scm.libbase`` module. Remove the ``system`` branch from that instance.
+        """     
+        user_input = self._kf.read("General", "user input")
+        try:
+            from scm.libbase import InputParser
+        
+            inp = InputParser().to_settings("analysis", user_input)
+        except:
+            log("Failed to recreate input settings from {}".format(os.path.join(self.job.path,''.join([self.job.name,self.__class__._kfext]))))
+            return None
+        s = Settings()
+        s.input = inp
+        return s
+
+    def recreate_molecule(self) -> Union[None, Molecule, Dict[str, Molecule]]:
+        """Recreate the input molecule(s) for the corresponding job based on files present in the job folder.
+    
+        This method is used by |load_external|.
+        It extracts data from the ``InputMolecule`` and ``InputMolecule(*)`` sections.
+        """ 
+        from scm.plams import AMSJob
+        if 'system' in self.job.settings.input:
+            self.job.settings.input.ams.system = self.job.settings.input.system
+            del self.job.settings.input.system
+            molecule = AMSJob.settings_to_mol(self.job.settings)
+            del self.job.settings.input.ams
+            return molecule
 
 class AMSAnalysisJob(SCMJob):
     """A class for analyzing molecular dynamics trajectories using the ``analysis`` program."""
@@ -237,10 +271,28 @@ class AMSAnalysisJob(SCMJob):
         SCMJob.__init__(self, **kwargs)
 
     def _serialize_mol(self):
-        pass
+        """
+        Use the method from AMSJob to move the molecule to the settings object
+        """
+        from scm.plams import AMSJob
+        systems = AMSJob._serialize_molecule(self)
+        if len(systems) > 0 :
+            self.settings.input.system = systems
 
     def _remove_mol(self):
-        pass
+        """
+        Remove the molecule from the system block again
+        """
+        if "system" in self.settings.input:
+            del self.settings.input.system
+
+    @staticmethod
+    def _atom_suffix(atom):
+        """
+        Return the suffix of an atom.
+        """
+        from scm.plams import AMSJob
+        return AMSJob._atom_suffix(atom)
 
     def check(self):
         try:

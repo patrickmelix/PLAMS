@@ -16,7 +16,7 @@ from scm.plams.core.settings import Settings
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
 from scm.plams.mol.context import AsArrayContext
-from scm.plams.mol.pdbtools import PDBHandler, PDBRecord
+from scm.plams.mol.pdbtools import PDBHandler, PDBAtom
 from scm.plams.tools.geometry import axis_rotation_matrix, cell_angles, cell_lengths, distance_array, rotation_matrix
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.periodic_table import PT
@@ -715,6 +715,10 @@ class Molecule:
             """
             Get the electronegativities of neighbors by searching through the molecules
             """
+            en = []
+            if search_depth is not None:
+                if search_depth <= 0:
+                    return en
             en = [electronegativities[atom.symbol] if atom.symbol in electronegativities else None]
             en = [v for v in en if v is not None]
             if search_depth is not None:
@@ -1478,9 +1482,23 @@ class Molecule:
         allrings = [self.order_ring(ring) for ring in allrings]
         return allrings
 
-    def locate_rings_acm(self):
+    def locate_rings_acm(self, all_rings=True):
         """
         Use the ACM algorithm to find rings
+
+        * ``all_rings`` -- If all_rings is set to False, this algorithm reverts to SSSR
+
+        Note: This is actually Paton's algorithm
+              to find the fundamental cycles in a graph
+              The basis of fundamental cycles is found if all_rings is set to False
+              Otherwise, for each edge not in the spanning tree, all cycles of the same length
+              are added. So there may be more than one cycle for each of these edges.
+              That is the same result as locate_rings() gives, but faster.
+              The RDKit SSSR algorithm (which in that case stands for small set of smallest rings)
+              returns more rings than regular SSSR, but less than this algorithm with allrings=True.
+              I am not sure what RDKit does exactly, and I cannot see the pattern in the results.
+              It looks inconsistent (compare results for 'CC1C2=CCC3=CC=CC=CC=CCOCC4CCC(C2=C3)=C2C=1CCCC24'
+              and 'CC1C2=CCC3=CC=CC=CC=CC4CCCCCC5CCC6C(=C(CCC6CO4)C2=C3)C=15').
         """
 
         def find_cycle(tree, root, leaf):
@@ -1533,13 +1551,18 @@ class Molecule:
                         if not sorted_ring in rings_sorted:
                             rings.append(ring)
                             rings_sorted.append(sorted_ring)
+                            if not all_rings:
+                                break
                 else:
                     atoms_in_tree.append(jat)
+                # Add the connection to the tree
                 tree[iat].append(jat)
                 tree[jat].append(iat)
                 # tree.append([iat,jat])
+                # Remove the connection from the table
                 conect[iat] = [j for j in conect[iat] if not j == jat]
                 conect[jat] = [j for j in conect[jat] if not j == iat]
+            # Remove iat from the todo list
             atoms_to_examine = [i for i in atoms_to_examine if not i == iat]
             if len(atoms_to_examine) == 0:
                 break
@@ -1562,9 +1585,16 @@ class Molecule:
                 new_ring.append(neighbors[0])
         return new_ring
 
-    def locate_rings_networkx(self):
+    def locate_rings_networkx(self, find_smallest=False):
         """
         Obtain a list of ring indices using RDKit (same as locate_rings, but much faster)
+
+        * ``find_smallest`` -- Advised if the rings themselves will be used. Does not affect the number of rings.
+
+        Note: The SSSR (smallest set of smallest rings) algorithm.
+              In contrast, RDKit uses a 'small set of smallest rings' algorithm.
+              The SSSR is more reliable than the other two locate_rings methods, as well as the RDKit alternative.
+              It may only assign 5 rings to cubane, but it is generally more consistent.
         """
         import networkx
 
@@ -1572,7 +1602,10 @@ class Molecule:
         matrix = matrix.astype(np.int32)
         matrix[matrix > 0] = 1
         graph = networkx.from_numpy_matrix(matrix)
-        rings = networkx.cycle_basis(graph)
+        if find_smallest:
+            rings = networkx.minimum_cycle_basis(graph) # Very slow
+        else:
+            rings = networkx.cycle_basis(graph)
         return rings
 
     def shortest_path_dijkstra(self, source, target, conect=None):
@@ -2975,47 +3008,53 @@ class Molecule:
         The default is the first one (*geometry* = 1).
         """
         pdb = PDBHandler(f)
-        models = pdb.get_models()
-        if geometry > len(models):
-            raise FileError("readpdb: There are only %i geometries in %s" % (len(models), f.name))
+        atoms = pdb.get_atoms(geometry)
+        for pdbat in atoms:
+            symbol = pdbat.get_symbol()
+            try:
+                atnum = PT.get_atomic_number(symbol)
+            except PTError:
+                s = "readpdb: Unable to deduce the atomic symbol in the following line:\n"
+                s += "%s" %(str(pdbat))
+                raise FileError(s)
+            at = Atom(atnum=atnum, coords=pdbat.coords)
+            at.properties.pdb.res = pdbat.res
+            at.properties.pdb.resnum = pdbat.resnum
+            at.properties.pdb.name = pdbat.name
+            self.add_atom(at)
+        self.lattice = pdb.get_lattice()
 
-        symbol_columns = [70, 6, 7, 8]
-        for i in models[geometry - 1]:
-            if i.name in ["ATOM  ", "HETATM"]:
-                x = float(i.value[0][24:32])
-                y = float(i.value[0][32:40])
-                z = float(i.value[0][40:48])
-                for n in symbol_columns:
-                    symbol = i.value[0][n : n + 2].strip()
-                    try:
-                        atnum = PT.get_atomic_number(symbol)
-                        break
-                    except PTError:
-                        if n == symbol_columns[-1]:
-                            raise FileError(
-                                "readpdb: Unable to deduce the atomic symbol in the following line:\n%s"
-                                % (i.name + i.value[0])
-                            )
-                self.add_atom(Atom(atnum=atnum, coords=(x, y, z)))
-
+        # Get the bonds
+        for iat, indices in pdb.get_connections().items():
+            for jat in indices:
+                atom1 = self.atoms[iat]
+                atom2 = self.atoms[jat]
+                if self.find_bond(atom1, atom2) is None:
+                    self.add_bond(atom1, atom2)
         return pdb
 
     def writepdb(self, f, **other):
+        """
+        Write the molecule in PDB format
+        """
         pdb = PDBHandler()
-        pdb.add_record(PDBRecord("HEADER"))
-        model = []
-        for i, at in enumerate(self.atoms, 1):
-            s = "ATOM  %5i                   %8.3f%8.3f%8.3f                      %2s  " % (
-                i,
-                at.x,
-                at.y,
-                at.z,
-                at.symbol.upper(),
-            )
-            model.append(PDBRecord(s))
-        pdb.add_model(model)
-        pdb.add_record(pdb.calc_master())
-        pdb.add_record(PDBRecord("END"))
+        for i, at in enumerate(self.atoms):
+            pdbatom = PDBAtom()
+            pdbatom.coords = at.coords
+            pdbatom.element = at.symbol.upper()
+            if "pdb" in at.properties:
+                if "res" in at.properties.pdb:
+                    pdbatom.res = at.properties.pdb.res
+                if "resnum" in at.properties.pdb:
+                    pdbatom.resnum = at.properties.pdb.resnum
+                if "name" in at.properties.pdb:
+                    pdbatom.name = at.properties.pdb.name
+            pdb.add_atom(pdbatom)
+        if len(self.lattice) > 0 :
+            pdb.set_lattice(self.lattice)
+        connections = {i:inds for i, inds in enumerate(self.get_connection_table())}
+        connections = {i:inds for i, inds in connections.items() if len(inds) > 0}
+        pdb.set_connections(connections)
         pdb.write(f)
 
     def hydrogen_to_deuterium(self):
@@ -3135,13 +3174,13 @@ class Molecule:
         """Read a file containing a System block used in AMS driver input files."""
         if not input_parser_available:
             raise NotImplementedError(
-                "Reading from System blocks from AMS input files requires the scm.libbase library to be available."
+                "Reading from System blocks from AMS input files requires an AMS installation to be available."
             )
-        from scm.libbase import InputParser
+        from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
         from scm.plams.interfaces.adfsuite.ams import AMSJob
 
         sett = Settings()
-        sett.input.AMS = Settings(InputParser().to_dict("ams", f.read(), string_leafs=True))
+        sett.input.AMS = Settings(InputParserFacade().to_dict("ams", f.read(), string_leafs=True))
         if "System" not in sett.input.AMS:
             raise ValueError("No System block found in file.")
         sysname = other.get("sysname", "")

@@ -115,10 +115,10 @@ class Atom:
             else strformat.format(str(x))
         )
         if symbol is False:
-            return ("{0} {1} {2} " + suffix).format(*map(f, self.coords), **suffix_dict)
+            return ("{0} {1} {2} " + suffix).format(*map(f, self.coords), **suffix_dict).rstrip()
         if symbol is True:
             symbol = self.symbol
-        return ("{0:>10s} {1} {2} {3} " + suffix).format(symbol, *map(f, self.coords), **suffix_dict)
+        return ("{0:>10s} {1} {2} {3} " + suffix).format(symbol, *map(f, self.coords), **suffix_dict).rstrip()
 
     def __str__(self):
         """Return a string representation of this atom. Simplified version of :meth:`str` to work as a magic method."""

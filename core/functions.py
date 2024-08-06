@@ -12,7 +12,7 @@ from typing import Dict
 
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.private import retry
-from scm.plams.core.settings import Settings
+from scm.plams.core.settings import Settings, ConfigSettings
 
 __all__ = [
     "init",
@@ -28,9 +28,8 @@ __all__ = [
     "read_all_molecules_in_xyz_file",
 ]
 
-config = Settings()
+config = ConfigSettings()
 config.init = False
-
 # ===========================================================================
 
 
@@ -54,6 +53,8 @@ def init(path=None, folder=None, config_settings: Dict = None, quiet=False, use_
     if config.init:
         return
 
+    # Update all standard options to their defaults
+    config.update(ConfigSettings())
     if "PLAMSDEFAULTS" in os.environ and isfile(expandvars("$PLAMSDEFAULTS")):
         defaults = expandvars("$PLAMSDEFAULTS")
     elif "AMSHOME" in os.environ and isfile(opj(expandvars("$AMSHOME"), "scripting", "scm", "plams", "plams_defaults")):

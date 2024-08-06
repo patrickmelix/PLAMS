@@ -1,8 +1,23 @@
 import contextlib
 import textwrap
 from functools import wraps
+from typing import TYPE_CHECKING, TypeVar
 
-__all__ = ["Settings"]
+__all__ = [
+    "Settings",
+    "SafeRunSettings",
+    "LogSettings",
+    "RunScriptSettings",
+    "JobSettings",
+    "JobManagerSettings",
+    "ConfigSettings",
+]
+
+if TYPE_CHECKING:
+    from scm.plams.core.jobmanager import JobManager
+    from scm.plams.core.jobrunner import JobRunner
+
+TSelf = TypeVar("TSelf", bound="BaseClass")
 
 
 class Settings(dict):
@@ -40,15 +55,14 @@ class Settings(dict):
 
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
-        cls = type(self)
 
         for k, v in self.items():
-            if isinstance(v, dict) and type(v) is not cls:
-                self[k] = cls(v)
+            if isinstance(v, dict) and not isinstance(v, Settings):
+                self[k] = Settings(v)
             if isinstance(v, list):
-                self[k] = [cls(i) if (isinstance(i, dict) and type(i) is not cls) else i for i in v]
+                self[k] = [Settings(i) if (isinstance(i, dict) and not isinstance(i, Settings)) else i for i in v]
 
-    def copy(self):
+    def copy(self: TSelf) -> TSelf:
         """Return a new instance that is a copy of this one. Nested |Settings| instances are copied recursively, not linked.
 
         In practice this method works as a shallow copy: all "proper values" (leaf nodes) in the returned copy point to the same objects as the original instance (unless they are immutable, like ``int`` or ``tuple``). However, nested |Settings| instances (internal nodes) are copied in a deep-copy fashion. In other words, copying a |Settings| instance creates a brand new "tree skeleton" and populates its leaf nodes with values taken directly from the original instance.
@@ -91,7 +105,7 @@ class Settings(dict):
                 ret[name] = self[name]
         return ret
 
-    def soft_update(self, other):
+    def soft_update(self: TSelf, other: "Settings") -> TSelf:
         """Update this instance with data from *other*, but do not overwrite existing keys. Nested |Settings| instances are soft-updated recursively.
 
         In the following example ``s`` and ``o`` are previously prepared |Settings| instances::
@@ -170,7 +184,7 @@ class Settings(dict):
             else:
                 self[name] = other[name]
 
-    def merge(self, other):
+    def merge(self: TSelf, other: "Settings") -> TSelf:
         """Return new instance of |Settings| that is a copy of this instance soft-updated with *other*.
 
         Shortcut ``A + B`` can be used instead of ``A.merge(B)``.
@@ -202,15 +216,14 @@ class Settings(dict):
         # functioning as a default return value in case `key` is not present in this instance
         return dict.pop(self, self.find_case(key), *args)
 
-    def popitem(self, key):
+    def popitem(self):
         """Like regular ``popitem``, but ignore the case."""
-        return dict.popitem(self, self.find_case(key))
+        return dict.popitem(self)
 
     def setdefault(self, key, default=None):
         """Like regular ``setdefault``, but ignore the case and if the value is a dict, convert it to |Settings|."""
-        cls = type(self)
-        if isinstance(default, dict) and type(default) is not cls:
-            default = cls(default)
+        if isinstance(default, dict) and not isinstance(default, Settings):
+            default = Settings(default)
         return dict.setdefault(self, self.find_case(key), default)
 
     def as_dict(self):
@@ -253,7 +266,7 @@ class Settings(dict):
         .. _`special method lookup`: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
 
         """
-        return SuppressMissing(cls)
+        return SuppressMissing(Settings)
 
     def get_nested(self, key_tuple, suppress_missing=False):
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
@@ -299,7 +312,7 @@ class Settings(dict):
                 s = s[k]
         s[key_tuple[-1]] = value
 
-    def flatten(self, flatten_list=True):
+    def flatten(self, flatten_list=True) -> "Settings":
         """Return a flattened copy of this instance.
 
         New keys are constructed by concatenating the (nested) keys of this instance into tuples.
@@ -338,12 +351,11 @@ class Settings(dict):
                     ret[k] = v
 
         # Changes keys into tuples
-        cls = type(self)
-        ret = cls()
+        ret = Settings()
         _concatenate((), self)
         return ret
 
-    def unflatten(self, unflatten_list=True):
+    def unflatten(self, unflatten_list=True) -> "Settings":
         """Return a nested copy of this instance.
 
         New keys are constructed by expanding the keys of this instance (*e.g.* tuples) into new nested |Settings| instances.
@@ -365,8 +377,7 @@ class Settings(dict):
               b:
                 c: 	True
         """
-        cls = type(self)
-        ret = cls()
+        ret = Settings()
         for key, value in self.items():
             s = ret
             for k1, k2 in zip(key[:-1], key[1:]):
@@ -374,10 +385,10 @@ class Settings(dict):
                     s = s[k1]
                     continue
 
-                if isinstance(k2, int) and not isinstance(s[k1], list):
-                    s[k1] = []
-                if isinstance(k1, int):  # Apply padding to s
-                    s += [Settings()] * (k1 - len(s) + 1)
+                if isinstance(k2, int):  # Apply padding to s
+                    if not isinstance(s[k1], list):
+                        s[k1] = []
+                    s[k1] += [Settings()] * (k2 - len(s[k1]) + 1)
                 s = s[k1]
             s[key[-1]] = value
 
@@ -401,8 +412,7 @@ class Settings(dict):
 
         The behaviour of this method can be suppressed by initializing the :class:`.Settings.suppress_missing` context manager.
         """
-        cls = type(self)
-        self[name] = cls()
+        self[name] = Settings()
         return self[name]
 
     def __contains__(self, name):
@@ -415,9 +425,8 @@ class Settings(dict):
 
     def __setitem__(self, name, value):
         """Like regular ``__setitem__``, but ignore the case and if the value is a dict, convert it to |Settings|."""
-        cls = type(self)
-        if isinstance(value, dict) and type(value) is not cls:
-            value = cls(value)
+        if isinstance(value, dict) and not isinstance(value, Settings):
+            value = Settings(value)
         dict.__setitem__(self, self.find_case(name), value)
 
     def __delitem__(self, name):
@@ -425,20 +434,20 @@ class Settings(dict):
         return dict.__delitem__(self, self.find_case(name))
 
     def __getattr__(self, name):
-        """If name is not a magic method, redirect it to ``__getitem__``."""
+        """If name is not a magic method, redirect it to ``__getattribute__``."""
         if name.startswith("__") and name.endswith("__"):
             return dict.__getattribute__(self, name)
         return self[name]
 
     def __setattr__(self, name, value):
-        """If name is not a magic method, redirect it to ``__setitem__``."""
+        """If name is not a magic method, redirect it to ``__setattr__``."""
         if name.startswith("__") and name.endswith("__"):
             dict.__setattr__(self, name, value)
         else:
             self[name] = value
 
     def __delattr__(self, name):
-        """If name is not a magic method, redirect it to ``__delitem__``."""
+        """If name is not a magic method, redirect it to ``__delattr__``."""
         if name.startswith("__") and name.endswith("__"):
             dict.__delattr__(self, name)
         else:
@@ -461,6 +470,12 @@ class Settings(dict):
 
     def __str__(self):
         return self._str(0)
+
+    def __dir__(self):
+        """
+        Return standard attributes, plus dynamically added keys which can be accessed via dot notation.
+        """
+        return [x for x in super().__dir__()] + [k for k in self.keys() if isinstance(k, str) and k.isidentifier()]
 
     __repr__ = __str__
     __iadd__ = soft_update
@@ -490,3 +505,430 @@ class SuppressMissing(contextlib.AbstractContextManager):
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the :class:`SuppressMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
         setattr(self.obj, "__missing__", self.missing)
+
+
+class SafeRunSettings(Settings):
+    """
+    Safe run settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.repeat = 10
+        self.delay = 1
+
+    @property
+    def repeat(self) -> int:
+        """
+        Number of attempts for each run() call. Defaults to ``10``.
+        """
+        return self["repeat"]
+
+    @repeat.setter
+    def repeat(self, value: int) -> None:
+        self["repeat"] = value
+
+    @property
+    def delay(self) -> int:
+        """
+        Delay between attempts for each run() call. Defaults to ``1``.
+        """
+        return self["delay"]
+
+    @delay.setter
+    def delay(self, value: int) -> None:
+        self["delay"] = value
+
+
+class LogSettings(Settings):
+    """
+    Log settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.file = 5
+        self.stdout = 3
+        self.time = True
+        self.date = True
+
+    @property
+    def file(self) -> int:
+        """
+        Verbosity of the log printed to .log file in the main working folder. Defaults to ``5``.
+        """
+        return self["file"]
+
+    @file.setter
+    def file(self, value: int) -> None:
+        self["file"] = value
+
+    @property
+    def stdout(self) -> int:
+        """
+        Verbosity of the log printed to the standard output. Defaults to ``3``.
+        """
+        return self["stdout"]
+
+    @stdout.setter
+    def stdout(self, value: int) -> None:
+        self["stdout"] = value
+
+    @property
+    def time(self) -> bool:
+        """
+        When enabled, include write time for each log event. Defaults to ``True``.
+        """
+        return self["time"]
+
+    @time.setter
+    def time(self, value: bool) -> None:
+        self["time"] = value
+
+    @property
+    def date(self) -> bool:
+        """
+        When enabled, include write date for each log event. Defaults to ``True``.
+        """
+        return self["date"]
+
+    @date.setter
+    def date(self, value: bool) -> None:
+        self["date"] = value
+
+
+class RunScriptSettings(Settings):
+    """
+    Run script settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.shebang = "#!/bin/sh"
+        self.stdout_redirect = False
+
+    @property
+    def shebang(self) -> str:
+        """
+        First line of all produced runscripts. Defaults to ``#!/bin/sh``.
+        """
+        return self["shebang"]
+
+    @shebang.setter
+    def shebang(self, value: str) -> None:
+        self["shebang"] = value
+
+    @property
+    def stdout_redirect(self) -> bool:
+        """
+        When enabled, the standard output redirection is handled by the operating system (by using '>[jobname].out' in the runscript), instead of being handled by native Python mechanism.
+        Defaults to ``False``.
+        """
+        return self["stdout_redirect"]
+
+    @stdout_redirect.setter
+    def stdout_redirect(self, value: bool) -> None:
+        self["stdout_redirect"] = value
+
+
+class JobSettings(Settings):
+    """
+    Job settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.pickle = True
+        self.pickle_protocol = -1
+        self.keep = "all"
+        self.save = "all"
+        self.runscript = RunScriptSettings()
+        self.link_files = True
+
+    @property
+    def pickle(self) -> bool:
+        """
+        Enables pickle for the whole job object to [jobname].dill, after job execution is finished. Defaults to ``True``.
+        """
+        return self["pickle"]
+
+    @pickle.setter
+    def pickle(self, value: bool) -> None:
+        self["pickle"] = value
+
+    @property
+    def pickle_protocol(self) -> int:
+        """
+        Protocol used for pickling. Defaults to ``-1``.
+        """
+        return self["pickle_protocol"]
+
+    @pickle_protocol.setter
+    def pickle_protocol(self, value: int) -> None:
+        self["pickle_protocol"] = value
+
+    @property
+    def keep(self) -> str:
+        """
+        Defines which files should be kept on disk. Defaults to ``all``.
+        """
+        return self["keep"]
+
+    @keep.setter
+    def keep(self, value: str) -> None:
+        self["keep"] = value
+
+    @property
+    def save(self) -> str:
+        """
+        Defines which files should be kept on disk. Defaults to ``all``.
+        """
+        return self["save"]
+
+    @save.setter
+    def save(self, value: str) -> None:
+        self["save"] = value
+
+    @property
+    def runscript(self) -> RunScriptSettings:
+        """
+        See :class:`~scm.plams.core.settings.RunscriptSettings`.
+        """
+        return self["runscript"]
+
+    @runscript.setter
+    def runscript(self, value: RunScriptSettings) -> None:
+        self["runscript"] = value
+
+    @property
+    def link_files(self) -> bool:
+        """
+        When enabled, re-run files will be hardlinked instead of copied, unless on Windows when files are always copied.
+        Defaults to ``True``.
+        """
+        return self["link_files"]
+
+    @link_files.setter
+    def link_files(self, value: bool) -> None:
+        self["link_files"] = value
+
+
+class JobManagerSettings(Settings):
+    """
+    Job manager settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.counter_len = 3
+        self.hashing = "input"
+        self.remove_empty_directories = True
+
+    @property
+    def counter_len(self) -> int:
+        """
+        Number of digits for the counter used when two or more jobs have the same name, when all the jobs apart from the first one are renamed to [jobname].002 ([jobname].003 etc.)
+        Defaults to ``3``.
+        """
+        return self["counter_len"]
+
+    @counter_len.setter
+    def counter_len(self, value: int) -> None:
+        self["counter_len"] = value
+
+    @property
+    def hashing(self) -> str:
+        """
+        Hashing method used for testing if some job was previously run. Defaults to ``input``.
+        """
+        return self["hashing"]
+
+    @hashing.setter
+    def hashing(self, value: str) -> None:
+        self["hashing"] = value
+
+    @property
+    def remove_empty_directories(self) -> bool:
+        """
+        When enabled, removes of all empty subdirectories in the main working folder at the end of the script.
+        Defaults to ``True``.
+        """
+        return self["remove_empty_directories"]
+
+    @remove_empty_directories.setter
+    def remove_empty_directories(self, value: bool) -> None:
+        self["remove_empty_directories"] = value
+
+
+class ConfigSettings(Settings):
+    """
+    Extends the default |Settings| with standard options which are required for global config.
+    The values for these options are initialised to default values.
+    The default |JobRunner| and |JobManager| are lazily initialised when first accessed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.init = False
+        self.preview = False
+        self.sleepstep = 5
+        self.ignore_failure = True
+        self.daemon_threads = True
+        self.erase_workdir = False
+        self.jobmanager = JobManagerSettings()
+        self.job = JobSettings()
+        self.log = LogSettings()
+        self.saferun = SafeRunSettings()
+
+        # Default job runner and job manager are lazily initialised on first access
+        # This is to allow users to change their settings before initialisation (due to side effects in init)
+        self.default_jobrunner = None
+        self.default_jobmanager = None
+
+    @property
+    def init(self) -> bool:
+        """
+        Whether config has been marked as fully initialised and jobs are ready to be run. Defaults to ``False``.
+        """
+        return self["init"]
+
+    @init.setter
+    def init(self, value: bool):
+        self["init"] = value
+
+    @property
+    def preview(self) -> bool:
+        """
+        When enabled, no actual calculations are run, only inputs and runscripts are prepared. Defaults to ``False``.
+        """
+        return self["preview"]
+
+    @preview.setter
+    def preview(self, value: bool):
+        self["preview"] = value
+
+    @property
+    def sleepstep(self) -> int:
+        """
+        Unit of time which is used whenever some action needs to be repeated until a certain condition is met. Defaults to ``5``.
+        """
+        return self["sleepstep"]
+
+    @sleepstep.setter
+    def sleepstep(self, value: int) -> None:
+        self["sleepstep"] = value
+
+    @property
+    def ignore_failure(self) -> bool:
+        """
+        When enabled, accessing a failed/crashed job gives a log message instead of an error. Defaults to ``True``.
+        """
+        return self["ignore_failure"]
+
+    @ignore_failure.setter
+    def ignore_failure(self, value: bool) -> None:
+        self["ignore_failure"] = value
+
+    @property
+    def daemon_threads(self) -> bool:
+        """
+        When enabled, all threads started by JobRunner are daemon threads, which are terminated when the main thread finishes,
+        and hence allow immediate end of the parallel script when Ctrl-C is pressed. Defaults to ``True``.
+        """
+        return self["daemon_threads"]
+
+    @daemon_threads.setter
+    def daemon_threads(self, value: bool) -> None:
+        self["daemon_threads"] = value
+
+    @property
+    def erase_workdir(self) -> bool:
+        """
+        When enabled, the entire main working folder is deleted at the end of script. Defaults to ``False``.
+        :return:
+        """
+        return self["erase_workdir"]
+
+    @erase_workdir.setter
+    def erase_workdir(self, value: bool) -> None:
+        self["erase_workdir"] = value
+
+    @property
+    def jobmanager(self) -> JobManagerSettings:
+        """
+        See :class:`~scm.plams.core.settings.JobManagerSettings`.
+        """
+        return self["jobmanager"]
+
+    @jobmanager.setter
+    def jobmanager(self, value: JobManagerSettings) -> None:
+        self["jobmanager"] = value
+
+    @property
+    def job(self) -> JobSettings:
+        """
+        See :class:`~scm.plams.core.settings.JobSettings`.
+        """
+        return self["job"]
+
+    @job.setter
+    def job(self, value: JobSettings) -> None:
+        self["job"] = value
+
+    @property
+    def log(self) -> LogSettings:
+        """
+        See :class:`~scm.plams.core.settings.LogSettings`.
+        """
+        return self["log"]
+
+    @log.setter
+    def log(self, value: LogSettings) -> None:
+        self["log"] = value
+
+    @property
+    def saferun(self) -> SafeRunSettings:
+        """
+        See :class:`~scm.plams.core.settings.SafeRunSettings`.
+        """
+        return self["saferun"]
+
+    @saferun.setter
+    def saferun(self, value: SafeRunSettings) -> None:
+        self["saferun"] = value
+
+    @property
+    def default_jobrunner(self) -> "JobRunner":
+        """
+        Default |JobRunner| that will be used for running jobs, if an explicit runner is not provided.
+        """
+        from scm.plams.core.jobrunner import JobRunner
+
+        if self["default_jobrunner"] is None:
+            self["default_jobrunner"] = JobRunner()
+        return self["default_jobrunner"]
+
+    @default_jobrunner.setter
+    def default_jobrunner(self, value: "JobRunner") -> None:
+        self["default_jobrunner"] = value
+
+    @property
+    def default_jobmanager(self) -> "JobManager":
+        """
+        Default |JobManager| that will be used when running jobs, if an explicit manager is not provided.
+        """
+        from scm.plams.core.jobmanager import JobManager
+
+        if self["default_jobmanager"] is None:
+            self["default_jobmanager"] = JobManager(self.jobmanager)
+        return self["default_jobmanager"]
+
+    @default_jobmanager.setter
+    def default_jobmanager(self, value: "JobManager") -> None:
+        self["default_jobmanager"] = value

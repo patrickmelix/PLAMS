@@ -95,6 +95,13 @@ if out is not None:
     show(out)
 
 
+print("Experimental feature (AMS2025): guess density for pure liquid")
+print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
+out = packmol(water, n_atoms=100)
+print(f"Guessed density: {out.get_density():.2f} kg/m^3")
+plot_molecule(out)
+
+
 # ## Water-acetonitrile mixture (fluid with 2 or more components)
 # Let's also create a single acetonitrile molecule:
 
@@ -154,17 +161,33 @@ show(out)
 
 
 print("2-1 water-acetonitrile from explicit number of molecules and density, cubic box with auto-determined size")
-out, details = packmol(molecules=[water, acetonitrile], n_molecules=[32, 16], density=density, return_details=True)
+out, details = packmol(
+    molecules=[water, acetonitrile],
+    n_molecules=[32, 16],
+    density=density,
+    return_details=True,
+)
 printsummary(out, details)
 out.write("water-acetonitrile-3.xyz")
 show(out)
 
 
 print("2-1 water-acetonitrile from explicit number of molecules and box")
-out = packmol(molecules=[water, acetonitrile], n_molecules=[32, 16], box_bounds=[0, 0, 0, 13.2, 13.2, 13.2])
+out = packmol(
+    molecules=[water, acetonitrile],
+    n_molecules=[32, 16],
+    box_bounds=[0, 0, 0, 13.2, 13.2, 13.2],
+)
 printsummary(out)
 out.write("water-acetonitrile-4.xyz")
 show(out)
+
+
+print("Experimental feature (AMS2025): guess density for mixture")
+print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
+out = packmol([water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], n_atoms=100)
+print(f"Guessed density: {out.get_density():.2f} kg/m^3")
+plot_molecule(out)
 
 
 # ## Pack inside sphere
@@ -260,7 +283,10 @@ show(bulk_Al, rotation=rotation, radii=0.4)
 
 
 out = packmol_in_void(
-    host=bulk_Al, molecules=[from_smiles("[H]"), from_smiles("[He]")], n_molecules=[50, 20], tolerance=1.5
+    host=bulk_Al,
+    molecules=[from_smiles("[H]"), from_smiles("[He]")],
+    n_molecules=[50, 20],
+    tolerance=1.5,
 )
 show(out, rotation=rotation, radii=0.4)
 printsummary(out)
@@ -293,7 +319,12 @@ print(AMSJob(molecule=out).get_input())
 
 # By default, the ``packmol()`` function assigns regions called ``mol0``, ``mol1``, etc. to the different added molecules. The ``region_names`` option lets you set custom names.
 
-out = packmol([water, n2], n_molecules=[2, 1], density=0.5, region_names=["water", "nitrogen_molecule"])
+out = packmol(
+    [water, n2],
+    n_molecules=[2, 1],
+    density=0.5,
+    region_names=["water", "nitrogen_molecule"],
+)
 print(AMSJob(molecule=out).get_input())
 
 

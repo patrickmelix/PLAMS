@@ -24,3 +24,4 @@ Alternatively, you can specify ``settings`` which will override the model.
 
 .. autofunction:: refine_lattice
 
+.. autofunction:: shakemd
