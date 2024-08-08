@@ -1823,9 +1823,9 @@ class AMSResults(Results):
         if "ams" in self.rkfs:
             user_input = self.readrkf("General", "user input")
             try:
-                from scm.libbase import InputParser
+                from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
 
-                inp = InputParser().to_settings("ams", user_input)
+                inp = InputParserFacade().to_settings("ams", user_input)
             except:
                 log("Failed to recreate input settings from {}".format(self.rkfs["ams"].path))
                 return None
@@ -2471,7 +2471,7 @@ class AMSJob(SingleJob):
             if more_systems:
                 if "system" in fullinput.ams:
                     # nonempty system block was already present in input.ams
-                    system = fullinput.ams.system
+                    system = fullinput.ams.System
                     system_list = system if isinstance(system, list) else [system]
 
                     system_list_set = Settings({(s._h if "_h" in s else ""): s for s in system_list})
@@ -2480,10 +2480,10 @@ class AMSJob(SingleJob):
                     system_list_set += more_systems_set
                     system_list = list(system_list_set.values())
                     system = system_list[0] if len(system_list) == 1 else system_list
-                    fullinput.ams.system = system
+                    fullinput.ams.System = system
 
                 else:
-                    fullinput.ams.system = more_systems[0] if len(more_systems) == 1 else more_systems
+                    fullinput.ams.System = more_systems[0] if len(more_systems) == 1 else more_systems
 
             txtinp = ""
             ams = fullinput.find_case("ams")
@@ -2519,12 +2519,12 @@ class AMSJob(SingleJob):
             return sett
 
         def serialize_unichemsys_to_settings(mol):
-            from scm.libbase import InputParser
+            from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
 
-            sett = InputParser().to_settings(AMSJob._command, str(mol))
+            sett = InputParserFacade().to_settings(AMSJob._command, str(mol))
             return sett.ams.system[0]
 
-        def serialize_molecule_to_settings(mol):
+        def serialize_molecule_to_settings(mol: Molecule):
             sett = Settings()
 
             if len(mol.lattice) in [1, 2] and mol.align_lattice():
@@ -2789,10 +2789,10 @@ class AMSJob(SingleJob):
 
             If *settings* is included in the keyword arguments to this method, the |Settings| created from the *text_input* will be soft updated with the settings from the keyword argument. In other word, the *text_input* takes precedence over the *settings* keyword argument.
         """
-        from scm.libbase import InputParser
+        from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
 
         sett = Settings()
-        sett.input = InputParser().to_settings(cls._command, text_input)
+        sett.input = InputParserFacade().to_settings(cls._command, text_input)
         mol = cls.settings_to_mol(sett)
         if mol:
             if "molecule" in kwargs:
@@ -3079,5 +3079,8 @@ def hybrid_committee_engine_settings(settings_list: List[Settings]) -> Settings:
     s.input.Hybrid.Energy.Term = [f"Factor={1/N} Region=* UseCappingAtoms=No EngineID=Engine{x+1}" for x in range(N)]
     s.input.Hybrid.Committee.Enabled = "Yes"
     s.runscript.preamble_lines = ["export OMP_NUM_THREADS=1"]
+    for ss in settings_list:
+        if "runscript" in ss and "preamble_lines" in ss.runscript:
+            s.runscript.preamble_lines += ss.runscript.preamble_lines
 
     return s

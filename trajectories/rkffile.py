@@ -195,6 +195,7 @@ class RKFTrajectoryFile(TrajectoryFile):
             self._set_mddata_units()
             self._set_mddata_items()
         elif "w" in self.mode:
+            self.mditems = []
             if rkf is not None:
                 self.timestep = rkf.timestep
                 self._set_mdunits(rkf.mdunits)
@@ -317,6 +318,8 @@ class RKFTrajectoryFile(TrajectoryFile):
                 if (section, "%s(1)" % (item)) in self.file_object:
                     if isinstance(self.file_object.read(section, "%s(1)" % (item)), str):
                         is_blockitem = False
+                else:
+                    is_blockitem = False
                 if is_blockitem:
                     blockitems.append(item)
         items = [item for item in items if not item in blockitems]
@@ -519,7 +522,8 @@ class RKFTrajectoryFile(TrajectoryFile):
             if item in self._mdblock:
                 if block + 1 in self._mdblock[item]:
                     values = self._mdblock[item][block + 1]
-                    self.mddata[item] = values[pos]
+                    if pos < len(values):
+                        self.mddata[item] = values[pos]
                     continue
             # If not, try to read the block
             if not (section, "%s(%i)" % (item, block + 1)) in self.file_object:
@@ -807,6 +811,11 @@ class RKFTrajectoryFile(TrajectoryFile):
         printstartdata = False
         if step == 1:
             printstartdata = True
+            ind = i
+        if section == self.mdhistory_name:
+            if key not in self.mditems:
+                printstartdata = True
+                ind = len(self.mditems) + 1
 
         # Block code: if the data is to be written as blocks, then step and values need to be replaced.
         if section == self.mdhistory_name:
@@ -815,9 +824,11 @@ class RKFTrajectoryFile(TrajectoryFile):
         # The rest should be independent on format (block or individual)
         self.file_object.write(section, "%s(%i)" % (key, step), values)
         if printstartdata:
-            self.file_object.write(section, "ItemName(%i)" % (i), "%s" % (key))
+            self.file_object.write(section, "ItemName(%i)" % (ind), "%s" % (key))
             self.file_object.write(section, "%s(perAtom)" % (key), perAtom)
             self.file_object.write(section, "%s(dim)" % (key), dim)
+            if section == self.mdhistory_name:
+                self.mditems.append(key)
             if section == self.mdhistory_name and self.mdunits is not None:
                 if key in self.mdunits:
                     self.file_object.write(section, "%s(units)" % (key), self.mdunits[key])

@@ -1,13 +1,16 @@
 import os
 import subprocess
 import tempfile
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload, Sequence
 
 import numpy as np
 from scm.plams.core.errors import MoleculeError
 from scm.plams.core.private import saferun
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.mol.molecule import Molecule
+from scm.plams.tools.periodic_table import PeriodicTable
+from scm.plams.tools.units import Units
+from collections import defaultdict
 
 try:
     from scm.plams.interfaces.molecule.rdkit import readpdb, writepdb
@@ -109,8 +112,10 @@ class PackMolStructure:
         n_molecules = int(density * volume_cm3 / molecule_mass)
         return n_molecules
 
-    def get_volume(self, box_bounds=None):
+    def get_volume(self, box_bounds: Optional[Sequence[float]] = None) -> float:
         bb = box_bounds or self.box_bounds
+        if bb is None:
+            raise ValueError("Cannot call get_volume when box_bounds is None.")
         vol = (bb[3] - bb[0]) * (bb[4] - bb[1]) * (bb[5] - bb[2])
         return vol
 
@@ -300,6 +305,42 @@ class PackMol:
         return output_molecule
 
 
+def guess_density(molecules: Sequence[Molecule], coeffs: Sequence[Union[int, float]]) -> float:
+    """Guess a density for a liquid of the given molecules and stoichiometric coefficients.
+
+    This density is most of the time lower than the experimental density and is NOT meant
+    to be accurate. Always equilibrate the density with NPT MD after creating a box with a
+    density guessed using this method.
+
+    Returns the guessed density in g/cm^3.
+    """
+    if len(molecules) != len(coeffs):
+        raise ValueError(f"Incompatible lengths: {len(molecules)=}, {len(coeffs)=}")
+
+    bond_volume_decrease_factor, estimated_volume_multiplier = 0.15, 18
+    tot_estimated_volume = 0
+    sum_atomic_masses = 0
+    for mol, coeff in zip(molecules, coeffs):
+        sum_atomic_volumes = 0
+        estimated_volume = 0
+        bond_volume_decrease = 0
+        for at in mol:
+            radius = PeriodicTable.get_radius(at.symbol)
+            if PeriodicTable.get_metallic(at.symbol):
+                radius *= 0.5
+            bond_volume_decrease += (
+                coeff * bond_volume_decrease_factor * min(len(at.bonds), 0.3) ** 0.3 * (4 / 3) * 3.14159 * radius**3
+            )
+            sum_atomic_volumes += coeff * (4 / 3) * 3.14159 * radius**3  # ang^3
+            sum_atomic_masses += coeff * PeriodicTable.get_mass(at.symbol)
+
+        estimated_volume += sum_atomic_volumes - bond_volume_decrease
+        estimated_volume *= estimated_volume_multiplier + 10 / max(4, len(mol))
+        tot_estimated_volume += estimated_volume
+
+    return sum_atomic_masses * Units.conversion_ratio("amu", "g") / (tot_estimated_volume * 1e-24)
+
+
 @overload
 def packmol(
     molecules: Union[List[Molecule], Molecule],
@@ -356,8 +397,10 @@ def packmol(
 ) -> Union[Molecule, Tuple[Molecule, Dict[str, Any]]]:
     """
     Create a fluid of the given ``molecules``. The function will use the
-    given input parameters and try to obtain good values for the others. You *must*
-    specify ``density`` and/or ``box_bounds``.
+    given input parameters and try to obtain good values for the others.
+
+    It is *strongly recommended* to specify ``density`` and/or ``box_bounds``. Otherwise you will
+    get a (very inaccurate) guessed density in a cubic box (experimental feature).
 
     molecules : |Molecule| or list of Molecule
         The molecules to pack
@@ -447,8 +490,6 @@ def packmol(
         raise ValueError("Illegal combination of arguments: must specify either n_atoms, n_molecules or density")
     if n_atoms is not None and n_molecules is not None:
         raise ValueError("Illegal combination of arguments: n_atoms and n_molecules are mutually exclusive")
-    if density is None and box_bounds is None:
-        raise ValueError("Illegal combination of arguments: must specify either density or box_bounds")
     if n_atoms is not None and box_bounds is not None and density is not None:
         raise ValueError("Illegal combination of arguments: n_atoms, box_bounds and density specified at the same time")
     if n_molecules is not None and box_bounds is not None and density is not None:
@@ -523,9 +564,12 @@ def packmol(
         coeffs_floats = xs * coeff_0
         coeffs = np.int_(np.round(coeffs_floats))
 
-    if (n_atoms or n_molecules) and density and not box_bounds:
+    if (n_atoms or n_molecules) and not box_bounds:
         mass = np.dot(coeffs, masses)
-        volume_cm3 = mass / density
+        if density is not None:
+            volume_cm3 = mass / density
+        else:
+            volume_cm3 = mass / guess_density(molecules, coeffs)
         volume_ang3 = volume_cm3 * 1e24
         side_length = volume_ang3 ** (1 / 3.0)
         box_bounds = [0.0, 0.0, 0.0, side_length, side_length, side_length]
@@ -632,7 +676,7 @@ def packmol(
     for at, molindex in zip(out, molecule_type_indices):
         AMSJob._add_region(at, region_names[molindex])
 
-    tot_charge = sum(mol.properties.get("charge", 0) * c for mol, c in zip(molecules, coeffs))
+    tot_charge = sum(int(mol.properties.get("charge", 0)) * c for mol, c in zip(molecules, coeffs))
     if tot_charge != 0:
         out.properties.charge = tot_charge
 
@@ -745,7 +789,7 @@ def packmol_on_slab(
     """
     if len(slab.lattice) != 3:
         raise ValueError("slab in packmol_on_slab must be 3D periodic: slab in xy-plane with vacuum gap along z-axis")
-    if slab.cell_angles() != [90.0, 90.0, 90.0]:
+    if not all(np.isclose(slab.cell_angles(), [90.0, 90.0, 90.0])):
         raise ValueError("slab in packmol_on_slab must be have orthorhombic cell")
 
     liquid = packmol(
