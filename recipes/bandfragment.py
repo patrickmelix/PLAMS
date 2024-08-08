@@ -8,7 +8,7 @@ from scm.plams.mol.molecule import Molecule
 
 
 from os.path import join as opj
-from os.path import relpath, abspath, isdir, basename
+from os.path import abspath, isdir, basename
 from typing import Dict, List, Union
 
 __all__ = ['BANDFragmentJob', 'BANDFragmentResults']
@@ -27,8 +27,8 @@ class BANDFragmentResults(ADFFragmentResults):
             Dict[str, float]: The energy decomposition.
         """
         res=self.job.full.results
-        res1=self.job.f2.results
-        res2=self.job.f1.results
+        res1=self.job.f1.results
+        res2=self.job.f2.results
         ret = {}
         pos = 2
         # E_int appears in a comment below the PEDA Table of the output
@@ -147,6 +147,14 @@ class BANDFragmentJob(ADFFragmentJob):
         job.f1 = AMSJob.load_external(opj(path, 'frag1'))
         job.f2 = AMSJob.load_external(opj(path, 'frag2'))
         job.full = AMSJob.load_external(opj(path, 'full'))
+        job.children = [job.f1, job.f2, job.full]
+
+        if isdir(opj(path, 'frag1_opt')):
+            job.f1_opt = AMSJob.load_external(opj(path, 'frag1_opt'))
+            job.children.append(job.f1_opt)
+        if isdir(opj(path, 'frag2_opt')):
+            job.f2_opt = AMSJob.load_external(opj(path, 'frag2_opt'))
+            job.children.append(job.f2_opt)
 
         return job
 
@@ -177,8 +185,10 @@ class NOCVBandFragmentJob(BANDFragmentJob):
             return None
         else:
             # add NOCV run
-            self.nocv=AMSJob(name="NOCV", molecule= self.fragment1 + self.fragment2,
-            settings = self.settings + self.full_settings+self.nocv_settings)
+            set = self.settings + self.full_settings + self.nocv_settings
+            self.nocv = AMSJob(name="NOCV",
+                                molecule= self.fragment1 + self.fragment2,
+                                settings = set)
             # make sure we at least have the restart section to put the file name
             if not hasattr(self.nocv.settings, 'input'):
                 self.nocv.settings.input = Settings()
@@ -189,3 +199,21 @@ class NOCVBandFragmentJob(BANDFragmentJob):
             if not hasattr(self.nocv.settings.input.band.restart, 'file'):
                 self.nocv.settings.input.band.Restart.File = opj("../", self.full.name,'band.rkf')
             return [self.nocv]
+        
+
+    @classmethod
+    def load_external(cls, path: str, jobname: str=None) -> "NOCVBandFragmentJob":
+        """Load the results of the BANDFragmentJob job from an external path.
+        
+        Args:
+            path (str): The path to the job. It should at least have the
+                        subfolders 'frag1', 'frag2', 'full' and 'NOCV'.
+            jobname (str, optional): The name of the job. Defaults to None.
+
+        Returns:
+            NOCVBandFragmentJob: The job with the loaded results.
+        """
+        job = super().load_external(path, jobname)
+        job.nocv = AMSJob.load_external(opj(path, 'NOCV'))
+        job.children.append(job.nocv)
+        return job
