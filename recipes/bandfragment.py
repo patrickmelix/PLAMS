@@ -5,10 +5,12 @@ from scm.plams.recipes.adffragment import ADFFragmentJob, ADFFragmentResults
 from scm.plams.tools.units import Units
 from scm.plams.core.errors import FileError
 from scm.plams.mol.molecule import Molecule
+from scm.plams import add_to_instance
 
 
 from os.path import join as opj
-from os.path import abspath, isdir, basename
+from os.path import abspath, isdir, basename, relpath
+from os import symlink
 from typing import Dict, List, Union
 
 __all__ = ['BANDFragmentJob', 'BANDFragmentResults']
@@ -94,9 +96,11 @@ class BANDFragmentJob(ADFFragmentJob):
         set1.atommapping = { str(i+1): str(i+1) for i in range(len(self.fragment1)) }
         set2 = Settings()
         set2.atommapping = { str(i+1): str(i+1+len(self.fragment1)) for i in range(len(self.fragment2))}
-        # get the correct restart files, working with relative paths
-        set1.filename = opj("../", self.f1.name, "band.rkf")
-        set2.filename = opj("../", self.f2.name, "band.rkf")
+        # get the correct restart files
+        # working with relative paths does not work for unknown reasons
+        # using symlinks instead
+        set1.filename = f"{self.f1.name}.rkf"
+        set2.filename = f"{self.f2.name}.rkf"
         self.full_settings.input.band.fragment = [set1, set2]
 
 
@@ -113,6 +117,19 @@ class BANDFragmentJob(ADFFragmentJob):
                 settings = self.settings + self.full_settings)
             # dependencies are optional, but let's set them up
             self.full.depend += [self.f1,self.f2]
+            # save the fragment paths for the prerun of the full job
+            self.full.frag_paths = []
+            for job in [self.f1, self.f2]:
+                self.full.frag_paths.append(job.path)
+            # edit full prerun to create symlinks
+            @add_to_instance(self.full)
+            def prerun(self):
+                """Create symlinks for the restart files."""
+                for i, job in enumerate(['frag1', 'frag2']):
+                    rel_path = relpath(self.frag_paths[i], self.path)
+                    symlink(opj(rel_path, 'band.rkf'), opj(self.path, f"{job}.rkf"))
+                
+
             return [self.full]
 
 
