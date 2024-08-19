@@ -3,6 +3,12 @@ from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.mol.molecule import Molecule
+from scm.plams import add_to_instance
+
+from os.path import join as opj
+from os.path import relpath
+from os import symlink
+from typing import List, Union
 
 __all__ = ["ADFFragmentJob", "ADFFragmentResults"]
 
@@ -65,11 +71,30 @@ class ADFFragmentJob(MultiJob):
         for at in self.fragment2:
             at.properties.suffix = "adf.f=subsystem2"
 
-        self.full = AMSJob(
-            name="full", molecule=self.fragment1 + self.fragment2, settings=self.settings + self.full_settings
-        )
+        self.children = [self.f1, self.f2]
 
-        self.full.settings.input.adf.fragments.subsystem1 = (self.f1, "adf")
-        self.full.settings.input.adf.fragments.subsystem2 = (self.f2, "adf")
+    def new_children(self) -> Union[None, List[AMSJob]]:
+        """After the first round, add the full job to the children list."""
+        if hasattr(self, 'full'):
+            return None
+        else:
+            settings = self.settings + self.full_settings
+            settings.input.adf.fragments.subsystem1 = f"{self.f1.name}.rkf"
+            settings.input.adf.fragments.subsystem2 = f"{self.f2.name}.rkf"
+            self.full = AMSJob(name="full", molecule=self.fragment1 + self.fragment2,
+                                settings=settings)
+            self.full.depend += [self.f1,self.f2]
+            # save the fragment paths for the prerun of the full job
+            self.full.frag_paths = []
+            for job in [self.f1, self.f2]:
+                self.full.frag_paths.append(job.path)
+            # edit full prerun to create symlinks
+            @add_to_instance(self.full)
+            def prerun(self):
+                """Create symlinks for the restart files."""
+                for i, job in enumerate(['frag1', 'frag2']):
+                    rel_path = relpath(self.frag_paths[i], self.path)
+                    symlink(opj(rel_path, 'adf.rkf'), opj(self.path, f"{job}.rkf"))
 
-        self.children = [self.f1, self.f2, self.full]
+            return [self.full]
+
