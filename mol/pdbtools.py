@@ -85,9 +85,9 @@ class PDBRecord:
     __slots__ = ["name", "value", "model"]
 
     def __init__(self, s=None):
-        """     
+        """
         Instantiate a single record from a PDB file
-            
+
         * ``s`` -- Either a string representing a line in a PDB file, or one of (PDBAtom, PDBLattice, PDBConnections)
         """
         self.name = None
@@ -95,14 +95,14 @@ class PDBRecord:
         self.model = []
 
         if s is None:
-            return 
+            return
 
         if isinstance(s, str):
             s = s.rstrip("\n")
             if len(s) < 80:
                 s = "%-80s" % s
             self.name = s[:6]
-    
+
             if self.name in _coord[:3]:
                 self.value = [PDBAtom(s)]
             elif self.name == "CRYST1":
@@ -112,15 +112,15 @@ class PDBRecord:
             else:
                 self.value = [s[6:]]
 
-        elif isinstance(s,PDBAtom):
+        elif isinstance(s, PDBAtom):
             self.name = "ATOM  "
             self.value = [s]
 
-        elif isinstance(s,PDBLattice):
+        elif isinstance(s, PDBLattice):
             self.name = "CRYST1"
             self.value = [s]
 
-        elif isinstance(s,PDBConnections):
+        elif isinstance(s, PDBConnections):
             self.name = "CONECT"
             self.value = [s]
 
@@ -165,27 +165,28 @@ class PDBRecord:
                 return True
         return False
 
-    def set_index (self, ind):
+    def set_index(self, ind):
         """
         Set the atom index for this record, if relevant
         """
         for val in self.value:
-            if isinstance(val,PDBAtom):
+            if isinstance(val, PDBAtom):
                 val.index = ind
 
-    def has_atom (self):
+    def has_atom(self):
         """
         Whether this record represents an atom
         """
         return self.name in ["ATOM  ", "HETATM"]
 
-    def get_atom (self):
+    def get_atom(self):
         """
         If this record represents an atom, return the PDBAtom object
         """
         if not self.has_atom():
             return None
         return self.value[0]
+
 
 # ===========================================================================
 
@@ -320,17 +321,17 @@ class PDBHandler:
         """
         Get the lattice as a set of one, two, or three, lattice vectors
         """
-        if len(self.records["CRYST1"])  == 0:
+        if len(self.records["CRYST1"]) == 0:
             return []
-        vectors =  self.records["CRYST1"][0].value[0].get_vectors()
-        if (vectors[2]**2).sum() < 1e-10 :
+        vectors = self.records["CRYST1"][0].value[0].get_vectors()
+        if (vectors[2] ** 2).sum() < 1e-10:
             vectors = vectors[:2]
-            if (vectors[1]**2).sum() < 1e-10 :
+            if (vectors[1] ** 2).sum() < 1e-10:
                 vectors = vectors[:1]
         vectors = vectors.tolist()
         return vectors
 
-    def get_connections (self):
+    def get_connections(self):
         """
         Get the full connection table
         """
@@ -350,14 +351,14 @@ class PDBHandler:
         elif record.name == "_model":
             self.records[record.name] = record
         else:
-            raise PlamsError("PDBHandler.add_record: Invalid record passed: %s"%(record.name))
+            raise PlamsError("PDBHandler.add_record: Invalid record passed: %s" % (record.name))
 
     def add_model(self, model):
         """
         model: list of PDBRecords of type in _coord
         """
         # Make sure atoms are properly numbered
-        for i,record in enumerate(model):
+        for i, record in enumerate(model):
             record.set_index(i)
 
         # Add the model
@@ -388,14 +389,14 @@ class PDBHandler:
             self.add_record(rec)
 
         # Make sure that the basic lines are present
-        if len(self.records["HEADER"]) == 0 :
+        if len(self.records["HEADER"]) == 0:
             self.add_record(PDBRecord("HEADER"))
-        if len(self.records["END   "]) == 0 :
+        if len(self.records["END   "]) == 0:
             self.add_record(PDBRecord("END   "))
-        if len(self.records["MASTER"]) == 0 :
+        if len(self.records["MASTER"]) == 0:
             self.add_record(self.calc_master())
 
-    def add_atom (self, atom, imodel=1):
+    def add_atom(self, atom, imodel=1):
         """
         Add an atom to the specified model
 
@@ -413,12 +414,12 @@ class PDBHandler:
         else:
             record.set_index(len(models[imodel - 1]))
             if self.singlemodel():
-                self.records['_model'].model.append(record)
+                self.records["_model"].model.append(record)
             else:
-                self.records['MODEL '][imodel - 1].model.append(record)
+                self.records["MODEL "][imodel - 1].model.append(record)
             self.add_record(record)
 
-    def set_lattice (self, vectors):
+    def set_lattice(self, vectors):
         """
         Set the lattice info
 
@@ -431,10 +432,10 @@ class PDBHandler:
                 self.records["CRYST1"] = []
         self.add_record(record)
 
-    def set_connections (self, connection_table):
+    def set_connections(self, connection_table):
         """
         Add new connections to the PDB object
-        
+
         * ``connection_table`` -- Dictionary with atom index as key, and list of neighboring atom indices as value
                                   All indexing starts at 0
         """
@@ -450,7 +451,8 @@ class PDBAtom:
     """
     Class representing a PDB atom
     """
-    def __init__ (self, line=None):
+
+    def __init__(self, line=None):
         """
         Instantiates an instance of the PDBAtom object
         """
@@ -467,24 +469,24 @@ class PDBAtom:
         if line is not None:
             self._readline(line)
 
-    def _readline (self, line):
+    def _readline(self, line):
         """
         Turn string into atom object
         """
         element = ""
 
         words = line.split()
-        if words[0] not in ["ATOM","HETATM"]:
+        if words[0] not in ["ATOM", "HETATM"]:
             raise PlamsError("This line does not represent an atom")
 
         # Correct for empty atom name + residue info (as only PLAMS seems to write it)
         if len(line[11:30].strip()) == 0:
-            words = words[:2] + ["    ","    ","    "] + words[2:]
+            words = words[:2] + ["    ", "    ", "    "] + words[2:]
         # Correct for empty fix and obb values (as only PLAMS seems to write it)
         empty_fixocc = False
         if len(line[54:66].strip()) == 0 and len(words) >= 9:
             nlast = len(line[67:].split())
-            words = words[:-nlast] + ["1.00","0.00"] + words[-nlast:]
+            words = words[:-nlast] + ["1.00", "0.00"] + words[-nlast:]
             empty_fixocc = True
 
         # Correct for lack of space between atom name and resname
@@ -493,7 +495,7 @@ class PDBAtom:
         words[2] = line[12:16]
         # If there are a segname and en element name, remove and store the latter
         if len(words) > 11:
-            if not words[-2].replace(".","").isdigit():
+            if not words[-2].replace(".", "").isdigit():
                 element = words[-1]
                 words = words[:-1]
         # Take care of spaces in resnum
@@ -535,11 +537,11 @@ class PDBAtom:
             words[9] = "    "
         if not words[8].replace(".", "").isnumeric():
             if len(words[8].strip()) > 0:
-                raise PlamsError("Bad pdb format\n%s"%(line))
+                raise PlamsError("Bad pdb format\n%s" % (line))
         if not words[9].replace(".", "").isnumeric():
             if len(words[9].strip()) > 0:
-                print (words[9])
-                raise PlamsError("Bad pdb format\n%s"%(line))
+                print(words[9])
+                raise PlamsError("Bad pdb format\n%s" % (line))
 
         # Start assigning instance variables
         x = float(words[5])
@@ -557,26 +559,26 @@ class PDBAtom:
             self.element = self.seg
             self.seg = ""
 
-    def __str__ (self):
+    def __str__(self):
         """
         Return as string
         """
         # Define some formatting detauls
         lengths = [5, 4, 4, 6, 8, 8, 8, 6, 6]
-        form =  ["%5s", " %4s", "%4s", "%6s    ", "%8.3f", "%8.3f", "%8.3f", "%6s", "%6s"]
+        form = ["%5s", " %4s", "%4s", "%6s    ", "%8.3f", "%8.3f", "%8.3f", "%6s", "%6s"]
         form2 = ["%5s", " %4s", " %4s", "%5s    ", "%8.3f", "%8.3f", "%8.3f", "%6s", "%6s"]
         len_seg = 8
 
         # Check if the residue number is reasonable
         resnum = self.resnum
         if format == "molden":
-            if not resnum.replace("-","").isdigit() and len(resnum.strip())>0:
+            if not resnum.replace("-", "").isdigit() and len(resnum.strip()) > 0:
                 if not resnum[1:].isdigit():
                     resnum = "0"
 
         # Prepare the text
         crds = self.coords
-        line = [form[1] % ('%i'%(self.index+1)), self.name, self.res, resnum]
+        line = [form[1] % ("%i" % (self.index + 1)), self.name, self.res, resnum]
         line += [crds[0], crds[1], crds[2], self.occ, self.fix, self.seg]
 
         # Check that the coordinates are not too large
@@ -605,21 +607,21 @@ class PDBAtom:
                 block += text
 
         # Add the segment and element info
-        if len(self.seg.strip()) > 0 or len(self.element.strip()) > 0 :
+        if len(self.seg.strip()) > 0 or len(self.element.strip()) > 0:
             tmpword = self.seg
             tmpword = tmpword[:len_seg]
             text = "%10s" % (tmpword)
             if len(self.element.strip()) == 2:
                 text = "%9s" % (tmpword)
             block += text
-            if len(self.element.strip()) > 0 :
-                text = " %-2s "%(self.element)
+            if len(self.element.strip()) > 0:
+                text = " %-2s " % (self.element)
                 block += text
 
         return block
 
     @staticmethod
-    def iselement (word):
+    def iselement(word):
         """
         Check if word represents element
         """
@@ -628,7 +630,7 @@ class PDBAtom:
             return True
         return False
 
-    def get_symbol (self):
+    def get_symbol(self):
         """
         Try to deduce atomic symbol from e.g. an atom name
         """
@@ -645,11 +647,13 @@ class PDBAtom:
                 s = None
         return s
 
+
 class PDBLattice:
     """
     Class representing the preiodic lattice of the PDB system
     """
-    def __init__ (self, line=None):
+
+    def __init__(self, line=None):
         """
         Instantiates a PDBLattice object
 
@@ -663,15 +667,15 @@ class PDBLattice:
             self.lengths = values[:3]
             self.angles = values[3:]
 
-    def __str__ (self):
+    def __str__(self):
         """
         The object as a string
         """
-        parts = ["%9.3f%9.3f%9.3f"% tuple(self.lengths)]
+        parts = ["%9.3f%9.3f%9.3f" % tuple(self.lengths)]
         parts += ["%7.2f%7.2f%7.2f P 1           1" % tuple(self.angles)]
         return "".join(parts)
 
-    def get_vectors (self):
+    def get_vectors(self):
         """
         Returns lattice as cell vectors (a 3x3 Numpy array)
         """
@@ -697,18 +701,19 @@ class PDBLattice:
         return cv
 
     @classmethod
-    def from_vectors (cls, vectors):
+    def from_vectors(cls, vectors):
         """
         Create lattice object from vectors
         """
-        def get_angle (va, vb):
+
+        def get_angle(va, vb):
             """
             Return angle between two numpy vectors
             """
             lena = np.sqrt((va**2).sum())
             lenb = np.sqrt((vb**2).sum())
             if lenb < 1e-10:
-                return 90.
+                return 90.0
             cosphi = (va * vb).sum() / (lena * lenb)
             if cosphi > 1:
                 cosphi = 1.0
@@ -718,24 +723,26 @@ class PDBLattice:
         ret = cls()
 
         nvecs = len(vectors)
-        vecs = np.zeros(9).reshape((3,3))
+        vecs = np.zeros(9).reshape((3, 3))
         vecs[:nvecs] = vectors
 
         ret.lengths = np.sqrt((vecs**2).sum(axis=1))
         if ret.lengths.sum() == 0:
-            ret.angles = [90., 90., 90.]    
-                    
+            ret.angles = [90.0, 90.0, 90.0]
+
         alpha = get_angle(vecs[1], vecs[2])
         beta = get_angle(vecs[0], vecs[2])
         gamma = get_angle(vecs[0], vecs[1])
         ret.angles = [alpha, beta, gamma]
         return ret
 
+
 class PDBConnections:
     """
     Class representing the connecivity of a single atom
-    """ 
-    def __init__ (self, line=None):
+    """
+
+    def __init__(self, line=None):
         """
         Instantiates an instance of the PDBConnections class
 
@@ -768,7 +775,7 @@ class PDBConnections:
         self.atom_index = atnum - 1
         self.neighbors = [i - 1 for i in condata]
 
-    def __str__ (self):
+    def __str__(self):
         """
         Write PDBConnections instance as string
         """
@@ -776,4 +783,3 @@ class PDBConnections:
         words += ["%4i" % (self.atom_index + 1)]
         words += ["%4i" % (bat + 1) for bat in self.neighbors]
         return " ".join(words)
-

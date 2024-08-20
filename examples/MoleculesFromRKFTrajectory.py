@@ -5,7 +5,7 @@ from scm.plams import *
     Script to get and print the first 5 frames as PLAMS Molecules
     from an ams.rkf trajectory.
 
-    The script also shows how to print a speciic frame, frame 23.
+    The script also shows how to print a specific frame, frame 23.
 
     Set the correct path to ams.rkf below, and then run as
     $AMSBIN/amspython MoleculesFromRKFTrajectory.py

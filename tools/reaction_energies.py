@@ -33,6 +33,7 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
 
     return d
 
+
 def balance_equation_new(reactants, products, normalization="r0"):
     """
     Calculate stoichiometric coefficients
@@ -52,6 +53,7 @@ def balance_equation_new(reactants, products, normalization="r0"):
         'p0' for the first product, 'p1' for the second product, etc.
         This normalizes the chemical equation such that the coefficient in front of the specified species is normalization_value
     """
+
     def get_formulas(list_of_jobs):
         """
         Convert the list of molecules to a list of molecular formulas
@@ -59,7 +61,7 @@ def balance_equation_new(reactants, products, normalization="r0"):
         formulas = []
         for r in list_of_jobs:
             d = get_stoichiometry(r)
-            formula = ''.join(['%s%i'%(el,n) for el,n in d.items()])
+            formula = "".join(["%s%i" % (el, n) for el, n in d.items()])
             formulas.append(formula)
         return formulas
 
@@ -85,9 +87,9 @@ def balance_equation_new(reactants, products, normalization="r0"):
             raise ValueError(
                 "Unknown normalization: {}. Should be r0, r1, r2, ... (for reactants), p0, p1, p2 ... (for products)"
             )
-    
+
         return normalization_index
-        
+
     if len(reactants) == 0:
         raise ValueError("The reactants list is empty.")
     if len(products) == 0:
@@ -96,10 +98,11 @@ def balance_equation_new(reactants, products, normalization="r0"):
     # Set up the input, which can be lists of formulas, or lists of PLAMS molecule objects
     num_reactants = len(reactants)
     reactants = get_formulas(reactants)
+    num_products = len(products)
     products = get_formulas(products)
 
     # Set up the minimal numbers of the coefficients
-    ind = get_normalization_index(normalization)    
+    ind = get_normalization_index(normalization)
     min_coeffs = np.zeros(num_reactants + len(products))
     min_coeffs[ind] = 1
 
@@ -110,10 +113,11 @@ def balance_equation_new(reactants, products, normalization="r0"):
     if coeffs is None:
         strings = ["Something went wrong when solving the system of linear equations."]
         strings += ["Verify that the chemical equation can be balanced at all."]
-        text = ' '.join(strings)
+        text = " ".join(strings)
         raise RuntimeError(text)
 
     return coeffs[:num_reactants], coeffs[num_reactants:]
+
 
 def balance_equation(reactants, products, normalization="r0", normalization_value=1.0):
     """

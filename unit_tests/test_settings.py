@@ -56,7 +56,6 @@ class TestSettings:
                 },
                 False: {"s": "string", True: "bool", 42: "int", 42.99: "float"},
                 1: {1: "one", 2.0: "two", 3.0001: "three"},
-                2.0: {1: "one", 1.0: "also one"},
             }
         )
 
@@ -524,6 +523,7 @@ Fe:
    mass: 	55.845
    metal: 	True
    properties: 	['common']
+_explicit_init: 	False
 daemon_threads: 	True
 default_jobmanager: 	None
 default_jobrunner: 	None
@@ -584,7 +584,7 @@ sleepstep: 	5
 
     def test_new_has_correct_defaults_and_nested_types(self):
         config = ConfigSettings()
-        assert_config_as_expected(config, init=False)
+        assert_config_as_expected(config, init=False, explicit_init=False)
 
     def test_property_setters_and_getters_equivalent_to_dict_get_and_set_items(self):
         config = ConfigSettings()
@@ -617,7 +617,7 @@ sleepstep: 	5
         config = ConfigSettings()
 
         copy = config.copy()
-        assert_config_as_expected(copy, init=False)
+        assert_config_as_expected(copy, init=False, explicit_init=False)
 
     def test_get_non_existing_item_returns_empty_settings(self):
         config = ConfigSettings()
@@ -629,7 +629,7 @@ sleepstep: 	5
         flattened = config.flatten()
         unflattened = flattened.unflatten()
 
-        assert_config_as_expected(unflattened, init=False, verify_derived_types=False)
+        assert_config_as_expected(unflattened, init=False, explicit_init=False, verify_derived_types=False)
 
     def test_new_has_lazy_job_runner_and_manager(self, mock_job_runner_and_manager):
         # Verify initially that the job runner/manager are not called

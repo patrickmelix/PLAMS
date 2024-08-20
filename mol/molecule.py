@@ -5,8 +5,6 @@ import itertools
 import math
 import os
 from collections import OrderedDict
-from typing import List
-
 import numpy as np
 
 from scm.plams.core.errors import FileError, MoleculeError, PTError
@@ -23,7 +21,7 @@ from scm.plams.tools.periodic_table import PT
 from scm.plams.tools.units import Units
 
 input_parser_available = "AMSBIN" in os.environ
-from typing import Dict, List, Optional, Tuple, Union, overload
+from typing import List, Optional, Tuple, overload
 
 __all__ = ["Molecule"]
 
@@ -48,7 +46,7 @@ class Molecule:
         mol.add_atom(Atom(atnum=1, coords=(0,0,0)))
         mol.add_atom(Atom(atnum=1, coords=(d,0,0)))
 
-    This approach can be useful for building small molecules, especially if you wish to parametrize some of atomic coordinates (like in :ref:`simple_example`), but in general it's not very practical.
+    This approach can be useful for building small molecules, but in general it's not very practical.
     If coordinates and atom numbers are available, instantiation can be done by passing a value to the `positions`, `numbers` and optionally the `lattice` arguments::
 
         xyz     = np.random.randn(10,3) # 10 atoms, 3 coordinates per atom
@@ -1603,7 +1601,7 @@ class Molecule:
         matrix[matrix > 0] = 1
         graph = networkx.from_numpy_matrix(matrix)
         if find_smallest:
-            rings = networkx.minimum_cycle_basis(graph) # Very slow
+            rings = networkx.minimum_cycle_basis(graph)  # Very slow
         else:
             rings = networkx.cycle_basis(graph)
         return rings
@@ -2376,7 +2374,6 @@ class Molecule:
             return
 
         # Get the lattice vectors, and make sure there are 3 of them
-        nats = len(self)
         latticevecs = []
         for i in range(3):
             if i < len(self.lattice):
@@ -3015,7 +3012,7 @@ class Molecule:
                 atnum = PT.get_atomic_number(symbol)
             except PTError:
                 s = "readpdb: Unable to deduce the atomic symbol in the following line:\n"
-                s += "%s" %(str(pdbat))
+                s += "%s" % (str(pdbat))
                 raise FileError(s)
             at = Atom(atnum=atnum, coords=pdbat.coords)
             at.properties.pdb.res = pdbat.res
@@ -3050,10 +3047,10 @@ class Molecule:
                 if "name" in at.properties.pdb:
                     pdbatom.name = at.properties.pdb.name
             pdb.add_atom(pdbatom)
-        if len(self.lattice) > 0 :
+        if len(self.lattice) > 0:
             pdb.set_lattice(self.lattice)
-        connections = {i:inds for i, inds in enumerate(self.get_connection_table())}
-        connections = {i:inds for i, inds in connections.items() if len(inds) > 0}
+        connections = {i: inds for i, inds in enumerate(self.get_connection_table())}
+        connections = {i: inds for i, inds in connections.items() if len(inds) > 0}
         pdb.set_connections(connections)
         pdb.write(f)
 

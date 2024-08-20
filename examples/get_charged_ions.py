@@ -1,8 +1,6 @@
 import sys
-import os
 import numpy
-from scm.plams import AMSJob, Settings, Units, AMSAnalysisJob
-from scm.plams import to_rdmol, init, finish
+from scm.plams import AMSJob, Settings
 
 
 def main(filename):

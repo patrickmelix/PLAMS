@@ -314,8 +314,6 @@ def reaxff_control_to_settings(fpath: str) -> Settings:
             if v == 0:
                 s.input.ams.geometryoptimization.method = "ConjugateGradients"
                 fire = False
-            else:
-                s.input.ams.geometryoptimization.convergence.step = v * 1e-6
         if "imaxit" in d:
             s.input.ams.geometryoptimization.pretendconverged = True
             s.input.ams.geometryoptimization.maxiterations = d["imaxit"]

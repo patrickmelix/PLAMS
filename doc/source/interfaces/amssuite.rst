@@ -1,3 +1,5 @@
+.. _AMSSuite:
+
 Amsterdam Modeling Suite
 -------------------------
 

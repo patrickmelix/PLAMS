@@ -38,8 +38,4 @@ def main():
 
 
 if __name__ == "__main__":
-    init()
-    try:
-        main()
-    finally:
-        finish()
+    main()

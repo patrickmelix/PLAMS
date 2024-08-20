@@ -1,9 +1,8 @@
 #!/usr/bin/env amspython
-from scm.plams import AMSJob, Atom, Molecule, Settings, finish, init
+from scm.plams import AMSJob, Atom, Molecule, Settings
 
 
 def main():
-    init()
 
     mol = get_system()
     s = get_settings()
@@ -16,8 +15,6 @@ def main():
 
     print("Final energy (hartree)")
     print(job.results.get_energy())
-
-    finish()
 
 
 def get_settings() -> Settings:
@@ -51,10 +48,7 @@ def get_settings() -> Settings:
         smearing="gaussian",
         degauss=0.02,
         nspin=2,
-        starting_magnetization=[
-            Settings(Label="Fe1", Value=1.0),
-            Settings(Label="Fe2", Value=-1.0)
-        ],
+        starting_magnetization=[Settings(Label="Fe1", Value=1.0), Settings(Label="Fe2", Value=-1.0)],
     )
 
     # You may also just use the normal PLAMS Settings dot notation

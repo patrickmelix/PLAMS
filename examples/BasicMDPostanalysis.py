@@ -1,4 +1,4 @@
-#!/usr/bin/env plams
+#!/usr/bin/env amspython
 import os
 
 import matplotlib.pyplot as plt

@@ -1,9 +1,10 @@
-#!/usr/bin/env plams
+#!/usr/bin/env amspython
 import copy
 import multiprocessing
 
 import numpy as np
 from scm.input_classes import ADF, AMS
+from scm.plams import Settings, Results, MultiJob, JobRunner, config, Molecule, Atom, AMSJob
 
 
 class GammaResults(Results):

@@ -66,7 +66,9 @@ class InputParser:
                     # If it's empty we already know the result of parsing it.
                     input_settings[engine_name] = Settings()
                 else:
-                    input_settings[engine_name] = Settings(self._run(engine_name.lower(), "\n".join(engine_lines[1:-1])))
+                    input_settings[engine_name] = Settings(
+                        self._run(engine_name.lower(), "\n".join(engine_lines[1:-1]))
+                    )
 
             input_settings["ams"] = Settings(self._run(program, "\n".join(lines)))
 

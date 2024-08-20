@@ -7,6 +7,7 @@ import numpy as np
 
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
 from scm.plams.tools.units import Units
+from scm.plams.core.functions import log
 
 __all__ = ["CRSResults", "CRSJob"]
 
@@ -218,15 +219,11 @@ class CRSResults(SCMResults):
         section = "EnegyComponent"
 
         try:
-            props = self.get_prop_names(section="EnegyComponent")
-            # ncomp = self.readkf(section, "ncomp")
-            # nspecies = self.readkf(section, "nspecies")
+            self.get_prop_names(section="EnergyComponent")
         except:
-            return log(f"The section of EnegyComponent is not found in the crskf file.")
+            return log("The section of EnergyComponent is not found in the crskf file.")
 
-        ncomp = self.readkf(section, "ncomp")
         nspecies = self.readkf(section, "nspecies")
-        nAssoc = self.readkf(section, "NumAssoc")
 
         ms_index = self.readkf(section, "ms_index")
         ms_index = np.array(ms_index)
@@ -487,7 +484,10 @@ class CRSJob(SCMJob):
         try:
             amsbin = os.environ["AMSBIN"]
         except KeyError:
-            raise EnvironmentError("cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; " "the 'AMSBIN' environment variable has not been set")
+            raise EnvironmentError(
+                "cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; "
+                "the 'AMSBIN' environment variable has not been set"
+            )
 
         args = [os.path.join(amsbin, "cosmo2kf"), filename, filename_out]
         subprocess.run(args)

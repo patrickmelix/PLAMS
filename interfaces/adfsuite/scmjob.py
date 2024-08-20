@@ -297,7 +297,7 @@ class SCMJob(SingleJob):
                     ret += serialize(key, el, indent)
             elif value == "" or value is True:
                 ret += " " * indent + key + "\n"
-            elif value is False:
+            elif value is False or value is None:
                 pass
             else:
                 value = str(unspec(value))

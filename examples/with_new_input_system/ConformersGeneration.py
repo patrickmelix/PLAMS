@@ -1,6 +1,7 @@
-#!/usr/bin/env plams
+#!/usr/bin/env amspython
 from scm.conformers import ConformersJob, ConformersResults
 from scm.input_classes import DFTB, Conformers
+from scm.plams import *
 
 # This example shows how to use the AMS's Conformers tool via PLAMS
 
