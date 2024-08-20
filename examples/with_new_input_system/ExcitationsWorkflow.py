@@ -1,5 +1,6 @@
-#!/usr/bin/env plams
+#!/usr/bin/env amspython
 # Workflow with PLAMS
+from scm.plams import AMSResults, Units, add_to_class, Settings, read_molecules, AMSJob
 
 # A couple of useful function for extracting results:
 

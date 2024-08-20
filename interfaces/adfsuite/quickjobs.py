@@ -57,7 +57,7 @@ def shakemd(
     Performs SHAKE MD simulation with all bonds fixed. If ``density`` is specified, a lattice deformation will also be applied.
 
     The temperature is 100 K and the time step 0.5 fs.
-    
+
     Returns: a Molecule corresponding to the final MD step.
 
     molecule: Molecule

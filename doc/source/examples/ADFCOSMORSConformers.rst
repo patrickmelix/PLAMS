@@ -17,7 +17,7 @@ First, we'll import the necessary classes:
 .. code-block:: python
 
     from scm.plams.recipes.adfcosmorsconformers import ADFCOSMORSConfJob, ADFCOSMORSConfFilter
-    from scm.plams import Molecule, from_smiles, init, finish, Settings
+    from scm.plams import Molecule, from_smiles, Settings
     from scm.conformers import ConformersJob
 
 Now, we'll input the acetic acid molecule with the ``from_smiles`` function

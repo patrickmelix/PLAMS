@@ -7,13 +7,12 @@ Python Library for Automating Molecular Simulations
     :maxdepth: 3
 
     general
-    intro
-    started
-    components/components
-    interfaces/interfaces
     examples/examples
+    interfaces/amssuite
+    components/components
     cookbook/cookbook
     citations
+    interfaces/thirdparty
 
 .. toctree::
     :maxdepth: 1

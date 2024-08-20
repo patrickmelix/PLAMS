@@ -19,17 +19,12 @@ In ``ReorganizationEnergyResults``, the reorganization energy is computed by fet
 
 **Example usage:**
 
-.. literalinclude:: ../../../examples/ReorganizationEnergy.py
+.. literalinclude:: ../../../examples/ReorganizationEnergy/ReorganizationEnergy.py
    :language: python
 
 .. note::
     To execute this PLAMS script:
     
-    * :download:`Download ReorganizationEnergy.py <../../../examples/ReorganizationEnergy.py>`
-    * :download:`Download pyrrole.xyz <../../../../../../examples/plams/ReorganizationEnergy/pyrrole.xyz>` 
-    * ``$AMSBIN/plams ReorganizationEnergy.py``
-
-**Output**
-
-.. literalinclude:: ../../../../../../examples/plams/ReorganizationEnergy/ReorganizationEnergy_orig.out
-   :language: none
+    * :download:`Download ReorganizationEnergy.py <../../../examples/ReorganizationEnergy/ReorganizationEnergy.py>`
+    * :download:`Download pyrrole.xyz <../../../examples/ReorganizationEnergy/pyrrole.xyz>`
+    * ``$AMSBIN/amspython ReorganizationEnergy.py``

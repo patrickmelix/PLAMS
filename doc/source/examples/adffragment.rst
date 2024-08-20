@@ -19,10 +19,10 @@ The source code of the whole module with both abovementioned classes:
 
 .. literalinclude:: ../../../recipes/adffragment.py
 
-An example usage: (:download:`ethene.xyz <../../../../../../examples/scripting/plams_adffrag/ethene.xyz>`,
-:download:`butadiene.xyz <../../../../../../examples/scripting/plams_adffrag/butadiene.xyz>`,
-:download:`adffrag_test.py <../../../../../../examples/scripting/plams_adffrag/adffrag_test.py>`)
+An example usage: (:download:`ethene.xyz <../../../examples/ADFFrag/ethene.xyz>`,
+:download:`butadiene.xyz <../../../examples/ADFFrag/butadiene.xyz>`,
+:download:`adffrag_test.py <../../../examples/ADFFrag/adffrag.py>`)
 
-.. literalinclude:: ../../../../../../examples/scripting/plams_adffrag/ethene.xyz
-.. literalinclude:: ../../../../../../examples/scripting/plams_adffrag/butadiene.xyz
-.. literalinclude:: ../../../../../../examples/scripting/plams_adffrag/adffrag_test.py
+.. literalinclude:: ../../../examples/ADFFrag/ethene.xyz
+.. literalinclude:: ../../../examples/ADFFrag/butadiene.xyz
+.. literalinclude:: ../../../examples/ADFFrag/adffrag.py

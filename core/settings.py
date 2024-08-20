@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from scm.plams.core.jobmanager import JobManager
     from scm.plams.core.jobrunner import JobRunner
 
-TSelf = TypeVar("TSelf", bound="BaseClass")
+TSelf = TypeVar("TSelf", bound="Settings")
 
 
 class Settings(dict):
@@ -776,6 +776,7 @@ class ConfigSettings(Settings):
         super().__init__(*args, **kwargs)
 
         self.init = False
+        self._explicit_init = False
         self.preview = False
         self.sleepstep = 5
         self.ignore_failure = True
@@ -794,13 +795,24 @@ class ConfigSettings(Settings):
     @property
     def init(self) -> bool:
         """
-        Whether config has been marked as fully initialised and jobs are ready to be run. Defaults to ``False``.
+        Whether config has been marked as fully initialized and jobs are ready to be run. Defaults to ``False``.
         """
         return self["init"]
 
     @init.setter
     def init(self, value: bool):
         self["init"] = value
+
+    @property
+    def _explicit_init(self) -> bool:
+        """
+        Whether config has been explicitly initialized by the user by calling |init|. Defaults to ``False``.
+        """
+        return self["_explicit_init"]
+
+    @_explicit_init.setter
+    def _explicit_init(self, value: bool):
+        self["_explicit_init"] = value
 
     @property
     def preview(self) -> bool:

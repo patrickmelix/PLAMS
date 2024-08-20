@@ -43,5 +43,5 @@ For details about the functions, see the |AMSResults| API.
 .. image:: /_static/plams_density_along_z.png
 
 .. literalinclude:: ../../../examples/BasicMDPostanalysis.py
-	:language: python
+    :language: python
 
