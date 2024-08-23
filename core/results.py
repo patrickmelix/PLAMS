@@ -13,6 +13,7 @@ from typing import List
 from scm.plams.core.errors import FileError, ResultsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.private import saferun
+from scm.plams.core.enums import JobStatus
 
 __all__ = ["Results"]
 
@@ -60,10 +61,10 @@ def _restrict(func):
         if not self.job:
             raise ResultsError("Using Results not associated with any Job")
 
-        if self.job.status in ["successful", "copied"]:
+        if self.job.status in [JobStatus.SUCCESSFUL, JobStatus.COPIED]:
             return func(self, *args, **kwargs)
 
-        elif self.job.status in ["preview"]:
+        elif self.job.status == JobStatus.PREVIEW:
             if config.ignore_failure:
                 log(
                     "WARNING: Trying to obtain results of job {} run in a preview mode. Returned value is None".format(
@@ -75,10 +76,10 @@ def _restrict(func):
             else:
                 raise ResultsError("Using Results associated with job run in a preview mode")
 
-        elif self.job.status in ["deleted"]:
+        elif self.job.status == JobStatus.DELETED:
             raise ResultsError("Using Results associated with deleted job")
 
-        elif self.job.status in ["crashed", "failed"]:
+        elif self.job.status in [JobStatus.CRASHED, JobStatus.FAILED]:
             if func.__name__ == "wait":  # waiting for crashed of failed job should not trigger any warnings/exceptions
                 cal, arg = _caller_name_and_arg(inspect.currentframe())
                 if isinstance(arg, Results):
@@ -100,7 +101,7 @@ def _restrict(func):
             else:
                 raise ResultsError("Using Results associated with crashed or failed job")
 
-        elif self.job.status in ["created", "started", "registered", "running"]:
+        elif self.job.status in [JobStatus.CREATED, JobStatus.STARTED, JobStatus.REGISTERED, JobStatus.RUNNING]:
             log("Waiting for job {} to finish".format(self.job.name), 1)
             if _privileged_access():
                 self.finished.wait()
@@ -108,7 +109,7 @@ def _restrict(func):
                 self.done.wait()
             return func(self, *args, **kwargs)
 
-        elif self.job.status in ["finished"]:
+        elif self.job.status == JobStatus.FINISHED:
             if _privileged_access():
                 return func(self, *args, **kwargs)
             log("Waiting for job {} to finish".format(self.job.name), 1)

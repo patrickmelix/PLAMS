@@ -14,9 +14,11 @@ import atexit
 from scm.plams.core.errors import FileError
 from scm.plams.core.private import retry
 from scm.plams.core.settings import Settings, ConfigSettings
+from scm.plams.core.enums import JobStatus
 
 if TYPE_CHECKING:
     from scm.plams.core.jobmanager import JobManager
+    from scm.plams.core.basejob import Job
 
 __all__ = [
     "init",
@@ -339,10 +341,10 @@ def load_all(path, jobmanager=None):
 
 
 @retry()
-def delete_job(job):
+def delete_job(job: "Job"):
     """Remove *job* from its corresponding |JobManager| and delete the job folder from the disk. Mark *job* as 'deleted'."""
 
-    if job.status != "created":
+    if job.status != JobStatus.CREATED:
         job.results.wait()
 
     # In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
@@ -352,7 +354,7 @@ def delete_job(job):
     if job.parent is not None:
         job.parent.remove_child(job)
 
-    job.status = "deleted"
+    job.status = JobStatus.DELETED
     job._log_status(5)
 
 

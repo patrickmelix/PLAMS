@@ -1,5 +1,6 @@
 from scm.plams.version import __version__
 from scm.plams.core.basejob import MultiJob, SingleJob
+from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import (
     FileError,
     JobError,
@@ -196,6 +197,7 @@ __all__ = [
     "ConfigSettings",
     "SingleJob",
     "MultiJob",
+    "JobStatus",
     "PlamsError",
     "FileError",
     "ResultsError",
