@@ -116,12 +116,12 @@ class Job:
             if "default_jobrunner" in config:
                 jobrunner = config.default_jobrunner
             else:
-                raise PlamsError("No default jobrunner found. This probably means that PLAMS init() was not called.")
+                raise PlamsError("No default jobrunner found.")
         if jobmanager is None:
             if "default_jobmanager" in config:
                 jobmanager = config.default_jobmanager
             else:
-                raise PlamsError("No default jobmanager found. This probably means that PLAMS init() was not called.")
+                raise PlamsError("No default jobmanager found.")
 
         jobrunner._run_job(self, jobmanager)
         return self.results
@@ -436,8 +436,7 @@ class SingleJob(Job):
         """
         Loads a Job instance from `path`, where path can either be a
         directory with a `*.dill` file, or the full path to the `*.dill` file.
-        If ``init()`` has been called, or a non-default `jobmanager` is provided,
-        will register the job with the Job Manager.
+        If a non-default `jobmanager` is provided, will register the job with that Job Manager in preference.
 
         When `strict = True`, will check that the loaded job is an instance of the right class
         (`e.g.` calling `AMSJob.load()` returns a `AMSJob` instance)

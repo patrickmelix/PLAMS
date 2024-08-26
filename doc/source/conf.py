@@ -274,26 +274,8 @@ rst_epilog = """
 
 .. |AMSCalculator| replace:: :class:`~scm.plams.interfaces.adfsuite.ase_calculator.AMSCalculator`
 
-.. |ADFJob| replace:: :class:`ADFJob<scm.plams.interfaces.adfsuite.adf.ADFJob>`
-.. |ADFResults| replace:: :class:`ADFResults<scm.plams.interfaces.adfsuite.adf.ADFResults>`
-
 .. |SCMJob| replace:: :class:`~scm.plams.interfaces.adfsuite.scmjob.SCMJob`
 .. |SCMResults| replace:: :class:`~scm.plams.interfaces.adfsuite.scmjob.SCMResults`
-
-.. |BANDJob| replace:: :class:`BANDJob<scm.plams.interfaces.adfsuite.band.BANDJob>`
-.. |BANDResults| replace:: :class:`BANDResults<scm.plams.interfaces.adfsuite.band.BANDResults>`
-
-.. |DFTBJob| replace:: :class:`DFTBJob<scm.plams.interfaces.adfsuite.dftb.DFTBJob>`
-.. |DFTBResults| replace:: :class:`DFTBResults<scm.plams.interfaces.adfsuite.dftb.DFTBesults>`
-
-.. |MOPACJob| replace:: :class:`~scm.plams.interfaces.adfsuite.mopac.MOPACJob`
-.. |MOPACResults| replace:: :class:`~scm.plams.interfaces.adfsuite.mopac.MOPACResults`
-
-.. |ReaxFFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.reaxff.ReaxFFJob`
-.. |ReaxFFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.reaxff.ReaxFFResults`
-
-.. |UFFJob| replace:: :class:`~scm.plams.interfaces.adfsuite.uff.UFFJob`
-.. |UFFResults| replace:: :class:`~scm.plams.interfaces.adfsuite.uff.UFFResults`
 
 .. |DensfJob| replace:: :class:`~scm.plams.interfaces.adfsuite.densf.DensfJob`
 .. |DensfResults| replace:: :class:`~scm.plams.interfaces.adfsuite.densf.DensfResults`
@@ -335,7 +317,6 @@ rst_epilog = """
 .. |global-settings| replace:: :ref:`global-settings`
 .. |pickling| replace:: :ref:`pickling`
 .. |restarting| replace:: :ref:`restarting`
-.. |master-script| replace:: :ref:`master-script`
 .. |binding_decorators| replace:: :ref:`binding-decorators`
 .. |parallel| replace:: :ref:`parallel`
 

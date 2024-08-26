@@ -92,13 +92,6 @@ The root folder of the package contains the following:
 *   ``tools``: subpackage with small utilities like unit converter, periodic table, file readers etc.
 *   ``recipes``: subpackage with examples of simple job types built on top basic PLAMS elements
 *   ``doc``: Sphinx source of this documentation
-*   ``scripts``: folder with executable scripts
-
-An imporant part of PLAMS worth mentioning here is the executable script used for running or restarting your workflows.
-It is called simply ``plams`` and it's located in the ``scripts`` folder.
-We will refer to it as the *launch script* or simply *launcher*.
-Further in this section you can find the dedicated chapter explaining the usage of the launch script.
-
 
 
 Installing PLAMS
@@ -106,14 +99,12 @@ Installing PLAMS
 
 You can install PLAMS on your computer using one of the following ways:
 
-1.  If you are using Amsterdam Modeling Suite, PLAMS is included as a part of ``scm`` Python package (``$AMSHOME/scripting/scm/plams``) and configured to work with a built-in Python coming with AMSuite (you can access it with ``amspython`` command).
-    The launch script is added to ``$AMSBIN``, so it should be directly visible from your command line (as long as ``$AMSBIN`` is in your ``$PATH``).
+1.  If you are using Amsterdam Modeling Suite, PLAMS is included as a part of ``scm`` Python package (``$AMSHOME/scripting/scm/plams``) and configured to work with the `Python Stack <../Scripting/Python_Stack/Python_Stack.html>`__ coming with AMSuite (you can access it with ``$AMSBIN/amspython`` command).
 
 2.  The latest PLAMS stable release can be installed directly from PyPi by typing ``pip install plams`` in your command line.
-    The launch scipt will be installed along other global system executables (platform dependent) and should be visible from your command line.
 
 3.  Any current or historic version can be downloaded or cloned from PLAMS `GitHub page <https://github.com/SCM-NV/PLAMS>`_.
-    The ``release`` branch points to the latests stable release, while the ``master`` branch is the most recent development snapshot.
+    The ``release`` branch points to the latest stable release, while the ``trunk`` branch is the most recent development snapshot.
 
 4.  You can combine methods 2 and 3 and fetch PLAMS from GitHub using ``pip``: ``pip install git+https://github.com/SCM-NV/PLAMS.git@master`` (make sure to have Git installed and to choose the proper branch)
 
@@ -125,7 +116,7 @@ PLAMS requires the following Python packages as dependencies:
 *   `rdkit <https://pypi.org/project/rdkit>`_ (optional dependency)
 
 If you are using Amsterdam Modeling Suite, all the above packages are already included in our Python stack.
-When you install PLAMS using ``pip``, the required packages (numpy and dill)will be installed automatically.
+When you install PLAMS using ``pip``, the required packages (numpy and dill) will be installed automatically.
 For optional dependencies, or in any other case you can install them with ``pip install [package name]``.
 
 
@@ -133,30 +124,22 @@ For optional dependencies, or in any other case you can install them with ``pip 
 Running PLAMS
 -------------------------
 
-Inside your Python interpreter or in Python scripts PLAMS is visible as a subpackage of the ``scm`` package, so you can import it with one of the following commands
+Inside your Python interpreter or in Python scripts, PLAMS is visible as a subpackage of the ``scm`` package, so you can import it with one of the following commands
 
 .. code-block:: python
 
+    # myscript.py
     import scm.plams
     from scm import plams
-    from scm.plams import *
+    from scm.plams import Settings, Molecule, Atom, AMSJob  #  ... other required components
 
-.. note::
 
-    Usually in Python ``import *`` is considered a bad practice and discouraged.
-    However, PLAMS internally takes care of the namespace tidiness and imports only necessary things with ``import *``.
-    Importing with ``import *`` allows you to use identifiers like ``Molecule`` or ``AMSJob`` instead of ``scm.plams.Molecule`` or ``scm.plams.AMSJob`` which makes your scripts shorter and more readable.
-    Throughout this documentation it is assumed that ``import *`` is used so identifiers are not prefixed with ``scm.plams.`` in any example.
-
-A PLAMS script is in fact a general Python script that makes use of classes and functions defined in the PLAMS library.
-Of course PLAMS can be also run interactively.
-After starting your favorite Python interpreter you need to manually import and initialize the environment with ``from scm.plams import *``.
-Then you can interactively run any Python command relying on PLAMS.
+The script can then be run using a Python interpreter e.g. ``$AMSBIN/amspython myscript.py``.
 
 
 .. _plams-defaults:
 
-PLAMS Defaults
+PLAMS defaults
 -------------------------
 
 PLAMS has a global ``config`` object which contains all the configuration settings for the PLAMS script.
@@ -173,27 +156,13 @@ For example:
     config.default_jobrunner = JobRunner(parallel=True, maxjobs=8)
 
 
-
-.. _master-script:
-
-The launch script
--------------------------
-
-The launch script is an executable file called simply ``plams`` located in the ``scripts`` folder.
-If the ``$PATH`` variable is configured properly, you can type in your command line ``plams -h`` or ``plams --help`` for a short help message.
-
-The launch script provides another way of executing PLAMS scripts.
-Note that the launch script handles the PLAMS imports so this does not need to be done in the the script itself.
-The launch script offers several command line arguments allowing you to tune the behavior of your script without a need to edit the script itself.
-
+.. _working-folder:
 
 Working folder location
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The launch script allows you to pick custom name and location for the main working folder.
 All files produced by PLAMS and other programs executed by it are saved in the main working folder (usually in some of its subfolders).
 Each separate run of PLAMS has a separate main working folder.
-
 By default the main working folder is located in the directory where your script was executed and is called ``plams_workdir`` (``plams_workdir.002`` if ``plams_workdir`` already existed).
 The name and location for the main working folder can be altered by calling the |init| function.
 For example:
@@ -204,132 +173,16 @@ For example:
     init(path="my/path", folder="my_folder")
 
 
-The launch script also allows you to pick custom name and location for the main working folder.
-You can change that by supplying ``-p`` and ``-f`` (or ``--path`` and ``--folder``) arguments to the launcher to choose the location and the name of the main working folder.
-For example the command::
-
-    plams -p /home/user/science -f polymers myscript.plms
-
-
-will use ``/home/user/science/polymers`` as the main working folder regardless where this command was executed.
-
 .. note::
 
     Each PLAMS run creates a fresh, empty directory for its main working folder.
     If you try to use an existing folder (or don't pick any and ``plams_workdir`` already exists in the current directory), a unique folder is going to be created anyway, by appending ``.002`` (or ``.003``, ``.004`` and so on) to the name of your folder.
 
+What's new in PLAMS for AMS2025?
+--------------------------------------
 
-Passing variables
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-When using the launcher you can pass variables to your script directly from the command line.
-This can be done with ``-v`` (or ``--var``) parameter that follows the syntax ``-v variable=value`` (mind the lack of spaces around equal sign, it is a must).
-For a script executed that way, there is an additional global string variable with the name ``variable`` and the value ``'value'`` visible from within the script.
-For example if the script in file ``script1.plms`` looks like this::
-
-    print('Chosen basis: ' + basis)
-    print('Number of points: ' + n)
-    print(type(n))
-    # do something depending on n and basis
-
-and you execute it with::
-
-    plams -v n=10 -v basis=DZP script1.plms
-
-the standard output will be:
-
-.. code-block:: none
-
-    Chosen basis: DZP
-    Number of points: 10
-    str
-    [rest of the output]
-
-Three important things to keep in mind about ``-v`` parameter:
-
-*   no spaces around equal sign,
-*   each variable requires separate ``-v``,
-*   the type of the variable is **always** string (like in the example above).
-    If you want to pass some numerical values, make sure to convert them from strings to numbers inside your script.
-
-
-Importing past jobs
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can instruct the launcher to load the results of some previously run jobs by supplying the path to the main working folder of a finished PLAMS run with ``-l`` (or ``--load``) parameter.
-To find out why this could be useful, please see |pickling| and |RPM|.
-
-This mechanism is equivalent to using |load_all| function at the beginning of your script.
-That means executing your script with ``plams -l /some/path myscript.plms`` works just like putting ``load_all('/some/path')`` at the beginning of ``myscript.plms`` and running it with ``plams myscript.plms``.
-The only difference is that, when using |load_all| inside the script, you can access each of the loaded jobs separately by using the dictionary returned by |load_all|.
-This is not possible with ``-l`` parameter, but all the loaded jobs will be visible to |RPM|.
-
-Multiple different folders can be supplied with ``-l`` parameter, but each of them requires a separate ``-l`` flag::
-
-    plams -l /some/path -l /other/path myscript.plms
-
-
-Restarting failed script
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The launch script can be called with an additional argumentless ``-r`` parameter (or ``--restart``).
-In such a case the launcher enters "restart mode".
-In the restart mode the folder specified by ``-f`` (or the latest ``plams_workdir[.xxx]`` if ``-f`` is not used) is first renamed by appending ``.res`` to folder's original name (let's call it ``foldername``).
-Successful jobs from ``foldername.res`` are loaded at the beginning of the current run, which is executed in a new, empty main working folder called ``foldername``.
-Whenever the new run encounters a job identical to a successful job present in ``foldername.res``, the new job execution is skipped and the whole job folder is linked (hardlinked) from ``foldername.res`` to ``foldername``.
-That way the restart run will not redo any work present in old ``foldername``, but rather back it up to ``foldername.res`` and restart from the point when the old run was terminated.
-For example, after::
-
-    $ plams -f stuff myscript.plms
-    [17:28:40] PLAMS working folder: /home/user/stuff
-    # [some successful work]
-    [17:56:22] Execution interrupted by the following exception:
-    # [exception details]
-
-you can edit ``myscript.plms``, remove the cause of crash and restart your script with::
-
-    $ plams -f stuff -r myscript.plms
-    RESTART: Moving stuff to stuff.res and restarting from it
-    [18:03:34] PLAMS working folder: /home/user/stuff
-
-(the above command needs to be executed in ``/home/user``.
-Otherwise, you need to add ``-p /home/user`` to tell the master script where to look for ``stuff``).
-The same example with the default folder name::
-
-    $ plams myscript.plms
-    [17:28:40] PLAMS working folder: /home/user/plams_workdir
-    # [some successful work]
-    [17:56:22] Execution interrupted by the following exception:
-    # [exception details]
-
-    [...debug the script...]
-
-    $ plams -r myscript.plms
-    RESTART: Moving plams_workdir to plams_workdir.res and restarting from it
-    [18:03:34] PLAMS working folder: /home/user/plams_workdir
-
-For more detailed explanation of the restart mechanism, please see |RPM|, |pickling| and |restarting|.
-
-
-Multiple input scripts
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The launch script can be called with more than one positional argument, like for example::
-
-    plams script1.plms script2.plms script3.plms
-
-All files supplied that way are concatenated into one script and then executed (that means things declared in script1 are visible in script2 and script3).
-Using this feature for completely unrelated scripts is probably not a good idea, but it can be useful, for example, when first files contain just definitions of your own functions, derived classes, settings tweaks etc. that are then used in the last file::
-
-    plams config/debug_run.plms settings/adf/adf_fde.plms actual_script.plms
-
-That way you can build your own library of reusable code snippets for tasks that are most frequently occurring in your daily work, customize PLAMS according to your personal preferences and make your working environment truly modular.
-
-.. note::
-
-    The ``.plms`` file extension for PLAMS scripts is just a convention.
-    Scripts can be any text files.
-
+* Call to |init| at the start of a PLAMS script is no longer required. In addition, a call to |finish| is automatically registered at exit. For more information see :ref:`public-functions`.
+* Deprecated ``BandJob``, ``DFTBJob``, ``UFFJob``, ``MOPACJob``, ``ReaxFFJob`` and ``ADFJob`` jobs have been removed. These were deprecated since AMS2019, and replaced by |AMSJob|.
 
 What's new in PLAMS for AMS2024?
 --------------------------------------

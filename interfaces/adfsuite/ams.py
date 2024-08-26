@@ -2208,7 +2208,7 @@ class AMSJob(SingleJob):
             if "default_jobmanager" in config:
                 jobmanager = config.default_jobmanager
             else:
-                raise PlamsError("No default jobmanager found. This probably means that PLAMS init() was not called.")
+                raise PlamsError("No default jobmanager found.")
 
             observer = Observer()
             event_handler = AMSJobLogTailHandler(self, jobmanager)

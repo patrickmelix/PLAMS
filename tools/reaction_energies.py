@@ -34,9 +34,9 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
     return d
 
 
-def balance_equation_new(reactants, products, normalization="r0"):
+def balance_equation_new(reactants, products, normalization="r0", normalization_value=1.0):
     """
-    Calculate stoichiometric coefficients
+    Calculate stoichiometric coefficients (meant to replace balance_equation method)
 
     reactants: a list of amsjobs, or a list of paths to ams.results folders or ams.rkf files or .xyz files, or a list of Molecules, or a list of stoichiometry dicts, or a list of Molecules
         The reactants
@@ -52,6 +52,10 @@ def balance_equation_new(reactants, products, normalization="r0"):
         'r0' for the first reactant, 'r1' for the second reactant, etc.
         'p0' for the first product, 'p1' for the second product, etc.
         This normalizes the chemical equation such that the coefficient in front of the specified species is normalization_value
+
+    normalization_value: float or None
+        The value to which the compound defined with 'normalization' should be normalized
+        if None, whatever integer value the ReactionEquation object produces should be used.
     """
 
     def get_formulas(list_of_jobs):
@@ -115,6 +119,12 @@ def balance_equation_new(reactants, products, normalization="r0"):
         strings += ["Verify that the chemical equation can be balanced at all."]
         text = " ".join(strings)
         raise RuntimeError(text)
+
+    # Normalize in the specified molecule
+    if normalization_value is not None:
+        coeffs = coeffs.astype(np.float64)
+        coeffs /= coeffs[ind]
+        coeffs *= normalization_value
 
     return coeffs[:num_reactants], coeffs[num_reactants:]
 

@@ -87,6 +87,11 @@ class ReactionEquation:
         * ``min_coeffs`` -- Vector representing the minimal allowable (integer) coefficient of each molecule
                         [0, 0, 1, 0, 0]
         """
+        if min_coeffs is not None:
+            min_coeffs = numpy.array(min_coeffs)
+            if len(min_coeffs[min_coeffs != 0]) == 0:
+                raise Exception("At least one non-zero coefficient needs to be provided as the min_coeffs argument.")
+
         self.coeffs = None
         self.equivalent_coeffs = None
         self.message = "Unsolved"
@@ -173,22 +178,39 @@ class ReactionEquation:
         """
         Select only the rows in basis that share the same block with the main product
         """
-        ind = self._first_nonzero_product()
-        if ind is None:
-            return basis  # noqa ToDo: review, should be []?
 
-        # First find a row that has a nonzero value at position ind
-        rowmap = None
-        for i, row in enumerate(self.basis):
-            if row[ind] != 0:
-                rowmap = (row != 0) * numpy.ones(self.basis.shape)
-                break
+        def get_row_indices(ind):
+            """
+            Get the indices of the rows in the same block with compound ind
+            """
+            # First find a row that has a nonzero value at position ind
+            rowmap = None
+            for i, row in enumerate(self.basis):
+                if row[ind] != 0:
+                    rowmap = (row != 0) * numpy.ones(self.basis.shape)
+                    break
 
-        # Then compare it to all the other rows and check for overlap
-        basis = self.basis
-        if rowmap is not None:
-            indexmap = (abs(self.basis * rowmap) > 0).sum(axis=1)
-            basis = self.basis[indexmap > 0]
+            indexmap = numpy.ones(len(self.basis))
+            if rowmap is not None:
+                indexmap = (abs(self.basis * rowmap) > 0).sum(axis=1)
+            return indexmap
+
+        # Add the rows for the blocks representing each mandatory compound
+        nmols = len(self.min_coeffs)
+        nonzero_indices = iter(numpy.arange(nmols)[self.min_coeffs > 0])
+        indexmap = get_row_indices(next(nonzero_indices))
+        for i in nonzero_indices:
+            newmap = get_row_indices(i)
+            # Check for independent reactions
+            oldbasis = (abs(self.basis[indexmap > 0])).sum(axis=0) > 0
+            newbasis = (abs(self.basis[newmap > 0])).sum(axis=0) > 0
+            # They are only independent if these two bases have not overlap at all
+            if (oldbasis * newbasis).sum() == 0:
+                self.message = "(independent equations)"
+            indexmap += newmap
+
+        # Cut out the relevant rows basis
+        basis = self.basis[indexmap > 0]
         return basis
 
     def setup_optimizer(self, basis):
@@ -266,7 +288,10 @@ class ReactionEquation:
         coeffs = numpy.array([int(self.model.x[j].value) for j in range(n)])
 
         self.coeffs = coeffs
-        self.message = "Success"
+        message = "Success"
+        if self.message != "Unsolved":
+            message = "%s %s" % (message, self.message)
+        self.message = message
         return coeffs
 
     def refine_optimization(self):
@@ -480,13 +505,3 @@ class ReactionEquation:
         # Create a dictionary
         element_numbers = {el: i for el, i in zip(elements, numbers)}
         return element_numbers
-
-    def _first_nonzero_product(self):
-        """
-        Get the inde of the first product that needs to have a non-zero coefficient
-        """
-        nreactants = len(self._rformulas)
-        if (self.min_coeffs[nreactants:] == 0).all():
-            return None
-        ind = numpy.where(self.min_coeffs[nreactants:] != 0)[0][0] + nreactants
-        return ind

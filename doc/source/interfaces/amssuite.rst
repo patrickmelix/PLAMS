@@ -37,5 +37,3 @@ All possible input keywords and options are covered, as well as extraction of ar
     conformers
     reactionsdiscovery
     zacros
-    adf
-    reaxff

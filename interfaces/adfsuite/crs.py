@@ -217,13 +217,11 @@ class CRSResults(SCMResults):
         """
 
         section = "EnegyComponent"
-
         try:
-            self.get_prop_names(section="EnergyComponent")
+            nspecies = self.readkf(section, "nspecies")
         except:
-            return log("The section of EnergyComponent is not found in the crskf file.")
-
-        nspecies = self.readkf(section, "nspecies")
+            log("The section of EnergyComponent is not found in the crskf file.")
+            return None, None
 
         ms_index = self.readkf(section, "ms_index")
         ms_index = np.array(ms_index)

@@ -235,7 +235,7 @@ class Optimizer:
         from scm.plams import config
 
         if not "default_jobmanager" in config:
-            raise PlamsError("PLAMS init() not called")
+            raise PlamsError("No default jobmanager found.")
         jobmanager = config.default_jobmanager
         settings.runscript.nproc = int(self.jobrunner.maxjobs / min(self.jobrunner.maxjobs, len(molecules)))
         nproc = min(self.jobrunner.maxjobs, len(molecules))

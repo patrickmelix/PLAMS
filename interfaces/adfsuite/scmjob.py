@@ -192,17 +192,9 @@ class SCMJob(SingleJob):
     _command = ""
     _json_definitions = _command
     _subblock_end = "subend"
-    _legacy = ["band", "dftb", "uff"]
 
     def __init__(self, **kwargs):
         SingleJob.__init__(self, **kwargs)
-        if self.__class__._command in self.__class__._legacy:
-            log(
-                "LEGACY WARNING: Job {} uses executable '{}' which is not present in AMS2018. Please use AMSJob (unless you're running an older version of ADFSuite)".format(
-                    self.name, self.__class__._command
-                ),
-                1,
-            )
 
     def get_input(self):
         """Generate the input file. This method is just a wrapper around :meth:`_serialize_input`.
