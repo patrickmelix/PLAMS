@@ -23,6 +23,7 @@ step = 0.2
 
 # create a list with interatomic distances
 distances = np.arange(dmin, dmax, step)
+print(distances)
 
 
 # ## Calculation Settings
@@ -59,3 +60,11 @@ print("== Results ==")
 print("d[A]    E[kcal/mol]")
 for d, e in zip(distances, energies):
     print(f"{d:.2f}    {e:.3f}")
+
+
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(3, 3))
+ax.plot(distances, energies, ".-")
+ax.set_xlabel("He-He distance (Å)")
+ax.set_ylabel("Energy (kcal/mol)")
