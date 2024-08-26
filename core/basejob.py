@@ -454,7 +454,7 @@ class SingleJob(Job):
         return self._filenames[t].replace("$JN", self.name)
 
     @classmethod
-    def load(cls, path, jobmanager: "JobManager" = None, strict: bool = True) -> None:
+    def load(cls, path, jobmanager: "JobManager" = None, strict: bool = True) -> "SingleJob":
         """
         Loads a Job instance from `path`, where path can either be a
         directory with a `*.dill` file, or the full path to the `*.dill` file.
@@ -492,8 +492,10 @@ class SingleJob(Job):
 
         if strict and job.__class__ != cls:
             raise ValueError(
-                f"The loaded job is an instance of '{job.__class__.__name__}', wheras this method expects it to be a '{cls.__name__}'. Use `strict=False` to ignore this."
+                f"The loaded job is an instance of '{job.__class__.__name__}', whereas this method expects it to be a '{cls.__name__}'. Use `strict=False` to ignore this."
             )
+
+        return job
 
     @classmethod
     def load_external(
