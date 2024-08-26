@@ -32,6 +32,13 @@ run calculation.
 
     # create a list with interatomic distances
     distances = np.arange(dmin, dmax, step)
+    print(distances)
+
+
+.. parsed-literal::
+
+    [2.2 2.4 2.6 2.8 3.  3.2 3.4 3.6 3.8 4. ]
+
 
 Calculation Settings
 ~~~~~~~~~~~~~~~~~~~~
@@ -68,46 +75,46 @@ job and extract the energy.
 
 .. parsed-literal::
 
-    [13.08|11:10:14] JOB dist_2.20 STARTED
-    [13.08|11:10:14] JOB dist_2.20 RUNNING
-    [13.08|11:10:16] JOB dist_2.20 FINISHED
-    [13.08|11:10:16] JOB dist_2.20 SUCCESSFUL
-    [13.08|11:10:16] JOB dist_2.40 STARTED
-    [13.08|11:10:16] JOB dist_2.40 RUNNING
-    [13.08|11:10:18] JOB dist_2.40 FINISHED
-    [13.08|11:10:18] JOB dist_2.40 SUCCESSFUL
-    [13.08|11:10:18] JOB dist_2.60 STARTED
-    [13.08|11:10:18] JOB dist_2.60 RUNNING
-    [13.08|11:10:20] JOB dist_2.60 FINISHED
-    [13.08|11:10:20] JOB dist_2.60 SUCCESSFUL
-    [13.08|11:10:20] JOB dist_2.80 STARTED
-    [13.08|11:10:20] JOB dist_2.80 RUNNING
-    [13.08|11:10:22] JOB dist_2.80 FINISHED
-    [13.08|11:10:22] JOB dist_2.80 SUCCESSFUL
-    [13.08|11:10:22] JOB dist_3.00 STARTED
-    [13.08|11:10:22] JOB dist_3.00 RUNNING
-    [13.08|11:10:24] JOB dist_3.00 FINISHED
-    [13.08|11:10:24] JOB dist_3.00 SUCCESSFUL
-    [13.08|11:10:24] JOB dist_3.20 STARTED
-    [13.08|11:10:24] JOB dist_3.20 RUNNING
-    [13.08|11:10:25] JOB dist_3.20 FINISHED
-    [13.08|11:10:25] JOB dist_3.20 SUCCESSFUL
-    [13.08|11:10:25] JOB dist_3.40 STARTED
-    [13.08|11:10:25] JOB dist_3.40 RUNNING
-    [13.08|11:10:27] JOB dist_3.40 FINISHED
-    [13.08|11:10:27] JOB dist_3.40 SUCCESSFUL
-    [13.08|11:10:27] JOB dist_3.60 STARTED
-    [13.08|11:10:27] JOB dist_3.60 RUNNING
-    [13.08|11:10:29] JOB dist_3.60 FINISHED
-    [13.08|11:10:29] JOB dist_3.60 SUCCESSFUL
-    [13.08|11:10:29] JOB dist_3.80 STARTED
-    [13.08|11:10:29] JOB dist_3.80 RUNNING
-    [13.08|11:10:31] JOB dist_3.80 FINISHED
-    [13.08|11:10:31] JOB dist_3.80 SUCCESSFUL
-    [13.08|11:10:31] JOB dist_4.00 STARTED
-    [13.08|11:10:31] JOB dist_4.00 RUNNING
-    [13.08|11:10:32] JOB dist_4.00 FINISHED
-    [13.08|11:10:32] JOB dist_4.00 SUCCESSFUL
+    [26.08|15:26:10] JOB dist_2.20 STARTED
+    [26.08|15:26:10] JOB dist_2.20 RUNNING
+    [26.08|15:26:11] JOB dist_2.20 FINISHED
+    [26.08|15:26:12] JOB dist_2.20 SUCCESSFUL
+    [26.08|15:26:12] JOB dist_2.40 STARTED
+    [26.08|15:26:12] JOB dist_2.40 RUNNING
+    [26.08|15:26:13] JOB dist_2.40 FINISHED
+    [26.08|15:26:13] JOB dist_2.40 SUCCESSFUL
+    [26.08|15:26:13] JOB dist_2.60 STARTED
+    [26.08|15:26:13] JOB dist_2.60 RUNNING
+    [26.08|15:26:15] JOB dist_2.60 FINISHED
+    [26.08|15:26:15] JOB dist_2.60 SUCCESSFUL
+    [26.08|15:26:15] JOB dist_2.80 STARTED
+    [26.08|15:26:15] JOB dist_2.80 RUNNING
+    [26.08|15:26:16] JOB dist_2.80 FINISHED
+    [26.08|15:26:16] JOB dist_2.80 SUCCESSFUL
+    [26.08|15:26:16] JOB dist_3.00 STARTED
+    [26.08|15:26:16] JOB dist_3.00 RUNNING
+    [26.08|15:26:18] JOB dist_3.00 FINISHED
+    [26.08|15:26:18] JOB dist_3.00 SUCCESSFUL
+    [26.08|15:26:18] JOB dist_3.20 STARTED
+    [26.08|15:26:18] JOB dist_3.20 RUNNING
+    [26.08|15:26:20] JOB dist_3.20 FINISHED
+    [26.08|15:26:20] JOB dist_3.20 SUCCESSFUL
+    [26.08|15:26:20] JOB dist_3.40 STARTED
+    [26.08|15:26:20] JOB dist_3.40 RUNNING
+    [26.08|15:26:21] JOB dist_3.40 FINISHED
+    [26.08|15:26:21] JOB dist_3.40 SUCCESSFUL
+    [26.08|15:26:21] JOB dist_3.60 STARTED
+    [26.08|15:26:21] JOB dist_3.60 RUNNING
+    [26.08|15:26:23] JOB dist_3.60 FINISHED
+    [26.08|15:26:23] JOB dist_3.60 SUCCESSFUL
+    [26.08|15:26:23] JOB dist_3.80 STARTED
+    [26.08|15:26:23] JOB dist_3.80 RUNNING
+    [26.08|15:26:24] JOB dist_3.80 FINISHED
+    [26.08|15:26:24] JOB dist_3.80 SUCCESSFUL
+    [26.08|15:26:24] JOB dist_4.00 STARTED
+    [26.08|15:26:24] JOB dist_4.00 RUNNING
+    [26.08|15:26:26] JOB dist_4.00 FINISHED
+    [26.08|15:26:26] JOB dist_4.00 SUCCESSFUL
 
 
 Results
@@ -137,4 +144,18 @@ Print table of results of the distance against the calculated energy.
     3.60    -0.030
     3.80    -0.020
     4.00    -0.013
+
+
+.. code:: ipython3
+
+    import matplotlib.pyplot as plt
+    
+    fig, ax = plt.subplots(figsize=(3, 3))
+    ax.plot(distances, energies, ".-")
+    ax.set_xlabel("He-He distance (Å)")
+    ax.set_ylabel("Energy (kcal/mol)");
+
+
+
+.. image:: He2DissociationCurve_files/He2DissociationCurve_12_0.png
 
