@@ -116,39 +116,37 @@ Perform an initial prescreen of all molecules with DFTB.
 
 .. parsed-literal::
 
-    [13.08|15:32:02] JOB DFTB_H2O STARTED
-    [13.08|15:32:02] JOB DFTB_H2O RUNNING
-    [13.08|15:32:03] JOB DFTB_H2O FINISHED
-    [13.08|15:32:03] JOB DFTB_H2O SUCCESSFUL
-    [13.08|15:32:03] JOB DFTB_NH3 STARTED
-    [13.08|15:32:03] JOB DFTB_NH3 RUNNING
-    [13.08|15:32:11] WARNING: Job DFTB_NH3 finished with nonzero return code
-    [13.08|15:32:11] JOB DFTB_NH3 CRASHED
-    [13.08|15:32:11] JOB DFTB_S2Cl2 STARTED
-    [13.08|15:32:11] JOB DFTB_S2Cl2 RUNNING
-    [13.08|15:32:12] JOB DFTB_S2Cl2 FINISHED
-    [13.08|15:32:12] JOB DFTB_S2Cl2 SUCCESSFUL
-
-
-::
-
-
-    ---------------------------------------------------------------------------
-
-    NameError                                 Traceback (most recent call last)
-
-    Cell In [10], line 6
-          3 dftb_job.run()
-          5 if dftb_job.results.has_good_excitations(1, 6):
-    ----> 6     promising_molecules[name] = dftb_job.results.get_main_molecule()
-
-
-    NameError: name 'promising_molecules' is not defined
+    [21.08|17:33:59] JOB DFTB_H2O STARTED
+    [21.08|17:33:59] JOB DFTB_H2O RUNNING
+    [21.08|17:34:00] JOB DFTB_H2O FINISHED
+    [21.08|17:34:00] JOB DFTB_H2O SUCCESSFUL
+    [21.08|17:34:00] JOB DFTB_NH3 STARTED
+    [21.08|17:34:00] JOB DFTB_NH3 RUNNING
+    [21.08|17:34:08] WARNING: Job DFTB_NH3 finished with nonzero return code
+    [21.08|17:34:08] JOB DFTB_NH3 CRASHED
+    [21.08|17:34:08] JOB DFTB_S2Cl2 STARTED
+    [21.08|17:34:08] JOB DFTB_S2Cl2 RUNNING
+    [21.08|17:34:09] JOB DFTB_S2Cl2 FINISHED
+    [21.08|17:34:09] JOB DFTB_S2Cl2 SUCCESSFUL
+    [21.08|17:34:09] JOB DFTB_AlF3 STARTED
+    [21.08|17:34:09] JOB DFTB_AlF3 RUNNING
+    [21.08|17:34:11] JOB DFTB_AlF3 FINISHED
+    [21.08|17:34:11] JOB DFTB_AlF3 SUCCESSFUL
+    [21.08|17:34:11] JOB DFTB_CSCl2 STARTED
+    [21.08|17:34:11] JOB DFTB_CSCl2 RUNNING
+    [21.08|17:34:12] JOB DFTB_CSCl2 FINISHED
+    [21.08|17:34:12] JOB DFTB_CSCl2 SUCCESSFUL
 
 
 .. code:: ipython3
 
     print(f"Found {len(promising_molecules)} promising molecules with DFTB")
+
+
+.. parsed-literal::
+
+    Found 2 promising molecules with DFTB
+
 
 Optimization and excitations calculation with ADF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -174,3 +172,42 @@ calculation with ADF.
             print("Excitation energy [eV], oscillator strength:")
             for e, o in zip(exci_energies, oscillator_str):
                 print(f"{e:8.4f}, {o:8.4f}")
+
+
+.. parsed-literal::
+
+    [21.08|17:34:12] JOB ADF_GO_S2Cl2 STARTED
+    [21.08|17:34:12] JOB ADF_GO_S2Cl2 RUNNING
+    [21.08|17:34:19] JOB ADF_GO_S2Cl2 FINISHED
+    [21.08|17:34:19] JOB ADF_GO_S2Cl2 SUCCESSFUL
+    [21.08|17:34:19] JOB ADF_exci_S2Cl2 STARTED
+    [21.08|17:34:19] JOB ADF_exci_S2Cl2 RUNNING
+    [21.08|17:34:25] JOB ADF_exci_S2Cl2 FINISHED
+    [21.08|17:34:25] JOB ADF_exci_S2Cl2 SUCCESSFUL
+    Molecule S2Cl2 has excitation(s) satysfying our criteria!
+      Atoms: 
+        1         S      -0.658306      -0.316643       0.909151
+        2         S      -0.658306       0.316643      -0.909151
+        3        Cl       0.758306       0.752857       2.053019
+        4        Cl       0.758306      -0.752857      -2.053019
+    
+    Excitation energy [eV], oscillator strength:
+      3.4107,   0.0114
+      3.5386,   0.0160
+      3.5400,   0.0011
+      3.9864,   0.1105
+      4.3225,   0.0049
+      4.3513,   0.2551
+      4.7544,   0.0011
+      4.9414,   0.0105
+      5.3188,   0.0036
+      5.3272,   0.0721
+    [21.08|17:34:25] JOB ADF_GO_CSCl2 STARTED
+    [21.08|17:34:25] JOB ADF_GO_CSCl2 RUNNING
+    [21.08|17:34:31] JOB ADF_GO_CSCl2 FINISHED
+    [21.08|17:34:31] JOB ADF_GO_CSCl2 SUCCESSFUL
+    [21.08|17:34:31] JOB ADF_exci_CSCl2 STARTED
+    [21.08|17:34:31] JOB ADF_exci_CSCl2 RUNNING
+    [21.08|17:34:38] JOB ADF_exci_CSCl2 FINISHED
+    [21.08|17:34:38] JOB ADF_exci_CSCl2 SUCCESSFUL
+

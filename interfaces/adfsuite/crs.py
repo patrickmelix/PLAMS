@@ -217,13 +217,11 @@ class CRSResults(SCMResults):
         """
 
         section = "EnegyComponent"
-
         try:
-            self.get_prop_names(section="EnergyComponent")
+            nspecies = self.readkf(section, "nspecies")
         except:
-            return log("The section of EnergyComponent is not found in the crskf file.")
-
-        nspecies = self.readkf(section, "nspecies")
+            log("The section of EnergyComponent is not found in the crskf file.")
+            return None, None
 
         ms_index = self.readkf(section, "ms_index")
         ms_index = np.array(ms_index)
@@ -484,10 +482,7 @@ class CRSJob(SCMJob):
         try:
             amsbin = os.environ["AMSBIN"]
         except KeyError:
-            raise EnvironmentError(
-                "cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; "
-                "the 'AMSBIN' environment variable has not been set"
-            )
+            raise EnvironmentError("cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; " "the 'AMSBIN' environment variable has not been set")
 
         args = [os.path.join(amsbin, "cosmo2kf"), filename, filename_out]
         subprocess.run(args)

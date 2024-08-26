@@ -113,16 +113,6 @@ class AMSCalculator(Calculator):
 
     The settings are specified with a PLAMS ``Settings`` object in the same way as when running AMS through PLAMS.
 
-    .. important::
-
-        Before initializing the AMSCalculator you need to call ``plams.init()``:
-
-        .. code-block:: python
-
-            from scm.plams import *
-            init()
-
-
     Parameters:
 
     settings  : Settings

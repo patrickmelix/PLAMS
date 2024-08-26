@@ -35,7 +35,6 @@ from scm.plams.core.settings import (
     JobManagerSettings,
     ConfigSettings,
 )
-from scm.plams.interfaces.adfsuite.adf import ADFJob, ADFResults
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.interfaces.adfsuite.amsanalysis import (
     AMSAnalysisJob,
@@ -58,28 +57,18 @@ from scm.plams.interfaces.adfsuite.amsworker import (
     AMSWorkerPool,
     AMSWorkerResults,
 )
-from scm.plams.interfaces.adfsuite.band import BANDJob, BANDResults
 from scm.plams.interfaces.adfsuite.crs import CRSJob, CRSResults
 from scm.plams.interfaces.adfsuite.densf import DensfJob, DensfResults
-from scm.plams.interfaces.adfsuite.dftb import DFTBJob, DFTBResults
 from scm.plams.interfaces.adfsuite.fcf import FCFJob, FCFResults
 from scm.plams.interfaces.adfsuite.forcefieldparams import (
     ForceFieldPatch,
     forcefield_params_from_kf,
 )
-from scm.plams.interfaces.adfsuite.mopac import MOPACJob, MOPACResults
 from scm.plams.interfaces.adfsuite.quickjobs import (
     preoptimize,
     refine_density,
     refine_lattice,
 )
-from scm.plams.interfaces.adfsuite.reaxff import (
-    ReaxFFJob,
-    ReaxFFResults,
-    load_reaxff_control,
-    reaxff_control_to_settings,
-)
-from scm.plams.interfaces.adfsuite.uff import UFFJob, UFFResults
 from scm.plams.interfaces.adfsuite.unifac import UnifacJob, UnifacResults
 from scm.plams.interfaces.molecule.ase import fromASE, toASE
 from scm.plams.interfaces.molecule.packmol import (
@@ -237,12 +226,6 @@ __all__ = [
     "VASPResults",
     "ORCAJob",
     "ORCAResults",
-    "DFTBJob",
-    "DFTBResults",
-    "BANDJob",
-    "BANDResults",
-    "UFFJob",
-    "UFFResults",
     "CRSResults",
     "CRSJob",
     "AMSPipeError",
@@ -261,22 +244,14 @@ __all__ = [
     "AMSWorkerPool",
     "DensfJob",
     "DensfResults",
-    "ADFJob",
-    "ADFResults",
     "FCFJob",
     "FCFResults",
-    "MOPACJob",
-    "MOPACResults",
     "AMSAnalysisJob",
     "AMSAnalysisResults",
     "convert_to_unicode",
     "preoptimize",
     "refine_density",
     "refine_lattice",
-    "ReaxFFJob",
-    "ReaxFFResults",
-    "load_reaxff_control",
-    "reaxff_control_to_settings",
     "UnifacJob",
     "UnifacResults",
     "AMSJob",

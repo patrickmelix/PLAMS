@@ -17,7 +17,6 @@ They offer a way of using PLAMS |Molecule| class with other libraries capable of
     crystal
     dftbplus
     dirac
-    mopac
     orca
     raspa
     vasp

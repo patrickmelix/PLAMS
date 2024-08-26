@@ -81,9 +81,7 @@ class Trajectory:
         >>> settings.input.RadialDistribution.AtomsTo.Element = ['O']
 
         >>> # Run the analysis
-        >>> init()
         >>> plots = trajec.run_analysis(settings)
-        >>> finish()
 
         >>> # Store the plot in human readable format
         >>> for plot in plots :

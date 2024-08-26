@@ -31,5 +31,7 @@ The basic workflow may look as follows:
 Note: in this example we focus on the **scripting** aspects rather than studying **physical phenomena**. The computational methods used here might not be entirely appropriate to describe the physical properties of interest.
 
 .. include:: ExcitationsWorkflow.common_header.rst
+Then download :download:`molecules.tar <../../../../examples/ExcitationsWorkflow/molecules.tar>` and extract it.
+
 .. include:: ExcitationsWorkflow.ipynb.rst
 .. include:: ExcitationsWorkflow.common_footer.rst
