@@ -89,7 +89,7 @@ class ReactionEquation:
         """
         if min_coeffs is not None:
             min_coeffs = numpy.array(min_coeffs)
-            if len(min_coeffs[min_coeffs != 0]) == 0 :
+            if len(min_coeffs[min_coeffs != 0]) == 0:
                 raise Exception("At least one non-zero coefficient needs to be provided as the min_coeffs argument.")
 
         self.coeffs = None
@@ -178,6 +178,7 @@ class ReactionEquation:
         """
         Select only the rows in basis that share the same block with the main product
         """
+
         def get_row_indices(ind):
             """
             Get the indices of the rows in the same block with compound ind
@@ -289,7 +290,7 @@ class ReactionEquation:
         self.coeffs = coeffs
         message = "Success"
         if self.message != "Unsolved":
-            message = "%s %s"%(message,self.message)
+            message = "%s %s" % (message, self.message)
         self.message = message
         return coeffs
 

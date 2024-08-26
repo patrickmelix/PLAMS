@@ -482,7 +482,10 @@ class CRSJob(SCMJob):
         try:
             amsbin = os.environ["AMSBIN"]
         except KeyError:
-            raise EnvironmentError("cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; " "the 'AMSBIN' environment variable has not been set")
+            raise EnvironmentError(
+                "cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; "
+                "the 'AMSBIN' environment variable has not been set"
+            )
 
         args = [os.path.join(amsbin, "cosmo2kf"), filename, filename_out]
         subprocess.run(args)
