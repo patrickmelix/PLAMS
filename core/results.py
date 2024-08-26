@@ -53,7 +53,7 @@ def _privileged_access():
 def _restrict(func):
     """Decorator that wraps methods of |Results| instances.
 
-    Whenever decorated method is called, the status of associated job is checked. Depending of its value access to the method is granted, refused or the calling thread is forced to wait for the right :ref:`event<event-objects>` to be set.
+    Whenever decorated method is called, the status of associated job is checked. Depending on its value access to the method is granted, refused or the calling thread is forced to wait for the right :ref:`event<event-objects>` to be set.
     """
 
     @functools.wraps(func)
@@ -357,14 +357,14 @@ class Results(ApplyRestrict):
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
-        The definiton here serves as a deafult fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_molecule`.
+        The definiton here serves as a default fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_molecule`.
         """
         return None
 
     def recreate_settings(self):
         """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
-        The definiton here serves as a deafult fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_settings`.
+        The definiton here serves as a default fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_settings`.
         """
         return None
 

@@ -1,4 +1,4 @@
-# Import StrEnum for Python >=3.11, otherwise use
+# Import StrEnum for Python >=3.11, otherwise use backwards compatible class
 try:
     from enum import StrEnum
 except ImportError:

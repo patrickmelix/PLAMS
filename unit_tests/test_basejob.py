@@ -23,7 +23,7 @@ class DummySingleJob(SingleJob):
         super().__init__(**kwargs)
         self.calls = []
         self.id = uuid.uuid4()  # Ensure input unique
-        self.input = f"Dummy input {self.id}" if inp is None else inp
+        self.input = f"Dummy input {self.id}" if inp is None else inp.replace("%ID%", str(self.id))
         self.command = "sed 's/input/output/g'" if cmd is None else cmd
         self.wait = wait
 
