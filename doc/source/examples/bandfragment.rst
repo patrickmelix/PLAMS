@@ -6,7 +6,7 @@ BAND fragment job
 .. currentmodule:: scm.plams.recipes.bandfragment
 
 In this module a dedicated job type for Energy Decomposition Analysis in BAND is defined.
-Such an analysis is performed on a periodic system divided into 2 fragments and consists of a minimum of 3 separate Band runs: one for each fragment and one for full system. See 
+Such an analysis is performed on a periodic system divided into 2 fragments and consists of a minimum of 3 separate BAND runs: one for each fragment and one for full system. See also |ADFFragmentJob|.
 
 We define a new job type |BANDFragmentJob|, by subclassing |ADFFragmentJob|, which in turn is a subclass of |MultiJob|.
 The constructor (``__init__``) of this new job takes 2 more arguments (``fragment1`` and ``fragment2``) and one optional argument ``full_settings`` for additional input keywords that are used **only** in the full system calculation. Furthermore, you can specify
@@ -18,6 +18,8 @@ They are then added to the ``children`` list.
 The dedicated |Results| subclass for |BANDFragmentJob| does not provide too much additional functionality.
 It simply redirects the usual |AMSResults| methods to the results of the full system calculation. The pEDA results can be obtained using the ``get_energy_decomposition`` method. It will return a dictionary with the available energy decomposition terms.
 
+A derived subclass |NOCVBandFragmentJob| is also provided. It can be usefull for generating NOCV plots after the PEDA-NOCV calculation.
+
 The source code of the whole module with both abovementioned classes:
 
 API
@@ -25,6 +27,7 @@ API
 
 .. autoclass:: BANDFragmentJob()
 .. autoclass:: BANDFragmentResults()
+.. autoclass:: NOCVBandFragmentJob()
 
 
 Example

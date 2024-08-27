@@ -331,6 +331,7 @@ rst_epilog = """
 .. |ADFFragmentResults| replace:: :class:`~scm.plams.recipes.adffragment.ADFFragmentResults`
 .. |BANDFragmentJob| replace:: :class:`~scm.plams.recipes.bandfragment.BANDFragmentJob`
 .. |BANDFragmentResults| replace:: :class:`~scm.plams.recipes.bandfragment.BANDFragmentResults`
+.. |NOCVBandFragmentJob| replace:: :class:`~scm.plams.recipes.bandfragment.NOCVBandFragmentJob`
 
 .. |RPM| replace:: :ref:`rerun-prevention`
 .. |cleaning| replace:: :ref:`cleaning`
