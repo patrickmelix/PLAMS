@@ -181,7 +181,7 @@ class NOCVBandFragmentJob(BANDFragmentJob):
     _result_type = BANDFragmentResults
 
     def __init__(self, nocv_settings=None, **kwargs) -> None:
-        """Create a BANDFragmentJob with NOCV calculation.
+        """Create a BANDFragmentJob with final NOCV calculation.
         
         Args:
             nocv_settings (Settings, optional): Settings for the NOCV calculation. Defaults to None.
@@ -195,26 +195,34 @@ class NOCVBandFragmentJob(BANDFragmentJob):
         """After the first round, add the full job to the children list.
         After the second round, add the NOCV job to the children list."""
         # new_children of BANDFragmentJob creates the full job
-        ret = super().prerun()
+        ret = super().new_children()
         if ret is not None:
             return ret
         if hasattr(self, 'nocv'):
             return None
         else:
             # add NOCV run
+            # settings for the NOCV calculation 
             set = self.settings + self.full_settings + self.nocv_settings
+            # set the restart file
+            set.input.band.restart.file = "full.rkf"
+            # copy the fragment settings
+            set.input.band.fragment = [ fset.copy() for fset in self.full.settings.input.band.fragment ]
+
             self.nocv = AMSJob(name="NOCV",
                                 molecule= self.fragment1 + self.fragment2,
                                 settings = set)
-            # make sure we at least have the restart section to put the file name
-            if not hasattr(self.nocv.settings, 'input'):
-                self.nocv.settings.input = Settings()
-            if not hasattr(self.nocv.settings.input, 'band'):
-                self.nocv.settings.input.band = Settings()
-            if not hasattr(self.nocv.settings.input.band, 'restart'):
-                self.nocv.settings.input.band.restart = Settings()
-            if not hasattr(self.nocv.settings.input.band.restart, 'file'):
-                self.nocv.settings.input.band.Restart.File = opj("../", self.full.name,'band.rkf')
+            
+            self.nocv.frag_paths = []
+            for job in [self.f1, self.f2, self.full]:
+                self.nocv.frag_paths.append(job.path)
+            # edit NOCV prerun to create symlinks
+            @add_to_instance(self.nocv)
+            def prerun(self):
+                """Create symlinks for the restart files."""
+                for i, job in enumerate(['frag1', 'frag2', 'full']):
+                    rel_path = relpath(self.frag_paths[i], self.path)
+                    symlink(opj(rel_path, 'band.rkf'), opj(self.path, f"{job}.rkf"))
             return [self.nocv]
         
 
