@@ -30,6 +30,6 @@ API
 Example
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A basic example using `ASE to build a surface slab <https://wiki.fysik.dtu.dk/ase/ase/build/surface.html>`_ and perform a BAND fragment calculation: :download:`bandfrag_test.py <../../../../../../examples/scripting/bandfrag_test.py>`
+A basic example using `ASE to build a surface slab <https://wiki.fysik.dtu.dk/ase/ase/build/surface.html>`_ and perform a BAND fragment calculation: :download:`bandfrag_test.py <../../../examples/scripting/bandfrag_test.py>`
 
-.. literalinclude:: ../../../../../../examples/scripting/bandfrag_test.py
+.. literalinclude:: ../../../examples/scripting/bandfrag_test.py
