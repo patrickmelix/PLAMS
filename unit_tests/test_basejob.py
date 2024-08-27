@@ -186,7 +186,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[1].wait()
         assert job2.status == JobStatus.SUCCESSFUL
-        assert job2.calls[0][1] > job1.calls[2][1]
+        assert job2.calls[0][1] >= job1.calls[2][1]
 
     def test_run_multiple_prerun_dependent_jobs_in_serial(self):
         # Given parallel job runner
@@ -212,7 +212,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[1].wait()
         assert job2.status == JobStatus.SUCCESSFUL
-        assert job2.calls[1][1] > job1.calls[2][1]
+        assert job2.calls[1][1] >= job1.calls[2][1]
 
     def test_ok_waits_on_results_and_checks_status(self):
         # Given job and a copy

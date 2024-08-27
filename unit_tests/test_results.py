@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from scm.plams.unit_tests.test_basejob import DummySingleJob
 from scm.plams.core.errors import ResultsError
@@ -31,8 +32,8 @@ class TestResults:
 
     def test_get_item_returns_file_path(self, dummy_job):
         # Given results, when get item with file name, then returns full file path
-        assert dummy_job.results["test_results.in"] == f"{dummy_job.path}/test_results.in"
-        assert dummy_job.results["$JN.out"] == f"{dummy_job.path}/test_results.out"
+        assert dummy_job.results["test_results.in"] == str(Path(dummy_job.path) / "test_results.in")
+        assert dummy_job.results["$JN.out"] == str(Path(dummy_job.path) / "test_results.out")
 
     def test_rename_updates_files(self):
         # Given results
