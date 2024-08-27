@@ -5,7 +5,7 @@ from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.tools.units import Units
 from scm.plams.core.errors import FileError
 from scm.plams.mol.molecule import Molecule
-from scm.plams import add_to_instance
+from scm.plams.core.functions import add_to_instance
 
 
 from os.path import join as opj
