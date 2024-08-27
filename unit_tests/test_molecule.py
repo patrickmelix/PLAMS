@@ -173,6 +173,53 @@ def test_write_multiple_molecules_to_xyz(xyz_folder, tmp_path):
             np.testing.assert_allclose(at.coords, at_ref.coords, atol=1e-08)
 
 
+def test_read_multiple_molecules_from_pdb(pdb_folder):
+    """
+    Test for PDB reading
+    """
+    filenames = [os.path.join(pdb_folder, fn) for fn in os.listdir(pdb_folder)]
+
+    mols = [(os.path.basename(fn).rstrip(".pdb"), Molecule(fn)) for fn in filenames]
+
+    actual = {k: {"n_atoms": len(v.atoms), "n_lattice_vec": len(v.lattice)} for k, v in mols}
+
+    expected = {
+        "2kpq": {"n_atoms": 1531, "n_lattice_vec": 3},
+        "1DYZ": {"n_atoms": 1024, "n_lattice_vec": 3},
+        "MET": {"n_atoms": 4671, "n_lattice_vec": 3},
+        "pentapeptide": {"n_atoms": 75, "n_lattice_vec": 0},
+        "1BXU": {"n_atoms": 776, "n_lattice_vec": 3},
+        "chymotrypsin": {"n_atoms": 69, "n_lattice_vec": 0},
+    }
+
+    assert actual == expected
+
+
+def test_write_multiple_molecules_to_pdb(pdb_folder, tmp_path):
+    """
+    Test for PDB writing
+    """
+    new_pdb_file = tmp_path / "test_write_molecule.pdb"
+
+    filenames = [os.path.join(pdb_folder, fn) for fn in os.listdir(pdb_folder)]
+    mols_ref = [Molecule(fn) for fn in filenames]
+
+    assert len(mols_ref) > 1
+
+    mols = []
+    for m in mols_ref:
+        m.write(new_pdb_file)
+        m.read(new_pdb_file)
+        mols.append(m)
+
+    assert len(mols_ref) == len(mols)
+
+    for mol, mol_ref in zip(mols, mols_ref):
+        for at, at_ref in zip(mol.atoms, mol_ref.atoms):
+            assert at.symbol == at_ref.symbol
+            np.testing.assert_allclose(at.coords, at_ref.coords, atol=1e-08)
+
+
 def test_as_array_context():
     expected = np.array(
         [

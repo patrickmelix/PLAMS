@@ -7,6 +7,7 @@ from datetime import date
 
 from docutils.parsers.rst.directives.admonitions import Danger, Important
 from sphinx.locale import admonitionlabels
+from scm.plams.version import __version__
 
 admonitionlabels["important"] = "Technical"
 admonitionlabels["danger"] = "Warning"
@@ -60,7 +61,7 @@ else:
     # built documents.
     #
     # The short X.Y version.
-    version = "1.5.1"
+    version = __version__
     # The full version, including alpha/beta/rc tags.
     # release = ''
 
@@ -252,6 +253,7 @@ rst_epilog = """
 .. |GridRunner| replace:: :class:`~scm.plams.core.jobrunner.GridRunner`
 
 .. |Settings| replace:: :class:`~scm.plams.core.settings.Settings`
+.. |ConfigSettings| replace:: :class:`~scm.plams.core.settings.ConfigSettings`
 .. |Results| replace:: :class:`~scm.plams.core.results.Results`
 .. |KFReader| replace:: :class:`~scm.plams.tools.kftools.KFReader`
 .. |KFFile| replace:: :class:`~scm.plams.tools.kftools.KFFile`
@@ -332,6 +334,7 @@ rst_epilog = """
 
 .. |RPM| replace:: :ref:`rerun-prevention`
 .. |cleaning| replace:: :ref:`cleaning`
+.. |global-settings| replace:: :ref:`global-settings`
 .. |pickling| replace:: :ref:`pickling`
 .. |restarting| replace:: :ref:`restarting`
 .. |master-script| replace:: :ref:`master-script`

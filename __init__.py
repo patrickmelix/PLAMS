@@ -1,3 +1,4 @@
+from scm.plams.version import __version__
 from scm.plams.core.basejob import MultiJob, SingleJob
 from scm.plams.core.errors import (
     FileError,
@@ -25,7 +26,15 @@ from scm.plams.core.functions import (
 from scm.plams.core.jobmanager import JobManager
 from scm.plams.core.jobrunner import GridRunner, JobRunner
 from scm.plams.core.results import Results
-from scm.plams.core.settings import Settings
+from scm.plams.core.settings import (
+    Settings,
+    SafeRunSettings,
+    LogSettings,
+    RunScriptSettings,
+    JobSettings,
+    JobManagerSettings,
+    ConfigSettings,
+)
 from scm.plams.interfaces.adfsuite.adf import ADFJob, ADFResults
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.interfaces.adfsuite.amsanalysis import (
@@ -126,6 +135,7 @@ from scm.plams.recipes.pestools.optimizer import Optimizer
 from scm.plams.recipes.reorganization_energy import ReorganizationEnergyJob
 from scm.plams.recipes.redox import AMSRedoxDirectJob, AMSRedoxScreeningJob, AMSRedoxThermodynamicCycleJob
 
+from scm.plams.tools.reaction import ReactionEquation
 from scm.plams.tools.converters import (
     file_to_traj,
     gaussian_output_to_ams,
@@ -149,6 +159,7 @@ from scm.plams.tools.periodic_table import PT, PeriodicTable
 from scm.plams.tools.plot import plot_band_structure, plot_molecule
 from scm.plams.tools.reaction_energies import (
     balance_equation,
+    balance_equation_new,
     get_stoichiometry,
     reaction_energy,
 )
@@ -188,6 +199,12 @@ __all__ = [
     "read_all_molecules_in_xyz_file",
     "JobManager",
     "Settings",
+    "SafeRunSettings",
+    "LogSettings",
+    "RunScriptSettings",
+    "JobSettings",
+    "JobManagerSettings",
+    "ConfigSettings",
     "SingleJob",
     "MultiJob",
     "PlamsError",

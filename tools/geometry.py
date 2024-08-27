@@ -1,5 +1,6 @@
 import numpy as np
 
+
 try:
     from scipy.spatial.distance import cdist
 
@@ -18,6 +19,8 @@ __all__ = [
     "cell_shape",
     "cellvectors_from_shape",
 ]
+
+HALF_PI = np.pi / 2
 
 
 def rotation_matrix(vec1, vec2):
@@ -106,7 +109,7 @@ def cell_shape(lattice):
     Converts lattice vectors to lengths and angles (in radians)
     Sets internal cell size data, based on set of cell vectors.
 
-    *cellvectors* is list containing three cell vectors (a 3x3 matrix)
+    *lattice* is list containing three cell vectors (a 3x3 matrix)
     """
     lattice = np.asarray(lattice)
     a, b, c = np.sqrt((lattice**2).sum(axis=1))
@@ -165,16 +168,18 @@ def cell_angles(lattice, unit="degree"):
 
 def cellvectors_from_shape(box):
     """
-    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors
+    Converts lengths and angles (in radians) of lattice vectors to the lattice vectors.
+
+    *box* should be an iterable of length 3, containing the lengths a, b, c, or an iterable of length 6 additionally containing the angles alpha, beta, gamma
     """
     a = box[0]
     b = box[1]
     c = box[2]
-    alpha, beta, gamma = 90.0, 90.0, 90
+    alpha, beta, gamma = HALF_PI, HALF_PI, HALF_PI
     if len(box) == 6:
-        alpha = box[3]  # *np.pi/180.
-        beta = box[4]  # *np.pi/180.
-        gamma = box[5]  # *np.pi/180.
+        alpha = box[3]
+        beta = box[4]
+        gamma = box[5]
 
     va = [a, 0.0, 0.0]
     vb = [b * np.cos(gamma), b * np.sin(gamma), 0.0]

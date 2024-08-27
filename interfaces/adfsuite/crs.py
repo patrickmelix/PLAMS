@@ -108,7 +108,7 @@ class CRSResults(SCMResults):
             raise ValueError("Results object is missing or incomplete.")
 
         # first get the two ranges for the indices
-        ncomp  = self.readkf(section, "ncomp")
+        ncomp = self.readkf(section, "ncomp")
         nitems = self.readkf(section, "nitems")
         try:
             nstruct = self.readkf(section, "nstruct")
@@ -117,16 +117,23 @@ class CRSResults(SCMResults):
 
         np_dict = {"section": section}
         np_dict["ncomp"] = ncomp
+        chunk_length = 160
         for prop in props:
             tmp = self.readkf(section, prop)
-            if (prop == "filename") or (prop == "name"):
-                chunk_length = len(tmp) // ncomp
-                np_dict[prop] = [tmp[i : i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
-                continue
+            if prop in ["filename", "name", "SMILES", "mol_filenames"]:
+                if len(tmp) / ncomp == chunk_length:
+                    np_dict[prop] = [tmp[i : i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
+                    continue
+                else:
+                    np_dict[prop] = tmp.split("\x00")
+                    continue
             if prop == "struct names":
-                chunk_length = len(tmp) // nstruct
-                np_dict[prop] = [tmp[i : i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
-                continue
+                if len(tmp) / nstruct == chunk_length:
+                    np_dict[prop] = [tmp[i : i + chunk_length].strip() for i in range(0, len(tmp), chunk_length)]
+                    continue
+                else:
+                    np_dict[prop] = tmp.split("\x00")
+                    continue
             if not isinstance(tmp, list):
                 np_dict[prop] = tmp
             else:
@@ -142,17 +149,17 @@ class CRSResults(SCMResults):
         This function returns multispecies distribution for each (compound,structure) pair.  The format is a list
         with indices corresponding to compound indices.  Each item in the list is a dictionary with a structure name : list pair, where the structure name corresponds to a structure the compound can be exist as and the list is the distribution of that compound in that structure over the number of points (mole fractions, temperatures, pressures).
         """
-        res           = self.get_results()
+        res = self.get_results()
         property_name = res["property"].rstrip()
 
-        if(property_name=="LOGP"): 
+        if property_name == "LOGP":
             nPhase = 2
         else:
             nPhase = 1
 
-        ncomp         = self.readkf(self.section, "ncomp")
-        struct_names  = res["struct names"]
-        num_points    = self.readkf(self.section, "nitems")
+        ncomp = self.readkf(self.section, "ncomp")
+        struct_names = res["struct names"]
+        num_points = self.readkf(self.section, "nitems")
         valid_structs = [[] for _ in range(ncomp)]
         comp_dist = res["comp distribution"].flatten()
         for i in range(len(struct_names)):
@@ -170,6 +177,115 @@ class CRSResults(SCMResults):
                         idx += 1
 
         return compositions
+
+    def get_structure_energy(self, as_df: bool = False):
+        """
+        If the OUTPUT_ENERGY_COMPONENTS is set to True in the input file, this funcion returns:
+
+        1. The energy of each structure in multispecies (units in kcal/mol).
+
+        2. Information related to association with other compound, if any.
+
+        It takes the following optional boolean keyword argument, *as_df*. If *as_df* is True, the result will be
+        returned as a Pandas DataFrame. Otherwise the result will be returned as a dictionary.
+
+        The following abbreviations are used in the dictionary or Pandas DataFrame for the energy:
+
+        * s_idx: the index for each unique structure
+        * CompIdx: the compound index in multispecies
+        * FormIdx: the form index in multispecies
+        * SpecIdx: the species index in multispecies
+        * StrucIdx: the structure index in multispecies
+        * z: the equilibrium concentration in multispecies
+        * coskf: the corresponding coskf file for each s_idx
+        * mu_res: the residual part of the pseudo-chemical potential
+        * mu_comb: the combinatorial part of the pseudo-chemical potential
+        * mu_disp: the energy contribution from the dispersive interaction
+        * mu_pdh: the energy contribution from the Pitzer-Debye-Hückel term
+        * mu_RTlnz: the energy contribution from the ideal mixing
+        * mu_Ecosmo: the Ecosmo energy
+        * Assoc: True if the structure has any association with other compound
+        * NumRepMonomer: the number of repeated monomers used for polymers
+        * NumStrucPerComp: the number of structures per compound used for dimers, trimers
+
+        The following abbreviations are used in the dictionary or Pandas DataFrame for the information related to association with other compound:
+
+        * ReqCompNameAssoc: the required compound name for the associating structure
+        * ReqCompIdxAssoc: the required compound index (CompIdx) for the associating structure
+        * NumReqCompAssoc: the number of the required compounds in the associating structure
+        """
+
+        section = "EnegyComponent"
+
+        try:
+            props = self.get_prop_names(section="EnegyComponent")
+            # ncomp = self.readkf(section, "ncomp")
+            # nspecies = self.readkf(section, "nspecies")
+        except:
+            return log(f"The section of EnegyComponent is not found in the crskf file.")
+
+        ncomp = self.readkf(section, "ncomp")
+        nspecies = self.readkf(section, "nspecies")
+        nAssoc = self.readkf(section, "NumAssoc")
+
+        ms_index = self.readkf(section, "ms_index")
+        ms_index = np.array(ms_index)
+        ms_index = ms_index.reshape(nspecies, 4)
+
+        mu_component = self.readkf(section, "mu_component")
+        mu_component = np.array(mu_component)
+        mu_component = mu_component.reshape(nspecies, int(len(mu_component) / nspecies))
+
+        species_molfrac = self.readkf(section, "species_molfrac")
+        species_coskf = self.readkf(section, "species_coskf").split("\x00")
+        species_coskf = [os.path.basename(x.rstrip()) for x in species_coskf]
+
+        Assoc = self.readkf(section, "Assoc")
+        NumRepMonmer = self.readkf(section, "NumRepMonmer")
+        NumStrucPerComp = self.readkf(section, "NumStrucPerComp")
+
+        dict_species = {}
+        dict_species["s_idx"] = [i + 1 for i in range(nspecies)]
+        dict_species["CompIdx"] = ms_index[:, 0]
+        dict_species["FormIdx"] = ms_index[:, 1]
+        dict_species["SpecIdx"] = ms_index[:, 2]
+        dict_species["StrucIdx"] = ms_index[:, 3]
+        dict_species["z"] = species_molfrac
+        dict_species["coskf"] = species_coskf
+        dict_species["mu_res"] = mu_component[:, 0]
+        dict_species["mu_comb"] = mu_component[:, 1]
+        dict_species["mu_disp"] = mu_component[:, 2]
+        dict_species["mu_pdh"] = mu_component[:, 3]
+        dict_species["mu_RTlnz"] = mu_component[:, 4]
+        dict_species["mu_Ecosmo"] = mu_component[:, 5]
+        dict_species["Assoc"] = Assoc
+        dict_species["NumRepMonmer"] = NumRepMonmer
+        dict_species["NumStrucPerComp"] = NumStrucPerComp
+
+        if np.sum(Assoc) > 0:
+            Assoc_s_idx = self.readkf(section, "Assoc_s_idx")
+            ReqCompIdxAssoc = self.readkf(section, "ReqCompIdxAssoc")
+            NumReqCompAssoc = self.readkf(section, "NumReqCompAssoc")
+            ReqCompNameAssoc = self.readkf(section, "ReqCompNameAssoc").split("\x00")
+
+            dict_Asson = {}
+            dict_Asson["Assoc_s_idx"] = Assoc_s_idx
+            dict_Asson["ReqCompIdxAssoc"] = ReqCompIdxAssoc
+            dict_Asson["NumReqCompAssoc"] = NumReqCompAssoc
+            dict_Asson["ReqCompNameAssoc"] = ReqCompNameAssoc
+        else:
+            dict_Asson = None
+
+        if as_df:
+            try:
+                import pandas as pd
+
+                return pd.DataFrame(dict_species), pd.DataFrame(dict_Asson)
+            except ImportError:
+                method = inspect.stack()[2][3]
+                raise ImportError("{}: as_df=True requires the 'pandas' package".format(method))
+        else:
+            return dict_species, dict_Asson
 
     def plot(self, *arrays: "np.ndarray", x_axis: str = None, plot_fig: bool = True, x_label=None, y_label=None):
         """Plot, show and return a series of COSMO-RS results as a matplotlib Figure instance.
@@ -371,10 +487,7 @@ class CRSJob(SCMJob):
         try:
             amsbin = os.environ["AMSBIN"]
         except KeyError:
-            raise EnvironmentError(
-                "cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; "
-                "the 'AMSBIN' environment variable has not been set"
-            )
+            raise EnvironmentError("cos_to_coskf: Failed to load 'cosmo2kf' from '$AMSBIN/'; " "the 'AMSBIN' environment variable has not been set")
 
         args = [os.path.join(amsbin, "cosmo2kf"), filename, filename_out]
         subprocess.run(args)
