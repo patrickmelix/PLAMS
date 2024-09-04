@@ -4,17 +4,22 @@ import numpy as np
 from scm.plams.tools.kftools import KFReader, KFFile, KFHistory
 
 
+@pytest.fixture
+def water_optimization_rkf(rkf_folder):
+    return rkf_folder / "water_optimization" / "ams.rkf"
+
+
 class TestKFReader:
     """
     Test suite for kf file reader
     """
 
-    def test_read_extracts_single_and_multiple_values_as_expected(self, rkf_folder):
-        reader = KFReader(rkf_folder / "h20.rkf")
+    def test_read_extracts_single_and_multiple_values_as_expected(self, water_optimization_rkf):
+        reader = KFReader(water_optimization_rkf)
 
         # Happy
         assert reader.read("General", "title") == "water_optimization"  # single string value
-        assert reader.read("General", "CPUTime") == 0.621356  # single float value
+        assert reader.read("General", "CPUTime") == 0.732007  # single float value
         assert reader.read("Molecule", "nAtoms") == 3  # single int value
         assert not reader.read("Molecule", "eeUseChargeBroadening")  # single bool value
         assert reader.read("Molecule", "AtomSymbols").split() == ["O", "H", "H"]  # multiple string values
@@ -45,8 +50,8 @@ class TestKFReader:
         with pytest.raises(KeyError):
             reader.read("Foo", "Bar")
 
-    def test_variable_type_gets_integer_type_codes_as_expected(self, rkf_folder):
-        reader = KFReader(rkf_folder / "h20.rkf")
+    def test_variable_type_gets_integer_type_codes_as_expected(self, water_optimization_rkf):
+        reader = KFReader(water_optimization_rkf)
 
         # Happy
         assert reader.variable_type("Molecule", "nAtoms") == 1
@@ -78,13 +83,15 @@ class TestKFFile:
     """
 
     @pytest.mark.parametrize("return_as_list", [False, True])
-    def test_read_existing_kf_file_extracts_single_and_multiple_values_as_expected(self, rkf_folder, return_as_list):
-        file = KFFile(rkf_folder / "h20.rkf", autosave=False)
+    def test_read_existing_kf_file_extracts_single_and_multiple_values_as_expected(
+        self, water_optimization_rkf, return_as_list
+    ):
+        file = KFFile(water_optimization_rkf, autosave=False)
 
         # Happy
         assert file.read("General", "title", return_as_list) == "water_optimization"  # single string value
         assert file.read("General", "CPUTime", return_as_list) == (
-            [0.621356] if return_as_list else 0.621356
+            [0.732007] if return_as_list else 0.732007
         )  # single float value
         assert file.read("Molecule", "nAtoms", return_as_list) == ([3] if return_as_list else 3)  # single int value
         assert file.read("Molecule", "eeUseChargeBroadening", return_as_list) == (
@@ -185,8 +192,8 @@ class TestKFHistory:
     Test suite for kf fie history reading
     """
 
-    def test_read_all_extracts_values_as_expected(self, rkf_folder):
-        reader = KFReader(rkf_folder / "h20.rkf")
+    def test_read_all_extracts_values_as_expected(self, water_optimization_rkf):
+        reader = KFReader(water_optimization_rkf)
         history = KFHistory(reader, "History")
 
         assert np.allclose(history.read_all("Energy"), [-5.7580155, -5.76503956, -5.76626166, -5.76628814])
@@ -202,8 +209,8 @@ class TestKFHistory:
             ),
         )
 
-    def test_read_all_errors_as_expected(self, rkf_folder):
-        reader = KFReader(rkf_folder / "h20.rkf")
+    def test_read_all_errors_as_expected(self, water_optimization_rkf):
+        reader = KFReader(water_optimization_rkf)
         history = KFHistory(reader, "History")
 
         # Case sensitive
@@ -222,8 +229,8 @@ class TestKFHistory:
         with pytest.raises(KeyError):
             history.read_all("does-not-exist")
 
-    def test_iter_gets_values_when_name_present_otherwise_errors(self, rkf_folder):
-        reader = KFReader(rkf_folder / "h20.rkf")
+    def test_iter_gets_values_when_name_present_otherwise_errors(self, water_optimization_rkf):
+        reader = KFReader(water_optimization_rkf)
         history = KFHistory(reader, "History")
 
         assert np.allclose([v for v in history.iter("Energy")], [-5.7580155, -5.76503956, -5.76626166, -5.76628814])
@@ -232,8 +239,10 @@ class TestKFHistory:
             _ = [v for v in history.iter("Foo")]
 
     @pytest.mark.parametrize("default", [None, 42.0])
-    def test_iter_optional_gets_values_when_name_present_otherwise_gives_default_until_break(self, rkf_folder, default):
-        reader = KFReader(rkf_folder / "h20.rkf")
+    def test_iter_optional_gets_values_when_name_present_otherwise_gives_default_until_break(
+        self, water_optimization_rkf, default
+    ):
+        reader = KFReader(water_optimization_rkf)
         history = KFHistory(reader, "History")
 
         assert np.allclose(
