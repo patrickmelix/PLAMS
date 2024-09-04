@@ -1,6 +1,6 @@
 import os
 from os.path import join as opj
-from typing import Dict, List, Literal, Set, Union
+from typing import Dict, List, Literal, Set, Union, Optional
 
 import numpy as np
 from scm.plams.core.basejob import SingleJob
@@ -2198,7 +2198,9 @@ class AMSJob(SingleJob):
     _result_type = AMSResults
     _command = "ams"
 
-    def __init__(self, molecule: Union[Molecule, Dict[str, Molecule], None] = None, *args, **kwargs):
+    def __init__(
+        self, molecule: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem"]] = None, *args, **kwargs
+    ):
         super().__init__(molecule, *args, **kwargs)
 
     def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs) -> AMSResults:
