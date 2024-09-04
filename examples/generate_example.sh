@@ -20,7 +20,14 @@ echo "Starting example generation for example '${example_name}'"
 
 # Check the target docs example directory exists, if not create it
 docs_examples_dir="../doc/source/examples"
-target_dir="${docs_examples_dir}/${example_dir}"
+
+# Workaround for a case where we want the link to remain constant
+if [ "${example_name}" = "ASECalculator" ]; then
+  target_dir="${docs_examples_dir}/AMSCalculator"
+else
+  target_dir="${docs_examples_dir}/${example_dir}"
+fi
+
 if [ ! -d "${target_dir}" ]; then
   mkdir "${target_dir}"
   echo "Generated documentation directory '${target_dir}' as it did not exist already"
