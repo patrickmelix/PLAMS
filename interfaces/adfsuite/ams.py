@@ -364,7 +364,7 @@ class AMSResults(Results):
         if "History" not in main:
             raise KeyError("'History' section not present in {}".format(main.path))
         n = main.read("History", "nEntries")
-        if step > n:
+        if step > n or step <= 0:
             raise KeyError("Step {} not present in 'History' section of {}".format(step, main.path))
         return True
 
@@ -384,14 +384,16 @@ class AMSResults(Results):
                 system = main.read("SystemVersionHistory", f"SectionNum({block})", return_as_list=True)[offset]
             else:
                 system = version
-        return system
+            return system
+        else:
+            return None
 
     def get_history_variables(self, history_section: str = "History"):
         """Return a set of keynames stored in the specified history section of the ``ams.rkf`` file.
 
         The *history_section argument should be a string representing the name of the history section (``History`` or ``MDHistory``)*
         """
-        if not "ams" in self.rkfs:
+        if "ams" not in self.rkfs:
             return
         main = self.rkfs["ams"]
         keylist = [var for sec, var in main if sec == history_section]
@@ -404,7 +406,7 @@ class AMSResults(Results):
 
     def get_history_property(self, varname: str, history_section: str = "History"):
         """Return the values of *varname* in the history section *history_section*."""
-        if not "ams" in self.rkfs:
+        if "ams" not in self.rkfs:
             return
         main = self.rkfs["ams"]
         if history_section not in main:
@@ -887,7 +889,7 @@ class AMSResults(Results):
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
-        return self._process_engine_results(lambda x: x.read("AMSResults", "nSpin"))
+        return self._process_engine_results(lambda x: x.read("AMSResults", "nSpin"), engine)
 
     def get_orbital_energies(self, unit: str = "Hartree", engine: str = None):
         """Return the orbital energies in a numpy array of shape [nSpin,nOrbitals] (nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted)
@@ -1845,13 +1847,13 @@ class AMSResults(Results):
         return self.job.ok()
 
     def get_errormsg(self):
-        """Tries to get an an error message for a associated :attr:`job`. This method returns ``None`` if the associated job was successful.
+        """Tries to get an error message for a associated :attr:`job`. This method returns ``None`` if the associated job was successful.
         See :meth:`Job.get_errormsg<scm.plams.core.basejob.Job.errormsg>` for more information."""
         return self.job.get_errormsg()
 
     @property
     def name(self):
-        """Retrun the :attr:`job.name` of the job associated with this results instance."""
+        """Return the :attr:`job.name` of the job associated with this results instance."""
         return self.job.name
 
     class EnergyLandscape:

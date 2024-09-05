@@ -41,7 +41,7 @@ class TestAMSJob:
         """
         settings = Settings()
         settings.input.ams.Task = "GeometryOptimization"
-        settings.input.ams.Properties.NormalModes = "True"
+        settings.input.ams.Properties.NormalModes = "Yes"
         settings.input.DFTB.Model = "GFN1-xTB"
         return settings
 
@@ -51,7 +51,7 @@ class TestAMSJob:
         Get expected input file
         """
         return """Properties
-  NormalModes True
+  NormalModes Yes
 End
 
 System
@@ -237,7 +237,7 @@ class TestAMSJobWithChemicalSystem(TestAMSJob):
         Get expected input file
         """
         return """Properties
-  NormalModes True
+  NormalModes Yes
 End
 
 System
