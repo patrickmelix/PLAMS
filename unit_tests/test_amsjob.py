@@ -146,6 +146,7 @@ AMS_JOBNAME="plamsjob" AMS_RESULTSDIR=. $AMSBIN/ams -n 8 --input="plamsjob.in" <
             ["NORMAL TERMINATION with warnings", True],
             ["NORMAL TERMINATION with errors", False],
             ["Input error", False],
+            [None, False],
         ],
     )
     def test_check_returns_true_for_normal_termination_with_no_errors_otherwise_false(self, status, expected):

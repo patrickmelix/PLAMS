@@ -1,6 +1,6 @@
 import os
 from os.path import join as opj
-from typing import Dict, List, Literal, Set, Union, Optional, TYPE_CHECKING
+from typing import Dict, List, Literal, Set, Tuple, Union, Optional, TYPE_CHECKING
 
 import numpy as np
 from scm.plams.core.basejob import SingleJob
@@ -26,9 +26,9 @@ except ImportError:
 try:
     from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
 
-    _has_scm_unichemsys = True
+    _has_scm_chemsys = True
 except ImportError:
-    _has_scm_unichemsys = False
+    _has_scm_chemsys = False
 
 if TYPE_CHECKING:
     from scm.plams.core.jobrunner import JobRunner
@@ -209,6 +209,19 @@ class AMSResults(Results):
         if sectiondict:
             return Molecule._mol_from_rkf_section(sectiondict)
 
+    def get_system(self, section: str, file: str = "ams") -> "ChemicalSystem":
+        """Return a ``ChemicalSystem`` instance stored in a given *section* of a chosen ``.rkf`` file.
+
+        The *file* argument should be the identifier of the file to read. It defaults to ``'ams'``. To access a file called ``something.rkf`` you need to call this function with ``file='something'``. If there exists only one engine results ``.rkf`` file, you can call this function with ``file='engine'`` to access this file.
+
+        All data used by this method is taken from the chosen ``.rkf`` file. The ``molecule`` attribute of the corresponding job is ignored.
+
+        Note that ``ChemicalSystem`` is only available within AMS python. If unavailable, the call will raise an error.
+        """
+        if not _has_scm_chemsys:
+            raise PlamsError("'ChemicalSystem' not available outside of AMS python.")
+        return ChemicalSystem.from_kf(self.rkfpath(file), section)
+
     def get_ase_atoms(self, section: str, file: str = "ams") -> "AseAtoms":
         from ase import Atoms
 
@@ -234,6 +247,16 @@ class AMSResults(Results):
         """
         return self.get_molecule("InputMolecule", "ams")
 
+    def get_input_system(self) -> "ChemicalSystem":
+        """Return a ``ChemicalSystem`` instance with the initial coordinates.
+
+        All data used by this method is taken from ``ams.rkf`` file.
+        The ``molecule`` attribute of the corresponding job is ignored.
+
+        Note that ``ChemicalSystem`` is only available within AMS python. If unavailable, the call will raise an error.
+        """
+        return self.get_system("InputMolecule", "ams")
+
     def get_input_molecules(self) -> Dict[str, Molecule]:
         """Return a dictionary mapping the name strings from the AMS input file to |Molecule| instances.
 
@@ -258,6 +281,16 @@ class AMSResults(Results):
         The ``molecule`` attribute of the corresponding job is ignored.
         """
         return self.get_molecule("Molecule", "ams")
+
+    def get_main_system(self) -> "ChemicalSystem":
+        """Return a |Molecule| instance with the final coordinates.
+
+        All data used by this method is taken from ``ams.rkf`` file.
+        The ``molecule`` attribute of the corresponding job is ignored.
+
+        Note that ``ChemicalSystem`` is only available within AMS python. If unavailable, the call will raise an error.
+        """
+        return self.get_system("Molecule", "ams")
 
     def get_main_ase_atoms(self, get_results: bool = False) -> "AseAtoms":
         """Return an ase.Atoms instance with the final coordinates.
@@ -393,7 +426,7 @@ class AMSResults(Results):
         else:
             return None
 
-    def get_history_variables(self, history_section: str = "History") -> Optional[set[str]]:
+    def get_history_variables(self, history_section: str = "History") -> Optional[Set[str]]:
         """Return a set of keynames stored in the specified history section of the ``ams.rkf`` file.
 
         The *history_section argument should be a string representing the name of the history section (``History`` or ``MDHistory``)*
@@ -499,7 +532,7 @@ class AMSResults(Results):
 
     def get_band_structure(
         self, bands=None, unit: str = "hartree", only_high_symmetry_points: bool = False
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, List[str], float]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], float]:
         """
         Extracts the electronic band structure from DFTB or BAND calculations. The returned data can be plotted with ``plot_band_structure``.
 
@@ -866,7 +899,7 @@ class AMSResults(Results):
         max_x=4000,
         x_spacing=0.5,
         post_process: Literal["all_intensities_to_1", "max_to_1"] = None,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Return the IR spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -2212,7 +2245,7 @@ class AMSJob(SingleJob):
     def __init__(
         self, molecule: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem"]] = None, *args, **kwargs
     ):
-        molecule = molecule.copy() if _has_scm_unichemsys and isinstance(molecule, ChemicalSystem) else molecule
+        molecule = molecule.copy() if _has_scm_chemsys and isinstance(molecule, ChemicalSystem) else molecule
         super().__init__(molecule, *args, **kwargs)
 
     def run(
@@ -2317,8 +2350,17 @@ class AMSJob(SingleJob):
         """Check if ``termination status`` variable from ``General`` section of main KF file equals ``NORMAL TERMINATION``."""
         try:
             status = self.results.readrkf("General", "termination status")
-        except:
+        except (FileError, KeyError) as e:
+            log(str(e), 1)
             return False
+        except:
+            log(f"Could not read termination status from file {self.results.rkfpath()}", 1)
+            return False
+
+        if status is None:
+            log(f"Could not read termination status from file {self.results.rkfpath()}", 1)
+            return False
+
         if "NORMAL TERMINATION" in status:
             if "errors" in status:
                 log("Job {} reported errors. Please check the output".format(self._full_name()), 1)
@@ -2528,7 +2570,7 @@ class AMSJob(SingleJob):
         def serialize_to_settings(name, mol):
             if isinstance(mol, Molecule):
                 sett = serialize_molecule_to_settings(mol, name)
-            elif _has_scm_unichemsys and isinstance(mol, ChemicalSystem):
+            elif _has_scm_chemsys and isinstance(mol, ChemicalSystem):
                 sett = serialize_unichemsys_to_settings(mol)
 
             if name:
@@ -2589,7 +2631,7 @@ class AMSJob(SingleJob):
         if self.molecule is None:
             return Settings()
 
-        if isinstance(self.molecule, Molecule) or (_has_scm_unichemsys and isinstance(self.molecule, ChemicalSystem)):
+        if isinstance(self.molecule, Molecule) or (_has_scm_chemsys and isinstance(self.molecule, ChemicalSystem)):
             moldict = {"": self.molecule}
         elif isinstance(self.molecule, dict):
             moldict = self.molecule

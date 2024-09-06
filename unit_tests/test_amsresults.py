@@ -5,8 +5,9 @@ from ase import Atoms as AseAtoms
 
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.tools.kftools import KFFile
-from scm.plams.core.errors import FileError
+from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.mol.molecule import Molecule
+from scm.plams.unit_tests.test_helpers import skip_if_no_scm_libbase
 
 # ToDo: Add tests for other job types e.g. MD, BAND etc. to test other result functions
 
@@ -205,20 +206,47 @@ class TestWaterOptimizationAMSResults:
                 water_opt_results.get_rkf_skeleton(file)
 
     @pytest.mark.parametrize(
-        "section,expected_coords",
+        "file,section,expected_coords",
         [
-            ["InputMolecule", "input"],
-            ["Molecule", "main"],
+            ["ams", "InputMolecule", "input"],
+            ["ams", "Molecule", "main"],
+            ["dftb", "Molecule", "main"],
         ],
     )
-    def test_get_molecule_returns_requested_section_molecule(self, water_opt_results, section, expected_coords):
+    def test_get_molecule_returns_requested_section_molecule(self, water_opt_results, file, section, expected_coords):
         # Given water optimization results
         # When get molecule from given file section
         water_opt_results.collect()
-        molecule = water_opt_results.get_molecule(section)
+        molecule = water_opt_results.get_molecule(section, file)
 
         # Then molecule as expected
         self.assert_water_molecule(molecule, expected_coords)
+
+    @pytest.mark.parametrize(
+        "file,section,expected_coords",
+        [
+            ["ams", "InputMolecule", "input"],
+            ["ams", "Molecule", "main"],
+            ["dftb", "Molecule", "main"],
+        ],
+    )
+    def test_get_system_returns_requested_section_chemical_system_with_libbase_otherwise_errors(
+        self, water_opt_results, file, section, expected_coords
+    ):
+        # Given water optimization results
+        water_opt_results.collect()
+
+        # When get molecule from given file section
+        try:
+            from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
+
+            # Then molecule as expected when chemical system present
+            molecule = water_opt_results.get_system(section, file)
+            self.assert_water_molecule(molecule, expected_coords, ChemicalSystem)
+        except ImportError:
+            # Otherwise errors
+            with pytest.raises(PlamsError):
+                water_opt_results.get_system(section, file)
 
     @pytest.mark.parametrize(
         "section,expected_coords",
@@ -245,6 +273,22 @@ class TestWaterOptimizationAMSResults:
         # Then molecule as expected (pre optimization)
         self.assert_water_molecule(molecule, "input")
 
+    def test_get_input_system_as_expected_with_libbase_otherwise_errors(self, water_opt_results):
+        # Given water optimization results
+        water_opt_results.collect()
+
+        # When get input molecule
+        try:
+            from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
+
+            # Then molecule as expected when chemical system present
+            molecule = water_opt_results.get_input_system()
+            self.assert_water_molecule(molecule, "input", ChemicalSystem)
+        except ImportError:
+            # Otherwise errors
+            with pytest.raises(PlamsError):
+                water_opt_results.get_input_system()
+
     def test_get_input_molecules_has_initial_molecule_under_empty_key(self, water_opt_results):
         # Given water optimization results
         # When get input molecules with no named molecules
@@ -262,6 +306,23 @@ class TestWaterOptimizationAMSResults:
 
         # Then molecule as expected (post optimization)
         self.assert_water_molecule(molecule, "main")
+
+    def test_get_main_system_as_expected(self, water_opt_results):
+        # Given water optimization results
+        # When get main molecule
+        water_opt_results.collect()
+
+        # Then molecule as expected (post optimization)
+        try:
+            from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
+
+            # Then molecule as expected when chemical system present
+            molecule = water_opt_results.get_main_system()
+            self.assert_water_molecule(molecule, "main", ChemicalSystem)
+        except ImportError:
+            # Otherwise errors
+            with pytest.raises(PlamsError):
+                water_opt_results.get_main_system()
 
     @pytest.mark.parametrize("get_results", [False, True])
     def test_get_main_ase_atoms_as_expected(self, water_opt_results, get_results):
