@@ -70,6 +70,15 @@ EndEngine
 
 """
 
+    def test_init_deep_copies_molecule(self, job_input):
+        # Given job with molecule
+        job = AMSJob(molecule=job_input.molecule)
+
+        # When get molecule from job
+        # Then job molecule is a deep copy
+        assert not job.molecule == job_input.molecule
+        assert not job.molecule.atoms == job_input.molecule.atoms
+
     def test_pickle_dumps_and_loads_job_successfully(self, job_input):
         # Given job with molecule and settings
         job = AMSJob(molecule=job_input.molecule, settings=job_input.settings)

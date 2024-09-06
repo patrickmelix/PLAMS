@@ -2203,6 +2203,7 @@ class AMSJob(SingleJob):
     def __init__(
         self, molecule: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem"]] = None, *args, **kwargs
     ):
+        molecule = molecule.copy() if _has_scm_unichemsys and isinstance(molecule, ChemicalSystem) else molecule
         super().__init__(molecule, *args, **kwargs)
 
     def run(self, jobrunner=None, jobmanager=None, watch=False, **kwargs) -> AMSResults:
