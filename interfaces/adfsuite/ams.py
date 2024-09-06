@@ -289,6 +289,12 @@ class AMSResults(Results):
             except KeyError:
                 pass
 
+            try:
+                charges = np.array(self.get_charges()).ravel()
+                atoms.calc.results["charges"] = charges
+            except KeyError:
+                pass
+
         return atoms
 
     def get_history_molecule(self, step: int):
