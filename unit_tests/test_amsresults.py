@@ -7,7 +7,7 @@ from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.tools.kftools import KFFile
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.mol.molecule import Molecule
-from scm.plams.unit_tests.test_helpers import skip_if_no_scm_libbase
+from scm.plams.unit_tests.test_helpers import skip_if_no_ams_installation
 
 # ToDo: Add tests for other job types e.g. MD, BAND etc. to test other result functions
 
@@ -711,6 +711,7 @@ class TestWaterOptimizationAMSResults:
         self.assert_water_molecule(water_opt_results.recreate_molecule(), "input")
 
     def test_recreate_settings_returns_input_settings(self, water_opt_results):
+        skip_if_no_ams_installation()
         # Given water optimization results
         # When get recreate job settings
         # Then returns the same settings
