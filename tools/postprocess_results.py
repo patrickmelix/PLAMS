@@ -41,7 +41,7 @@ def broaden_results(
     :type broadening_type: Literal['gaussian', 'lorentzian'], optional
     :param x_data: it can be a np.ndarray or you can set a tuple with (min,max,step_size), defaults to (0, 4000, 0.5)
     :type x_data: Union[np.ndarray, Tuple[float, float, float]], optional
-    :param post_process: if max_to_1 the resulted spectrum has the max peak hight =1, defaults to None
+    :param post_process: if max_to_1 the resulted spectrum has the max peak height =1, defaults to None
     :type post_process: Literal['max_to_1'], optional
     :return: the x and y arrays
     :rtype: Tuple[np.ndarray, np.ndarray]
