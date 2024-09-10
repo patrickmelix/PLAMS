@@ -380,8 +380,9 @@ class RKFTrajectoryFile(TrajectoryFile):
         """
         Extracts a PLAMS molecule object from the RKF file
         """
-        section_dict = self.file_object.read_section("InputMolecule")
-        if len(section_dict) == 0:
+        if "InputMolecule" in self.file_object:
+            section_dict = self.file_object.read_section("InputMolecule")
+        else:
             section_dict = self.file_object.read_section("Molecule")
         plamsmol = Molecule._mol_from_rkf_section(section_dict)
         return plamsmol
