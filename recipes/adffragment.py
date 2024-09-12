@@ -5,23 +5,11 @@ from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.tools.units import Units
 from scm.plams.core.errors import FileError
 from scm.plams.mol.molecule import Molecule
-<<<<<<< HEAD
-from scm.plams.core.functions import add_to_instance
 
 
 from os.path import join as opj
-from os.path import abspath, isdir, basename, relpath
-from os import symlink
-from typing import Dict, List, Union
-||||||| b99ff4a (fix non-working adffragment)
-from scm.plams import add_to_instance
-
-from os.path import join as opj
-from os.path import relpath
-from os import symlink
-from typing import List, Union
-=======
->>>>>>> parent of b99ff4a (fix non-working adffragment)
+from os.path import abspath, isdir, basename
+from typing import Dict
 
 __all__ = ["ADFFragmentJob", "ADFFragmentResults"]
 
