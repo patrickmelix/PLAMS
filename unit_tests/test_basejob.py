@@ -2,6 +2,7 @@ import pytest
 import uuid
 from unittest.mock import patch
 from datetime import datetime
+from collections import namedtuple
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob
@@ -11,38 +12,61 @@ from scm.plams.core.functions import add_to_instance
 from scm.plams.core.enums import JobStatus
 
 
+def log_call(method):
+    """
+    Decorator to log calls to instance.
+    """
+
+    def wrapper(self, *args, **kwargs):
+        log_entry = namedtuple("LogEntry", ["method", "args", "kwargs", "timestamp"])
+        self.call_log.append(log_entry(method=method.__name__, args=args, kwargs=kwargs, timestamp=datetime.now()))
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+
 class DummySingleJob(SingleJob):
     """
-    Single Job for testing.
-    By default, creates an input file with a unique id of the form: 'Dummy input <id>'.
-    When the job is run, creates an output file with the contents: 'Dummy output <id>'.
-    There is also an option to add an arbitrary wait period before the job runs to simulate a longer-running calculation.
+    Dummy Single Job for testing PLAMS components.
+    Calls to methods are logged in order, with passed arguments and a timestamp.
     """
 
-    def __init__(self, inp=None, cmd=None, wait=0.0, **kwargs):
+    def __init__(self, inp: str = None, cmd: str = None, wait: float = 0.0, **kwargs):
+        """
+        Initialize new dummy single job instance. Each job will have a unique id.
+        By default, a job will run a simple sed command on an input string containing the unique id,
+        which will transform it to the results in the output file.
+
+        :param inp: input string for input file, where any %ID% value will be replaced by a unique job id
+        :param cmd: command to execute on the input file
+        :param wait: delay before executing command
+        :param kwargs: kwargs for base single job
+        """
         super().__init__(**kwargs)
-        self.calls = []
-        self.id = uuid.uuid4()  # Ensure input unique
-        self.input = f"Dummy input {self.id}" if inp is None else inp.replace("%ID%", str(self.id))
-        self.command = "sed 's/input/output/g'" if cmd is None else cmd
+        self.call_log = []
+        self.id = uuid.uuid4()
+        self.input = inp.replace("%ID%", str(self.id)) if inp is not None else f"Dummy input {self.id}"
+        self.command = cmd if cmd is not None else "sed 's/input/output/g'"
         self.wait = wait
 
-    def prerun(self):
-        self.calls.append((self.prerun.__name__, datetime.now()))
+    @log_call
+    def prerun(self) -> None:
+        pass
 
-    def postrun(self):
-        self.calls.append((self.postrun.__name__, datetime.now()))
+    @log_call
+    def postrun(self) -> None:
+        pass
 
-    def get_input(self):
+    @log_call
+    def get_input(self) -> str:
         return self.input
 
-    def get_runscript(self):
-        self.calls.append((self.get_runscript.__name__, datetime.now()))
+    @log_call
+    def get_runscript(self) -> str:
         return f"sleep {self.wait} && {self.command} {self._filename('inp')}"
 
-    def check(self):
-        x = self.results.read_file(self._filename("err"))
-        return x == ""
+    def check(self) -> bool:
+        return self.results.read_file(self._filename("err")) == ""
 
 
 class TestSingleJob:
@@ -84,7 +108,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         job.run()
 
         # Then makes calls to pre- and post-run
-        assert [c for c, _ in job.calls] == ["prerun", "get_runscript", "postrun"]
+        assert [c.method for c in job.call_log] == ["prerun", "get_input", "get_input", "get_runscript", "postrun"]
 
     def test_run_writes_output_file_on_success(self):
         # When run a successful job
@@ -166,7 +190,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[0].wait()
         assert job1.status == JobStatus.SUCCESSFUL
-        assert job2.calls[0][1] < job1.calls[2][1]
+        assert job2.call_log[0].timestamp < job1.call_log[-1].timestamp
 
     def test_run_multiple_dependent_jobs_in_serial(self):
         # Given parallel job runner
@@ -186,7 +210,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[1].wait()
         assert job2.status == JobStatus.SUCCESSFUL
-        assert job2.calls[0][1] >= job1.calls[2][1]
+        assert job2.call_log[0].timestamp >= job1.call_log[-1].timestamp
 
     def test_run_multiple_prerun_dependent_jobs_in_serial(self):
         # Given parallel job runner
@@ -198,7 +222,6 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         @add_to_instance(job2)
         def prerun(s):
-            s.calls.append((s.prerun.__name__, datetime.now()))
             job1.results.wait()
 
         results = [job1.run(runner), job2.run(runner)]
@@ -212,7 +235,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[1].wait()
         assert job2.status == JobStatus.SUCCESSFUL
-        assert job2.calls[1][1] >= job1.calls[2][1]
+        assert job2.call_log[2].timestamp >= job1.call_log[-1].timestamp
 
     def test_ok_waits_on_results_and_checks_status(self):
         # Given job and a copy
