@@ -54,7 +54,7 @@ print(smiles)
 from scm.plams import Molecule, plot_molecule
 
 mol = Molecule(xyz_file)
-print(type(mol))
+print(f"{type(mol)=}")
 plot_molecule(mol)
 
 
@@ -77,7 +77,7 @@ from ase.io import read
 from scm.plams import fromASE
 
 mol: Molecule = fromASE(read(cif_file))
-print(type(mol))
+print(f"{type(mol)=}")
 plot_molecule(mol)
 
 
@@ -93,7 +93,7 @@ toASE(mol).write("out.cif")
 head("out.cif")
 
 
-# ### AMS .in system blockat format
+# ### AMS .in system block format
 #
 # #### Write PLAMS Molecule to AMS .in system file
 
@@ -159,7 +159,7 @@ print(f"{type(mol)=}")
 plot_molecule(mol, rotation="-85x,5y,0z")
 
 
-# ### RDKIt Mol Python class
+# ### RDKit Mol Python class
 
 # #### Convert PLAMS Molecule to RDKit Mol
 

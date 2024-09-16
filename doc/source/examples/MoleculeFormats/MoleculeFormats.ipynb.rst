@@ -81,13 +81,13 @@ Load PLAMS Molecule from .xyz file
     from scm.plams import Molecule, plot_molecule
     
     mol = Molecule(xyz_file)
-    print(type(mol))
+    print(f"{type(mol)=}")
     plot_molecule(mol)
 
 
 .. parsed-literal::
 
-    <class 'scm.plams.mol.molecule.Molecule'>
+    type(mol)=<class 'scm.plams.mol.molecule.Molecule'>
 
 
 
@@ -131,18 +131,18 @@ library, for example ASE or pymatgen.
     from scm.plams import fromASE
     
     mol: Molecule = fromASE(read(cif_file))
-    print(type(mol))
+    print(f"{type(mol)=}")
     plot_molecule(mol)
 
 
 .. parsed-literal::
 
-    <class 'scm.plams.mol.molecule.Molecule'>
+    type(mol)=<class 'scm.plams.mol.molecule.Molecule'>
 
 
 .. parsed-literal::
 
-    /home/hellstrom/adfhome/bin/python3.8/lib/python3.8/site-packages/ase/io/cif.py:401: UserWarning: crystal system 'orthorhombic' is not interpreted for space group Spacegroup(74, setting=1). This may result in wrong setting!
+    /home/user/adfhome/bin/python3.8/lib/python3.8/site-packages/ase/io/cif.py:401: UserWarning: crystal system 'orthorhombic' is not interpreted for space group Spacegroup(74, setting=1). This may result in wrong setting!
       warnings.warn(
 
 
@@ -176,8 +176,8 @@ https://wiki.fysik.dtu.dk/ase/ase/io/io.html
     
 
 
-AMS .in system blockat format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+AMS .in system block format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Write PLAMS Molecule to AMS .in system file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -322,7 +322,7 @@ Convert ASE Atoms to PLAMS Molecule
 .. image:: MoleculeFormats_files/MoleculeFormats_31_1.png
 
 
-RDKIt Mol Python class
+RDKit Mol Python class
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Convert PLAMS Molecule to RDKit Mol
@@ -531,7 +531,7 @@ interface to both packages:
 
 .. parsed-literal::
 
-    /home/hellstrom/adfhome/bin/python3.8/lib/python3.8/site-packages/ase/io/cif.py:401: UserWarning: crystal system 'orthorhombic' is not interpreted for space group Spacegroup(74, setting=1). This may result in wrong setting!
+    /home/user/adfhome/bin/python3.8/lib/python3.8/site-packages/ase/io/cif.py:401: UserWarning: crystal system 'orthorhombic' is not interpreted for space group Spacegroup(74, setting=1). This may result in wrong setting!
       warnings.warn(
 
 
