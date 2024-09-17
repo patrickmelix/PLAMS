@@ -7,6 +7,7 @@ __all__ = [
     "UnitsError",
     "MoleculeError",
     "TrajectoryError",
+    "MissingPackageError",
 ]
 
 
@@ -40,3 +41,12 @@ class MoleculeError(PlamsError):
 
 class TrajectoryError(PlamsError):
     """:class:`Trajectory<scm.plams.trajectories.TrajectoryFile>` error."""
+
+
+class MissingPackageError(PlamsError):
+    """Missing optional package related error."""
+
+    def __init__(self, package_name: str):
+        super().__init__(
+            f"The package '{package_name}' is required for this PLAMS functionality, but is not available. Please install and try again."
+        )

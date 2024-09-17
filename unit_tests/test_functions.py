@@ -6,8 +6,9 @@ import os
 from pathlib import Path
 import inspect
 
-from scm.plams.core.functions import _init, init, _finish, finish
+from scm.plams.core.functions import _init, init, _finish, finish, require_package, add_to_class, add_to_instance
 from scm.plams.core.settings import Settings
+from scm.plams.core.errors import MissingPackageError
 from scm.plams.unit_tests.test_helpers import (
     assert_config_as_expected,
     get_mock_open_function,
@@ -448,3 +449,88 @@ config.default_jobrunner = GridRunner(grid=grid_config, sleepstep=30)
                 f"folder{i}",
                 False,
             )
+
+
+class TestDecorators:
+    """
+    Test suite for PLAMS decorators
+    """
+
+    class EmptyClass:
+        pass
+
+    def test_add_to_class(self):
+        # Given initially empty class
+        empty_class = self.EmptyClass()
+
+        with pytest.raises(AttributeError):
+            empty_class.is_added_to_class()
+
+        # When add function to class
+        @add_to_class(self.EmptyClass)
+        def is_added_to_class(self):
+            return True
+
+        # Then is available on all instances
+        another_empty_class = self.EmptyClass()
+        assert empty_class.is_added_to_class()
+        assert another_empty_class.is_added_to_class()
+
+    def test_add_to_instance(self):
+        # Given initially empty class
+        empty_class = self.EmptyClass()
+
+        with pytest.raises(AttributeError):
+            empty_class.is_added_to_instance()
+
+        # When add function to instance
+        @add_to_instance(empty_class)
+        def is_added_to_instance(self):
+            return True
+
+        # Then is available on that instance only
+        another_empty_class = self.EmptyClass()
+        assert empty_class.is_added_to_instance()
+        with pytest.raises(AttributeError):
+            assert another_empty_class.is_added_to_instance()
+
+    class OptionalRequirementsClass:
+
+        def no_requirements(self):
+            return True
+
+        @require_package("numpy")
+        def requires_numpy_package(self):
+            return True
+
+        @require_package("__this_is_definitely_not_an_available_package__")
+        def requires_unavailable_package(self):
+            return True
+
+    def test_require_package(self):
+        req_class = self.OptionalRequirementsClass()
+
+        assert req_class.no_requirements()
+        assert req_class.requires_numpy_package()
+        with pytest.raises(MissingPackageError):
+            req_class.requires_unavailable_package()
+
+    def test_require_package_with_add_to_class_and_instance(self):
+        empty_class = self.EmptyClass()
+
+        @add_to_class(self.EmptyClass)
+        @require_package("__this_is_definitely_not_an_available_package__")
+        def requires_unavailable_package_and_is_added_to_class(self):
+            return True
+
+        @add_to_instance(empty_class)
+        @require_package("__this_is_definitely_not_an_available_package__")
+        def requires_unavailable_package_and_is_added_to_instance(self):
+            return True
+
+        # Verify requirement checked on standard function call and on class method call
+        with pytest.raises(MissingPackageError):
+            empty_class.requires_unavailable_package_and_is_added_to_class()
+
+        with pytest.raises(MissingPackageError):
+            empty_class.requires_unavailable_package_and_is_added_to_instance()
