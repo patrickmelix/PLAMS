@@ -26,6 +26,7 @@ Molecule analysis
 .. toctree::
    :maxdepth: 1
 
+   MoleculeFormats/MoleculeFormats
    MoleculesFromRKFTrajectory
    MoleculesTable
    MoleculeSubstitution/MoleculeSubstitution
