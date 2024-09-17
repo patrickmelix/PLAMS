@@ -56,8 +56,8 @@ class TestWaterOptimizationAMSResults:
         water_opt_results.collect()
 
         # Then files populated with rkfs
-        assert water_opt_results.files == ["ams.rkf", "dftb.rkf"]
-        assert [k for k in water_opt_results.rkfs.keys()] == ["dftb", "ams"]
+        assert sorted(water_opt_results.files) == sorted(["ams.rkf", "dftb.rkf"])
+        assert sorted([k for k in water_opt_results.rkfs.keys()]) == sorted(["dftb", "ams"])
 
     def test_collect_rkfs_populates_engine_rkfs_from_ams_rkf(self, water_opt_results):
         # Given results of water optimization job, with an ams.rkf in the present in files
@@ -68,7 +68,7 @@ class TestWaterOptimizationAMSResults:
         water_opt_results.collect_rkfs()
 
         # Then rkfs populated
-        assert [k for k in water_opt_results.rkfs.keys()] == ["dftb", "ams"]
+        assert sorted([k for k in water_opt_results.rkfs.keys()]) == sorted(["dftb", "ams"])
 
     def test_refresh_updates_moved_rkfs_and_deletes_removed_rkfs(self, water_opt_results, rkf_folder):
         # Given results of water optimization job, with two rkf files which have been moved, and one which does not exist
@@ -81,8 +81,8 @@ class TestWaterOptimizationAMSResults:
         water_opt_results.refresh()
 
         # Then existing rkfs have paths updated to match the job path, and the non-existing file is removed
-        assert water_opt_results.files == ["ams.rkf", "dftb.rkf"]
-        assert [k for k in water_opt_results.rkfs.keys()] == ["ams", "dftb"]
+        assert sorted(water_opt_results.files) == sorted(["ams.rkf", "dftb.rkf"])
+        assert sorted([k for k in water_opt_results.rkfs.keys()]) == sorted(["ams", "dftb"])
 
     def test_engine_names_returns_engine_specific_rkfs(self, water_opt_results):
         # Given results of water optimization job containing dftb engine rkf
