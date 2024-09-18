@@ -1,20 +1,27 @@
 import numpy as np
+from typing import Optional, TYPE_CHECKING
 
-from scm.plams.core.functions import add_to_class
-from scm.plams.mol.molecule import Atom, Molecule, MoleculeError
-
-__all__ = ["toASE", "fromASE"]
-ase_present = False
+from scm.plams.core.functions import add_to_class, require_package
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Atom, Molecule
 
 try:
     import ase
 
-    ase_present = True
+    _has_ase = True
 except ImportError:
-    __all__ = []
+
+    _has_ase = False
+
+if TYPE_CHECKING:
+    from ase import atoms as ASEAtoms
+
+
+__all__ = ["toASE", "fromASE"]
 
 
 @add_to_class(Molecule)
+@require_package("ase")
 def readase(self, f, **other):
     """Read Molecule using ASE engine
 
@@ -31,13 +38,10 @@ def readase(self, f, **other):
         The nomenclature of PLAMS and ASE is incompatible for reading multiple geometries, make sure that you only read single geometries with ASE! Reading multiple geometries is not supported, each geometry needs to be read individually.
 
     """
-    try:
-        from ase import io as aseIO
-    except ImportError:
-        raise MoleculeError("Asked for ASE IO engine but could not load ASE.io module")
+    from ase import io
 
-    aseMol = aseIO.read(f, **other)
-    mol = fromASE(aseMol)
+    ase_mol = io.read(f, **other)
+    mol = fromASE(ase_mol)
     # update self with the molecule read without overwriting e.g. settings
     self += mol
     # lattice does not survive soft update
@@ -59,17 +63,18 @@ def writease(self, f, **other):
         molecule.writease('filename.anyextension', format='gen')
 
     """
-    aseMol = toASE(self)
-    aseMol.write(f, **other)
+    ase_mol = toASE(self)
+    ase_mol.write(f, **other)
     return
 
 
-if ase_present:
+if _has_ase:
     Molecule._readformat["ase"] = Molecule.readase
     Molecule._writeformat["ase"] = Molecule.writease
 
 
-def toASE(molecule, set_atomic_charges=False):
+@require_package("ase")
+def toASE(molecule: Molecule, set_atomic_charges: bool = False) -> "ASEAtoms":
     """Convert a PLAMS |Molecule| to an ASE molecule (``ase.Atoms`` instance). Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved.
 
 
@@ -84,7 +89,7 @@ def toASE(molecule, set_atomic_charges=False):
         if not all(isinstance(x, (int, float)) for x in atom.coords):
             raise ValueError("Non-Number in Atomic Coordinates, not compatible with ASE")
 
-    aseMol = ase.Atoms(numbers=molecule.numbers, positions=molecule.as_array())
+    ase_mol = ase.Atoms(numbers=molecule.numbers, positions=molecule.as_array())
 
     # get lattice info if any
     lattice = np.zeros((3, 3))
@@ -98,10 +103,10 @@ def toASE(molecule, set_atomic_charges=False):
         pbc[i] = True
         lattice[i] = np.array(vec)
 
-    # save lattice info to aseMol
+    # save lattice info to ase_mol
     if any(pbc):
-        aseMol.set_pbc(pbc)
-        aseMol.set_cell(lattice)
+        ase_mol.set_pbc(pbc)
+        ase_mol.set_cell(lattice)
 
     if set_atomic_charges:
         charge = molecule.properties.get("charge", 0)
@@ -110,22 +115,22 @@ def toASE(molecule, set_atomic_charges=False):
         else:
             atomic_charges = [float(charge)] + [0.0] * (len(molecule) - 1)
 
-        aseMol.set_initial_charges(atomic_charges)
+        ase_mol.set_initial_charges(atomic_charges)
 
-    return aseMol
+    return ase_mol
 
 
-def fromASE(molecule, properties=None, set_charge=False):
+def fromASE(molecule: "ASEAtoms", properties: Optional[Settings] = None, set_charge: bool = False) -> Molecule:
     """Convert an ASE molecule to a PLAMS |Molecule|. Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved.
 
     Pass a |Settings| instance through the ``properties`` option to inherit them to the returned molecule.
     """
-    plamsMol = Molecule()
+    plams_mol = Molecule()
 
     # iterate over ASE atoms
     for atom in molecule:
-        # add atom to plamsMol
-        plamsMol.add_atom(Atom(atnum=atom.number, coords=tuple(atom.position)))
+        # add atom to plams_mol
+        plams_mol.add_atom(Atom(atnum=atom.number, coords=tuple(atom.position)))
 
     # add Lattice if any
     if any(molecule.get_pbc()):
@@ -135,13 +140,13 @@ def fromASE(molecule, properties=None, set_charge=False):
             if boolean:
                 lattice.append(tuple(molecule.get_cell()[i]))
 
-        # write lattice to plamsMol
-        plamsMol.lattice = lattice.copy()
+        # write lattice to plams_mol
+        plams_mol.lattice = lattice.copy()
 
     if properties:
-        plamsMol.properties.update(properties)
+        plams_mol.properties.update(properties)
     if (properties and "charge" not in properties or not properties) and set_charge:
-        plamsMol.properties.charge = sum(molecule.get_initial_charges())
+        plams_mol.properties.charge = sum(molecule.get_initial_charges())
         if "charge" in molecule.info:
-            plamsMol.properties.charge += molecule.info["charge"]
-    return plamsMol
+            plams_mol.properties.charge += molecule.info["charge"]
+    return plams_mol
