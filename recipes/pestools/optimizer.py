@@ -11,6 +11,7 @@ from scm.plams.core.jobrunner import JobRunner
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.amsworker import AMSWorkerPool
+from scm.plams.core.enums import JobStatus
 
 __all__ = ["Optimizer"]
 
@@ -323,7 +324,7 @@ class Optimizer:
             except FileError:
                 pass
             # If the geometry was copied from another directory, then it is not new so we do not need it.
-            if r.job.status == "failed" or not os.path.isfile(os.path.join(r.job.path, "ams.rkf")):
+            if r.job.status == JobStatus.FAILED or not os.path.isfile(os.path.join(r.job.path, "ams.rkf")):
                 optimized_geometries.append(None)
                 energies.append(None)
                 continue
@@ -357,7 +358,7 @@ class Optimizer:
                 energy = r.get_energy()  # * Units.conversion_ratio('Hartree','kcal/mol')
             except FileError:
                 pass
-            if r.job.status == "failed" or not os.path.isfile(os.path.join(r.job.path, "ams.rkf")):
+            if r.job.status == JobStatus.FAILED or not os.path.isfile(os.path.join(r.job.path, "ams.rkf")):
                 energies.append(None)
                 continue
             energy = r.get_energy()  # * Units.conversion_ratio('Hartree','kcal/mol')
@@ -377,7 +378,12 @@ def progress_monitor(results, num_jobs, event, t):
             return
         try:
             num_done = len(
-                [True for r in results if r.job.status not in ["created", "started", "registered", "running"]]
+                [
+                    True
+                    for r in results
+                    if r.job.status
+                    not in [JobStatus.CREATED, JobStatus.STARTED, JobStatus.REGISTERED, JobStatus.RUNNING]
+                ]
             )
         except RuntimeError:
             pass

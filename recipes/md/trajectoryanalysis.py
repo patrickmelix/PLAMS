@@ -6,6 +6,7 @@ from scm.plams.core.basejob import MultiJob
 from scm.plams.core.results import Results
 from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
 from scm.plams.tools.units import Units
+from scm.plams.core.enums import JobStatus
 
 __all__ = ["AMSRDFJob", "AMSMSDJob", "AMSMSDResults", "AMSVACFJob", "AMSVACFResults"]
 
@@ -36,7 +37,7 @@ class AMSConvenientAnalysisJob(AMSAnalysisJob):
     def _parent_prerun(self, section):
 
         # use previously run previous_job
-        assert self.previous_job.status != "created", "You can only pass in a finished AMSJob"
+        assert self.previous_job.status != JobStatus.CREATED, "You can only pass in a finished AMSJob"
 
         self.settings.input.TrajectoryInfo.Trajectory.KFFileName = self.previous_job.results.rkfpath()
         if self.atom_indices and self._parent_write_atoms:
