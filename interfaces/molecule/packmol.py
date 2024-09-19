@@ -10,11 +10,7 @@ from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.periodic_table import PeriodicTable
 from scm.plams.tools.units import Units
-
-try:
-    from scm.plams.interfaces.molecule.rdkit import readpdb, writepdb
-except ImportError:
-    pass
+from scm.plams.interfaces.molecule.rdkit import readpdb, writepdb
 
 __all__ = [
     "packmol",

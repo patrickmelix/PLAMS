@@ -518,10 +518,18 @@ class TestDecorators:
     def test_requires_optional_package(self):
         req_class = self.OptionalRequirementsClass()
 
+        def maybe_calls_requireds_unvailable(does_call):
+            if does_call:
+                req_class.requires_unavailable_package()
+            return True
+
         assert req_class.no_requirements()
         assert req_class.requires_numpy_package()
+        assert maybe_calls_requireds_unvailable(False)
         with pytest.raises(MissingOptionalPackageError):
             req_class.requires_unavailable_package()
+        with pytest.raises(MissingOptionalPackageError):
+            maybe_calls_requireds_unvailable(True)
 
     def test_requires_optional_package_with_add_to_class_and_instance(self):
         empty_class = self.EmptyClass()

@@ -60,27 +60,3 @@ def rkf_folder():
     p = Path(__file__).parent.absolute() / "rkf"
     assert p.exists()
     return p
-
-
-@pytest.fixture
-def plams_mols(xyz_folder, pdb_folder, rkf_folder):
-    """
-    Selection of plams molecules loaded from various sources.
-    """
-    water_molecule = Molecule(rkf_folder / "h20.rkf")
-    water_molecule_with_bonds = water_molecule.copy()
-    water_molecule_with_bonds.guess_bonds()
-    water_molecule_in_box = water_molecule.copy()
-    water_molecule_in_box.lattice = [[100, 0, 0], [0, 100, 0], [0, 0, 100]]
-    benzene = Molecule(xyz_folder / "benzene.xyz")
-    chlorophyl = Molecule(xyz_folder / "chlorophyl1.xyz")
-    chymotrypsin = Molecule(pdb_folder / "chymotrypsin.pdb")
-
-    return {
-        "water": water_molecule,
-        "water_bonds": water_molecule_with_bonds,
-        "water_box": water_molecule_in_box,
-        "benzene": benzene,
-        "chlorophyl": chlorophyl,
-        "chymotrypsin": chymotrypsin,
-    }
