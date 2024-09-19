@@ -1,9 +1,7 @@
 import pytest
-import numpy as np
 
 from scm.plams.tools.periodic_table import PT
 from scm.plams.mol.molecule import Molecule
-from scm.plams.mol.identify import reorder, get_graph, find_permutation
 
 PT.set_connectors("Mg", 4)
 

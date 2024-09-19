@@ -2,8 +2,6 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from scm.plams.mol.molecule import Molecule
-
 
 @pytest.fixture(autouse=True)
 def config():

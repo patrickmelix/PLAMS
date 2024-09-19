@@ -282,9 +282,8 @@ class PackMol:
                         structure.molecule.write(structure_fname)
                     input_file.write(structure.get_input_block(structure_fname, tolerance=self.tolerance))
 
-            my_input = open(input_fname, "r")
-            saferun(self.executable, stdin=my_input, stdout=subprocess.DEVNULL)
-            my_input.close()
+            with open(input_fname) as my_input:
+                saferun(self.executable, stdin=my_input, stdout=subprocess.DEVNULL)
 
             if not os.path.exists(output_fname):
                 raise PackMolError("Packmol failed. It may work if you try a lower density.")

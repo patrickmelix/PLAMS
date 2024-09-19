@@ -262,33 +262,34 @@ VEC3       0.00000000       0.00000000       5.30828236
 
     def test_packmol(self, five_water, plams_mols):
         # Packmol requires calling AMS, so mock out the call to the executable and return an expected xyz
-        with get_mock_open_function(lambda f: f.endswith("output.xyz"), five_water), patch(
-            "os.path.exists", return_value=True
-        ), patch("scm.plams.interfaces.molecule.packmol.saferun") as mock_saferun:
-            input_mol = plams_mols["water"]
+        with get_mock_open_function(lambda f: f.endswith("output.xyz"), five_water):
+            with patch("os.path.exists", return_value=True):
+                with patch("scm.plams.interfaces.molecule.packmol.saferun") as mock_saferun:
+                    input_mol = plams_mols["water"]
 
-            # Packmol has a lot of internal function calls, so even returning successfully is pretty good
-            # But also sanity-check the temporary input files passed to AMS
-            def read_input_file(*args, **kwargs):
-                # Intercept the tmp input files and check they are as expected
-                content = kwargs["stdin"].read()
-                assert int(re.search(r"number (\d+)", content).group(1)) == 5
+                    # Packmol has a lot of internal function calls, so even returning successfully is pretty good
+                    # But also sanity-check the temporary input files passed to AMS
+                    def read_input_file(*args, **kwargs):
+                        # Intercept the tmp input files and check they are as expected
+                        input_file = kwargs["stdin"]
+                        content = input_file.read()
+                        assert int(re.search(r"number (\d+)", content).group(1)) == 5
 
-                structure_file = re.search(r"structure\s+([/\w\d-]+)", content).group(1)
-                with open(f"{structure_file}.xyz") as f:
-                    s = f.read()
-                assert (
-                    s
-                    == """3
+                        structure_file_name = re.search(r"structure\s+(.+\.xyz)", content).group(1)
+                        with open(structure_file_name) as structure_file:
+                            s = structure_file.read()
+                        assert (
+                            s
+                            == """3
 
          O       0.06692105       0.06692105       0.00000000
          H       1.01204160      -0.07896265       0.00000000
          H      -0.07896265       1.01204160       0.00000000
 """
-                )
+                        )
 
-            mock_saferun.side_effect = read_input_file
-            mols = packmol(input_mol, n_atoms=15, density=1.0, executable="mock_exe")
+                    mock_saferun.side_effect = read_input_file
+                    mols = packmol(input_mol, n_atoms=15, density=1.0, executable="mock_exe")
 
-        # And assert on the number of returned molecules
-        assert len(mols) == 15
+                    # And assert on the number of returned molecules
+                    assert len(mols) == 15
