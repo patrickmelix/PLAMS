@@ -10,7 +10,7 @@ from scm.plams.core.errors import (
     ResultsError,
     TrajectoryError,
     UnitsError,
-    MissingPackageError,
+    MissingOptionalPackageError,
 )
 from scm.plams.core.functions import (
     add_to_class,
@@ -239,7 +239,7 @@ __all__ = [
     "AMSPipeUnknownMethodError",
     "AMSPipeUnknownArgumentError",
     "AMSPipeInvalidArgumentError",
-    "MissingPackageError",
+    "MissingOptionalPackageError",
     "ForceFieldPatch",
     "forcefield_params_from_kf",
     "AMSWorker",

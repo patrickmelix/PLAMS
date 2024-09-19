@@ -2,7 +2,7 @@ import pytest
 
 from scm.plams.interfaces.molecule.ase import toASE, fromASE
 from scm.plams.unit_tests.test_helpers import get_mock_find_spec
-from scm.plams.core.errors import MissingPackageError
+from scm.plams.core.errors import MissingOptionalPackageError
 
 
 class TestASE:
@@ -26,5 +26,5 @@ class TestASE:
 
     def test_to_ase_requires_ase_package(self, plams_mols):
         with get_mock_find_spec("scm.plams.core.functions", "ase"):
-            with pytest.raises(MissingPackageError):
+            with pytest.raises(MissingOptionalPackageError):
                 toASE(plams_mols["water"])

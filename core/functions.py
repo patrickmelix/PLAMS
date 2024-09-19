@@ -13,7 +13,7 @@ import atexit
 from importlib.util import find_spec
 import functools
 
-from scm.plams.core.errors import FileError, MissingPackageError
+from scm.plams.core.errors import FileError, MissingOptionalPackageError
 from scm.plams.core.private import retry
 from scm.plams.core.settings import Settings, ConfigSettings
 from scm.plams.core.enums import JobStatus
@@ -31,7 +31,7 @@ __all__ = [
     "delete_job",
     "add_to_class",
     "add_to_instance",
-    "require_package",
+    "requires_optional_package",
     "config",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
@@ -475,7 +475,7 @@ def add_to_instance(instance):
 # ===========================================================================
 
 
-def require_package(package_name: str):
+def requires_optional_package(package_name: str):
     """
     Ensures a given package is available before running a function, otherwise raises an ImportError.
     This can be used to check for optional dependencies which are required for specific functionality.
@@ -486,7 +486,7 @@ def require_package(package_name: str):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if find_spec(package_name) is None:
-                raise MissingPackageError(package_name)
+                raise MissingOptionalPackageError(package_name)
             return func(*args, **kwargs)
 
         return wrapper

@@ -4,7 +4,7 @@ from typing import Optional, Dict
 
 import numpy as np
 
-from scm.plams.core.functions import add_to_class, require_package
+from scm.plams.core.functions import add_to_class, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.units import Units
@@ -288,7 +288,7 @@ def set_local_labels(self, niter=2, flags=None):
         iterate(self, flags)
 
 
-@require_package("networkx")
+@requires_optional_package("networkx")
 def get_graph(mol, dic, level=1):
     """
     Create a networkx graph for this molecule that can be used to compare (all info is in the edge.weight attribute)
@@ -322,7 +322,7 @@ def get_graph(mol, dic, level=1):
 
 
 @add_to_class(Molecule)
-@require_package("networkx")
+@requires_optional_package("networkx")
 def find_permutation(self, other, level=1):
     """
     Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed.

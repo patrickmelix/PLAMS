@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Optional, TYPE_CHECKING
 
-from scm.plams.core.functions import add_to_class, require_package
+from scm.plams.core.functions import add_to_class, requires_optional_package
 from scm.plams.core.settings import Settings
 from scm.plams.mol.molecule import Atom, Molecule
 
@@ -21,7 +21,7 @@ __all__ = ["toASE", "fromASE"]
 
 
 @add_to_class(Molecule)
-@require_package("ase")
+@requires_optional_package("ase")
 def readase(self, f, **other):
     """Read Molecule using ASE engine
 
@@ -73,7 +73,7 @@ if _has_ase:
     Molecule._writeformat["ase"] = Molecule.writease
 
 
-@require_package("ase")
+@requires_optional_package("ase")
 def toASE(molecule: Molecule, set_atomic_charges: bool = False) -> "ASEAtoms":
     """Convert a PLAMS |Molecule| to an ASE molecule (``ase.Atoms`` instance). Translate coordinates, atomic numbers, and lattice vectors (if present). The order of atoms is preserved.
 
