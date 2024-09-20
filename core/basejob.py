@@ -354,15 +354,15 @@ class SingleJob(Job):
         """
         raise PlamsError("Trying to run an abstract method SingleJob._get_runscript()")
 
-    def hash_input(self):
+    def hash_input(self) -> str:
         """Calculate SHA256 hash of the input file."""
         return sha256(self.get_input())
 
-    def hash_runscript(self):
+    def hash_runscript(self) -> str:
         """Calculate SHA256 hash of the runscript."""
         return sha256(self.full_runscript())
 
-    def hash(self):
+    def hash(self) -> Optional[str]:
         """Calculate unique hash of this instance.
 
         The behavior of this method is adjusted by the value of ``hashing`` key in |JobManager| settings. If no |JobManager| is yet associated with this job, default setting from ``config.jobmanager.hashing`` is used.
@@ -392,7 +392,7 @@ class SingleJob(Job):
         else:
             raise PlamsError("Unsupported hashing method: {}".format(mode))
 
-    def check(self):
+    def check(self) -> bool:
         """Check if the calculation was successful.
 
         This method can be overridden in concrete subclasses of |SingleJob|. It should return a boolean value. The definition here serves as a default, to prevent crashing if a subclass does not define its own :meth:`~scm.plams.core.basejob.SingleJob.check`. It always returns ``True``.
@@ -404,7 +404,7 @@ class SingleJob(Job):
         """
         return True
 
-    def full_runscript(self):
+    def full_runscript(self) -> str:
         """Generate the full runscript, including shebang line and contents of ``pre`` and ``post``, if any. In practice this method is just a simple wrapper around |get_runscript|."""
         ret = self.settings.runscript.shebang + "\n\n"
         if "pre" in self.settings.runscript:
@@ -414,7 +414,7 @@ class SingleJob(Job):
             ret += self.settings.runscript.post + "\n\n"
         return ret
 
-    def _get_ready(self):
+    def _get_ready(self) -> None:
         """Create input and runscript files in the job folder. Methods |get_input| and :meth:`full_runscript` are used for that purpose. Filenames correspond to entries in the `_filenames` attribute"""
         inpfile = opj(self.path, self._filename("inp"))
         runfile = opj(self.path, self._filename("run"))
@@ -427,7 +427,7 @@ class SingleJob(Job):
 
         os.chmod(runfile, os.stat(runfile).st_mode | stat.S_IEXEC)
 
-    def _execute(self, jobrunner):
+    def _execute(self, jobrunner) -> None:
         """Execute previously created runscript using *jobrunner*.
 
         The method :meth:`~scm.plams.core.jobrunner.JobRunner.call` of *jobrunner* is used. Working directory is ``self.path``. ``self.settings.run`` is passed as ``runflags`` argument.
@@ -446,15 +446,15 @@ class SingleJob(Job):
             )
             if retcode != 0:
                 log("WARNING: Job {} finished with nonzero return code".format(self.name), 3)
-                self.status = "crashed"
+                self.status = JobStatus.CRASHED
         log("{}._execute() finished".format(self.name), 7)
 
-    def _filename(self, t):
+    def _filename(self, t) -> str:
         """Return filename for file of type *t*. *t* can be any key from ``_filenames`` dictionary. ``$JN`` is replaced with job name in the returned string."""
         return self._filenames[t].replace("$JN", self.name)
 
     @classmethod
-    def load(cls, path, jobmanager=None, strict=True):
+    def load(cls, path, jobmanager: Optional["JobManager"] = None, strict: bool = True) -> "SingleJob":
         """
         Loads a Job instance from `path`, where path can either be a
         directory with a `*.dill` file, or the full path to the `*.dill` file.
@@ -492,8 +492,10 @@ class SingleJob(Job):
 
         if strict and job.__class__ != cls:
             raise ValueError(
-                f"The loaded job is an instance of '{job.__class__.__name__}', wheras this method expects it to be a '{cls.__name__}'. Use `strict=False` to ignore this."
+                f"The loaded job is an instance of '{job.__class__.__name__}', whereas this method expects it to be a '{cls.__name__}'. Use `strict=False` to ignore this."
             )
+
+        return job
 
     @classmethod
     def load_external(
@@ -502,7 +504,7 @@ class SingleJob(Job):
         settings: Optional[Settings] = None,
         molecule: Optional[Molecule] = None,
         finalize: bool = False,
-        jobname: Optional[str] = None,
+        jobname: str = None,
     ) -> "SingleJob":
         """Load an external job from *path*.
 
@@ -534,7 +536,7 @@ class SingleJob(Job):
 
         job = cls(name=jobname)
         job.path = path
-        job.status = "copied"
+        job._status = JobStatus.COPIED
         job.results.collect()
 
         job._filenames = {}
@@ -590,7 +592,7 @@ class MultiJob(Job):
         self._active_children = 0
         self._lock = threading.Lock()
 
-    def new_children(self):
+    def new_children(self) -> None:
         """Generate new children jobs.
 
         This method is useful when some of children jobs are not known beforehand and need to be generated based on other children jobs, like for example in any kind of self-consistent procedure.
@@ -601,15 +603,15 @@ class MultiJob(Job):
         """
         return None
 
-    def hash(self):
+    def hash(self) -> Optional[str]:
         """Hashing for multijobs is disabled by default. Returns ``None``."""
         return None
 
-    def check(self):
+    def check(self) -> bool:
         """Check if the execution of this instance was successful, by calling :meth:`Job.ok` of all the children jobs."""
         return all([child.ok() for child in self])
 
-    def other_jobs(self):
+    def other_jobs(self) -> Generator[Job, None, None]:
         """Iterate through other jobs that belong to this |MultiJob|, but are not in ``children``.
 
         Sometimes |prerun| or |postrun| methods create and run some small jobs that don't end up in ``children`` collection, but are still considered a part of a |MultiJob| instance (their ``parent`` atribute points to the |MultiJob| and their working folder is inside MultiJob's working folder). This method provides an iterator that goes through all such jobs.
@@ -622,7 +624,7 @@ class MultiJob(Job):
             ):
                 yield attr
 
-    def remove_child(self, job):
+    def remove_child(self, job: Job) -> None:
         """Remove *job* from children."""
 
         rm = None
@@ -633,7 +635,7 @@ class MultiJob(Job):
         if rm is not None:
             del self.children[rm]
 
-    def _get_ready(self):
+    def _get_ready(self) -> None:
         """Get ready for :meth:`~MultiJob._execute`. Count children jobs and set their ``parent`` attribute."""
         self._active_children = len(self.children)
         for child in self:
@@ -645,7 +647,7 @@ class MultiJob(Job):
             return iter(self.children.values())
         return iter(self.children)
 
-    def _notify(self):
+    def _notify(self) -> None:
         """Notify this job that one of its children has finished.
 
         Decrement ``_active_children`` by one. Use ``_lock`` to ensure thread safety.
@@ -653,7 +655,7 @@ class MultiJob(Job):
         with self._lock:
             self._active_children -= 1
 
-    def _execute(self, jobrunner):
+    def _execute(self, jobrunner: "JobRunner") -> None:
         """Run all children from ``children``. Then use :meth:`~MultiJob.new_children` and run all jobs produced by it. Repeat this procedure until :meth:`~MultiJob.new_children` returns an empty list. Wait for all started jobs to finish."""
         log("Starting {}._execute()".format(self.name), 7)
         jr = self.childrunner or jobrunner
