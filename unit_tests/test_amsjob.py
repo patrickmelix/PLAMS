@@ -1,5 +1,4 @@
 import dill as pickle
-import numpy as np
 import pytest
 from unittest.mock import MagicMock
 from collections import namedtuple
