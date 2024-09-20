@@ -8,7 +8,7 @@ from collections import OrderedDict
 import numpy as np
 
 from scm.plams.core.errors import FileError, MoleculeError, PTError
-from scm.plams.core.functions import log
+from scm.plams.core.functions import log, requires_optional_package
 from scm.plams.core.private import parse_action, smart_copy
 from scm.plams.core.settings import Settings
 from scm.plams.mol.atom import Atom
@@ -1583,6 +1583,7 @@ class Molecule:
                 new_ring.append(neighbors[0])
         return new_ring
 
+    @requires_optional_package("networkx")
     def locate_rings_networkx(self, find_smallest=False):
         """
         Obtain a list of ring indices using RDKit (same as locate_rings, but much faster)
