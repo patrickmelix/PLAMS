@@ -343,7 +343,7 @@ class AMSResults(Results):
         if "ams" in self.rkfs:
             main = self.rkfs["ams"]
             if not self.is_valid_stepnumber(main, step):
-                return
+                return None
             coords = main.read("History", f"Coords({step})")
             coords = [coords[i : i + 3] for i in range(0, len(coords), 3)]
             if ("History", f"SystemVersion({step})") in main:
@@ -432,7 +432,7 @@ class AMSResults(Results):
         The *history_section argument should be a string representing the name of the history section (``History`` or ``MDHistory``)*
         """
         if "ams" not in self.rkfs:
-            return
+            return None
         main = self.rkfs["ams"]
         keylist = [var for sec, var in main if sec == history_section]
         # Now throw out all the last parts
@@ -445,7 +445,7 @@ class AMSResults(Results):
     def get_history_property(self, varname: str, history_section: str = "History") -> Optional[List]:
         """Return the values of *varname* in the history section *history_section*."""
         if "ams" not in self.rkfs:
-            return
+            return None
         main = self.rkfs["ams"]
         if history_section not in main:
             raise KeyError(f"The requested section '{history_section}' does not exist in {main.path}")
@@ -456,7 +456,7 @@ class AMSResults(Results):
             nentries = main.read(history_section, "nEntries")
             as_block = self._values_stored_as_blocks(main, varname, history_section)
         else:
-            return
+            return None
         if as_block:
             nblocks = main.read(history_section, "nBlocks")
             values = [
@@ -471,7 +471,7 @@ class AMSResults(Results):
     def get_property_at_step(self, step: int, varname: str, history_section: str = "History") -> Optional["TRead"]:
         """Return the value of *varname* in the history section *history_section at step *step*."""
         if "ams" not in self.rkfs:
-            return
+            return None
         main = self.rkfs["ams"]
         as_block = self._values_stored_as_blocks(main, varname, history_section)
         if as_block:
@@ -507,10 +507,10 @@ class AMSResults(Results):
         Note: Numbering of steps starts at 1
         """
         if not "ams" in self.rkfs:
-            return
+            return None
         main = self.rkfs["ams"]
         if not self.is_valid_stepnumber(main, step):
-            return
+            return None
 
         # Read the masses
         molname = "Molecule"
@@ -629,14 +629,14 @@ class AMSResults(Results):
 
         return x, complete_spinup_data, complete_spindown_data, labels, fermi_energy
 
-    def get_engine_results(self, engine: str = None) -> Dict:
+    def get_engine_results(self, engine: Optional[str] = None) -> Dict:
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read_section("AMSResults"), engine)
 
-    def get_engine_properties(self, engine: str = None) -> Dict:
+    def get_engine_properties(self, engine: Optional[str] = None) -> Dict:
         """Return a dictionary with all the entries from ``Properties`` section from an engine results ``.rkf`` file.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -667,7 +667,7 @@ class AMSResults(Results):
 
         return self._process_engine_results(properties, engine)
 
-    def get_energy(self, unit: str = "hartree", engine: str = None) -> float:
+    def get_energy(self, unit: str = "hartree", engine: Optional[str] = None) -> float:
         """Return final energy, expressed in *unit*. The final energy is found in AMSResults%Energy of the engine rkf file. You can find the meaning of final energy in the engine documentation.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -676,7 +676,7 @@ class AMSResults(Results):
             "au", unit
         )
 
-    def get_energy_uncertainty(self, unit: str = "hartree", engine: str = None) -> float:
+    def get_energy_uncertainty(self, unit: str = "hartree", engine: Optional[str] = None) -> float:
         """Return final energy uncertainty, expressed in *unit*. The final energy is found in AMSResults%EnergyU of the engine rkf file. You can find the meaning of final energy uncertainty in the engine documentation.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -685,7 +685,9 @@ class AMSResults(Results):
             lambda x: x.read("AMSResults", "EnergyUncertainty"), engine
         ) * Units.conversion_ratio("au", unit)
 
-    def get_gradients(self, energy_unit: str = "hartree", dist_unit: str = "bohr", engine: str = None) -> np.ndarray:
+    def get_gradients(
+        self, energy_unit: str = "hartree", dist_unit: str = "bohr", engine: Optional[str] = None
+    ) -> np.ndarray:
         """Return the gradients of the final energy, expressed in *energy_unit* / *dist_unit*.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -697,7 +699,7 @@ class AMSResults(Results):
         )
 
     def get_gradients_uncertainty(
-        self, energy_unit: str = "hartree", dist_unit: str = "bohr", engine: str = None
+        self, energy_unit: str = "hartree", dist_unit: str = "bohr", engine: Optional[str] = None
     ) -> np.ndarray:
         """Return the uncertainty of the gradients of the final energy, expressed in *energy_unit* / *dist_unit*.
 
@@ -712,7 +714,7 @@ class AMSResults(Results):
         )
 
     def get_gradients_magnitude_uncertainty(
-        self, energy_unit: str = "hartree", dist_unit: str = "bohr", engine: str = None
+        self, energy_unit: str = "hartree", dist_unit: str = "bohr", engine: Optional[str] = None
     ) -> np.ndarray:
         """Return the uncertainty of the magnitude of the gradients of the final energy, expressed in *energy_unit* / *dist_unit*.
 
@@ -727,7 +729,7 @@ class AMSResults(Results):
             / Units.conversion_ratio("au", dist_unit)
         )
 
-    def get_stresstensor(self, engine: str = None) -> np.ndarray:
+    def get_stresstensor(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the final stress tensor, expressed in atomic units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -736,7 +738,7 @@ class AMSResults(Results):
             len(self.get_input_molecule().lattice), -1
         )
 
-    def get_hessian(self, engine: str = None) -> np.ndarray:
+    def get_hessian(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the Hessian matrix, i.e. the second derivative of the total energy with respect to the nuclear coordinates, expressed in atomic units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -745,7 +747,7 @@ class AMSResults(Results):
             3 * len(self.get_input_molecule()), -1
         )
 
-    def get_elastictensor(self, engine: str = None) -> np.ndarray:
+    def get_elastictensor(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the elastic tensor, expressed in atomic units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -759,7 +761,7 @@ class AMSResults(Results):
         else:
             return et_flat.reshape(6, 6)
 
-    def get_frequencies(self, unit: str = "cm^-1", engine: str = None) -> np.ndarray:
+    def get_frequencies(self, unit: str = "cm^-1", engine: Optional[str] = None) -> np.ndarray:
         """Return a numpy array of vibrational frequencies, expressed in *unit*.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -770,13 +772,13 @@ class AMSResults(Results):
 
     def get_frequency_spectrum(
         self,
-        engine: str = None,
+        engine: Optional[str] = None,
         broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
         broadening_width=40,
         min_x=0,
         max_x=4000,
         x_spacing=0.5,
-        post_process: Literal["max_to_1"] = None,
+        post_process: Optional[Literal["max_to_1"]] = None,
     ):
         """Return the "frequency spectrum" (i.e. the frequencies broaden with intensity equal to 1). Units: frequencies are in cm-1, the intensities by the default are in mode counts units but post_process is equal to max_to_1 are in arbitrary units.
 
@@ -800,7 +802,7 @@ class AMSResults(Results):
 
         return x_data, y_data
 
-    def get_force_constants(self, engine: str = None) -> np.ndarray:
+    def get_force_constants(self, engine: Optional[str] = None) -> np.ndarray:
         """Return a numpy array of force constants, expressed in atomic units (Hartree/bohr^2).
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -809,7 +811,7 @@ class AMSResults(Results):
         forceConstants = np.array(forceConstants) if isinstance(forceConstants, list) else np.array([forceConstants])
         return forceConstants
 
-    def get_normal_modes(self, engine: str = None) -> np.ndarray:
+    def get_normal_modes(self, engine: Optional[str] = None) -> np.ndarray:
         """Return a numpy array of normal modes with shape: (num_normal_modes, num_atoms, 3), expressed in dimensionless units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -823,21 +825,21 @@ class AMSResults(Results):
             normal_modes_list.append(n_mode)
         return np.array(normal_modes_list).reshape(num_normal_modes, -1, 3)
 
-    def get_charges(self, engine: str = None) -> np.ndarray:
+    def get_charges(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the atomic charges, expressed in atomic units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return np.asarray(self._process_engine_results(lambda x: x.read("AMSResults", "Charges"), engine))
 
-    def get_dipolemoment(self, engine: str = None) -> np.ndarray:
+    def get_dipolemoment(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the electric dipole moment, expressed in atomic units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return np.asarray(self._process_engine_results(lambda x: x.read("AMSResults", "DipoleMoment"), engine))
 
-    def get_dipolegradients(self, engine: str = None) -> np.ndarray:
+    def get_dipolegradients(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the nuclear gradients of the electric dipole moment, expressed in atomic units. This is a (3*numAtoms x 3) matrix.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -846,7 +848,7 @@ class AMSResults(Results):
             self._process_engine_results(lambda x: x.read("AMSResults", "DipoleGradients"), engine)
         ).reshape(-1, 3)
 
-    def get_polarizability(self, engine: str = None) -> np.ndarray:
+    def get_polarizability(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the polarizability, expressed in atomic units [(e*bohr)^2/hartree]. This is a (3 x 3) matrix.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -870,7 +872,7 @@ class AMSResults(Results):
             )
         return polarizability_matrix
 
-    def get_zero_point_energy(self, unit: str = "hartree", engine: str = None) -> float:
+    def get_zero_point_energy(self, unit: str = "hartree", engine: Optional[str] = None) -> float:
         """Return zero point energy, expressed in *unit*. The zero point energy is found in Vibrations%ZeroPointEnergy of the engine rkf file.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -879,7 +881,7 @@ class AMSResults(Results):
             lambda x: x.read("Vibrations", "ZeroPointEnergy"), engine
         ) * Units.conversion_ratio("au", unit)
 
-    def get_ir_intensities(self, engine: str = None) -> np.ndarray:
+    def get_ir_intensities(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the IR intensities in km/mol unit (kilometers/mol).
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -892,13 +894,13 @@ class AMSResults(Results):
 
     def get_ir_spectrum(
         self,
-        engine: str = None,
+        engine: Optional[str] = None,
         broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
         broadening_width=40,
         min_x=0,
         max_x=4000,
         x_spacing=0.5,
-        post_process: Literal["all_intensities_to_1", "max_to_1"] = None,
+        post_process: Optional[Literal["all_intensities_to_1", "max_to_1"]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Return the IR spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
 
@@ -926,14 +928,14 @@ class AMSResults(Results):
 
         return x_data, y_data
 
-    def get_n_spin(self, engine: str = None) -> int:
+    def get_n_spin(self, engine: Optional[str] = None) -> int:
         """n_spin is 1 in case of spin-restricted or spin-orbit coupling calculations, and 2 in case of spin-unrestricted calculations
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
         return self._process_engine_results(lambda x: x.read("AMSResults", "nSpin"), engine)
 
-    def get_orbital_energies(self, unit: str = "Hartree", engine: str = None) -> np.ndarray:
+    def get_orbital_energies(self, unit: str = "Hartree", engine: Optional[str] = None) -> np.ndarray:
         """Return the orbital energies in a numpy array of shape [nSpin,nOrbitals] (nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted)
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -946,7 +948,7 @@ class AMSResults(Results):
             unit,
         )
 
-    def get_orbital_occupations(self, engine: str = None) -> np.ndarray:
+    def get_orbital_occupations(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the orbital occupations in a numpy array of shape [nSpin,nOrbitals]. For spin restricted calculations, the occupations will be between 0 and 2. For spin unrestricted or spin-orbit coupling the values will be between 0 and 1.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -955,7 +957,7 @@ class AMSResults(Results):
             self._process_engine_results(lambda x: x.read("AMSResults", "orbitalOccupations"), engine)
         ).reshape(self.get_n_spin(), -1)
 
-    def get_homo_energies(self, unit: str = "Hartree", engine: str = None) -> np.ndarray:
+    def get_homo_energies(self, unit: str = "Hartree", engine: Optional[str] = None) -> np.ndarray:
         """
         Return the homo energies per spin as a numpy array of size [nSpin]. nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted. See also :func:`~are_orbitals_fractionally_occupied`.
 
@@ -967,7 +969,7 @@ class AMSResults(Results):
             unit,
         )
 
-    def get_lumo_energies(self, unit: str = "Hartree", engine: str = None) -> np.ndarray:
+    def get_lumo_energies(self, unit: str = "Hartree", engine: Optional[str] = None) -> np.ndarray:
         """
         Return the lumo energies per spin as a numpy array of size [nSpin]. nSpin is 1 in case of spin-restricted or spin-orbit coupling and 2 in case of spin unrestricted. See also :func:`~are_orbitals_fractionally_occupied`.
 
@@ -979,7 +981,7 @@ class AMSResults(Results):
             unit,
         )
 
-    def get_smallest_homo_lumo_gap(self, unit: str = "Hartree", engine: str = None) -> float:
+    def get_smallest_homo_lumo_gap(self, unit: str = "Hartree", engine: Optional[str] = None) -> float:
         """
         Returns a float containing the smallest HOMO-LUMO gap irrespective of spin (i.e. min(LUMO) - max(HOMO)). See also :func:`~are_orbitals_fractionally_occupied`.
 
@@ -989,7 +991,7 @@ class AMSResults(Results):
             self._process_engine_results(lambda x: x.read("AMSResults", "SmallestHOMOLUMOGap"), engine), "Hartree", unit
         )
 
-    def are_orbitals_fractionally_occupied(self, engine: str = None) -> bool:
+    def are_orbitals_fractionally_occupied(self, engine: Optional[str] = None) -> bool:
         """
         Returns a boolean indicating whether fractional occupations were detected. If that is the case, then the 'HOMO' and 'LUMO' labels are not well defined, since the demarcation between 'occupied' and 'empty' is somewhat arbitrary. See the AMSDriver documentation for more info.
 
@@ -1016,7 +1018,7 @@ class AMSResults(Results):
 
         return ret
 
-    def get_forcefield_params(self, engine: str = None):
+    def get_forcefield_params(self, engine: Optional[str] = None):
         """
         Read all force field data from a forcefield.rkf file into self
 
@@ -1036,20 +1038,20 @@ class AMSResults(Results):
         except:
             return ""
 
-    def get_poissonratio(self, engine: str = None):
+    def get_poissonratio(self, engine: Optional[str] = None):
         return self._process_engine_results(lambda x: x.read("AMSResults", "PoissonRatio"), engine)
 
-    def get_youngmodulus(self, unit: str = "au", engine: str = None):
+    def get_youngmodulus(self, unit: str = "au", engine: Optional[str] = None):
         return self._process_engine_results(
             lambda x: x.read("AMSResults", "YoungModulus"), engine
         ) * Units.conversion_ratio("au", unit)
 
-    def get_shearmodulus(self, unit: str = "au", engine: str = None):
+    def get_shearmodulus(self, unit: str = "au", engine: Optional[str] = None):
         return self._process_engine_results(
             lambda x: x.read("AMSResults", "ShearModulus"), engine
         ) * Units.conversion_ratio("au", unit)
 
-    def get_bulkmodulus(self, unit: str = "au", engine: str = None):
+    def get_bulkmodulus(self, unit: str = "au", engine: Optional[str] = None):
         return self._process_engine_results(
             lambda x: x.read("AMSResults", "BulkModulus"), engine
         ) * Units.conversion_ratio("au", unit)
@@ -1111,7 +1113,6 @@ class AMSResults(Results):
         origscancoords = tolist(self.get_history_property("ScanCoord", history_section="PESScan"))
         # one scan coordinate may have several variables
         scancoords = [x.split("\n") for x in origscancoords]
-        units = []
         pescoords = tolist(self.readrkf("PESScan", "PESCoords"))
         pescoords = np.array(pescoords).reshape(-1, sum(len(x) for x in scancoords))
         pescoords = np.transpose(pescoords)
@@ -1575,11 +1576,11 @@ class AMSResults(Results):
 
     def get_ir_spectrum_md(
         self,
-        times: np.ndarray = None,
-        acf: np.ndarray = None,
-        max_dt_fs: float = None,
-        max_freq: float = 5000,
-        number_of_points: int = None,
+        times: Optional[np.ndarray] = None,
+        acf: Optional[np.ndarray] = None,
+        max_dt_fs: Optional[float] = None,
+        max_freq: Optional[float] = 5000,
+        number_of_points: Optional[int] = None,
     ):
         """
         Calculates a ir spectrum from the dipole moment autocorrelation function.
@@ -2206,7 +2207,7 @@ class AMSResults(Results):
         # Surrender:
         raise FileError("File {} not present in {}".format(filename, self.job.path))
 
-    def _process_engine_results(self, func, engine: str = None):
+    def _process_engine_results(self, func, engine: Optional[str] = None):
         """A generic method skeleton for processing any engine results ``.rkf`` file. *func* should be a function that takes one argument (an instance of |KFFile|) and returns arbitrary data.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
@@ -2593,7 +2594,7 @@ class AMSJob(SingleJob):
             sett = InputParserFacade().to_settings(AMSJob._command, str(mol))
             return sett.ams.system[0]
 
-        def serialize_molecule_to_settings(mol: Molecule, name: str = None):
+        def serialize_molecule_to_settings(mol: Molecule, name: Optional[str] = None):
             sett = Settings()
 
             if len(mol.lattice) in [1, 2] and mol.align_lattice():
@@ -2912,7 +2913,7 @@ class AMSJob(SingleJob):
                     i += 1
                 return l
 
-        def read_mol(settings_block: Settings) -> Molecule:
+        def read_mol(settings_block: Settings) -> Optional[Molecule]:
             """Retrieve single molecule from a single `s.input.ams.system` block."""
             if "geometryfile" in settings_block:
                 mol = Molecule(settings_block.geometryfile)
