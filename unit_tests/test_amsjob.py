@@ -268,3 +268,114 @@ EndEngine
 
     def test_pickle_dumps_and_loads_job_successfully(self, job_input):
         pytest.skip("Cannot pickle ChemicalSystem")
+
+
+class TestAMSJobWithMultipleMolecules(TestAMSJob):
+    """
+    Test suite for AMSJob using multiple molecules.
+    Sets up a NEB calculation for the isomerisation of HCN.
+    """
+
+    @staticmethod
+    def get_input_molecule():
+        """
+        Get instance of the Molecule class passed to the AMSJob
+        """
+        main_molecule = Molecule()
+        main_molecule.add_atom(Atom(symbol="C", coords=(0, 0, 0)))
+        main_molecule.add_atom(Atom(symbol="N", coords=(1.18, 0, 0)))
+        main_molecule.add_atom(Atom(symbol="H", coords=(2.196, 0, 0)))
+        final_molecule = main_molecule.copy()
+        final_molecule.atoms[1].x = 1.163
+        final_molecule.atoms[2].x = -1.078
+
+        molecule = {"": main_molecule, "final": final_molecule}
+
+        return molecule
+
+    @staticmethod
+    def get_input_settings():
+        """
+        Instance of the Settings class passed to the AMSJob
+        """
+        settings = Settings()
+        settings.input.ams.Task = "NEB"
+        settings.input.ams.NEB.Images = 9
+        settings.input.ams.NEB.Iterations = 100
+        settings.input.DFTB.Model = "DFTB3"
+        settings.input.DFTB.ResourcesDir = "DFTB.org/3ob-3-1"
+        settings.input.DFTB.DispersionCorrection = "D3-BJ"
+        return settings
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """NEB
+  Images 9
+  Iterations 100
+End
+
+System
+  Atoms
+              C       0.0000000000       0.0000000000       0.0000000000
+              N       1.1800000000       0.0000000000       0.0000000000
+              H       2.1960000000       0.0000000000       0.0000000000
+  End
+End
+System final
+  Atoms
+              C       0.0000000000       0.0000000000       0.0000000000
+              N       1.1630000000       0.0000000000       0.0000000000
+              H      -1.0780000000       0.0000000000       0.0000000000
+  End
+End
+
+Task NEB
+
+Engine DFTB
+  DispersionCorrection D3-BJ
+  Model DFTB3
+  ResourcesDir DFTB.org/3ob-3-1
+EndEngine
+
+"""
+
+    def test_init_deep_copies_molecule(self, job_input):
+        # Given job with molecule
+        job = AMSJob(molecule=job_input.molecule)
+
+        # When get molecule from job
+        # Then job molecule is a deep copy
+        assert not job.molecule == job_input.molecule
+        for name, mol in job.molecule.items():
+            assert not mol == job_input.molecule[name]
+            assert not mol.atoms == job_input.molecule[name].atoms
+
+
+class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
+    """
+    Test suite for AMSJob using multiple Chemical Systems.
+    Sets up a NEB calculation for the isomerisation of HCN.
+    """
+
+    @staticmethod
+    def get_input_molecule():
+        """
+        Instance of the Molecule class passed to the AMSJob
+        """
+        skip_if_no_scm_libbase()
+        from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
+
+        main_molecule = ChemicalSystem()
+        main_molecule.add_atom("C", coords=(0, 0, 0), unit="A")
+        main_molecule.add_atom("N", coords=(1.18, 0, 0), unit="A")
+        main_molecule.add_atom("H", coords=(2.196, 0, 0), unit="A")
+        final_molecule = main_molecule.copy()
+        final_molecule.atoms[1].x = 1.163
+        final_molecule.atoms[2].x = -1.078
+
+        molecule = {"": main_molecule, "final": final_molecule}
+
+        return molecule

@@ -2237,15 +2237,24 @@ class AMSJob(SingleJob):
     """A class representing a single computation with AMS driver. The corresponding results type is |AMSResults|."""
 
     results: AMSResults
-    molecule: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem"]]
+    molecule: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem", Dict[str, "ChemicalSystem"]]]
 
     _result_type = AMSResults
     _command = "ams"
 
     def __init__(
-        self, molecule: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem"]] = None, *args, **kwargs
+        self,
+        molecule: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem", Dict[str, "ChemicalSystem"]]] = None,
+        *args,
+        **kwargs,
     ):
-        molecule = molecule.copy() if _has_scm_chemsys and isinstance(molecule, ChemicalSystem) else molecule
+        def copy_mol(mol):
+            if isinstance(mol, Molecule):
+                return mol.copy()
+            elif _has_scm_chemsys and isinstance(mol, ChemicalSystem):
+                return mol.copy()
+
+        molecule = {k: copy_mol(m) for k, m in molecule.items()} if isinstance(molecule, dict) else copy_mol(molecule)
         super().__init__(molecule, *args, **kwargs)
 
     def run(
