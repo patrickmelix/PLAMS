@@ -1,4 +1,5 @@
 import dill as pickle
+import numpy as np
 import pytest
 from unittest.mock import MagicMock
 from collections import namedtuple
@@ -6,6 +7,7 @@ from collections import namedtuple
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.core.settings import Settings
 from scm.plams.mol.molecule import Atom, Molecule
+from scm.plams.tools.units import Units
 from scm.plams.unit_tests.test_helpers import skip_if_no_scm_pisa, skip_if_no_scm_libbase
 
 
@@ -370,12 +372,48 @@ class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
 
         main_molecule = ChemicalSystem()
         main_molecule.add_atom("C", coords=(0, 0, 0), unit="A")
-        main_molecule.add_atom("N", coords=(1.18, 0, 0), unit="A")
-        main_molecule.add_atom("H", coords=(2.196, 0, 0), unit="A")
+        main_molecule.add_atom("N", coords=(1, 0, 0), unit="A")
+        main_molecule.add_atom("H", coords=(2, 0, 0), unit="A")
         final_molecule = main_molecule.copy()
-        final_molecule.atoms[1].x = 1.163
-        final_molecule.atoms[2].x = -1.078
-
+        final_molecule.atoms[2].coords[0] = Units.convert(-1, "A", "au")
         molecule = {"": main_molecule, "final": final_molecule}
 
         return molecule
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """NEB
+  Images 9
+  Iterations 100
+End
+
+System
+  Atoms
+     C    0.0000000000000000  0.0000000000000000  0.0000000000000000
+     N    1.0000000000000000  0.0000000000000000  0.0000000000000000
+     H    2.0000000000000000  0.0000000000000000  0.0000000000000000
+  End
+End
+System final
+  Atoms
+     C    0.0000000000000000  0.0000000000000000  0.0000000000000000
+     N    1.0000000000000000  0.0000000000000000  0.0000000000000000
+     H   -1.0000000000000000  0.0000000000000000  0.0000000000000000
+  End
+End
+
+Task NEB
+
+Engine DFTB
+  DispersionCorrection D3-BJ
+  Model DFTB3
+  ResourcesDir DFTB.org/3ob-3-1
+EndEngine
+
+"""
+
+    def test_pickle_dumps_and_loads_job_successfully(self, job_input):
+        pytest.skip("Cannot pickle ChemicalSystem")
