@@ -509,29 +509,40 @@ class TestDecorators:
 
         @requires_optional_package("numpy")
         def requires_numpy_package(self):
+            import numpy  # noqa F401
+
             return True
 
         @requires_optional_package("__this_is_definitely_not_an_available_package__")
         def requires_unavailable_package(self):
+            import __this_is_definitely_not_an_available_package__  # noqa F401
+
             return True
 
     def test_requires_optional_package(self):
+        # Given class which has methods, some of which require optional packages
         req_class = self.OptionalRequirementsClass()
 
-        def maybe_calls_requireds_unvailable(does_call):
+        def maybe_calls_requires_unavailable_package(does_call):
             if does_call:
                 req_class.requires_unavailable_package()
             return True
 
+        # When call methods where package requirements are satisfied
+        # Then no errors are raised
         assert req_class.no_requirements()
         assert req_class.requires_numpy_package()
-        assert maybe_calls_requireds_unvailable(False)
+        assert maybe_calls_requires_unavailable_package(False)
+
+        # When call methods where package is missing (or method which calls said method)
+        # Then error is raised
         with pytest.raises(MissingOptionalPackageError):
             req_class.requires_unavailable_package()
         with pytest.raises(MissingOptionalPackageError):
-            maybe_calls_requireds_unvailable(True)
+            maybe_calls_requires_unavailable_package(True)
 
     def test_requires_optional_package_with_add_to_class_and_instance(self):
+        # Given initially empty class
         empty_class = self.EmptyClass()
 
         @add_to_class(self.EmptyClass)
@@ -544,7 +555,8 @@ class TestDecorators:
         def requires_unavailable_package_and_is_added_to_instance(self):
             return True
 
-        # Verify requirement checked on standard function call and on class method call
+        # When call methods that require non-existing package which were added to the class
+        # Then error raised
         with pytest.raises(MissingOptionalPackageError):
             empty_class.requires_unavailable_package_and_is_added_to_class()
 
