@@ -2254,6 +2254,8 @@ class AMSJob(SingleJob):
                 return mol.copy()
             elif _has_scm_chemsys and isinstance(mol, ChemicalSystem):
                 return mol.copy()
+            else:
+                return mol
 
         molecule = {k: copy_mol(m) for k, m in molecule.items()} if isinstance(molecule, dict) else copy_mol(molecule)
         super().__init__(molecule, *args, **kwargs)
