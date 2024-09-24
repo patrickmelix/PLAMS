@@ -5,7 +5,7 @@ from typing import Dict, List, Literal, Set, Tuple, Union, Optional, TYPE_CHECKI
 import numpy as np
 from scm.plams.core.basejob import SingleJob
 from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError
-from scm.plams.core.functions import config, log, parse_heredoc
+from scm.plams.core.functions import config, log, parse_heredoc, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
@@ -209,6 +209,7 @@ class AMSResults(Results):
         if sectiondict:
             return Molecule._mol_from_rkf_section(sectiondict)
 
+    @requires_optional_package("scm.libbase")
     def get_system(self, section: str, file: str = "ams") -> "ChemicalSystem":
         """Return a ``ChemicalSystem`` instance stored in a given *section* of a chosen ``.rkf`` file.
 
@@ -218,8 +219,6 @@ class AMSResults(Results):
 
         Note that ``ChemicalSystem`` is only available within AMS python. If unavailable, the call will raise an error.
         """
-        if not _has_scm_chemsys:
-            raise PlamsError("'ChemicalSystem' not available outside of AMS python.")
         return ChemicalSystem.from_kf(self.rkfpath(file), section)
 
     def get_ase_atoms(self, section: str, file: str = "ams") -> "AseAtoms":
