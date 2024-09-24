@@ -454,7 +454,7 @@ class SingleJob(Job):
         return self._filenames[t].replace("$JN", self.name)
 
     @classmethod
-    def load(cls, path, jobmanager: "JobManager" = None, strict: bool = True) -> "SingleJob":
+    def load(cls, path, jobmanager: Optional["JobManager"] = None, strict: bool = True) -> "SingleJob":
         """
         Loads a Job instance from `path`, where path can either be a
         directory with a `*.dill` file, or the full path to the `*.dill` file.
