@@ -15,7 +15,7 @@ def plams_mols(xyz_folder, pdb_folder, rkf_folder):
     """
     Selection of plams molecules loaded from various sources.
     """
-    water_molecule = Molecule(rkf_folder / "h20.rkf")
+    water_molecule = Molecule(rkf_folder / "water_optimization" / "ams.rkf")
     water_molecule_with_bonds = water_molecule.copy()
     water_molecule_with_bonds.guess_bonds()
     water_molecule_in_box = water_molecule.copy()
