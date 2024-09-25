@@ -86,23 +86,51 @@ class ADFFragmentJob(MultiJob):
 
     _result_type = ADFFragmentResults
 
-    def __init__(self, fragment1=None, fragment2=None, full_settings=None, **kwargs):
-        """
+    def __init__(self, fragment1: Molecule = None, fragment2: Molecule = None,
+                  fragment1_opt: Molecule = None, fragment2_opt: Molecule = None,
+                  full_settings: Settings = None,
+                  frag1_settings: Settings = None, frag2_settings: Settings = None,
+                  **kwargs):
+        """Create an ADFFragmentJob with the given fragments.
+
+        The optimized fragment structures can be given as arguments.
+        Single point calculations on these structures will then be performed
+        to obtain the preparation energy.
+
+        Subclass of |MultiJob|.
+        
         Args:
             fragment1 (Molecule): The first fragment.
             fragment2 (Molecule): The second fragment.
+            fragment1_opt (Molecule, optional): The optimized first fragment.
+            fragment2_opt (Molecule, optional): The optimized second fragment.
             full_settings (Settings): The settings for the full calculation.
+            frag1_settings (Settings): Specific settings for the first fragment calculation.
+            frag2_settings (Settings): Specific settings for the second fragment calculation.
             **kwargs: Further keyword arguments for |MultiJob|.
         """
         MultiJob.__init__(self, **kwargs)
         self.fragment1 = fragment1.copy() if isinstance(fragment1, Molecule) else fragment1
+        self.frag1_settings = frag1_settings or Settings()
         self.fragment2 = fragment2.copy() if isinstance(fragment2, Molecule) else fragment2
+        self.frag2_settings = frag2_settings or Settings()
         self.full_settings = full_settings or Settings()
+
+        if isinstance(fragment1_opt, Molecule):
+            self.fragment1_opt = fragment1_opt.copy()
+        elif fragment1_opt is not None:
+            raise TypeError("fragment1_opt should be a Molecule object or None")
+        if isinstance(fragment2_opt, Molecule):
+            self.fragment2_opt = fragment2_opt.copy()
+        elif fragment2_opt is not None:
+            raise TypeError("fragment2_opt should be a Molecule object or None")
 
     def prerun(self):  # noqa F811
         """Prepare the fragments and the full calculation."""
-        self.f1 = AMSJob(name="frag1", molecule=self.fragment1, settings=self.settings)
-        self.f2 = AMSJob(name="frag2", molecule=self.fragment2, settings=self.settings)
+        self.f1 = AMSJob(name="frag1", molecule=self.fragment1,
+                          settings=self.settings+self.frag1_settings)
+        self.f2 = AMSJob(name="frag2", molecule=self.fragment2,
+                          settings=self.settings+self.frag2_settings)
 
         for at in self.fragment1:
             at.properties.suffix = "adf.f=subsystem1"
@@ -110,12 +138,22 @@ class ADFFragmentJob(MultiJob):
             at.properties.suffix = "adf.f=subsystem2"
 
         self.full = AMSJob(
-            name="full", molecule=self.fragment1 + self.fragment2, settings=self.settings + self.full_settings
+            name="full", molecule=self.fragment1 + self.fragment2,
+            settings=self.settings + self.full_settings
         )
 
         self.full.settings.input.adf.fragments.subsystem1 = (self.f1, "adf")
         self.full.settings.input.adf.fragments.subsystem2 = (self.f2, "adf")
         self.children = [self.f1, self.f2, self.full]
+
+        if hasattr(self, 'fragment1_opt'):
+            self.f1_opt = AMSJob(name="frag1_opt", molecule=self.fragment1_opt,
+                                  settings=self.settings+self.frag1_settings)
+            self.children.append(self.f1_opt)
+        if hasattr(self, 'fragment2_opt'):
+            self.f2_opt = AMSJob(name="frag2_opt", molecule=self.fragment2_opt,
+                                  settings=self.settings+self.frag2_settings)
+            self.children.append(self.f2_opt)
 
     @classmethod
     def load_external(cls, path: str, jobname: str = None) -> "ADFFragmentJob":
@@ -142,5 +180,12 @@ class ADFFragmentJob(MultiJob):
         job.f2 = AMSJob.load_external(opj(path, "frag2"))
         job.full = AMSJob.load_external(opj(path, "full"))
         job.children = [job.f1, job.f2, job.full]
+
+        if isdir(opj(path, "frag1_opt")):
+            job.f1_opt = AMSJob.load_external(opj(path, "frag1_opt"))
+            job.children.append(job.f1_opt)
+        if isdir(opj(path, "frag2_opt")):
+            job.f2_opt = AMSJob.load_external(opj(path, "frag2_opt"))
+            job.children.append(job.f2_opt)
 
         return job

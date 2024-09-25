@@ -60,30 +60,6 @@ class BANDFragmentResults(ADFFragmentResults):
 class BANDFragmentJob(ADFFragmentJob):
     _result_type = BANDFragmentResults
 
-    def __init__(self, fragment1_opt: Molecule = None, fragment2_opt: Molecule = None, **kwargs) -> None:
-        """Create a BANDFragmentJob with the given fragments.
-
-        The optimized fragment structures can be given as arguments.
-        Single point calculations on these structures will then be performed
-        to obtain the preparation energy.
-
-        Subclass of |ADFFragmentJob|.
-
-        Args:
-            fragment1_opt (Molecule, optional): The optimized fragment 1.
-            fragment2_opt (Molecule, optional): The optimized fragment 2.
-            **kwargs: Further keyword arguments for |ADFFragmentJob|.
-        """
-        super().__init__(**kwargs)
-        if isinstance(fragment1_opt, Molecule):
-            self.fragment1_opt = fragment1_opt.copy()
-            self.f1_opt = AMSJob(name="frag1_opt", molecule=self.fragment1_opt, settings=self.settings)
-            self.children.append(self.f1_opt)
-        if isinstance(fragment2_opt, Molecule):
-            self.fragment2_opt = fragment2_opt.copy()
-            self.f2_opt = AMSJob(name="frag2_opt", molecule=self.fragment2_opt, settings=self.settings)
-            self.children.append(self.f2_opt)
-
     def create_mapping_setting(self) -> None:
         if "fragment" in self.full_settings.input.band:
             log(
