@@ -5,7 +5,7 @@ from ase import Atoms as AseAtoms
 
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.tools.kftools import KFFile
-from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.core.errors import FileError, MissingOptionalPackageError
 from scm.plams.mol.molecule import Molecule
 from scm.plams.unit_tests.test_helpers import skip_if_no_ams_installation
 
@@ -245,7 +245,7 @@ class TestWaterOptimizationAMSResults:
             self.assert_water_molecule(molecule, expected_coords, ChemicalSystem)
         except ImportError:
             # Otherwise errors
-            with pytest.raises(PlamsError):
+            with pytest.raises(MissingOptionalPackageError):
                 water_opt_results.get_system(section, file)
 
     @pytest.mark.parametrize(
@@ -286,7 +286,7 @@ class TestWaterOptimizationAMSResults:
             self.assert_water_molecule(molecule, "input", ChemicalSystem)
         except ImportError:
             # Otherwise errors
-            with pytest.raises(PlamsError):
+            with pytest.raises(MissingOptionalPackageError):
                 water_opt_results.get_input_system()
 
     def test_get_input_molecules_has_initial_molecule_under_empty_key(self, water_opt_results):
@@ -321,7 +321,7 @@ class TestWaterOptimizationAMSResults:
             self.assert_water_molecule(molecule, "main", ChemicalSystem)
         except ImportError:
             # Otherwise errors
-            with pytest.raises(PlamsError):
+            with pytest.raises(MissingOptionalPackageError):
                 water_opt_results.get_main_system()
 
     @pytest.mark.parametrize("get_results", [False, True])

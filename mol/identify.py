@@ -1,16 +1,10 @@
 from collections import OrderedDict
 from itertools import combinations
+from typing import Optional, Dict
 
 import numpy as np
 
-try:
-    import networkx
-
-    has_networkx = True
-except ImportError:
-    has_networkx = False
-
-from scm.plams.core.functions import add_to_class
+from scm.plams.core.functions import add_to_class, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.units import Units
@@ -79,7 +73,7 @@ def clear(molecule):
 
 
 def iterate(molecule, flags):
-    """Perform one iteration of atom labeling alogrithm.
+    """Perform one iteration of atom labeling algorithm.
 
     First, mark all atoms that are unique and have only unique neighbors as "done". Then calculate new label for each atom that is not done. Return True if the number of different atom labels increased during this iteration.
     """
@@ -224,12 +218,12 @@ def molecule_name(molecule):
 
 
 @add_to_class(Molecule)
-def label(self, level=1, keep_labels=False, flags=None):
+def label(self, level: int = 1, keep_labels: bool = False, flags: Optional[Dict[str, bool]] = None) -> str:
     """Compute the label of this molecule using chosen *level* of detail.
 
     Possible levels are:
 
-    *   **0**: does not pefrom any atom labeling, returns empirical formula (see :meth:`~scm.plams.mol.molecule.Molecule.get_formula`)
+    *   **0**: does not perform any atom labeling, returns empirical formula (see :meth:`~scm.plams.mol.molecule.Molecule.get_formula`)
     *   **1**: only direct connectivity is considered, without bond orders (in other words, treats all the bonds as single bonds)
     *   **2**: use connectivity and bond orders
     *   **3**: use connectivity, bond orders and some spatial information to distinguish R/S and E/Z isomers
@@ -246,7 +240,7 @@ def label(self, level=1, keep_labels=False, flags=None):
 
     .. note::
 
-        This method is a new PLAMS feature and its still somewhat experimental. The exact details of the algorithm can, and probably will, change in future. You are more than welcome to provide any feedback or feature requests.
+        This method is a new PLAMS feature and it's still somewhat experimental. The exact details of the algorithm can, and probably will, change in future. You are more than welcome to provide any feedback or feature requests.
 
     """
     if isinstance(level, (tuple, list)):
@@ -294,84 +288,90 @@ def set_local_labels(self, niter=2, flags=None):
         iterate(self, flags)
 
 
-if has_networkx:
+@requires_optional_package("networkx")
+def get_graph(mol, dic, level=1):
+    """
+    Create a networkx graph for this molecule that can be used to compare (all info is in the edge.weight attribute)
+    """
+    import networkx
 
-    def get_graph(mol, dic, level=1):
-        """
-        Create a networkx graph for this molecule that can be used to compare (all info is in the edge.weight attribute)
-        """
-        nats = len(mol)
-        mol = mol.copy()
-        if len(mol.bonds) == 0:
-            mol.guess_bonds()
-        if not hasattr(mol.atoms[0], "IDname"):
-            mol.label(level=1, keep_labels=True)
+    nats = len(mol)
+    mol = mol.copy()
+    if len(mol.bonds) == 0:
+        mol.guess_bonds()
+    if not hasattr(mol.atoms[0], "IDname"):
+        mol.label(level=1, keep_labels=True)
 
-        # Get the connectivigty matrix (remove bond orders)
-        matrix = mol.bond_matrix()
-        matrix[matrix > 0] = 1
-        matrix = matrix.astype(np.int32)
+    # Get the connectivity matrix (remove bond orders)
+    matrix = mol.bond_matrix()
+    matrix[matrix > 0] = 1
+    matrix = matrix.astype(np.int32)
 
-        # Multilpy the graph entries with the unique labels for each atom
-        identifiers = np.array([dic[at.IDname] if at.IDname in dic.keys() else None for at in mol.atoms])
-        if None in identifiers:
-            return None
-        identifiers = identifiers.astype(np.int32)
-        matrix *= identifiers.reshape((1, nats))
-        matrix *= identifiers.reshape((nats, 1))
+    # Multiply the graph entries with the unique labels for each atom
+    identifiers = np.array([dic[at.IDname] if at.IDname in dic.keys() else None for at in mol.atoms])
+    if None in identifiers:
+        return None
+    identifiers = identifiers.astype(np.int32)
+    matrix *= identifiers.reshape((1, nats))
+    matrix *= identifiers.reshape((nats, 1))
 
-        # Create the graph
-        graph = networkx.from_numpy_matrix(matrix)
+    # Create the graph
+    graph = networkx.from_numpy_matrix(matrix)
 
-        return graph
+    return graph
 
-    @add_to_class(Molecule)
-    def find_permutation(self, other, level=1):
-        """
-        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed.
-        """
-        # Get bonds and unique atomIDs if needed
-        if len(self.bonds) == 0:
-            self.guess_bonds()
-        if not hasattr(self.atoms[0], "IDname"):
-            self.label(level=1, keep_labels=True)
 
-        # Link atom IDs to integers
-        dic = {}
-        for at in self.atoms:
-            if not at.IDname in dic.keys():
-                dic[at.IDname] = max([v for v in dic.values()]) + 1 if len(dic) > 0 else 1
+@add_to_class(Molecule)
+@requires_optional_package("networkx")
+def find_permutation(self, other, level=1):
+    """
+    Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed.
+    """
+    import networkx
 
-        # Create the graphs
-        graph = get_graph(self, dic, level=1)
-        graph2 = get_graph(other, dic, level=1)
-        if graph2 is None:
-            return None
+    # Get bonds and unique atomIDs if needed
+    if len(self.bonds) == 0:
+        self.guess_bonds()
+    if not hasattr(self.atoms[0], "IDname"):
+        self.label(level=1, keep_labels=True)
 
-        # Match
-        GM = networkx.isomorphism.GraphMatcher(
-            graph, graph2, edge_match=networkx.isomorphism.categorical_edge_match("weight", 1)
-        )
-        isomorphic = GM.is_isomorphic()
-        if not isomorphic:
-            return None
+    # Link atom IDs to integers
+    dic = {}
+    for at in self.atoms:
+        if not at.IDname in dic.keys():
+            dic[at.IDname] = max([v for v in dic.values()]) + 1 if len(dic) > 0 else 1
 
-        # Invert the solution dictionary, to be able to reorder the first graph
-        dic = {}
-        for k, v in GM.mapping.items():
-            dic[v] = k
-        keys = sorted([key for key in dic.keys()])
-        indices = [dic[key] for key in keys]
+    # Create the graphs
+    graph = get_graph(self, dic, level=1)
+    graph2 = get_graph(other, dic, level=1)
+    if graph2 is None:
+        return None
 
-        return indices
+    # Match
+    GM = networkx.isomorphism.GraphMatcher(
+        graph, graph2, edge_match=networkx.isomorphism.categorical_edge_match("weight", 1)
+    )
+    isomorphic = GM.is_isomorphic()
+    if not isomorphic:
+        return None
 
-    @add_to_class(Molecule)
-    def reorder(self, other, level=1):
-        """
-        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is a new ``Molecule`` object, or ``None`` if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
-        """
-        indices = self.find_permutation(other, level=level)
-        if indices is None:
-            return None
-        mol = self.get_fragment(indices)
-        return mol
+    # Invert the solution dictionary, to be able to reorder the first graph
+    dic = {}
+    for k, v in GM.mapping.items():
+        dic[v] = k
+    keys = sorted([key for key in dic.keys()])
+    indices = [dic[key] for key in keys]
+
+    return indices
+
+
+@add_to_class(Molecule)
+def reorder(self, other, level=1):
+    """
+    Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is a new ``Molecule`` object, or ``None`` if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
+    """
+    indices = self.find_permutation(other, level=level)
+    if indices is None:
+        return None
+    mol = self.get_fragment(indices)
+    return mol

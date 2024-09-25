@@ -112,8 +112,10 @@ PLAMS requires the following Python packages as dependencies:
 
 *   `numpy <http://www.numpy.org>`_
 *   `dill <https://pypi.python.org/pypi/dill>`_ (enhanced pickling)
+*   `natsort <https://natsort.readthedocs.io>`_
 *   `ase <https://wiki.fysik.dtu.dk/ase>`_ (optional dependency)
 *   `rdkit <https://pypi.org/project/rdkit>`_ (optional dependency)
+*   `networkx <https://networkx.org>`_ (optional dependency)
 
 If you are using Amsterdam Modeling Suite, all the above packages are already included in our Python stack.
 When you install PLAMS using ``pip``, the required packages (numpy and dill) will be installed automatically.

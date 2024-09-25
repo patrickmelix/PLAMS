@@ -2,6 +2,7 @@ import builtins
 from unittest.mock import patch, mock_open
 import pytest
 import os
+from importlib.util import find_spec
 
 from scm.plams.core.settings import (
     SafeRunSettings,
@@ -47,6 +48,18 @@ def get_mock_open_function(predicate, content):
     mock.side_effect = read
 
     return patch("builtins.open", new=mock)
+
+
+def get_mock_find_spec(patch_module: str, package_name: str):
+    """
+    Gets a patched version of the find_spec function, which will return None for the specified package,
+    but use the 'real' function for all other packages
+    """
+
+    def mock_find_spec(name):
+        return None if name == package_name else find_spec(name)
+
+    return patch(f"{patch_module}.find_spec", side_effect=mock_find_spec)
 
 
 def assert_config_as_expected(
