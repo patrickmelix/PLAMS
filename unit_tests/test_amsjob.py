@@ -1,6 +1,6 @@
 import dill as pickle
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from collections import namedtuple
 
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
@@ -116,7 +116,7 @@ AMS_JOBNAME="plamsjob" AMS_RESULTSDIR=. $AMSBIN/ams --input="plamsjob.in" < /dev
 """
         )
 
-    def test_get_runscript_with_runscript_settings_generates_expected_string(self, job_input):
+    def test_get_runscript_with_runscript_settings_generates_expected_string(self, job_input, config):
         # Given job with additional runscript settings
         job_input.settings.runscript.preamble_lines = ["# Start"]
         job_input.settings.runscript.postamble_lines = ["# End"]
@@ -125,7 +125,9 @@ AMS_JOBNAME="plamsjob" AMS_RESULTSDIR=. $AMSBIN/ams --input="plamsjob.in" < /dev
         job = AMSJob(molecule=job_input.molecule, settings=job_input.settings)
 
         # When get the runscript
-        runscript = job.get_runscript()
+        with patch("scm.plams.interfaces.adfsuite.ams.config", config):
+            config.slurm = None  # Remove any specific settings when running under slurm
+            runscript = job.get_runscript()
 
         # Then runscript with additional lines returned
         assert (
