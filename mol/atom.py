@@ -72,9 +72,10 @@ class Atom:
         if symbol is not None:
             self.symbol = str(symbol)
         else:
-            if not isinstance(atnum, int):
-                raise TypeError(f"Atomic number (atnum) must be an int, but was {type(atnum).__name__}")
-            self.atnum = atnum
+            try:
+                self.atnum = int(atnum)
+            except ValueError:
+                raise TypeError(f"Atomic number (atnum) must be convertable to an int, but was {type(atnum).__name__}")
             if atnum == 0:
                 self._dummysymbol = "Xx"
 
