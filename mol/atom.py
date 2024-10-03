@@ -1,7 +1,7 @@
 import math
 
 import numpy as np
-from typing import Iterable, Union, List, Tuple, TYPE_CHECKING
+from typing import Iterable, Union, List, Tuple, TYPE_CHECKING, Sequence, Optional, Dict
 
 from scm.plams.core.settings import Settings
 from scm.plams.tools.periodic_table import PT
@@ -11,6 +11,7 @@ __all__ = ["Atom"]
 
 if TYPE_CHECKING:
     from scm.plams.mol.bond import Bond
+    from scm.plams.mol.molecule import Molecule
 
 
 class Atom:
@@ -58,10 +59,21 @@ class Atom:
     Internally, atomic coordinates are always expressed in angstroms. Most of methods that read or modify atomic coordinates accept a keyword argument ``unit`` allowing to choose unit in which results and/or arguments are expressed (see |Units| for details). Throughout the entire code angstrom is the default length unit. If you don't specify ``unit`` parameter in any place of your script, all the automatic unit handling described above boils down to occasional multiplication/division by 1.0.
     """
 
-    def __init__(self, atnum=0, symbol=None, coords=None, unit="angstrom", bonds=None, mol=None, **other):
+    def __init__(
+        self,
+        atnum: int = 0,
+        symbol: Optional[str] = None,
+        coords: Optional[Sequence[float]] = None,
+        unit: str = "angstrom",
+        bonds: Optional[List["Bond"]] = None,
+        mol: Optional["Molecule"] = None,
+        **other,
+    ):
         if symbol is not None:
-            self.symbol = symbol
+            self.symbol = str(symbol)
         else:
+            if not isinstance(atnum, int):
+                raise TypeError(f"Atomic number (atnum) must be an int, but was {type(atnum).__name__}")
             self.atnum = atnum
             if atnum == 0:
                 self._dummysymbol = "Xx"
@@ -84,7 +96,15 @@ class Atom:
         else:
             raise TypeError("Atom: Invalid coordinates passed")
 
-    def str(self, symbol=True, suffix="", suffix_dict={}, unit="angstrom", space=14, decimal=6):
+    def str(
+        self,
+        symbol: bool = True,
+        suffix: str = "",
+        suffix_dict: Optional[Dict] = None,
+        unit: str = "angstrom",
+        space: int = 14,
+        decimal: int = 6,
+    ) -> str:
         """Return a string representation of this atom.
 
         Returned string is a single line (no newline characters) that always contains atomic coordinates (and maybe more). Each atomic coordinate is printed using *space* characters, with *decimal* characters reserved for decimal digits. Coordinates values are expressed in *unit*.
@@ -111,6 +131,7 @@ class Atom:
                      C      1.000000      1.500000      2.000000 subsystem=membrane
 
         """
+        suffix_dict = suffix_dict if suffix_dict is not None else {}
         strformat = "{:>%is}" % space
         numformat = "{:>%i.%if}" % (space, decimal)
         f = lambda x: (

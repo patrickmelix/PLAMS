@@ -282,7 +282,7 @@ class AMSResults(Results):
         return self.get_molecule("Molecule", "ams")
 
     def get_main_system(self) -> "ChemicalSystem":
-        """Return a |Molecule| instance with the final coordinates.
+        """Return a ``ChemicalSystem`` instance with the final coordinates.
 
         All data used by this method is taken from ``ams.rkf`` file.
         The ``molecule`` attribute of the corresponding job is ignored.
@@ -2961,9 +2961,9 @@ class AMSJob(SingleJob):
                     plams_bond.properties.suffix = suffix[0]
                 mol.add_bond(plams_bond)
 
-            # Set the molecular charge
+            # Set the molecular charge as a numeric value
             if settings_block.charge:
-                mol.properties.charge = settings_block.charge
+                mol.properties.charge = float(settings_block.charge)
 
             # Set the region info (used in ACErxn)
             if settings_block.region:

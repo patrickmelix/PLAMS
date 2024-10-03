@@ -1,0 +1,13 @@
+System
+  Atoms
+              O       1.0000000000       0.0000000000       0.0000000000
+              H       0.0000000000       0.0000000000       0.0000000000
+  End
+  Charge -1.0
+End
+
+Task SinglePoint
+
+Engine ADF
+EndEngine
+

@@ -1,0 +1,36 @@
+System
+  Atoms
+             Ni       0.0000000000       0.0000000000       0.0000000000
+              O       2.0850000000       2.0850000000       2.0850000000
+  End
+  Lattice
+         0.0000000000     2.0850000000     2.0850000000
+         2.0850000000     0.0000000000     2.0850000000
+         2.0850000000     2.0850000000     0.0000000000
+  End
+End
+
+task SinglePoint
+
+Engine band
+  Basis
+    Type DZP
+  End
+  DOS
+    CalcPDOS Yes
+  End
+  HubbardU
+    Enabled Yes
+    LValue 2 -1
+    UValue 0.6 0.0
+  End
+  KSpace
+    Quality Basic
+  End
+  NumericalQuality Normal
+  Unrestricted yes
+  XC
+    GGA BP86
+  End
+EndEngine
+
