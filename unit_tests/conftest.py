@@ -58,13 +58,3 @@ def rkf_folder():
     p = Path(__file__).parent.absolute() / "rkf"
     assert p.exists()
     return p
-
-
-@pytest.fixture
-def in_folder():
-    """
-    Returns the path to the in folder
-    """
-    p = Path(__file__).parent.absolute() / "in"
-    assert p.exists()
-    return p

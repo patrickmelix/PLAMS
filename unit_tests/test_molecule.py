@@ -54,16 +54,16 @@ class TestWater(MoleculeTestBase):
     """
 
     @pytest.fixture
-    def mol(self, in_folder):
-        return Molecule(in_folder / "water.in")
+    def mol(self, xyz_folder):
+        return Molecule(xyz_folder / "water.xyz")
 
     @pytest.fixture
     def water(self, mol):
         return mol
 
     @pytest.fixture
-    def hydroxide(self, in_folder):
-        return Molecule(in_folder / "hydroxide.in")
+    def hydroxide(self, xyz_folder):
+        return Molecule(xyz_folder / "hydroxide.xyz")
 
     @property
     def expected_atoms(self):
@@ -75,7 +75,6 @@ class TestWater(MoleculeTestBase):
         # 1) Add H20 to OH-
         # 2) Delete H atom
         # 3) Add O-O bond
-        # 4) Remove formal charge
         peroxide1 = hydroxide.copy()
         peroxide1.add_molecule(water, copy=True, margin=1.0)
         h1 = peroxide1.atoms[-1]
@@ -85,7 +84,6 @@ class TestWater(MoleculeTestBase):
         peroxide1.add_bond(peroxide1[1], peroxide1[2])
         peroxide1.add_bond(Bond(peroxide1[3], h2))
         oh1 = peroxide1[(3, 4)]
-        del peroxide1.properties.charge
         assert h1.mol is None
         assert h2.mol == peroxide1
         assert oh1.mol == peroxide1
@@ -217,8 +215,8 @@ class TestNiO(MoleculeTestBase):
     """
 
     @pytest.fixture
-    def mol(self, in_folder):
-        return Molecule(in_folder / "NiO.in")
+    def mol(self, xyz_folder):
+        return Molecule(xyz_folder / "NiO.xyz")
 
     @property
     def expected_atoms(self):
@@ -250,8 +248,10 @@ class TestNiO(MoleculeTestBase):
         """
 
         @pytest.fixture
-        def mol(self, in_folder):
-            return Molecule(in_folder / "hydroxide.in")
+        def mol(self, xyz_folder):
+            mol = Molecule(xyz_folder / "hydroxide.xyz")
+            mol.properties.charge = -1
+            return mol
 
         @property
         def expected_atoms(self):
@@ -267,8 +267,12 @@ class TestNiO(MoleculeTestBase):
         """
 
         @pytest.fixture
-        def mol(self, in_folder):
-            return Molecule(in_folder / "benzene_dimer.in")
+        def mol(self, xyz_folder):
+            mol = Molecule(xyz_folder / "benzene_dimer.xyz")
+            mol.guess_bonds()
+            for i, at in enumerate(mol):
+                at.properties.adf.f = f"subsystem{(i // 12) + 1}"
+            return mol
 
         @property
         def expected_atoms(self):
@@ -302,30 +306,30 @@ class TestNiO(MoleculeTestBase):
         @property
         def expected_bonds(self):
             return [
-                ((2, 6), 1.5, {}),
-                ((2, 5), 1.5, {}),
-                ((4, 5), 1.5, {}),
-                ((3, 6), 1.5, {}),
-                ((1, 3), 1.5, {}),
-                ((1, 4), 1.5, {}),
-                ((2, 10), 1.0, {}),
-                ((6, 11), 1.0, {}),
-                ((5, 9), 1.0, {}),
-                ((1, 7), 1.0, {}),
-                ((4, 8), 1.0, {}),
-                ((3, 12), 1.0, {}),
                 ((13, 16), 1.5, {}),
                 ((13, 15), 1.5, {}),
+                ((2, 6), 1.5, {}),
+                ((2, 5), 1.5, {}),
                 ((15, 18), 1.5, {}),
                 ((16, 17), 1.5, {}),
+                ((4, 5), 1.5, {}),
+                ((3, 6), 1.5, {}),
                 ((14, 17), 1.5, {}),
                 ((14, 18), 1.5, {}),
-                ((13, 19), 1.0, {}),
-                ((16, 20), 1.0, {}),
-                ((15, 24), 1.0, {}),
-                ((14, 22), 1.0, {}),
-                ((18, 23), 1.0, {}),
-                ((17, 21), 1.0, {}),
+                ((1, 3), 1.5, {}),
+                ((1, 4), 1.5, {}),
+                ((13, 19), 1, {}),
+                ((2, 10), 1, {}),
+                ((16, 20), 1, {}),
+                ((15, 24), 1, {}),
+                ((6, 11), 1, {}),
+                ((14, 22), 1, {}),
+                ((5, 9), 1, {}),
+                ((1, 7), 1, {}),
+                ((18, 23), 1, {}),
+                ((17, 21), 1, {}),
+                ((4, 8), 1, {}),
+                ((3, 12), 1, {}),
             ]
 
         def test_set_unset_atoms_id(self, mol):
