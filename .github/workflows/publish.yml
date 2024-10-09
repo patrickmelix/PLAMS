@@ -3,8 +3,6 @@ name: Publish to PyPi
 on:
   release:
     types: [published]
-  pull_request: # for testing... to remove...
-    types: [ opened, synchronize, reopened ]
 
 jobs:
   build-package:
