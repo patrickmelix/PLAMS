@@ -21,7 +21,7 @@ from scm.plams.tools.periodic_table import PT
 from scm.plams.tools.units import Units
 
 input_parser_available = "AMSBIN" in os.environ
-from typing import List, Optional, Tuple, overload
+from typing import Union, List, Optional, Tuple, overload, Iterable, Dict
 
 __all__ = ["Molecule"]
 
@@ -148,7 +148,7 @@ class Molecule:
     # ==== Atoms/bonds manipulation =============================================
     # ===========================================================================
 
-    def copy(self, atoms=None):
+    def copy(self, atoms: Optional[List[Atom]] = None) -> "Molecule":
         """Return a copy of the molecule. The copy has atoms, bonds and all other components distinct from the original molecule (it is so called "deep copy").
 
         By default the entire molecule is copied. It is also possible to copy only some part of the molecule, indicated by *atoms* argument. It should be a list of atoms that belong to the molecule. If used, only these atoms, together with any bonds between them, are copied and included in the returned molecule.
@@ -176,7 +176,7 @@ class Molecule:
 
         return ret
 
-    def add_molecule(self, other, copy=False, margin=-1):
+    def add_molecule(self, other: "Molecule", copy: bool = False, margin: float = -1) -> None:
         """Add some *other* molecule to this one::
 
             protein += water
@@ -208,7 +208,75 @@ class Molecule:
             bond.mol = self
         self.properties.soft_update(other.properties)
 
-    def add_atom(self, atom, adjacent=None):
+    def _validate_atom(self, atom: Atom, is_new: bool = False, msg: str = "") -> None:
+        """
+        Validate whether an |Atom| instance either belongs to this molecule, or is new.
+        If validation fails, a |MoleculeError| is raised.
+
+        :param atom: atom to validate
+        :param is_new: whether atom is new and should not be part of this molecule
+        :param msg: error message to include at the start of any raised error
+        """
+        error_msg = None
+        if not isinstance(atom, Atom):
+            error_msg = f"Requires an 'Atom' instance but was '{type(atom).__name__}'."
+
+        if is_new:
+            if atom.mol is not None:
+                error_msg = f"Atom '{atom.symbol}' is already part of "
+                error_msg += (
+                    "this molecule."
+                    if atom.mol == self
+                    else f"another molecule with formula '{atom.mol.get_formula()}'."
+                )
+        else:
+            if atom.mol != self:
+                error_msg = (
+                    f"Atom '{atom.symbol}' is part of another molecule with formula '{atom.mol.get_formula()}'."
+                    if atom.mol is not None
+                    else f"Atom '{atom.symbol}' is not part of any molecule."
+                )
+
+        if error_msg is not None:
+            raise MoleculeError(f"{msg} {error_msg}")
+
+    def _validate_bond(self, bond: Bond, is_new: bool = False, validate_atoms=True, msg: str = "") -> None:
+        """
+        Validate whether an |Bond| instance either belongs to this molecule, or is new.
+        If validation fails, a |MoleculeError| is raised.
+
+        :param bond: bond to validate
+        :param is_new: whether bond is new and should not be part of this molecule
+        :param msg: error message to include at the start of any raised error
+        """
+        error_msg = None
+        if not isinstance(bond, Bond):
+            error_msg = f"Requires a 'Bond' instance but was '{type(bond).__name__}'."
+
+        if is_new:
+            if bond.mol is not None:
+                error_msg = f"Bond between '{bond.atom1.symbol}' and '{bond.atom2.symbol}' is already part of "
+                error_msg += (
+                    "this molecule."
+                    if bond.mol == self
+                    else f"another molecule with formula '{bond.mol.get_formula()}'."
+                )
+        else:
+            if bond.mol != self:
+                error_msg = (
+                    f"Bond between '{bond.atom1.symbol}' and '{bond.atom2.symbol}' is part of another molecule with formula '{bond.mol.get_formula()}'."
+                    if bond.mol is not None
+                    else f"Bond between '{bond.atom1.symbol}' and '{bond.atom2.symbol}' is not part of any molecule."
+                )
+
+        if error_msg is not None:
+            raise MoleculeError(f"{msg} {error_msg}")
+
+        if validate_atoms:
+            self._validate_atom(bond.atom1, is_new=is_new, msg=msg)
+            self._validate_atom(bond.atom2, is_new=is_new, msg=msg)
+
+    def add_atom(self, atom: Atom, adjacent: Optional[Iterable[Union[Atom, Tuple[Atom, float]]]] = None):
         """Add a new *atom* to the molecule.
 
         *atom* should be an |Atom| instance that does not belong to any molecule. Bonds between the new atom and other atoms of the molecule can be automatically added based on *adjacent* argument. It should be a list describing atoms of the molecule that the new atom is connected to. Each element of *adjacent* list can either be a pair ``(Atom, order)`` to indicate new bond's order (use ``Bond.AR`` for aromatic bonds) or an |Atom| instance (a single bond is created in this case).
@@ -225,6 +293,8 @@ class Molecule:
             mol.add_atom(Atom(symbol='C', coords=(0.0, 0.0, 0.0)), adjacent=[h1, h2, (o,2)])
 
         """
+        self._validate_atom(atom, is_new=True, msg="Cannot add atom.")
+
         self.atoms.append(atom)
         atom.mol = self
         if adjacent is not None:
@@ -234,7 +304,7 @@ class Molecule:
                 else:
                     self.add_bond(atom, *adj)
 
-    def delete_atom(self, atom):
+    def delete_atom(self, atom: Atom) -> None:
         """Delete an *atom* from the molecule.
 
         *atom* should be an |Atom| instance that belongs to the molecule. All bonds containing this atom are removed too.
@@ -254,17 +324,19 @@ class Molecule:
             mol.delete_atom(mol[1]) #since the second atom of original molecule is now the first
 
         """
-        if atom.mol != self:
-            raise MoleculeError("delete_atom: passed atom should belong to the molecule")
+        self._validate_atom(atom, msg="Cannot delete atom.")
+
         try:
             self.atoms.remove(atom)
-        except:
-            raise MoleculeError("delete_atom: invalid argument passed as atom")
-        atom.mol = None
+        except ValueError:
+            raise MoleculeError(
+                f"Cannot delete atom. Atom '{atom.symbol}' is not part of this molecule's atoms ('{self.get_formula()}')."
+            )
         for b in reversed(atom.bonds):
             self.delete_bond(b)
+        atom.mol = None
 
-    def add_bond(self, arg1, arg2=None, order=1):
+    def add_bond(self, arg1: Union[Bond, Atom], arg2: Optional[Atom] = None, order: float = 1) -> None:
         """Add a new bond to the molecule.
 
         This method can be used in two different ways. You can call it with just one argument being a |Bond| instance (other arguments are then ignored)::
@@ -283,17 +355,20 @@ class Molecule:
         elif isinstance(arg1, Bond):
             newbond = arg1
         else:
-            raise MoleculeError("add_bond: invalid arguments passed")
+            raise MoleculeError(
+                f"Cannot add bond. Arguments must be a 'Bond' instance, or two 'Atom' instances. But was '{type(arg1).__name__}' and '{type(arg2).__name__}'."
+            )
 
-        if newbond.atom1.mol == self and newbond.atom2.mol == self:
-            newbond.mol = self
-            self.bonds.append(newbond)
-            newbond.atom1.bonds.append(newbond)
-            newbond.atom2.bonds.append(newbond)
-        else:
-            raise MoleculeError("add_bond: bonded atoms have to belong to the molecule")
+        self._validate_bond(newbond, is_new=True, validate_atoms=False, msg="Cannot add bond.")
+        self._validate_atom(newbond.atom1, msg="Cannot add bond.")
+        self._validate_atom(newbond.atom2, msg="Cannot add bond.")
 
-    def delete_bond(self, arg1, arg2=None):
+        newbond.mol = self
+        self.bonds.append(newbond)
+        newbond.atom1.bonds.append(newbond)
+        newbond.atom2.bonds.append(newbond)
+
+    def delete_bond(self, arg1: Union[Bond, Atom], arg2: Optional[Atom] = None) -> None:
         """Delete a bond from the molecule.
 
         Just like :meth:`add_bond`, this method accepts either a single argument that is a |Bond| instance, or two
@@ -304,30 +379,38 @@ class Molecule:
         elif isinstance(arg1, Bond):
             delbond = arg1
         else:
-            raise MoleculeError("delete_bond: invalid arguments passed")
+            raise MoleculeError(
+                f"Cannot delete bond as arguments must be a 'Bond' instance, or two 'Atom' instances. But was '{type(arg1).__name__}' and '{type(arg2).__name__}'."
+            )
+
+        self._validate_bond(delbond, msg="Cannot delete bond.")
+
         if delbond in self.bonds:
             delbond.mol = None
             self.bonds.remove(delbond)
             delbond.atom1.bonds.remove(delbond)
             delbond.atom2.bonds.remove(delbond)
 
-    def delete_all_bonds(self):
+    def delete_all_bonds(self) -> None:
         """Delete all bonds from the molecule."""
+        for bond in self.bonds:
+            bond.mol = None
         self.bonds.clear()
         for atom in self:
             atom.bonds.clear()
 
-    def find_bond(self, atom1, atom2):
+    def find_bond(self, atom1: Atom, atom2: Atom) -> Optional[Bond]:
         """Find and return a bond between *atom1* and *atom2*. Both atoms have to belong to the molecule. If no bond
         between chosen atoms exists, the returned value is ``None``."""
-        if atom1.mol != self or atom2.mol != self:
-            raise MoleculeError("find_bond: atoms passed as arguments have to belong to the molecule")
+        self._validate_atom(atom1, msg="Cannot find bond.")
+        self._validate_atom(atom2, msg="Cannot find bond.")
+
         for b in atom1.bonds:
             if atom2 is b.other_end(atom1):
                 return b
         return None
 
-    def set_atoms_id(self, start=1):
+    def set_atoms_id(self, start: int = 1) -> None:
         """Equip each atom of the molecule with the ``id`` attribute equal to its position within ``atoms`` list.
 
         The starting value of the numbering can be set with *start* (starts at 1 by default).
@@ -335,7 +418,7 @@ class Molecule:
         for i, at in enumerate(self.atoms, start):
             at.id = i
 
-    def unset_atoms_id(self):
+    def unset_atoms_id(self) -> None:
         """Delete ``id`` attributes of all atoms."""
         for at in self.atoms:
             try:
@@ -343,16 +426,15 @@ class Molecule:
             except AttributeError:
                 pass
 
-    def neighbors(self, atom):
+    def neighbors(self, atom: Atom) -> List[Atom]:
         """Return a list of neighbors of *atom* within the molecule.
 
         *atom* has to belong to the molecule. Returned list follows the same order as the ``bonds`` attribute of *atom*.
         """
-        if atom.mol != self:
-            raise MoleculeError("neighbors: passed atom should belong to the molecule")
+        self._validate_atom(atom, msg="Cannot find neighbours.")
         return [b.other_end(atom) for b in atom.bonds]
 
-    def bond_matrix(self):
+    def bond_matrix(self) -> np.array:
         """Return a square numpy array with bond orders. The size of the array is equal to the number of atoms."""
         ret = np.zeros((len(self), len(self)))
         self.set_atoms_id(start=0)
@@ -362,7 +444,7 @@ class Molecule:
         self.unset_atoms_id()
         return ret
 
-    def separate(self):
+    def separate(self) -> List["Molecule"]:
         """Separate the molecule into connected components.
 
         Returned is a list of new |Molecule| objects (all atoms and bonds are disjoint with the original molecule). Each element of this list is identical to one connected component of the base molecule. A connected component is a subset of atoms such that there exists a path (along one or more bonds) between any two atoms. Usually these connected components are molecules.
@@ -441,7 +523,7 @@ class Molecule:
 
         return frags
 
-    def guess_bonds(self, atom_subset=None, dmax=1.28, metal_atoms: bool = True):
+    def guess_bonds(self, atom_subset: Optional[Iterable[Atom]] = None, dmax: float = 1.28, metal_atoms: bool = True):
         """Try to guess bonds in the molecule based on types and positions of atoms.
 
         All previously existing bonds are removed. New bonds are generated based on interatomic distances and information about maximal number of bonds for each atom type (``connectors`` property, taken from |PeriodicTable|).
@@ -682,7 +764,7 @@ class Molecule:
 
         cleanup_atom_list(atom_list)
 
-    def guess_system_charge(self):
+    def guess_system_charge(self) -> float:
         """
         Attempt to guess the charge of the full system based on connectivity
         """
@@ -690,7 +772,11 @@ class Molecule:
         return charge
 
     def guess_atomic_charges(
-        self, adjust_to_systemcharge=True, keep_hydrogen_charged=False, depth=1, electronegativities=None
+        self,
+        adjust_to_systemcharge: bool = True,
+        keep_hydrogen_charged: bool = False,
+        depth: int = 1,
+        electronegativities: Optional[Dict[str, float]] = None,
     ):
         """
         Return a list of guessed charges, one for each atom, based on connectivity
@@ -843,11 +929,18 @@ class Molecule:
 
         return charges
 
-    def in_ring(self, arg):
+    def in_ring(self, arg: Union[Atom, Bond]) -> bool:
         """Check if an atom or a bond belonging to this |Molecule| forms a ring. *arg* should be an instance of |Atom| or |Bond| belonging to this |Molecule|."""
 
-        if (not isinstance(arg, (Atom, Bond))) or arg.mol != self:
-            raise MoleculeError("in_ring: Argument should be a Bond or an Atom and it should be a part of the Molecule")
+        if not isinstance(arg, (Atom, Bond)):
+            raise MoleculeError(
+                f"Must be a 'Bond' or an 'Atom' instance to check whether in ring, but was '{type(arg).__name__}'"
+            )
+
+        if isinstance(arg, Atom):
+            self._validate_atom(arg, msg="Cannot check whether in ring.")
+        else:
+            self._validate_bond(arg, msg="Cannot check whether in ring.")
 
         def dfs(v, depth=0):
             v._visited = True
@@ -1015,7 +1108,7 @@ class Molecule:
         ret.lattice = supercell_lattice
         return ret
 
-    def unit_cell_volume(self, unit="angstrom"):
+    def unit_cell_volume(self, unit: str = "angstrom") -> float:
         """Return the volume of the unit cell of a 3D system.
 
         *unit* is the unit of length, the cube of which will be used as the unit of volume.
@@ -1037,12 +1130,12 @@ class Molecule:
         else:
             raise ValueError("len(self.lattice) = {}, should be <=3.".format(len(self.lattice)))
 
-    def cell_lengths(self, unit="angstrom"):
+    def cell_lengths(self, unit: str = "angstrom") -> List[float]:
         """Return the lengths of the lattice vector. Returns a list with the same length as self.lattice"""
 
         return cell_lengths(self.lattice, unit=unit)
 
-    def cell_angles(self, unit="degree"):
+    def cell_angles(self, unit: str = "degree") -> List[float]:
         """Return the angles between lattice vectors.
 
         unit : str
@@ -1216,7 +1309,13 @@ class Molecule:
                     b.order = order
                 raise ex
 
-    def index(self, value, start=1, stop=None):
+    @overload
+    def index(self, value: Atom, start: int = 1, stop: Optional[int] = None) -> int: ...
+    @overload
+    def index(self, value: Bond, start: int = 1, stop: Optional[int] = None) -> Tuple[int, int]: ...
+    def index(
+        self, value: Union[Atom, Bond], start: int = 1, stop: Optional[int] = None
+    ) -> Union[int, Tuple[int, int]]:
         """Return the first index of the specified Atom or Bond.
 
         Providing an |Atom| will return its 1-based index, while a |Bond| returns a 2-tuple with the 1-based indices of its atoms.
@@ -2630,7 +2729,7 @@ class Molecule:
         for a_dict in atom_dicts:
             a = Atom()
             a.__dict__ = a_dict
-            a.mol = mol
+            a.mol = None
             a.bonds = []
             mol.add_atom(a)
         for b_dict in bond_dicts:
@@ -2638,7 +2737,7 @@ class Molecule:
             b_dict["atom1"] = mol.atoms[b_dict["atom1"]]
             b_dict["atom2"] = mol.atoms[b_dict["atom2"]]
             b.__dict__ = b_dict
-            b.mol = mol
+            b.mol = None
             mol.add_bond(b)
         return mol
 
