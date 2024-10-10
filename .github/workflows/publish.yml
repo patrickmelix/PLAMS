@@ -1,4 +1,4 @@
-name: Publish to PyPi
+name: Publish to PyPI
 
 on:
   release:
@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set Up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -80,7 +80,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
@@ -90,5 +90,12 @@ jobs:
           name: package
           path: dist
 
-      - name: Publish package
+      - name: Publish package to Test PyPI
+        if: ${{ vars.PUBLISH_TO_TEST_PYPI == 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish package to PyPI
+        if: ${{ vars.PUBLISH_TO_PYPI == 'true' }}
         uses: pypa/gh-action-pypi-publish@release/v1
