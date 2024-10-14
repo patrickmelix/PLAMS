@@ -4,7 +4,7 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, TYPE_CHECKING, Union
+from typing import Any, Callable, Dict, TYPE_CHECKING, Union, Mapping
 
 _stdlock = threading.Lock()
 _filelock = threading.Lock()
@@ -24,7 +24,7 @@ class LoggerCSV:
         self.time = time
         self.init = init
 
-    def log(self, message: Dict[str, Union[str, int, float]], level=7):
+    def log(self, message: Mapping[str, Union[str, int, float]], level=7):
         """Log a dictionary message in CSV format with verbosity level.
 
         Logs are printed independently to the CSV logfile and to the standard output based on configuration levels.
@@ -35,9 +35,6 @@ class LoggerCSV:
         :param level: 1: important; 3: normal; 5: verbose; 7: debug, defaults to 0
         :type level: int, optional
         """
-        if not isinstance(message, dict):
-            message = {"Message": message}
-
         if not self.init:
             if level <= 3:
                 with _stdlock:
