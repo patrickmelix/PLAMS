@@ -1,10 +1,9 @@
 import csv
-import os
 import re
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, TYPE_CHECKING, Union, Mapping
+from typing import TYPE_CHECKING, Union, Mapping
 
 _stdlock = threading.Lock()
 _filelock = threading.Lock()
