@@ -220,19 +220,18 @@ class Molecule:
         error_msg = None
         if not isinstance(atom, Atom):
             error_msg = f"Requires an 'Atom' instance but was '{type(atom).__name__}'."
-
-        if is_new:
+        elif is_new:
             if atom.mol is not None:
                 error_msg = f"Atom '{atom.symbol}' is already part of "
                 error_msg += (
                     "this molecule."
                     if atom.mol == self
-                    else f"another molecule with formula '{atom.mol.get_formula()}'."
+                    else f"another molecule with formula '{atom.mol.get_formula() if isinstance(atom.mol, Molecule) else 'Unknown'}'."
                 )
         else:
             if atom.mol != self:
                 error_msg = (
-                    f"Atom '{atom.symbol}' is part of another molecule with formula '{atom.mol.get_formula()}'."
+                    f"Atom '{atom.symbol}' is part of another molecule with formula '{atom.mol.get_formula() if isinstance(atom.mol, Molecule) else 'Unknown'}'."
                     if atom.mol is not None
                     else f"Atom '{atom.symbol}' is not part of any molecule."
                 )
@@ -252,21 +251,20 @@ class Molecule:
         error_msg = None
         if not isinstance(bond, Bond):
             error_msg = f"Requires a 'Bond' instance but was '{type(bond).__name__}'."
-
-        if is_new:
+        elif is_new:
             if bond.mol is not None:
-                error_msg = f"Bond between '{bond.atom1.symbol}' and '{bond.atom2.symbol}' is already part of "
+                error_msg = f"Bond between '{bond.atom1.symbol if isinstance(bond.atom1, Atom) else 'Unknown'}' and '{bond.atom2.symbol if isinstance(bond.atom2, Atom) else 'Unknown'}' is already part of "
                 error_msg += (
                     "this molecule."
                     if bond.mol == self
-                    else f"another molecule with formula '{bond.mol.get_formula()}'."
+                    else f"another molecule with formula '{bond.mol.get_formula() if isinstance(bond.mol, Molecule) else 'Unknown'}'."
                 )
         else:
             if bond.mol != self:
                 error_msg = (
-                    f"Bond between '{bond.atom1.symbol}' and '{bond.atom2.symbol}' is part of another molecule with formula '{bond.mol.get_formula()}'."
+                    f"Bond between '{bond.atom1.symbol if isinstance(bond.atom1, Atom) else 'Unknown'}' and '{bond.atom2.symbol if isinstance(bond.atom2, Atom) else 'Unknown'}' is part of another molecule with formula '{bond.mol.get_formula() if isinstance(bond.mol, Molecule) else 'Unknown'}'."
                     if bond.mol is not None
-                    else f"Bond between '{bond.atom1.symbol}' and '{bond.atom2.symbol}' is not part of any molecule."
+                    else f"Bond between '{bond.atom1.symbol if isinstance(bond.atom1, Atom) else 'Unknown'}' and '{bond.atom2.symbol if isinstance(bond.atom2, Atom) else 'Unknown'}' is not part of any molecule."
                 )
 
         if error_msg is not None:
