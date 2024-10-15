@@ -142,12 +142,16 @@ class TestWater(MoleculeTestBase):
             water.add_atom(water[1])
         with pytest.raises(MoleculeError):
             water.add_atom(water2[1])
+        with pytest.raises(MoleculeError):
+            water.add_atom(Atom(8, mol=1))
 
         # Cannot delete atom which is not part of the molecule
         with pytest.raises(MoleculeError):
             water.delete_atom(water2[1])
         with pytest.raises(MoleculeError):
             water.delete_atom(Atom(1))
+        with pytest.raises(MoleculeError):
+            water.delete_atom(Atom(8, mol=1))
 
         # Cannot delete atom which is removed from the molecule's atom list
         h2 = water[-1]
@@ -166,6 +170,8 @@ class TestWater(MoleculeTestBase):
             water.add_bond(water.bonds[0])
         with pytest.raises(MoleculeError):
             water.add_bond(water2.bonds[0])
+        with pytest.raises(MoleculeError):
+            water.add_bond(Bond(mol=1))
 
         # Cannot add bond which has atoms belonging to no/another molecule
         with pytest.raises(MoleculeError):
@@ -180,6 +186,8 @@ class TestWater(MoleculeTestBase):
             water.delete_bond(Atom(1), water[1])
         with pytest.raises(MoleculeError):
             water.delete_bond(Bond(water[1], water[2]))
+        with pytest.raises(MoleculeError):
+            water.delete_bond(Bond(mol=1))
 
         # Cannot add bond which has invalid arguments
         with pytest.raises(MoleculeError):
