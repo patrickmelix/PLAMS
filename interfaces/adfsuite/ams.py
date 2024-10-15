@@ -2963,7 +2963,8 @@ class AMSJob(SingleJob):
 
             # Set the molecular charge as a numeric value
             if settings_block.charge:
-                mol.properties.charge = float(settings_block.charge)
+                charge = float(settings_block.charge)
+                mol.properties.charge = int(charge) if charge.is_integer() else charge
 
             # Set the region info (used in ACErxn)
             if settings_block.region:
