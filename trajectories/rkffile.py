@@ -429,7 +429,7 @@ class RKFTrajectoryFile(TrajectoryFile):
             self.firsttime = False
 
         self.position = i
-        return self.coords, cell
+        return self.coords.copy(), cell
 
     def _read_coordinates(self, i, molecule, cell):
         """
