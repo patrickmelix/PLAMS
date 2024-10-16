@@ -5,6 +5,9 @@ import threading
 import os
 from pathlib import Path
 import inspect
+from io import StringIO
+import tempfile
+import re
 
 from scm.plams.core.functions import (
     _init,
@@ -14,6 +17,7 @@ from scm.plams.core.functions import (
     requires_optional_package,
     add_to_class,
     add_to_instance,
+    log,
 )
 from scm.plams.core.settings import Settings
 from scm.plams.core.errors import MissingOptionalPackageError
@@ -562,3 +566,100 @@ class TestDecorators:
 
         with pytest.raises(MissingOptionalPackageError):
             empty_class.requires_unavailable_package_and_is_added_to_instance()
+
+
+class TestLog:
+
+    def test_log_no_init_writes_message_to_stdout(self, config):
+        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            config.init = False
+
+            for i in range(10):
+                log(f"log with level {i}", level=i)
+
+            self.assert_logs(mock_stdout.getvalue(), expected_lines=4)
+            assert (
+                mock_stdout.getvalue()
+                == """log with level 0
+log with level 1
+log with level 2
+log with level 3
+"""
+            )
+
+    def test_log_with_init_writes_message_to_stdout_and_default_jobmanger_file(self, config):
+        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            with tempfile.NamedTemporaryFile() as temp_log_file1, tempfile.NamedTemporaryFile() as temp_log_file2:
+
+                # Log to both stdout and file with date and time
+                config.init = True
+                config.default_jobmanager = MagicMock()
+                config.default_jobmanager.logfile = temp_log_file1.name
+                config.log.stdout = 3
+                config.log.file = 5
+                config.log.time = True
+                config.log.date = True
+
+                for i in range(1, 10):
+                    log(f"date and time log with level {i}", level=i)
+
+                # Log to both stdout and file without date and time
+                config.log.time = False
+                config.log.date = False
+                for i in range(1, 10):
+                    log(f"log with level {i}", level=i)
+
+                # Log to stdout and file switching logfile location
+                config.default_jobmanager = MagicMock()
+                config.default_jobmanager.logfile = temp_log_file2.name
+                config.log.file = 4
+                config.log.time = True
+                for i in range(1, 10):
+                    log(f"time log with level {i}", level=i)
+
+                # Log only to stdout
+                config.default_jobmanager = None
+                config.log.date = True
+                config.log.time = False
+                for i in range(1, 10):
+                    log(f"date log with level {i}", level=i)
+
+                # Stdout has a log line for each level up to and including 3
+                stdout_logs = mock_stdout.getvalue()
+                self.assert_logs(stdout_logs, line_end=3, date_expected=True, time_expected=True)
+                self.assert_logs(stdout_logs, line_start=3, line_end=6)
+                self.assert_logs(stdout_logs, line_start=6, line_end=9, time_expected=True)
+                self.assert_logs(stdout_logs, line_start=9, expected_lines=3, date_expected=True)
+
+                # # File1 has a log for each level up to and including 5
+                file1_logs = temp_log_file1.read().decode()
+                self.assert_logs(file1_logs, line_end=5, date_expected=True, time_expected=True)
+                self.assert_logs(file1_logs, line_start=5, expected_lines=5)
+
+                # File2 has a log for each level up to and including 4
+                file2_logs = temp_log_file2.read().decode()
+                self.assert_logs(file2_logs, expected_lines=4, time_expected=True)
+
+    def assert_logs(
+        self, logs, line_start=0, line_end=None, expected_lines=None, date_expected=False, time_expected=False
+    ):
+        # Convert string text to individual lines
+        lines = [l for l in logs.replace("\r\n", "\n").split("\n") if l]
+
+        # Select the required logs section
+        line_end = len(lines) if line_end is None else line_end
+        lines = lines[line_start:line_end]
+        expected_lines = line_end - line_start if expected_lines is None else expected_lines
+        assert len(lines) == expected_lines
+
+        # Check all log lines match the expected pattern
+        if date_expected and time_expected:
+            pattern = "\[\d{2}\.\d{2}\|\d{2}:\d{2}:\d{2}\] date and time log with level \d"
+        elif date_expected:
+            pattern = "\[\d{2}\.\d{2}] date log with level \d"
+        elif time_expected:
+            pattern = "\[\d{2}:\d{2}:\d{2}] time log with level \d"
+        else:
+            pattern = "log with level \d"
+
+        assert all([re.fullmatch(pattern, line) is not None for line in lines])
