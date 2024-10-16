@@ -36,6 +36,7 @@ from scm.plams.core.settings import (
     SafeRunSettings,
     Settings,
 )
+from scm.plams.core.logging import Logger
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults, convert_to_unicode
 from scm.plams.interfaces.adfsuite.amsworker import AMSWorker, AMSWorkerError, AMSWorkerPool, AMSWorkerResults
@@ -163,6 +164,7 @@ __all__ = [
     "JobSettings",
     "JobManagerSettings",
     "ConfigSettings",
+    "Logger",
     "SingleJob",
     "MultiJob",
     "JobStatus",
