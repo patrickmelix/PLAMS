@@ -343,7 +343,7 @@ class Settings(dict):
 
         def _concatenate(key_ret, sequence):
             # Switch from Settings.items() to enumerate() if a list is encountered
-            for k, v in iter_type(sequence):
+            for k, v in iter_type(sequence):  # type: ignore
                 k = key_ret + (k,)
                 if isinstance(v, nested_type) and v:  # Empty lists or Settings instances will return ``False``
                     _concatenate(k, v)
@@ -495,7 +495,7 @@ class SuppressMissing(contextlib.AbstractContextManager):
     def __enter__(self):
         """Enter the :class:`SuppressMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
 
-        @wraps(self.missing)
+        @wraps(self.missing)  # type: ignore
         def __missing__(self, name):
             raise KeyError(name)
 

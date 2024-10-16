@@ -634,7 +634,7 @@ class MultiJob(Job):
         """Remove *job* from children."""
 
         rm = None
-        for i, j in self.children.items() if isinstance(self.children, dict) else enumerate(self.children):
+        for i, j in self.children.items() if isinstance(self.children, dict) else enumerate(self.children):  # type: ignore
             if j == job:
                 rm = i
                 break
