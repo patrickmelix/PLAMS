@@ -30,6 +30,19 @@ def config():
         _finish()
 
 
+@pytest.fixture(autouse=True)
+def logger():
+    """
+    Instead of re-using the same global logger object, patch with a fresh logger instance.
+    """
+    from scm.plams.core.logging import Logger
+
+    logger = Logger("plams")
+
+    with patch("scm.plams.core.functions._logger", logger):
+        yield logger
+
+
 @pytest.fixture
 def xyz_folder():
     """
