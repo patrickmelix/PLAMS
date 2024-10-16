@@ -72,7 +72,7 @@ jobs:
 #     ToDo: Bump the fail-under threshold over time until acceptable level is reached
       - name: Evaluate Coverage
         working-directory: scm/plams
-        run: coverage report --omit="unit_tests/*" -i --fail-under=30
+        run: coverage report --omit="unit_tests/*" -i --fail-under=35
 
 
   lint:
@@ -105,7 +105,7 @@ jobs:
 
       - name: Run MyPy
         run: |
-           mypy --no-warn-unused-ignores
+           mypy
           
 
   build-docs:
