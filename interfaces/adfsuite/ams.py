@@ -1904,7 +1904,7 @@ class AMSResults(Results):
         coordinate = np.array(self.readrkf("WorkFunction", "coordinate", file="engine")) * to_dunit
         planarAverage = np.array(self.readrkf("WorkFunction", "planarAverage", file="engine")) * to_eunit
         macroscopicAverage = np.array(self.readrkf("WorkFunction", "macroscopicAverage", file="engine")) * to_eunit
-        Efermi = self.readrkf("WorkFunction", "fermiLevel", file="engine") * to_eunit
+        Efermi = self.readrkf("WorkFunction", "fermiEnergy", file="engine") * to_eunit
         Vbulk = self.readrkf("WorkFunction", "minMacroscopicAverPotential", file="engine") * to_eunit
         leftVvacuum = self.readrkf("WorkFunction", "leftVacuumPotential", file="engine") * to_eunit
         rightVvacuum = self.readrkf("WorkFunction", "rightVacuumPotential", file="engine") * to_eunit
