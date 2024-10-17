@@ -33,7 +33,7 @@ class TestLogger:
 
             assert mock_stdout.getvalue() == ""
 
-    def test_configure_stdout_writes_to_stdout_up_to_and_including_level(self):
+    def test_configure_writes_to_stdout_up_to_and_including_level(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             logger = LogManager.get_logger(str(uuid.uuid4()))
             logger.configure(3)
@@ -49,7 +49,7 @@ log line 3
 """
             )
 
-    def test_configure_logfile_writes_to_file_up_to_and_including_level(self):
+    def test_configure_writes_to_logfile_up_to_and_including_level(self):
         with temp_file_path(suffix=".log") as temp_log_file:
             logger = LogManager.get_logger(str(uuid.uuid4()))
             logger.configure(logfile_path=temp_log_file, logfile_level=3)
@@ -77,7 +77,7 @@ log line 3
             logger1.configure()  # close logfile
             logger2.configure()  # close logfile
 
-    def test_multiple_loggers_can_write_to_stdout_but_different_files(self):
+    def test_multiple_loggers_can_write_to_stdout_and_different_files(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             with temp_file_path(suffix=".log") as temp_log_file1, temp_file_path(suffix=".log") as temp_log_file2:
                 logger1 = LogManager.get_logger(str(uuid.uuid4()))
@@ -164,7 +164,7 @@ To 2, level 1
                 )
             logger.configure()  # close logfile
 
-    def test_configure_formatter_prefixes_date_and_or_time_for_stdout_and_file(self):
+    def test_configure_prefixes_date_and_or_time_for_stdout_and_file(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             with temp_file_path(suffix=".log") as temp_log_file:
                 logger = LogManager.get_logger(str(uuid.uuid4()))
