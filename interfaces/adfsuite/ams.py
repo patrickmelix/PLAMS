@@ -1849,6 +1849,78 @@ class AMSResults(Results):
         z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
         return z, density
 
+    def get_work_function_results(
+        self, energy_unit: str = "hartree", dist_unit: str = "bohr"
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, float, Tuple[float, float], Tuple[float, float]]:
+        """Return a tuple with the results of the work function calculation. This function only supports results from the Quantum Espresso engine.
+
+        Returns: ``coordinate``, ``planarAverage``, ``macroscopicAverage``, ``Efermi``, ``Vbulk``, ``Vvacuum``, ``WF``.
+
+        ``coordinate``: 1D array of float.
+            The coordinate perpendicular to the surface. In units of ``dist_unit``
+
+        ``planarAverage``: 1D array of float.
+            The planar average of the electrostatic potential along the coordinate. In units of ``energy_unit``
+
+        ``macroscopicAverage``: 1D array of float.
+            The macroscopic average of the electrostatic potential along the coordinate. In units of ``energy_unit``
+
+        ``Efermi``: float.
+            The Fermi energy. In units of ``energy_unit``.
+
+        ``Vbulk``: float.
+            The average electrostatic potential in the bulk region of the material. In units of ``energy_unit``.
+
+        ``Vvacuum``: Tuple[float, float].
+            The average electrostatic potential in the vacuum region far from the surface.
+
+            This material is expected to have vacuum regions on *both* sides. Therefore, the potential is evaluated at the furthest point from the surface in each vacuum region. The first element corresponds to the potential at the furthest point from the surface on the left side,
+            and the second element corresponds to the potential at the furthest point from the surface on the right side. In units of ``energy_unit``.
+
+            Note: If the calculation uses a dipole correction (see `QuantumEspresso%Control%tefield` parameter in the QE engine), the potential is evaluated right before the x-coordinate where the dipole correction is applied.
+
+        ``WF``: Tuple[float, float].
+            The work function, calculated as WF = Vvacuum - Efermi.
+
+            Like `Vvacuum`, it is evaluated at two points, far from the surface on both sides (left and right). The first and second elements correspond to the work function calculated using the first and second elements of `Vvacuum`, respectively. In units of ``energy_unit``.
+
+        Arguments below:
+
+        ``energy_unit``: str
+            Unit of the returned energies
+
+        ``dist_unit``: str
+            Unit of the returned distances
+        """
+
+        if "quantumespresso" not in self.engine_names():
+            raise ValueError(
+                "Getting the work function results is only available when using the Quantum Espresso engine."
+            )
+
+        to_eunit = Units.conversion_ratio("au", energy_unit)
+        to_dunit = Units.conversion_ratio("au", dist_unit)
+
+        coordinate = np.array(self.readrkf("WorkFunction", "coordinate", file="engine")) * to_dunit
+        planarAverage = np.array(self.readrkf("WorkFunction", "planarAverage", file="engine")) * to_eunit
+        macroscopicAverage = np.array(self.readrkf("WorkFunction", "macroscopicAverage", file="engine")) * to_eunit
+        Efermi = self.readrkf("WorkFunction", "fermiEnergy", file="engine") * to_eunit
+        Vbulk = self.readrkf("WorkFunction", "minMacroscopicAverPotential", file="engine") * to_eunit
+        leftVvacuum = self.readrkf("WorkFunction", "leftVacuumPotential", file="engine") * to_eunit
+        rightVvacuum = self.readrkf("WorkFunction", "rightVacuumPotential", file="engine") * to_eunit
+        leftWF = self.readrkf("WorkFunction", "leftWorkFunction", file="engine") * to_eunit
+        rightWF = self.readrkf("WorkFunction", "rightWorkFunction", file="engine") * to_eunit
+
+        return (
+            coordinate,
+            planarAverage,
+            macroscopicAverage,
+            Efermi,
+            Vbulk,
+            (leftVvacuum, rightVvacuum),
+            (leftWF, rightWF),
+        )
+
     def recreate_molecule(self) -> Union[None, Molecule, Dict[str, Molecule]]:
         """Recreate the input molecule(s) for the corresponding job based on files present in the job folder.
 
