@@ -32,7 +32,7 @@ log line 3
             )
 
     def test_configure_logfile_writes_to_file_up_to_and_including_level(self):
-        with tempfile.NamedTemporaryFile() as temp_log_file:
+        with tempfile.NamedTemporaryFile(dir=".", suffix=".log") as temp_log_file:
             logger = Logger("test")
             logger.configure_logfile(temp_log_file.name, 3)
             for i in range(10):
@@ -47,9 +47,38 @@ log line 3
 """
             )
 
+    def test_multiple_loggers_write_to_stdout_and_same_file(self):
+        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            with tempfile.NamedTemporaryFile(dir=".", suffix=".log") as temp_log_file:
+                logger1 = Logger("test1")
+                logger2 = Logger("test2")
+                logger1.configure_stdout(2)
+                logger2.configure_stdout(3)
+                logger1.configure_logfile(temp_log_file.name, 2)
+                logger2.configure_logfile(temp_log_file.name, 3)
+
+                for i in range(5):
+                    logger1.log(f"From 1, level {i}", i)
+                    logger2.log(f"From 2, level {i}", i)
+
+                assert (
+                    mock_stdout.getvalue()
+                    == temp_log_file.read().decode()
+                    == """From 1, level 0
+From 2, level 0
+From 1, level 1
+From 2, level 1
+From 1, level 2
+From 2, level 2
+From 2, level 3
+"""
+                )
+
     def test_multiple_loggers_write_to_stdout_but_different_files(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            with tempfile.NamedTemporaryFile() as temp_log_file1, tempfile.NamedTemporaryFile() as temp_log_file2:
+            with tempfile.NamedTemporaryFile(
+                dir=".", suffix=".log", mode="r"
+            ) as temp_log_file1, tempfile.NamedTemporaryFile(dir=".", suffix=".log", mode="r") as temp_log_file2:
                 logger1 = Logger("test1")
                 logger2 = Logger("test2")
                 logger1.configure_stdout(2)
@@ -74,13 +103,13 @@ From 2, level 3
                 )
 
                 assert (
-                    temp_log_file1.read().decode()
+                    temp_log_file1.read()
                     == """From 1, level 0
 From 1, level 1
 """
                 )
                 assert (
-                    temp_log_file2.read().decode()
+                    temp_log_file2.read()
                     == """From 2, level 0
 From 2, level 1
 From 2, level 2
@@ -88,7 +117,9 @@ From 2, level 2
                 )
 
     def test_same_logger_can_switch_write_files(self):
-        with tempfile.NamedTemporaryFile() as temp_log_file1, tempfile.NamedTemporaryFile() as temp_log_file2:
+        with tempfile.NamedTemporaryFile(dir=".", suffix=".log") as temp_log_file1, tempfile.NamedTemporaryFile(
+            dir=".", suffix=".log"
+        ) as temp_log_file2:
             logger = Logger("test")
             logger.configure_logfile(temp_log_file1.name, 2)
 
@@ -105,11 +136,18 @@ From 2, level 2
             for i in range(5):
                 logger.log(f"To None, level {i}", i)
 
+            logger.configure_logfile(temp_log_file1.name, 2)
+            for i in range(5):
+                logger.log(f"To 1 again, level {i}", i)
+
             assert (
                 temp_log_file1.read().decode()
                 == """To 1, level 0
 To 1, level 1
 To 1, level 2
+To 1 again, level 0
+To 1 again, level 1
+To 1 again, level 2
 """
             )
             assert (
@@ -121,7 +159,7 @@ To 2, level 1
 
     def test_configure_formatter_prefixes_date_and_or_time_for_stdout_and_file(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            with tempfile.NamedTemporaryFile() as temp_log_file:
+            with tempfile.NamedTemporaryFile(dir=".", suffix=".log") as temp_log_file:
                 logger = Logger("test")
                 logger.configure_stdout(4)
                 logger.configure_logfile(temp_log_file.name, 4)
@@ -152,7 +190,9 @@ To 2, level 1
 
     def test_configure_order_invariant(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            with tempfile.NamedTemporaryFile() as temp_log_file1, tempfile.NamedTemporaryFile() as temp_log_file2:
+            with tempfile.NamedTemporaryFile(dir=".", suffix=".log") as temp_log_file1, tempfile.NamedTemporaryFile(
+                dir=".", suffix=".log"
+            ) as temp_log_file2:
                 logger = Logger("test")
 
                 logger.configure_stdout(10)
