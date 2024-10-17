@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 import inspect
 from io import StringIO
-import tempfile
 import re
+import uuid
 
 from scm.plams.core.functions import (
     _init,
@@ -21,10 +21,7 @@ from scm.plams.core.functions import (
 )
 from scm.plams.core.settings import Settings
 from scm.plams.core.errors import MissingOptionalPackageError
-from scm.plams.unit_tests.test_helpers import (
-    assert_config_as_expected,
-    get_mock_open_function,
-)
+from scm.plams.unit_tests.test_helpers import assert_config_as_expected, get_mock_open_function, temp_file_path
 
 
 class TestInitAndFinish:
@@ -586,6 +583,18 @@ class TestDecorators:
 
 class TestLog:
 
+    @pytest.fixture(autouse=True)
+    def logger(self):
+        """
+        Instead of re-using the same global logger object, patch with a fresh logger instance.
+        """
+        from scm.plams.core.logging import LoggerManager
+
+        logger = LoggerManager.get_logger(f"plams-{uuid.uuid4()}")
+
+        with patch("scm.plams.core.functions._logger", logger):
+            yield logger
+
     def test_log_no_init_writes_message_to_stdout(self, config):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             config.init = False
@@ -605,14 +614,12 @@ log with level 3
 
     def test_log_with_init_writes_message_to_stdout_and_default_jobmanger_file(self, config):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            with tempfile.NamedTemporaryFile(
-                dir=".", suffix=".log", mode="r"
-            ) as temp_log_file1, tempfile.NamedTemporaryFile(dir=".", suffix=".log", mode="r") as temp_log_file2:
+            with temp_file_path(suffix=".log") as temp_log_file1, temp_file_path(suffix=".log") as temp_log_file2:
 
                 # Log to both stdout and file with date and time
                 config.init = True
                 config.default_jobmanager = MagicMock()
-                config.default_jobmanager.logfile = temp_log_file1.name
+                config.default_jobmanager.logfile = temp_log_file1
                 config.log.stdout = 3
                 config.log.file = 5
                 config.log.time = True
@@ -629,7 +636,7 @@ log with level 3
 
                 # Log to stdout and file switching logfile location
                 config.default_jobmanager = MagicMock()
-                config.default_jobmanager.logfile = temp_log_file2.name
+                config.default_jobmanager.logfile = temp_log_file2
                 config.log.file = 4
                 config.log.time = True
                 for i in range(1, 10):
@@ -649,13 +656,15 @@ log with level 3
                 self.assert_logs(stdout_logs, line_start=6, line_end=9, time_expected=True)
                 self.assert_logs(stdout_logs, line_start=9, expected_lines=3, date_expected=True)
 
-                # # File1 has a log for each level up to and including 5
-                file1_logs = temp_log_file1.read()
+                # File1 has a log for each level up to and including 5
+                with open(temp_log_file1) as tf1:
+                    file1_logs = tf1.read()
                 self.assert_logs(file1_logs, line_end=5, date_expected=True, time_expected=True)
                 self.assert_logs(file1_logs, line_start=5, expected_lines=5)
 
                 # File2 has a log for each level up to and including 4
-                file2_logs = temp_log_file2.read()
+                with open(temp_log_file2) as tf2:
+                    file2_logs = tf2.read()
                 self.assert_logs(file2_logs, expected_lines=4, time_expected=True)
 
     def assert_logs(
