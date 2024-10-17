@@ -37,7 +37,7 @@ from scm.plams.core.settings import (
     JobManagerSettings,
     ConfigSettings,
 )
-from scm.plams.core.logging import Logger, LoggerManager
+from scm.plams.core.logging import Logger, LogManager
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.interfaces.adfsuite.amsanalysis import (
     AMSAnalysisJob,
@@ -198,7 +198,7 @@ __all__ = [
     "JobManagerSettings",
     "ConfigSettings",
     "Logger",
-    "LoggerManager",
+    "LogManager",
     "SingleJob",
     "MultiJob",
     "JobStatus",

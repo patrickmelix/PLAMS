@@ -1,21 +1,21 @@
 import logging
 import sys
-from typing import Optional
+from typing import Optional, Dict
 import threading
 
 
 from scm.plams.core.errors import FileError
 
-__all__ = ["Logger", "LoggerManager"]
+__all__ = ["Logger", "LogManager"]
 
 
-class LoggerManager:
+class LogManager:
     """
     Manages PLAMS logger instances.
     The manager should not be instantiated directly, but loggers accessed through the ``get_logger`` method.
     """
 
-    _loggers = {}
+    _loggers: Dict[str, "Logger"] = {}
 
     def __new__(cls, *args, **kwargs):
         raise TypeError("LoggerManager cannot be directly instantiated.")
@@ -47,70 +47,76 @@ class Logger:
         self._formatter: Optional[logging.Formatter] = None
         self._lock = threading.Lock()
 
-    def configure_stdout(self, level: int) -> None:
+    def configure(
+        self,
+        stdout_level: int = 0,
+        logfile_level: int = 0,
+        logfile_path: Optional[str] = None,
+        include_date: bool = False,
+        include_time: bool = False,
+    ) -> None:
         """
-        Configure the logging to stdout.
+        Configure logging to stdout and the logfile, and its formatting.
 
-        Note that for backwards compatibility, level is between 0-7, with 0 indicating no logging and 7 the most verbose logging.
+        For backwards compatibility, the logging level is between 0-7, with 0 indicating no logging and 7 the most verbose logging.
         Note that this is only a PLAMS logging level, it will be mapped to a level between INFO and WARNING for the
-        python logger.
+        standard python logger.
+
+        The logfile path must be unique across all loggers, otherwise a |FileError| is raised. If set to None this will disable file logging.
+
+        :param stdout_level: value between 0-7, with 0 indicating no logging and 7 the most verbose logging to stdout
+        :param logfile_level: value between 0-7, with 0 indicating no logging and 7 the most verbose logging to logfile
+        :param logfile_path: path for the logfile, if set to None this will remove file logging
+        :param include_date: whether to include date stamp at the start of a log line
+        :param include_time: whether to include time stamp at the start of a log line
         """
         with self._lock:
+
+            # Initialise the stdout handler once
             if self._stdout_handler is None:
                 self._stdout_handler = logging.StreamHandler(sys.stdout)
                 self._stdout_handler.setFormatter(self._formatter)
                 self._logger.addHandler(self._stdout_handler)
 
-            if level != self._stdout_handler.level:
-                self._stdout_handler.setLevel(28 - level)
+            # Update the stdout handler level if required
+            if stdout_level != self._stdout_handler.level:
+                self._stdout_handler.setLevel(28 - stdout_level)
 
-    def configure_logfile(self, path: Optional[str], level: int = 0) -> None:
-        """
-        Configure the logging to a logfile.
-
-        Path is the file path for the logfile. If set to None this will remove file logging.
-        A path must be unique across all loggers, otherwise a |FileError| is raised.
-
-        For backwards compatibility, level is between 0-7, with 0 indicating no logging and 7 the most verbose logging.
-        Note that this is only a PLAMS logging level, it will be mapped to a level between INFO and WARNING for the
-        python logger.
-        """
-        with self._lock:
             # Remove and close existing file handler if present and required
-            if self._file_handler is not None and (path is None or path != self._file_handler.baseFilename):
+            if self._file_handler is not None and (
+                logfile_path is None or logfile_path != self._file_handler.baseFilename
+            ):
                 self._logger.removeHandler(self._file_handler)
                 self._file_handler.flush()
                 self._file_handler.close()
 
             # Add new file handler if required
-            if path is not None and (self._file_handler is None or path != self._file_handler.baseFilename):
-
+            if logfile_path is not None and (
+                self._file_handler is None or logfile_path != self._file_handler.baseFilename
+            ):
                 # Check logfile is not already in use by another logger
-                for name, logger in LoggerManager._loggers.items():
-                    if logger._file_handler is not None and logger._file_handler.baseFilename == path:
-                        raise FileError(f"Logger '{name}' already exists with path '{path}'")
+                # This will cause permission errors on Windows and generally is not a good idea
+                for name, logger in LogManager._loggers.items():
+                    if logger._file_handler is not None and logger._file_handler.baseFilename == logfile_path:
+                        raise FileError(f"Logger '{name}' already exists with logfile path '{logfile_path}'")
 
-                self._file_handler = logging.FileHandler(path)
+                self._file_handler = logging.FileHandler(logfile_path)
                 self._file_handler.setFormatter(self._formatter)
                 self._logger.addHandler(self._file_handler)
 
+            # Update the logfile handler level if required
             if self._file_handler is not None:
-                self._file_handler.setLevel(28 - level)
+                self._file_handler.setLevel(28 - logfile_level)
 
-    def configure_formatter(self, include_date: bool, include_time: bool) -> None:
-        """
-        Configure the formatting of the logging both to stdout and to the logfile.
-        Choose whether to begin the logline with a date and/or time stamp.
-        """
-        datefmt = None
-        if include_date and include_time:
-            datefmt = "[%d.%m|%H:%M:%S]"
-        elif include_date:
-            datefmt = "[%d.%m]"
-        elif include_time:
-            datefmt = "[%H:%M:%S]"
+            # Configure the formatter if required
+            datefmt = None
+            if include_date and include_time:
+                datefmt = "[%d.%m|%H:%M:%S]"
+            elif include_date:
+                datefmt = "[%d.%m]"
+            elif include_time:
+                datefmt = "[%H:%M:%S]"
 
-        with self._lock:
             if self._formatter is None or datefmt != self._formatter.datefmt:
                 fmt = "%(asctime)s %(message)s" if datefmt is not None else None
                 self._formatter = logging.Formatter(fmt, datefmt=datefmt)
@@ -124,7 +130,7 @@ class Logger:
         Log a message with the given level of verbosity.
         """
         # Shouldn't really have to take a lock here as logging itself is thread-safe
-        # but in the PLAMS log function the logfile can be reconfigured on a per-call basis
+        # but in the PLAMS log function the logfile can be configured on a per-call basis
         # which could easily lead to dropped logs if this were multi-threaded.
         with self._lock:
             self._logger.log(28 - level, message)
