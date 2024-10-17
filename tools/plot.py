@@ -1,8 +1,9 @@
 from scm.plams.mol.molecule import Molecule
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from typing import Tuple, Union, List, Optional
+import numpy as np
 
-__all__ = ["plot_band_structure", "plot_molecule", "plot_correlation"]
+__all__ = ["plot_band_structure", "plot_molecule", "plot_correlation", "plot_work_function"]
 
 
 def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, show=False):
@@ -34,7 +35,6 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
         If True, call plt.show() at the end
     """
     import matplotlib.pyplot as plt
-    import numpy as np
 
     if zero is None:
         zero = 0
@@ -118,7 +118,6 @@ def get_correlation_xy(
     file: str = "ams",
     multiplier: float = 1.0,
 ) -> Tuple:
-    import numpy as np
 
     def tolist(x):
         if isinstance(x, list):
@@ -231,7 +230,6 @@ def plot_correlation(
     """
 
     import matplotlib.pyplot as plt
-    import numpy as np
 
     def tolist(x):
         if isinstance(x, list):
@@ -353,3 +351,133 @@ def plot_msd(job, start_time_fit_fs=None, ax=None):
     ax.set_title("MSD: Diffusion coefficient = {:.2e} m^2/s".format(diffusion_coefficient))
 
     return ax
+
+
+def plot_work_function(
+    coordinate: np.ndarray,
+    planarAverage: np.ndarray,
+    macroscopicAverage: np.ndarray,
+    Efermi: float,
+    Vbulk: float,
+    Vvacuum: Tuple[float, float],
+    WF: Tuple[float, float],
+    show: bool = False,
+):
+    """
+    Plots an Electrostatic Potential Profile from AMS-QE with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    ``coordinate``: 1D array of float.
+        Returned by AMSResults.get_work_function_results().
+
+    ``planarAverage``: 1D array of float.
+        Returned by AMSResults.get_work_function_results().
+
+    ``macroscopicAverage``: 1D array of float.
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``Efermi``: float.
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``Vbulk``: float.
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``Vvacuum``: Tuple[float,float].
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``WF``: Tuple[float,float].
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``show``: bool
+        If True, call plt.show() at the end.
+    """
+    import matplotlib.pyplot as plt
+
+    ax = plt.axes()
+    ax.set_xlabel("Length", fontsize=13)
+    ax.set_ylabel("Energy", fontsize=13)
+
+    x0 = min(coordinate)
+    y0 = min(planarAverage)
+    x1 = max(coordinate)
+    y1 = max(planarAverage)
+
+    ax.plot(coordinate, planarAverage, color="red", linestyle="-.", lw=2, zorder=1)
+    ax.plot(coordinate, macroscopicAverage, color="blue", linestyle="-", lw=2, zorder=2)
+    plt.text(x0 + 0.8 * (x1 - x0), y0, "Planar\nAverage", fontsize=11, color="red")
+    plt.text(x0 + 0.0 * (x1 - x0), y0, "Macroscopic\nAverage", fontsize=11, color="blue")
+    plt.axhline(y=Efermi, color="black", linestyle="dashed", linewidth=1)
+    plt.text(x0 + 0.05 * (x1 - x0), Efermi + 0.1, "E. Fermi", fontsize=11, color="black")
+    plt.axhline(y=Vbulk, color="black", linestyle="dashed", linewidth=1)
+    plt.text(x0 + 0.05 * (x1 - x0), Vbulk + 0.1, "Pot. bulk", fontsize=11, color="black")
+
+    # If the material is symmetric:
+    if abs(Vvacuum[0] - Vvacuum[1]) < 1e-3 or abs(Vvacuum[0] - Vvacuum[1]) < 1e-3:
+        plt.axhline(y=Vvacuum[0], color="black", linestyle="dashed", linewidth=1)
+        plt.text(min(coordinate), Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+
+        head_length = 0.4
+        plt.arrow(
+            x0 + 1.0 * (x1 - x0),
+            Efermi,
+            0.0,
+            Vvacuum[1] - Efermi - head_length,
+            head_width=0.3,
+            head_length=head_length,
+            fc="black",
+            ec="black",
+        )
+        plt.text(
+            x0 + 0.98 * (x1 - x0),
+            (Vvacuum[1] + Efermi) / 2,
+            "WF=" + "%.1f" % WF[1] + " eV",
+            fontsize=11,
+            color="black",
+            horizontalalignment="right",
+        )
+
+    # Otherwise:
+    else:
+        plt.plot([x0, x0 + 0.3 * (x1 - x0)], [Vvacuum[0], Vvacuum[0]], color="black", linestyle="dashed", linewidth=1)
+        plt.text(x0, Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+
+        plt.plot([x1, x1 - 0.3 * (x1 - x0)], [Vvacuum[1], Vvacuum[1]], color="black", linestyle="dashed", linewidth=1)
+        plt.text(x1 - 0.3 * (x1 - x0), Vvacuum[1] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+
+        head_length = 0.4
+        plt.arrow(
+            x0 + 0.0 * (x1 - x0),
+            Efermi,
+            0.0,
+            Vvacuum[0] - Efermi - head_length,
+            head_width=0.3,
+            head_length=head_length,
+            fc="black",
+            ec="black",
+        )
+        plt.text(
+            x0 + 0.02 * (x1 - x0), (Vvacuum[0] + Efermi) / 2, "WF=" + "%.1f" % WF[0] + " eV", fontsize=11, color="black"
+        )
+        plt.arrow(
+            x0 + 1.0 * (x1 - x0),
+            Efermi,
+            0.0,
+            Vvacuum[1] - Efermi - head_length,
+            head_width=0.3,
+            head_length=head_length,
+            fc="black",
+            ec="black",
+        )
+        plt.text(
+            x0 + 0.98 * (x1 - x0),
+            (Vvacuum[1] + Efermi) / 2,
+            "WF=" + "%.1f" % WF[1] + " eV",
+            fontsize=11,
+            color="black",
+            horizontalalignment="right",
+        )
+
+    if show:
+        plt.show()
