@@ -588,9 +588,9 @@ class TestLog:
         """
         Instead of re-using the same global logger object, patch with a fresh logger instance.
         """
-        from scm.plams.core.logging import LoggerManager
+        from scm.plams.core.logging import LogManager
 
-        logger = LoggerManager.get_logger(f"plams-{uuid.uuid4()}")
+        logger = LogManager.get_logger(f"plams-{uuid.uuid4()}")
 
         with patch("scm.plams.core.functions._logger", logger):
             yield logger
