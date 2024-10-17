@@ -605,7 +605,9 @@ log with level 3
 
     def test_log_with_init_writes_message_to_stdout_and_default_jobmanger_file(self, config):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            with tempfile.NamedTemporaryFile() as temp_log_file1, tempfile.NamedTemporaryFile() as temp_log_file2:
+            with tempfile.NamedTemporaryFile(
+                dir=".", suffix=".log", mode="r"
+            ) as temp_log_file1, tempfile.NamedTemporaryFile(dir=".", suffix=".log", mode="r") as temp_log_file2:
 
                 # Log to both stdout and file with date and time
                 config.init = True
@@ -648,12 +650,12 @@ log with level 3
                 self.assert_logs(stdout_logs, line_start=9, expected_lines=3, date_expected=True)
 
                 # # File1 has a log for each level up to and including 5
-                file1_logs = temp_log_file1.read().decode()
+                file1_logs = temp_log_file1.read()
                 self.assert_logs(file1_logs, line_end=5, date_expected=True, time_expected=True)
                 self.assert_logs(file1_logs, line_start=5, expected_lines=5)
 
                 # File2 has a log for each level up to and including 4
-                file2_logs = temp_log_file2.read().decode()
+                file2_logs = temp_log_file2.read()
                 self.assert_logs(file2_logs, expected_lines=4, time_expected=True)
 
     def assert_logs(
