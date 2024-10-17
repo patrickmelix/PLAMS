@@ -12,7 +12,7 @@ import atexit
 from importlib.util import find_spec
 import functools
 
-from scm.plams.core.logging import Logger
+from scm.plams.core.logging import LoggerManager
 from scm.plams.core.errors import FileError, MissingOptionalPackageError
 from scm.plams.core.private import retry
 from scm.plams.core.settings import Settings, ConfigSettings
@@ -42,7 +42,7 @@ __all__ = [
 config = ConfigSettings()
 # ===========================================================================
 
-_logger = Logger("plams")
+_logger = LoggerManager.get_logger("plams")
 
 
 def log(message: str, level: int = 0) -> None:

@@ -2,7 +2,32 @@ import logging
 import sys
 from typing import Optional
 
-__all__ = ["Logger"]
+
+from scm.plams.core.errors import FileError
+
+__all__ = ["Logger", "LoggerManager"]
+
+
+class LoggerManager:
+    """
+    Manages PLAMS logger instances.
+    The manager should not be instantiated directly, but loggers accessed through the ``get_logger`` method.
+    """
+
+    _loggers = {}
+
+    def __new__(cls, *args, **kwargs):
+        raise TypeError("LoggerManager cannot be directly instantiated.")
+
+    @classmethod
+    def get_logger(cls, name: str) -> "Logger":
+        """
+        Get a logger with the specified name.
+        If there is an existing logger with the same name this is returned, otherwise the logger is created.
+        """
+        if name not in cls._loggers:
+            cls._loggers[name] = Logger(name)
+        return cls._loggers[name]
 
 
 class Logger:
@@ -13,7 +38,7 @@ class Logger:
 
     def __init__(self, name: str):
         """
-        Set up logger with given name.
+        Get a logger with given name.
         """
         self._logger = logging.Logger(name)
         self._stdout_handler: Optional[logging.StreamHandler] = None
@@ -41,6 +66,7 @@ class Logger:
         Configure the logging to a logfile.
 
         Path is the file path for the logfile. If set to None this will remove file logging.
+        A path must be unique across all loggers, otherwise a |FileError| is raised.
 
         For backwards compatibility, level is between 0-7, with 0 indicating no logging and 7 the most verbose logging.
         Note that this is only a PLAMS logging level, it will be mapped to a level between INFO and WARNING for the
@@ -53,6 +79,12 @@ class Logger:
 
         # Add new file handler if required
         if path is not None and (self._file_handler is None or path != self._file_handler.baseFilename):
+
+            # Check logfile is not already in use by another logger
+            for name, logger in LoggerManager._loggers.items():
+                if logger._file_handler is not None and logger._file_handler.baseFilename == path:
+                    raise FileError(f"Logger '{name}' already exists with path '{path}'")
+
             self._file_handler = logging.FileHandler(path)
             self._file_handler.setFormatter(self._formatter)
             self._logger.addHandler(self._file_handler)
