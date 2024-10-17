@@ -402,7 +402,6 @@ def plot_work_function(
     x0 = min(coordinate)
     y0 = min(planarAverage)
     x1 = max(coordinate)
-    y1 = max(planarAverage)
 
     ax.plot(coordinate, planarAverage, color="red", linestyle="-.", lw=2, zorder=1)
     ax.plot(coordinate, macroscopicAverage, color="blue", linestyle="-", lw=2, zorder=2)
