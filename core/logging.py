@@ -6,7 +6,15 @@ import threading
 
 from scm.plams.core.errors import FileError
 
-__all__ = ["Logger", "LogManager"]
+__all__ = ["get_logger", "Logger"]
+
+
+def get_logger(name: str) -> "Logger":
+    """
+    Get a logger with the specified name.
+    If there is an existing logger with the same name this is returned, otherwise a new logger is created.
+    """
+    return LogManager.get_logger(name)
 
 
 class LogManager:
@@ -24,7 +32,7 @@ class LogManager:
     def get_logger(cls, name: str) -> "Logger":
         """
         Get a logger with the specified name.
-        If there is an existing logger with the same name this is returned, otherwise the logger is created.
+        If there is an existing logger with the same name this is returned, otherwise a new logger is created.
         """
         if name not in cls._loggers:
             cls._loggers[name] = Logger(name)

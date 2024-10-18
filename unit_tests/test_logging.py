@@ -8,18 +8,18 @@ import time
 import random
 
 from scm.plams.core.errors import FileError
-from scm.plams.core.logging import LogManager
+from scm.plams.core.logging import get_logger
 from scm.plams.unit_tests.test_helpers import temp_file_path
 
 
-class TestLoggerManager:
+class TestGetLogger:
 
     def test_get_logger_returns_existing_or_creates_new(self):
         name1 = str(uuid.uuid4())
         name2 = str(uuid.uuid4())
-        logger1 = LogManager.get_logger(name1)
-        logger2 = LogManager.get_logger(name2)
-        logger3 = LogManager.get_logger(name1)
+        logger1 = get_logger(name1)
+        logger2 = get_logger(name2)
+        logger3 = get_logger(name1)
 
         assert logger1 == logger3 != logger2
 
@@ -28,14 +28,14 @@ class TestLogger:
 
     def test_no_logging_to_stdout_by_default(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            logger = LogManager.get_logger(str(uuid.uuid4()))
+            logger = get_logger(str(uuid.uuid4()))
             logger.log("hello", 1)
 
             assert mock_stdout.getvalue() == ""
 
     def test_configure_writes_to_stdout_up_to_and_including_level(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
-            logger = LogManager.get_logger(str(uuid.uuid4()))
+            logger = get_logger(str(uuid.uuid4()))
             logger.configure(3)
             for i in range(10):
                 logger.log(f"log line {i}", i)
@@ -51,7 +51,7 @@ log line 3
 
     def test_configure_writes_to_logfile_up_to_and_including_level(self):
         with temp_file_path(suffix=".log") as temp_log_file:
-            logger = LogManager.get_logger(str(uuid.uuid4()))
+            logger = get_logger(str(uuid.uuid4()))
             logger.configure(logfile_path=temp_log_file, logfile_level=3)
             for i in range(10):
                 logger.log(f"log line {i}", i)
@@ -69,8 +69,8 @@ log line 3
 
     def test_multiple_loggers_cannot_write_to_same_file(self):
         with temp_file_path(suffix=".log") as temp_log_file:
-            logger1 = LogManager.get_logger(str(uuid.uuid4()))
-            logger2 = LogManager.get_logger(str(uuid.uuid4()))
+            logger1 = get_logger(str(uuid.uuid4()))
+            logger2 = get_logger(str(uuid.uuid4()))
             logger1.configure(logfile_path=temp_log_file, logfile_level=2)
             with pytest.raises(FileError):
                 logger2.configure(logfile_path=temp_log_file, logfile_level=3)
@@ -80,8 +80,8 @@ log line 3
     def test_multiple_loggers_can_write_to_stdout_and_different_files(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             with temp_file_path(suffix=".log") as temp_log_file1, temp_file_path(suffix=".log") as temp_log_file2:
-                logger1 = LogManager.get_logger(str(uuid.uuid4()))
-                logger2 = LogManager.get_logger(str(uuid.uuid4()))
+                logger1 = get_logger(str(uuid.uuid4()))
+                logger2 = get_logger(str(uuid.uuid4()))
                 logger1.configure(2, 1, temp_log_file1)
                 logger2.configure(3, 2, temp_log_file2)
 
@@ -122,7 +122,7 @@ From 2, level 2
 
     def test_same_logger_can_switch_write_files(self):
         with temp_file_path(suffix=".log") as temp_log_file1, temp_file_path(suffix=".log") as temp_log_file2:
-            logger = LogManager.get_logger(str(uuid.uuid4()))
+            logger = get_logger(str(uuid.uuid4()))
             logger.configure(logfile_path=temp_log_file1, logfile_level=2)
 
             for i in range(5):
@@ -167,7 +167,7 @@ To 2, level 1
     def test_configure_prefixes_date_and_or_time_for_stdout_and_file(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             with temp_file_path(suffix=".log") as temp_log_file:
-                logger = LogManager.get_logger(str(uuid.uuid4()))
+                logger = get_logger(str(uuid.uuid4()))
 
                 dts = [[tf1, tf2] for tf1 in [True, False] for tf2 in [True, False]]
                 for d, t in dts:
@@ -206,7 +206,7 @@ To 2, level 1
                 def log(id):
                     # Introduce random variation into when threads start
                     time.sleep(random.uniform(0.0, 0.05))
-                    logger = LogManager.get_logger(name)
+                    logger = get_logger(name)
                     logger.configure(5, 5, temp_log_file1)
                     for i in range(num_msgs):
                         logger.configure(
@@ -221,7 +221,7 @@ To 2, level 1
                 for thread in threads:
                     thread.join()
 
-                LogManager.get_logger(name).configure()  # close logfile
+                get_logger(name).configure()  # close logfile
 
                 assert len(mock_stdout.getvalue().replace("\r\n", "\n").split("\n")) == num_threads * num_msgs + 1
 
