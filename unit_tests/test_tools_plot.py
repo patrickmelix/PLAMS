@@ -12,8 +12,11 @@ from matplotlib.testing.decorators import image_comparison
 #----------------------------------------------------------
 @image_comparison(baseline_images=['plot_molecule'], remove_text=True, extensions=['png'], style='mpl20')
 def test_plot_molecule():
+   plt.close('all')
+
    glycine = from_smiles("C(C(=O)O)N")
    ax = plot_molecule( glycine )
+
    plt.pause(2)
 
 #----------------------------------------------------------
@@ -21,6 +24,8 @@ def test_plot_molecule():
 #----------------------------------------------------------
 @image_comparison(baseline_images=['plot_band_structure'], remove_text=True, extensions=['png'], style='mpl20')
 def test_plot_band_structure():
+   plt.close('all')
+
    d = 2.085
    mol = Molecule()
    mol.add_atom(Atom(symbol="Ni", coords=(0, 0, 0)))
@@ -49,6 +54,7 @@ def test_plot_band_structure():
    ax.set_ylabel("$E - E_{VBM}$ (eV)")
    ax.set_xlabel("Path")
    ax.set_title("NiO with DFT+U")
+
    plt.pause(2)
 
 #----------------------------------------------------------
@@ -56,6 +62,8 @@ def test_plot_band_structure():
 #----------------------------------------------------------
 @image_comparison(baseline_images=['plot_correlation'], remove_text=True, extensions=['png'], style='mpl20')
 def test_plot_correlation():
+   plt.close('all')
+
    glycine = from_smiles("C(C(=O)O)N")
 
    e1 = Settings()
@@ -84,6 +92,7 @@ def test_plot_correlation():
       variable="Gradients",
       file="engine"
    )
+
    plt.pause(2)
 
    x, y = get_correlation_xy(job1, job2, section="AMSResults", variable="Gradients", file="engine")
@@ -108,7 +117,9 @@ def test_plot_correlation():
 #----------------------------------------------------------
 @image_comparison(baseline_images=['plot_msd'], remove_text=True, extensions=['png'], style='mpl20')
 def test_plot_msd():
-   mol = packmol(from_smiles("O"), n_molecules=16, density=1.0)
+   plt.close('all')
+
+   mol = Molecule("unit_tests/xyz/water_box.xyz")
    s = Settings()
    s.input.ams.Task = "MolecularDynamics"
    s.input.ReaxFF.ForceField = "Water2017.ff"
@@ -128,6 +139,7 @@ def test_plot_msd():
    md_job.run()
 
    ax = plot_msd(md_job)
+
    plt.pause(2)
 
 #----------------------------------------------------------
@@ -135,6 +147,8 @@ def test_plot_msd():
 #----------------------------------------------------------
 @image_comparison(baseline_images=['plot_work_function'], remove_text=True, extensions=['png'], style='mpl20')
 def test_plot_work_function():
+   plt.close('all')
+
    mol = Molecule()
    mol.add_atom(Atom(symbol="Al", coords=(0.0, 0.0, 12.2)))
    mol.add_atom(Atom(symbol="Al", coords=(1.4, 1.4, 10.1)))
@@ -165,4 +179,5 @@ def test_plot_work_function():
    ax.set_title("Electrostatic Potential Profile", fontsize=14)
    ax.set_xlabel("Length (Angstroms)", fontsize=13)
    ax.set_ylabel("Energy (eV)", fontsize=13)
+
    plt.pause(2)
