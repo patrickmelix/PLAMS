@@ -99,7 +99,7 @@ def plot_molecule(molecule, figsize=None, ax=None, keep_axis: bool = False, **kw
         molecule = toASE(molecule)
 
     if ax is None:
-        _, ax = plt.subplots( figsize=figsize or (2, 2) )
+        _, ax = plt.subplots(figsize=figsize or (2, 2))
 
     plot_atoms(molecule, ax=ax, **kwargs)
 
@@ -362,7 +362,7 @@ def plot_work_function(
     Vbulk: float,
     Vvacuum: Tuple[float, float],
     WF: Tuple[float, float],
-    ax=None
+    ax=None,
 ):
     """
     Plots an Electrostatic Potential Profile from AMS-QE with matplotlib.
