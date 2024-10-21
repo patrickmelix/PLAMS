@@ -425,6 +425,95 @@ EndEngine
         pytest.skip("Cannot pickle ChemicalSystem")
 
 
+class TestAMSJobWithChainOfMolecules(TestAMSJob):
+    """
+    Test suite for AMSJob with a chain of water molecules.
+    """
+
+    @staticmethod
+    def get_input_molecule():
+        """
+        Get instance of the Molecule class passed to the AMSJob
+        """
+        mol = TestAMSJob.get_input_molecule()
+        mol.lattice = [[3, 0, 0]]
+        return mol.supercell(4)
+
+    @staticmethod
+    def get_input_settings():
+        """
+        Instance of the Settings class passed to the AMSJob
+        """
+        settings = Settings()
+        settings.input.Mopac.SCF.ConvergenceThreshold = 1.0e-8
+        settings.input.Mopac.model = "pm6"
+        settings.input.AMS.Task = "SinglePoint"
+        settings.input.AMS.Properties.Gradients = "Yes"
+        settings.input.AMS.NumericalDifferentiation.Parallel.nCoresPerGroup = 1
+        settings.input.AMS.NumericalDifferentiation.NuclearStepSize = 0.0001
+        settings.input.AMS.EngineDebugging.IgnoreGradientsRequest = "No"
+        settings.input.AMS.System.ElectrostaticEmbedding.ElectricField = "0.0 0.0 0.0"
+        settings.input.AMS.Task = "SinglePoint"
+        settings.input.AMS.Properties.Gradients = "Yes"
+        settings.input.AMS.NumericalDifferentiation.Parallel.nCoresPerGroup = 1
+        settings.input.AMS.NumericalDifferentiation.NuclearStepSize = 0.0001
+        return settings
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """EngineDebugging
+  IgnoreGradientsRequest No
+End
+
+NumericalDifferentiation
+  NuclearStepSize 0.0001
+  Parallel
+    nCoresPerGroup 1
+  End
+End
+
+Properties
+  Gradients Yes
+End
+
+System
+  Atoms
+              O       0.0000000000       0.0000000000       0.0000000000
+              H       1.0000000000       0.0000000000       0.0000000000
+              H       0.0000000000       1.0000000000       0.0000000000
+              O       3.0000000000       0.0000000000       0.0000000000
+              H       4.0000000000       0.0000000000       0.0000000000
+              H       3.0000000000       1.0000000000       0.0000000000
+              O       6.0000000000       0.0000000000       0.0000000000
+              H       7.0000000000       0.0000000000       0.0000000000
+              H       6.0000000000       1.0000000000       0.0000000000
+              O       9.0000000000       0.0000000000       0.0000000000
+              H      10.0000000000       0.0000000000       0.0000000000
+              H       9.0000000000       1.0000000000       0.0000000000
+  End
+  ElectrostaticEmbedding
+    ElectricField 0.0 0.0 0.0
+  End
+  Lattice
+        12.0000000000     0.0000000000     0.0000000000
+  End
+End
+
+Task SinglePoint
+
+Engine Mopac
+  SCF
+    ConvergenceThreshold 1e-08
+  End
+  model pm6
+EndEngine
+
+"""
+
+
 class TestAMSJobRun:
 
     def test_run_with_watch_forwards_ams_logs_to_stdout(self, config):
