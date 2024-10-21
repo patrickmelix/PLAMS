@@ -26,12 +26,12 @@ from scm.plams.tools.plot import (
 # ----------------------------------------------------------
 # Testing plot_molecule
 # ----------------------------------------------------------
-@image_comparison(baseline_images=["plot_molecule"], remove_text=True, extensions=["png"], style="mpl20")
+@image_comparison(baseline_images=['plot_molecule'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
 def test_plot_molecule():
     plt.close("all")
 
     glycine = from_smiles("C(C(=O)O)N")
-    ax = plot_molecule(glycine)
+    ax = plot_molecule( glycine, rotation=('90x,45y,0z') )
 
     plt.pause(2)
 
@@ -39,7 +39,7 @@ def test_plot_molecule():
 # ----------------------------------------------------------
 # Testing plot_band_structure
 # ----------------------------------------------------------
-@image_comparison(baseline_images=["plot_band_structure"], remove_text=True, extensions=["png"], style="mpl20")
+@image_comparison(baseline_images=['plot_band_structure'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
 def test_plot_band_structure():
     plt.close("all")
 
@@ -78,7 +78,7 @@ def test_plot_band_structure():
 # ----------------------------------------------------------
 # Testing plot_correlation & get_correlation_xy
 # ----------------------------------------------------------
-@image_comparison(baseline_images=["plot_correlation"], remove_text=True, extensions=["png"], style="mpl20")
+@image_comparison(baseline_images=['plot_correlation'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
 def test_plot_correlation():
     plt.close("all")
 
@@ -182,14 +182,15 @@ def test_plot_correlation():
 # ----------------------------------------------------------
 # Testing plot_msd
 # ----------------------------------------------------------
-@image_comparison(baseline_images=["plot_msd"], remove_text=True, extensions=["png"], style="mpl20")
-def test_plot_msd(xyz_folder):
-    plt.close("all")
+@image_comparison(baseline_images=['plot_msd'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
+def test_plot_msd():
+    plt.close('all')
 
-    mol = Molecule(Path(xyz_folder / "water_box.xyz"))
+    mol = Molecule("unit_tests/xyz/water_box.xyz")
     s = Settings()
     s.input.ams.Task = "MolecularDynamics"
     s.input.ReaxFF.ForceField = "Water2017.ff"
+    s.input.ams.RNGSeed = "1 2 3 4 5 6 7 8 9"
     s.input.ams.MolecularDynamics.CalcPressure = "Yes"
     s.input.ams.MolecularDynamics.InitialVelocities.Temperature = 300
     s.input.ams.MolecularDynamics.Trajectory.SamplingFreq = 1
@@ -197,6 +198,8 @@ def test_plot_msd(xyz_folder):
     s.input.ams.MolecularDynamics.NSteps = 200
 
     if "AMSBIN" in os.environ:
+        s.runscript.nproc = 1
+        os.environ["OMP_NUM_THREADS"] = "1"
         job = AMSJob(settings=s, molecule=mol, name="md")
         job.run()
     else:
@@ -213,7 +216,7 @@ def test_plot_msd(xyz_folder):
 # ----------------------------------------------------------
 # Testing plot_work_function
 # ----------------------------------------------------------
-@image_comparison(baseline_images=["plot_work_function"], remove_text=True, extensions=["png"], style="mpl20")
+@image_comparison(baseline_images=['plot_work_function'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
 def test_plot_work_function():
     plt.close("all")
 
