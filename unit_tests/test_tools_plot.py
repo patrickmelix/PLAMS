@@ -3,9 +3,24 @@
 
 import os
 import numpy as np
-from scm.plams import *
 import matplotlib.pyplot as plt
 from matplotlib.testing.decorators import image_comparison
+from pathlib import Path
+
+from scm.plams.core.functions import Settings
+from scm.plams.mol.molecule import Molecule
+from scm.plams.mol.atom import Atom
+from scm.plams.interfaces.molecule.rdkit import from_smiles
+from scm.plams.interfaces.adfsuite.ams import AMSJob
+from scm.plams.recipes.md.trajectoryanalysis import AMSMSDJob
+from scm.plams.tools.plot import (
+    plot_molecule,
+    plot_correlation,
+    plot_band_structure,
+    plot_work_function,
+    get_correlation_xy,
+    plot_msd,
+)
 
 
 # ----------------------------------------------------------
@@ -168,10 +183,10 @@ def test_plot_correlation():
 # Testing plot_msd
 # ----------------------------------------------------------
 @image_comparison(baseline_images=["plot_msd"], remove_text=True, extensions=["png"], style="mpl20")
-def test_plot_msd():
+def test_plot_msd(xyz_folder):
     plt.close("all")
 
-    mol = Molecule("unit_tests/xyz/water_box.xyz")
+    mol = Molecule(Path(xyz_folder / "water_box.xyz"))
     s = Settings()
     s.input.ams.Task = "MolecularDynamics"
     s.input.ReaxFF.ForceField = "Water2017.ff"
