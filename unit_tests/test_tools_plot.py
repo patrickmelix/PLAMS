@@ -58,7 +58,7 @@ def test_plot_molecule():
         ]
     )
 
-    ax = plot_molecule(glycine, rotation=("90x,45y,0z"))
+    plot_molecule(glycine, rotation=("90x,45y,0z"))
 
     plt.pause(2)
 
@@ -130,7 +130,7 @@ def test_plot_correlation(run_calculations, rkf_tools_plot):
         job1 = AMSJob.load_external(rkf_tools_plot / "glycine-engine1")
         job2 = AMSJob.load_external(rkf_tools_plot / "glycine-engine2")
 
-    ax = plot_correlation(job1, job2, section="AMSResults", variable="Gradients", file="engine")
+    plot_correlation(job1, job2, section="AMSResults", variable="Gradients", file="engine")
 
     plt.pause(2)
 
@@ -235,7 +235,7 @@ def test_plot_msd(run_calculations, rkf_tools_plot, xyz_folder):
     md_job = AMSMSDJob(job)
     md_job.run()
 
-    ax = plot_msd(md_job)
+    plot_msd(md_job)
 
     plt.pause(2)
 
