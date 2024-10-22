@@ -230,7 +230,7 @@ def test_plot_msd(run_calculations, rkf_tools_plot, xyz_folder):
         job = AMSJob(settings=s, molecule=mol, name="md")
         job.run()
     else:
-        job = AMSJob.load_external(rkf_tools_plot / "md/ams.rkf")
+        job = AMSJob.load_external(rkf_tools_plot / "md/ams.rkf", settings=s)
 
     md_job = AMSMSDJob(job)
     md_job.run()
