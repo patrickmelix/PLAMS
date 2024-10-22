@@ -13,7 +13,7 @@ from scm.plams.mol.molecule import Molecule
 from scm.plams.mol.atom import Atom
 from scm.plams.interfaces.molecule.rdkit import from_smiles
 from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.recipes.md.trajectoryanalysis import AMSMSDJob
+from scm.plams.recipes.md.trajectoryanalysis import AMSMSDJob, AMSMSDResults
 from scm.plams.tools.plot import (
     plot_molecule,
     plot_correlation,
@@ -229,11 +229,19 @@ def test_plot_msd(run_calculations, rkf_tools_plot, xyz_folder):
         os.environ["OMP_NUM_THREADS"] = "1"
         job = AMSJob(settings=s, molecule=mol, name="md")
         job.run()
+        md_job = AMSMSDJob(job)
+        md_job.run()
     else:
+        # Cannot load the AMSMSDJob directly, so simulate running the job by loading the kf into the results
         job = AMSJob.load_external(rkf_tools_plot / "md/ams.rkf", settings=s)
-
-    md_job = AMSMSDJob(job)
-    md_job.run()
+        md_job = AMSMSDJob(job, name="msd")
+        md_job.prerun()
+        md_job.path = Path(rkf_tools_plot / "md/msd")
+        results = AMSMSDResults(md_job)
+        results.finished.set()
+        results.done.set()
+        results.collect()
+        md_job.results = results
 
     plot_msd(md_job)
 
