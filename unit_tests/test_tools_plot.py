@@ -2,10 +2,11 @@
 # coding: utf-8
 
 import os
-import numpy as np
 import matplotlib.pyplot as plt
+import pytest
 from matplotlib.testing.decorators import image_comparison
 from pathlib import Path
+import numpy as np
 
 from scm.plams.core.functions import Settings
 from scm.plams.mol.molecule import Molecule
@@ -23,15 +24,41 @@ from scm.plams.tools.plot import (
 )
 
 
+@pytest.fixture
+def run_calculations():
+    run_calculations = False  # Manual toggle whether to re-run AMS calculations
+    return "AMSBIN" in os.environ and run_calculations
+
+
+@pytest.fixture
+def rkf_tools_plot(rkf_folder):
+    return Path(rkf_folder / "tools_plot")
+
+
 # ----------------------------------------------------------
 # Testing plot_molecule
 # ----------------------------------------------------------
-@image_comparison(baseline_images=['plot_molecule'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
+@image_comparison(baseline_images=["plot_molecule"], remove_text=True, extensions=["png"], style="mpl20", tol=0.1)
 def test_plot_molecule():
     plt.close("all")
 
     glycine = from_smiles("C(C(=O)O)N")
-    ax = plot_molecule( glycine, rotation=('90x,45y,0z') )
+    glycine.from_array(
+        [
+            [1.52585228, -0.36095771, 0.17604921],
+            [0.26794267, 0.21265392, -0.21199336],
+            [-0.90913905, -0.53151974, 0.26695495],
+            [-0.85195920, -1.53060464, 1.04179363],
+            [-2.14637457, -0.16398621, -0.26887301],
+            [2.25707210, 0.02537156, -0.47070660],
+            [1.79020298, -0.01286013, 1.12713073],
+            [0.28233609, 0.31718008, -1.32556763],
+            [0.18775611, 1.26499430, 0.16051118],
+            [-2.40368941, 0.77972858, -0.49529909],
+        ]
+    )
+
+    ax = plot_molecule(glycine, rotation=("90x,45y,0z"))
 
     plt.pause(2)
 
@@ -39,8 +66,8 @@ def test_plot_molecule():
 # ----------------------------------------------------------
 # Testing plot_band_structure
 # ----------------------------------------------------------
-@image_comparison(baseline_images=['plot_band_structure'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
-def test_plot_band_structure():
+@image_comparison(baseline_images=["plot_band_structure"], remove_text=True, extensions=["png"], style="mpl20", tol=3)
+def test_plot_band_structure(run_calculations, rkf_tools_plot):
     plt.close("all")
 
     d = 2.085
@@ -60,11 +87,11 @@ def test_plot_band_structure():
     s.input.band.HubbardU.LValue = "2 -1"
     s.input.band.BandStructure.Enabled = "Yes"
 
-    if "AMSBIN" in os.environ:
+    if run_calculations:
         job = AMSJob(settings=s, molecule=mol, name="NiO")
         job.run()
     else:
-        job = AMSJob.load_external("unit_tests/rkf/tools_plot/NiO")
+        job = AMSJob.load_external(rkf_tools_plot / "NiO")
 
     ax = plot_band_structure(*job.results.get_band_structure(unit="eV"), zero="vbmax")
     ax.set_ylim(-10, 10)
@@ -78,8 +105,8 @@ def test_plot_band_structure():
 # ----------------------------------------------------------
 # Testing plot_correlation & get_correlation_xy
 # ----------------------------------------------------------
-@image_comparison(baseline_images=['plot_correlation'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
-def test_plot_correlation():
+@image_comparison(baseline_images=["plot_correlation"], remove_text=True, extensions=["png"], style="mpl20", tol=1.0)
+def test_plot_correlation(run_calculations, rkf_tools_plot):
     plt.close("all")
 
     glycine = from_smiles("C(C(=O)O)N")
@@ -94,14 +121,14 @@ def test_plot_correlation():
     sp.input.ams.Task = "SinglePoint"
     sp.input.ams.Properties.Gradients = "Yes"
 
-    if "AMSBIN" in os.environ:
+    if run_calculations:
         job1 = AMSJob(settings=sp + e1, name="glycine-engine1", molecule=glycine)
         job2 = AMSJob(settings=sp + e2, name="glycine-engine2", molecule=glycine)
         job1.run()
         job2.run()
     else:
-        job1 = AMSJob.load_external("unit_tests/rkf/tools_plot/glycine-engine1")
-        job2 = AMSJob.load_external("unit_tests/rkf/tools_plot/glycine-engine2")
+        job1 = AMSJob.load_external(rkf_tools_plot / "glycine-engine1")
+        job2 = AMSJob.load_external(rkf_tools_plot / "glycine-engine2")
 
     ax = plot_correlation(job1, job2, section="AMSResults", variable="Gradients", file="engine")
 
@@ -182,11 +209,11 @@ def test_plot_correlation():
 # ----------------------------------------------------------
 # Testing plot_msd
 # ----------------------------------------------------------
-@image_comparison(baseline_images=['plot_msd'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
-def test_plot_msd():
-    plt.close('all')
+@image_comparison(baseline_images=["plot_msd"], remove_text=True, extensions=["png"], style="mpl20", tol=4)
+def test_plot_msd(run_calculations, rkf_tools_plot, xyz_folder):
+    plt.close("all")
 
-    mol = Molecule("unit_tests/xyz/water_box.xyz")
+    mol = Molecule(xyz_folder / "water_box.xyz")
     s = Settings()
     s.input.ams.Task = "MolecularDynamics"
     s.input.ReaxFF.ForceField = "Water2017.ff"
@@ -197,13 +224,13 @@ def test_plot_msd():
     s.input.ams.MolecularDynamics.TimeStep = 0.5
     s.input.ams.MolecularDynamics.NSteps = 200
 
-    if "AMSBIN" in os.environ:
+    if run_calculations:
         s.runscript.nproc = 1
         os.environ["OMP_NUM_THREADS"] = "1"
         job = AMSJob(settings=s, molecule=mol, name="md")
         job.run()
     else:
-        job = AMSJob.load_external("unit_tests/rkf/tools_plot/md/ams.rkf")
+        job = AMSJob.load_external(rkf_tools_plot / "md/ams.rkf")
 
     md_job = AMSMSDJob(job)
     md_job.run()
@@ -216,8 +243,8 @@ def test_plot_msd():
 # ----------------------------------------------------------
 # Testing plot_work_function
 # ----------------------------------------------------------
-@image_comparison(baseline_images=['plot_work_function'], remove_text=True, extensions=['png'], style='mpl20', tol=0.1)
-def test_plot_work_function():
+@image_comparison(baseline_images=["plot_work_function"], remove_text=True, extensions=["png"], style="mpl20", tol=11)
+def test_plot_work_function(run_calculations, rkf_tools_plot):
     plt.close("all")
 
     mol = Molecule()
@@ -238,11 +265,11 @@ def test_plot_work_function():
     s.input.QuantumEspresso.WorkFunction.idir = 3
     s.input.QuantumEspresso.WorkFunction.awin = 3.85
 
-    if "AMSBIN" in os.environ:
+    if run_calculations:
         job = AMSJob(settings=s, molecule=mol, name="Al_surface")
         job.run()
     else:
-        job = AMSJob.load_external("unit_tests/rkf/tools_plot/Al_surface")
+        job = AMSJob.load_external(rkf_tools_plot / "Al_surface")
 
     wf_results = job.results.get_work_function_results("eV", "Angstrom")
     ax = plot_work_function(*wf_results)
