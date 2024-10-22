@@ -17,7 +17,7 @@ Reaction energies with many different engines
     To execute this PLAMS script:
     
     * :download:`Download ReactionEnergyBenchmark.py <../../../examples/ReactionEnergyBenchmark.py>` and :download:`download and unzip molecules_ReactionEnergyBenchmark.zip <../../../examples/molecules_ReactionEnergyBenchmark.zip>`
-    * ``$AMSBIN/plams ReactionEnergyBenchmark.py``
+    * ``$AMSBIN/amspython ReactionEnergyBenchmark.py``
 
     This PLAMS script might take a while to run – around 4 hours on a modern laptop. Feel free to grab a coffee or take a break while it executes!
 

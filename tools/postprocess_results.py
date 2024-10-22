@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, Set, Union, Literal, Tuple
+from typing import Union, Literal, Tuple, Optional
 
 
 def _gaussian(x, A, x0, sigma):
@@ -27,7 +27,7 @@ def broaden_results(
     broadening_width: Union[float, np.ndarray] = 40,
     broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
     x_data: Union[np.ndarray, Tuple[float, float, float]] = (0, 4000, 0.5),
-    post_process: Literal["max_to_1"] = None,
+    post_process: Optional[Literal["max_to_1"]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """convenient function for create xy curve with gaussian or lorentzian peaks. Used to obtain IR or Raman spectra for example.
 
@@ -41,7 +41,7 @@ def broaden_results(
     :type broadening_type: Literal['gaussian', 'lorentzian'], optional
     :param x_data: it can be a np.ndarray or you can set a tuple with (min,max,step_size), defaults to (0, 4000, 0.5)
     :type x_data: Union[np.ndarray, Tuple[float, float, float]], optional
-    :param post_process: if max_to_1 the resulted spectrum has the max peak hight =1, defaults to None
+    :param post_process: if max_to_1 the resulted spectrum has the max peak height =1, defaults to None
     :type post_process: Literal['max_to_1'], optional
     :return: the x and y arrays
     :rtype: Tuple[np.ndarray, np.ndarray]

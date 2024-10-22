@@ -1,7 +1,7 @@
 import contextlib
 import textwrap
 from functools import wraps
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type
 
 __all__ = [
     "Settings",
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from scm.plams.core.jobmanager import JobManager
     from scm.plams.core.jobrunner import JobRunner
 
-TSelf = TypeVar("TSelf", bound="BaseClass")
+TSelf = TypeVar("TSelf", bound="Settings")
 
 
 class Settings(dict):
@@ -146,7 +146,7 @@ class Settings(dict):
                 self[name] = other[name]
         return self
 
-    def update(self, other):
+    def update(self, other):  # type: ignore
         """Update this instance with data from *other*, overwriting existing keys. Nested |Settings| instances are updated recursively.
 
         In the following example ``s`` and ``o`` are previously prepared |Settings| instances::
@@ -335,7 +335,7 @@ class Settings(dict):
             ('a', 'b', 'c'): 	True
         """
         if flatten_list:
-            nested_type = (Settings, list)
+            nested_type: Union[Type, Tuple[Type, ...]] = (Settings, list)
             iter_type = lambda x: x.items() if isinstance(x, Settings) else enumerate(x)
         else:
             nested_type = Settings
@@ -343,7 +343,7 @@ class Settings(dict):
 
         def _concatenate(key_ret, sequence):
             # Switch from Settings.items() to enumerate() if a list is encountered
-            for k, v in iter_type(sequence):
+            for k, v in iter_type(sequence):  # type: ignore
                 k = key_ret + (k,)
                 if isinstance(v, nested_type) and v:  # Empty lists or Settings instances will return ``False``
                     _concatenate(k, v)
@@ -490,12 +490,12 @@ class SuppressMissing(contextlib.AbstractContextManager):
         """Initialize the :class:`SuppressMissing` context manager."""
         # Ensure that obj is a class, not a class instance
         self.obj = obj if isinstance(obj, type) else type(obj)
-        self.missing = obj.__missing__
+        self.missing = obj.__missing__ if hasattr(obj, "__missing__") else None
 
     def __enter__(self):
         """Enter the :class:`SuppressMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
 
-        @wraps(self.missing)
+        @wraps(self.missing)  # type: ignore
         def __missing__(self, name):
             raise KeyError(name)
 
@@ -776,6 +776,7 @@ class ConfigSettings(Settings):
         super().__init__(*args, **kwargs)
 
         self.init = False
+        self._explicit_init = False
         self.preview = False
         self.sleepstep = 5
         self.ignore_failure = True
@@ -794,13 +795,24 @@ class ConfigSettings(Settings):
     @property
     def init(self) -> bool:
         """
-        Whether config has been marked as fully initialised and jobs are ready to be run. Defaults to ``False``.
+        Whether config has been marked as fully initialized and jobs are ready to be run. Defaults to ``False``.
         """
         return self["init"]
 
     @init.setter
     def init(self, value: bool):
         self["init"] = value
+
+    @property
+    def _explicit_init(self) -> bool:
+        """
+        Whether config has been explicitly initialized by the user by calling |init|. Defaults to ``False``.
+        """
+        return self["_explicit_init"]
+
+    @_explicit_init.setter
+    def _explicit_init(self, value: bool):
+        self["_explicit_init"] = value
 
     @property
     def preview(self) -> bool:

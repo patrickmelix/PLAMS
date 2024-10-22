@@ -380,8 +380,9 @@ class RKFTrajectoryFile(TrajectoryFile):
         """
         Extracts a PLAMS molecule object from the RKF file
         """
-        section_dict = self.file_object.read_section("InputMolecule")
-        if len(section_dict) == 0:
+        if "InputMolecule" in self.file_object:
+            section_dict = self.file_object.read_section("InputMolecule")
+        else:
             section_dict = self.file_object.read_section("Molecule")
         plamsmol = Molecule._mol_from_rkf_section(section_dict)
         return plamsmol
@@ -403,7 +404,6 @@ class RKFTrajectoryFile(TrajectoryFile):
 
         # Read the bond data
         conect = None
-        bonds = None
         if self.read_bonds:
             conect = self._read_bond_data(section="History", step=i)
         self.conect = conect
@@ -447,6 +447,7 @@ class RKFTrajectoryFile(TrajectoryFile):
             cell_reduced = None
             if cell is not None:
                 cell_reduced = cell[: self.nvecs]
+            # This also sets the bonds in the molecule
             self._set_plamsmol(self.coords, cell_reduced, molecule)
 
     def _read_cell_data(self, i):
@@ -482,25 +483,17 @@ class RKFTrajectoryFile(TrajectoryFile):
             bond_orders = self.file_object.read(section, "Bonds.Orders%s" % (step_txt))
             if isinstance(bond_orders, float):
                 bond_orders = [bond_orders]
+            # The connection table built here is not symmetric
             conect = {}
             for i, (start, end) in enumerate(zip(indices[:-1], indices[1:])):
                 if end - start > 0:
                     # conect[i+1] = connection_table[start-1:end-1]
-                    conect[i + 1] = [
-                        (ia, o)
-                        for ia, o in zip(connection_table[start - 1 : end - 1], bond_orders[start - 1 : end - 1])
-                    ]
-            # Now correct the connection table
-            # conect = self.symmetrize_conect(conect)
+                    conect[i + 1] = []
+                    for ia, o in zip(connection_table[start - 1 : end - 1], bond_orders[start - 1 : end - 1]):
+                        conect[i + 1].append((ia, o))
         except (KeyError, AttributeError):
             pass
         return conect
-
-    def get_regular_connection_table(self):
-        """
-        Get the connection table without the bond orders
-        """
-        conect = self.symmetrize_conect(self.conect)
 
     def _store_mddata_for_step(self, istep):
         """

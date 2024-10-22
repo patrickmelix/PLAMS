@@ -1,7 +1,5 @@
-from scm.plams import init, finish, from_smiles, JobRunner, config
+from scm.plams import from_smiles, JobRunner, config
 from scm.plams.recipes.adfcosmorscompound import ADFCOSMORSCompoundJob
-
-init()
 
 config.default_jobrunner = JobRunner(parallel=True, maxjobs=8)  # Set the default jobrunner to be parallel
 config.default_jobmanager.settings.hashing = None  # Disable rerun prevention
@@ -25,8 +23,6 @@ for name, mol in molecules.items():
         name=name,
     )  # an optional name for the calculation directory
     results.append(job.run())
-
-finish()
 
 # preoptimization='GFN1-xTB', singlepoint=False => preoptimization(GFN1-xTB) -> optimization(ADF) -> COSMO
 # preoptimization= None     , singlepoint=False => no preoptimization        -> optimization(ADF) -> COSMO

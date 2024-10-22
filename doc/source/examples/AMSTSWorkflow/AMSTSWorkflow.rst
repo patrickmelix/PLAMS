@@ -1,4 +1,4 @@
-.. _AMSTSWorkflow:
+.. _AMSTSWorkflowExample:
 
 AMS transition state workflow
 ===============================
@@ -13,23 +13,14 @@ The PESExploration LandscapeRefinement is used to find the two minima on either 
 
 .. seealso::
 
-    The :ref:`AMSPlumedMD` example is similar, but in that example the reaction happens during the MD simulation. That type of simulation can be performed when the potential is reactive.
+    The :ref:`AMSPlumedMDExample` example is similar, but in that example the reaction happens during the MD simulation. That type of simulation can be performed when the potential is reactive.
 
     In the current example, the MD simulation is performed with UFF which is not reactive.
 
 .. seealso::
 
-    Example: :ref:`MoleculeSubstitution`
+    Example: :ref:`MoleculeSubstitutionExample`
 
-To follow along, either
-
-* Download :download:`diels_alder_addition.py` (run as ``$AMSBIN/amspython diels_alder_addition.py``).
-* Download :download:`diels_alder_addition.ipynb` (see also: how to install `Jupyterlab <../../../Scripting/Python_Stack/Python_Stack.html#install-and-run-jupyter-lab-jupyter-notebooks>`__ in AMS)
-
-.. include:: diels_alder_addition.rst.include
-
-Complete Python code
-----------------------------
-
-.. literalinclude:: diels_alder_addition.py
-    :language: python
+.. include:: AMSTSWorkflow.common_header.rst
+.. include:: diels_alder_addition.ipynb.rst
+.. include:: AMSTSWorkflow.common_footer.rst

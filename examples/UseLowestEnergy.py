@@ -1,5 +1,6 @@
-#!/usr/bin/env plams
+#!/usr/bin/env amspython
 import matplotlib.pyplot as plt
+from scm.plams import from_smiles, Settings, AMSJob, Units
 
 """
 Example showing the UseLowestEnergy feature of the Hybrid engine and the OptimizeSpinRound feature of the ADF engine.
@@ -12,7 +13,7 @@ Another uses the ADF engine with OptimizeSpinRound in combination with an Electr
 In the end, the results of energy vs. bond length are plotted.
 
 To run this example:
-$AMSBIN/plams UseLowestEnergy.py
+$AMSBIN/amspython UseLowestEnergy.py
 """
 
 

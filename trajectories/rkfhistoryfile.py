@@ -189,7 +189,7 @@ class RKFHistoryFile(RKFTrajectoryFile):
         version = 1
         self._set_system_version_elements()
         for i in range(self.get_length()):
-            if not ("History","SystemVersion(%i)" % (i + 1)) in self.file_object:
+            if not ("History", "SystemVersion(%i)" % (i + 1)) in self.file_object:
                 continue
             new_version = self.file_object.read("History", "SystemVersion(%i)" % (i + 1))
             if new_version == version:
@@ -341,10 +341,9 @@ class RKFHistoryFile(RKFTrajectoryFile):
                 for at in reversed(molecule.atoms):
                     molecule.delete_atom(at)
                 molecule.properties = Settings()
-                for iel, el in enumerate(elements):
-                    atom = new_mol.atoms[iel]
-                    atom.bonds = []
-                    # atom = Atom(PT.get_atomic_number(el))
+                atoms = [new_mol.atoms[iel] for iel, _ in enumerate(elements)]
+                for atom in atoms:
+                    new_mol.delete_atom(atom)
                     molecule.add_atom(atom)
                 _, _, _, _, self.props = self._read_plamsmol(molecule)
                 if "charge" in new_mol.properties:

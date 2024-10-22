@@ -14,18 +14,15 @@ The example will load all the molecules in the folder ``compounds_xyz`` and then
 
 .. code-block:: python
 
-    from scm.plams import init, finish, from_smiles, read_molecules
+    from scm.plams import from_smiles, read_molecules
+    from scm.plams import from_smiles, read_molecules
     from scm.plams.recipes.adfcosmorscompound import ADFCOSMORSCompoundJob
-
-    init()
 
     molecules = read_molecules('./compounds_xyz')
 
     for name, mol in molecules.items():
         job = ADFCOSMORSCompoundJob(molecule = mol, coskf_name = name, coskf_dir = 'test_coskfs')
         job.run()
-
-    finish()
 
 
 Example: generating .coskf files for a set of compounds from smiles with parallel calculation
@@ -35,12 +32,10 @@ First, we'll import the necessary classes and enable the parallel calculation th
 
 .. code-block:: python
 
-    from scm.plams import init, finish, from_smiles, JobRunner, config
+    from scm.plams import from_smiles, JobRunner, config
     from scm.plams.recipes.adfcosmorscompound import ADFCOSMORSCompoundJob
 
-    init()
-
-    config.default_jobrunner = JobRunner(parallel=True, maxjobs=8)        # Set the default jobrunner to be parallel 
+    config.default_jobrunner = JobRunner(parallel=True, maxjobs=8)        # Set the default jobrunner to be parallel
     config.default_jobmanager.settings.hashing = None                     # Disable rerun prevention
     config.job.runscript.nproc = 1                                        # Number of cores for each job
     config.log.stdout = 1                                                 # Suppress plams output

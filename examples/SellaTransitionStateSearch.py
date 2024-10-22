@@ -85,7 +85,6 @@ def get_molecule():
 
 def main():
     os.environ["OMP_NUM_THREADS"] = "1"
-    init()
     mol = get_molecule()
 
     start = time.time()
@@ -95,8 +94,6 @@ def main():
     start = time.time()
     run_ams(mol)
     print(f"AMS finished in {time.time()-start} seconds")
-
-    finish()
 
 
 if __name__ == "__main__":

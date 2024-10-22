@@ -1,8 +1,5 @@
 import sys
-import os
-import numpy
 from scm.plams import AMSJob, Settings, Units, AMSAnalysisJob
-from scm.plams import to_rdmol, init, finish
 
 
 def main(filename, chargelines):
@@ -41,7 +38,6 @@ def main(filename, chargelines):
         nions[label] += len(atoms)
 
     # Compute diffusion coefficient for each ion
-    init()
     diffusion_coeffs = {}
     for label, atoms in ions.items():
         s = Settings()
@@ -56,7 +52,6 @@ def main(filename, chargelines):
         diffusion_coeffs[label] = D
         units = results._kf.read("Slope(1)", "Final(units)")
         print(formulas[label], D, units)
-    finish()
 
     # Compute the number density for each ion
     rho = {}

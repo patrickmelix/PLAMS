@@ -1,4 +1,4 @@
-.. _IRSpectrumFromMD:
+.. _IRSpectrumFromMDExample:
 
 IR spectrum from MD
 =======================
@@ -7,13 +7,6 @@ Example illustrating how to calculate an IR spectrum from the dipole derivative 
 
 The dipole moment is stored at every time step (more often than the structure) by setting the BinLog DipoleMoment option.
 
-* Download :download:`ir_spectrum_from_md.py` (run as ``$AMSBIN/amspython ir_spectrum_from_md.py``).
-* Download :download:`ir_spectrum_from_md.ipynb` (see also: how to install `Jupyterlab <../../../Scripting/Python_Stack/Python_Stack.html#install-and-run-jupyter-lab-jupyter-notebooks>`__ in AMS)
-
-.. include:: ir_spectrum_from_md.rst.include
-
-Complete Python code
-----------------------------
-
-.. literalinclude:: ir_spectrum_from_md.py
-    :language: python
+.. include:: IRSpectrumFromMD.common_header.rst
+.. include:: ir_spectrum_from_md.ipynb.rst
+.. include:: IRSpectrumFromMD.common_footer.rst

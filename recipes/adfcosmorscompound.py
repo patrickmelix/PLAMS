@@ -170,7 +170,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
             if preoptimization:
 
                 @add_to_instance(gas_job)
-                def prerun(self):
+                def prerun(self):  # noqa: F811
                     self.molecule = self.parent.children["preoptimization"].results.get_main_molecule()
 
             else:
@@ -187,13 +187,13 @@ class ADFCOSMORSCompoundJob(MultiJob):
             gas_job.settings.input.ams.Task = "SinglePoint"
 
             @add_to_instance(gas_job)
-            def prerun(self):
+            def prerun(self):  # noqa: F811
                 self.molecule = self.parent.input_molecule
 
             self.children["gas"] = gas_job
 
         @add_to_instance(solv_job)
-        def prerun(self):
+        def prerun(self):  # noqa: F811
             gas_job.results.wait()
             self.settings.input.ams.EngineRestart = "../gas/adf.rkf"
             self.settings.input.ams.LoadSystem.File = "../gas/ams.rkf"
@@ -235,6 +235,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
         def prerun(self):  # noqa F811
             self.parent.children["solv"].results.wait()
             self.settings.input.compound[0]._h = os.path.join(self.parent.path, self.parent.coskf_name)
+
         self.children["crs"] = crsjob
 
     @staticmethod
@@ -427,7 +428,13 @@ class ADFCOSMORSCompoundJob(MultiJob):
         return s
 
     @staticmethod
-    def convert_to_coskf(rkf: str, coskf_name: str, plams_dir: str, coskf_dir: Optional[str] = None, mol_info: Optional[Mapping[str, Union[float, int, str]]] = None):
+    def convert_to_coskf(
+        rkf: str,
+        coskf_name: str,
+        plams_dir: str,
+        coskf_dir: Optional[str] = None,
+        mol_info: Optional[Mapping[str, Union[float, int, str]]] = None,
+    ):
         """
         rkf: str
             absolute path to adf.rkf
@@ -436,7 +443,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
             the name of the .coskf file
 
         plams_dir: str
-            plamsjob path to write out the .coskf file    
+            plamsjob path to write out the .coskf file
 
         coskf_dir: Optional[str]
             additional path to store the .coskf file
@@ -456,4 +463,4 @@ class ADFCOSMORSCompoundJob(MultiJob):
         coskf_file.save()
 
         if coskf_dir is not None:
-            shutil.copy2(os.path.join(plams_dir, coskf_name), os.path.join(coskf_dir,coskf_name))
+            shutil.copy2(os.path.join(plams_dir, coskf_name), os.path.join(coskf_dir, coskf_name))

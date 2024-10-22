@@ -1,12 +1,26 @@
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 import time
 import threading
 import os
+from pathlib import Path
+import inspect
 
-from scm.plams.core.functions import init, finish
+from scm.plams.core.functions import (
+    _init,
+    init,
+    _finish,
+    finish,
+    requires_optional_package,
+    add_to_class,
+    add_to_instance,
+)
 from scm.plams.core.settings import Settings
-from scm.plams.unit_tests.test_helpers import assert_config_as_expected
+from scm.plams.core.errors import MissingOptionalPackageError
+from scm.plams.unit_tests.test_helpers import (
+    assert_config_as_expected,
+    get_mock_open_function,
+)
 
 
 class TestInitAndFinish:
@@ -27,17 +41,19 @@ class TestInitAndFinish:
         """
         Mock out file for logging.
         """
-        with patch("builtins.open", new_callable=mock_open) as mock_file:
-            yield mock_file
+        with get_mock_open_function(lambda f: isinstance(f, MagicMock), None):
+            yield
 
-    def test_init_sets_config_settings_default_values(self, config):
-        # When call init
-        init()
+    @pytest.mark.parametrize("explicit_init", [False, True])
+    def test_init_sets_config_settings_default_values(self, config, explicit_init):
+        # When call _init and optionally init
+        if explicit_init:
+            init()
 
         # Then config settings set to default values
-        assert_config_as_expected(config)
+        assert_config_as_expected(config, explicit_init=explicit_init)
 
-    def test_init_updates_config_settings(self, config):
+    def test_init_updates_config_settings_from_arg(self, config):
         settings = Settings()
         settings.preview = True
         settings.job.runscript.stdout_redirect = True
@@ -48,6 +64,147 @@ class TestInitAndFinish:
 
         # Then config settings set to default values with overrides
         assert_config_as_expected(config, preview=True, stdout_redirect=True, stdout=5)
+
+    @pytest.mark.parametrize(
+        "plams_defaults,ams_home,file1_exists,file2_exists,file3_exists,explicit_init,expected_source",
+        [
+            ["my/defaults/file", None, True, True, True, True, 1],
+            [None, "my/home", True, True, True, True, 2],
+            [None, None, True, True, True, True, 3],
+            ["my/defaults/file", "my/home", True, True, True, True, 1],
+            ["my/defaults/file", "my/home", False, True, True, True, 2],
+            ["my/defaults/file", "my/home", False, False, True, True, 3],
+            ["my/defaults/file", None, True, True, True, False, 1],
+        ],
+        ids=[
+            "plams_defaults_only_set",
+            "amshome_only_set",
+            "no_env_vars_but_default_exists",
+            "both_env_var_set_and_files_exist_uses_first",
+            "both_env_var_set_but_only_second_file_exists_uses_second",
+            "both_env_var_set_but_neither_file_exists_uses_default",
+            "plams_defaults_only_set_with_implicit_init",
+        ],
+    )
+    def test_init_updates_config_settings_from_defaults_file(
+        self,
+        config,
+        plams_defaults,
+        ams_home,
+        file1_exists,
+        file2_exists,
+        file3_exists,
+        explicit_init,
+        expected_source,
+        monkeypatch,
+    ):
+        # Patch env vars for PLAMSDEFAULTS and AMSHOME
+        if plams_defaults is not None:
+            plams_defaults = Path(plams_defaults)
+            monkeypatch.setenv("PLAMSDEFAULTS", str(plams_defaults))
+        else:
+            monkeypatch.delenv("PLAMSDEFAULTS", raising=False)
+
+        if ams_home is not None:
+            ams_home = Path(ams_home)
+            monkeypatch.setenv("AMSHOME", str(ams_home))
+        else:
+            monkeypatch.delenv("AMSHOME", raising=False)
+
+        # Set up the content for the defaults file
+        mock_open = get_mock_open_function(
+            lambda p: Path(p) == plams_defaults or Path(p).name == "plams_defaults",
+            content="""
+config.preview = True
+config.job.runscript.stdout_redirect = True
+config.log.stdout = 5
+        """,
+        )
+
+        # Set up portable paths for the expected location of the defaults file
+        path1 = plams_defaults
+        path2 = Path(f"{ams_home}/scripting/scm/plams/plams_defaults") if ams_home is not None else None
+        path3 = Path(inspect.getfile(init)).parent.parent / "plams_defaults"
+
+        # Set up which files are expected to exist
+        def file_exists(path):
+            p = Path(path)
+            return (
+                (path1 is not None and p == path1 and file1_exists)
+                or (path2 is not None and p == path2 and file2_exists)
+                or (p == path3 and file3_exists)
+            )
+
+        with mock_open, patch("scm.plams.core.functions.isfile") as mock_isfile:
+            mock_isfile.side_effect = file_exists
+
+            # When call _init and optionally init
+            _init()  # need to re-call after env vars and file patched
+            if explicit_init:
+                init()
+
+            # Then config settings set to default values with overrides
+            assert_config_as_expected(config, explicit_init=explicit_init, preview=True, stdout_redirect=True, stdout=5)
+
+            # Then the source used is the expected file
+            source = Path(mock_open.new.mock_calls[0].args[0])
+            if expected_source == 1:
+                assert source == path1
+            elif expected_source == 2:
+                assert source == path2
+            else:
+                assert source == path3
+
+    @pytest.mark.parametrize("explicit_init", [False, True])
+    def test_init_can_set_default_jobrunner_in_defaults_file(self, explicit_init, config):
+        content = r"""
+from .settings import Settings
+from .jobrunner import GridRunner
+import re
+
+def __psubmit_get_jobid(output):
+    match = re.search(r'> Job ID:\s*([0-9]+)', output)
+    if match is not None:
+        return match[1]
+    else:
+        return None
+
+def __pbs_running(output):
+    lines = output.splitlines()[2:]
+    return [line.split()[0].split('.')[0] for line in lines]
+
+grid_config = Settings()
+grid_config.workdir = '-d'
+grid_config.output  = '-o'
+grid_config.error   = '-e'
+grid_config.commands.submit  = '/home/psubmit-plams-wrapper'
+grid_config.commands.check  = 'qstat'
+grid_config.commands.getid   = __psubmit_get_jobid
+grid_config.commands.running = __pbs_running
+
+config.default_jobrunner = GridRunner(grid=grid_config, sleepstep=30)
+    """
+
+        # Set up the content for the defaults file
+        mock_open = get_mock_open_function(lambda p: p.endswith("plams_defaults"), content=content)
+
+        # Set up which files are expected to exist
+        with mock_open, patch("scm.plams.core.functions.isfile") as mock_isfile:
+            mock_isfile.side_effect = lambda p: p.endswith("plams_defaults")
+
+            # When call _init and optionally init
+            _init()  # need to re-call after file patched
+            if explicit_init:
+                init()
+
+            # Then default jobrunner is set to the gridrunner
+            jobrunner = config.default_jobrunner
+            from scm.plams.core.jobrunner import GridRunner
+
+            assert isinstance(jobrunner, GridRunner)
+            assert jobrunner.settings.workdir == "-d"
+            assert jobrunner.settings.commands.submit == "/home/psubmit-plams-wrapper"
+            assert jobrunner.settings.commands.getid("> Job ID: 1234") == "1234"
 
     def test_init_passes_args_to_default_jobmanager(self, config, mock_jobmanager):
         # When call init with job manager args
@@ -61,9 +218,11 @@ class TestInitAndFinish:
             True,
         )
 
-    def test_init_updates_init_flag_on_config_settings(self, config):
-        # When call init with job manager args
-        init()
+    @pytest.mark.parametrize("explicit_init", [False, True])
+    def test_init_updates_init_flag_on_config_settings(self, explicit_init, config):
+        # When call _init and optionally init
+        if explicit_init:
+            init()
 
         # Then config is marked as initialised
         assert config.init
@@ -96,27 +255,31 @@ class TestInitAndFinish:
         assert mock_jobmanager.call_count == 2
 
     @pytest.mark.parametrize(
-        "code,version,tasks,should_error",
+        "code,version,tasks,explicit_init,should_error",
         [
-            (0, "20.10", "16", False),
-            (0, "21.10", "16", False),
-            (1, "20.11", "16", True),
-            (0, "10.11", "16", True),
-            (0, "21_11", "16", True),
-            (0, "21.10", None, True),
-            (0, "20.10", "xyz", True),
+            (0, "20.10", "16", True, False),
+            (0, "21.10", "16", True, False),
+            (0, "21.10", "16", False, False),
+            (1, "20.11", "16", True, True),
+            (1, "20.11", "16", False, True),
+            (0, "10.11", "16", True, True),
+            (0, "21_11", "16", True, True),
+            (0, "21.10", None, True, True),
+            (0, "20.10", "xyz", True, True),
         ],
         ids=[
             "happy_v20.10",
             "happy_v21.10",
+            "happy_v21.10_with_implicit_init",
             "unhappy_code",
+            "unhappy_code_with_implicit_init",
             "unhappy_v10.11",
             "unhappy_v20_11",
             "unhappy_no_tasks",
             "unhappy_tasks",
         ],
     )
-    def test_init_sets_slurm_settings(self, code, version, tasks, should_error, monkeypatch, config):
+    def test_init_sets_slurm_settings(self, code, version, tasks, explicit_init, should_error, monkeypatch, config):
         # When running under slurm and init() called
         monkeypatch.setenv("SLURM_JOB_ID", "123456")
         if tasks is not None:
@@ -132,14 +295,22 @@ class TestInitAndFinish:
         mock_result.stdout = mock_stdout
 
         with patch("scm.plams.core.functions.subprocess.run", return_value=mock_result):
-            init()
+            # When call _init and optionally init
+            _init()  # need to re-call after env vars patched
+            if explicit_init:
+                init()
 
             # Then config should have defaults set
-            assert_config_as_expected(config)
+            assert_config_as_expected(config, explicit_init=explicit_init)
 
             # And slurm settings set when happy, otherwise None
             if not should_error:
-                assert config.slurm == Settings({"slurm_version": version.split("."), "tasks_per_node": [int(tasks)]})
+                assert config.slurm == Settings(
+                    {
+                        "slurm_version": version.split("."),
+                        "tasks_per_node": [int(tasks)],
+                    }
+                )
                 assert os.environ["SCM_SRUN_OPTIONS"].startswith("-m block:block:block,NoPack --use-min-nodes")
             else:
                 assert config.slurm is None
@@ -213,24 +384,40 @@ class TestInitAndFinish:
         # Then second call effective
         assert config.default_jobmanager._clean.call_count == 2
 
-    def test_init_then_finish_as_expected(self, config, mock_jobmanager):
-        # When call init then finish
-        init()
+    @pytest.mark.parametrize("explicit_finish", [True, False])
+    def test_finish_does_not_clean_uninitialised_default_jobmanager(self, explicit_finish, config):
+        # When call _finish or finish but without initialising the lazy default jobmanager
+        if explicit_finish:
+            finish()
+        else:
+            _finish()
+
+        # Then the default job manager is still uninitialised and so not cleaned
+        assert config["default_jobmanager"] is None
+
+    @pytest.mark.parametrize("explicit_init", [True, False])
+    def test_init_then_finish_as_expected(self, explicit_init, config, mock_jobmanager):
+        # When call _init and optionally init then finish
+        if explicit_init:
+            init()
         finish()
 
-        # Then config defaults initialised and job manager created and cleaned
-        assert_config_as_expected(config, init=False)
-        assert config.default_jobmanager._clean.call_count == 1
-        assert mock_jobmanager.call_args_list[0].args == (
-            {"counter_len": 3, "hashing": "input", "remove_empty_directories": True},
-            None,
-            None,
-            False,
-        )
+        # Then config defaults initialised and job manager created and cleaned (on explicit init which forces job manager materialisation)
+        assert_config_as_expected(config, init=False, explicit_init=explicit_init)
+        assert config.default_jobmanager._clean.call_count == (1 if explicit_init else 0)
+        assert mock_jobmanager.call_args_list[0].args[0] == {
+            "counter_len": 3,
+            "hashing": "input",
+            "remove_empty_directories": True,
+        }
+        if explicit_init:
+            assert mock_jobmanager.call_args_list[0].args[1:] == (None, None, False)
 
-    def test_init_then_finish_successive_calls_as_expected(self, config, mock_jobmanager):
-        # When call init then finish successively
-        init()
+    @pytest.mark.parametrize("explicit_init", [True, False])
+    def test_init_then_finish_successive_calls_as_expected(self, explicit_init, config, mock_jobmanager):
+        # When call _init and optionally init then finish successively
+        if explicit_init:
+            init()
         config.preview = True
         config.log.stdout = 3
         config.job.runscript.stdout_redirect = True
@@ -242,13 +429,14 @@ class TestInitAndFinish:
         # Then on the second call the default settings should be reset, but the custom ones remain
         assert_config_as_expected(config, init=False)
         assert config.foo == "bar"
-        assert config.default_jobmanager._clean.call_count == 2
-        assert mock_jobmanager.call_args_list[0].args == (
-            {"counter_len": 3, "hashing": "input", "remove_empty_directories": True},
-            None,
-            None,
-            False,
-        )
+        assert config.default_jobmanager._clean.call_count == (2 if explicit_init else 1)
+        assert mock_jobmanager.call_args_list[0].args[0] == {
+            "counter_len": 3,
+            "hashing": "input",
+            "remove_empty_directories": True,
+        }
+        if explicit_init:
+            assert mock_jobmanager.call_args_list[0].args[1:] == (None, None, False)
 
     def test_init_then_finish_in_loop_as_expected(self, config, mock_jobmanager):
         # When call init then finish in loop
@@ -260,8 +448,117 @@ class TestInitAndFinish:
             assert_config_as_expected(config, init=False)
             assert config.default_jobmanager._clean.call_count == i + 1
             assert mock_jobmanager.call_args_list[i].args == (
-                {"counter_len": 3, "hashing": "input", "remove_empty_directories": True},
+                {
+                    "counter_len": 3,
+                    "hashing": "input",
+                    "remove_empty_directories": True,
+                },
                 None,
                 f"folder{i}",
                 False,
             )
+
+
+class TestDecorators:
+    """
+    Test suite for PLAMS decorators
+    """
+
+    class EmptyClass:
+        pass
+
+    def test_add_to_class(self):
+        # Given initially empty class
+        empty_class = self.EmptyClass()
+
+        with pytest.raises(AttributeError):
+            empty_class.is_added_to_class()
+
+        # When add function to class
+        @add_to_class(self.EmptyClass)
+        def is_added_to_class(self):
+            return True
+
+        # Then is available on all instances
+        another_empty_class = self.EmptyClass()
+        assert empty_class.is_added_to_class()
+        assert another_empty_class.is_added_to_class()
+
+    def test_add_to_instance(self):
+        # Given initially empty class
+        empty_class = self.EmptyClass()
+
+        with pytest.raises(AttributeError):
+            empty_class.is_added_to_instance()
+
+        # When add function to instance
+        @add_to_instance(empty_class)
+        def is_added_to_instance(self):
+            return True
+
+        # Then is available on that instance only
+        another_empty_class = self.EmptyClass()
+        assert empty_class.is_added_to_instance()
+        with pytest.raises(AttributeError):
+            assert another_empty_class.is_added_to_instance()
+
+    class OptionalRequirementsClass:
+
+        def no_requirements(self):
+            return True
+
+        @requires_optional_package("numpy")
+        def requires_numpy_package(self):
+            import numpy  # noqa F401
+
+            return True
+
+        @requires_optional_package("__this_is_definitely_not_an_available_package__")
+        def requires_unavailable_package(self):
+            import __this_is_definitely_not_an_available_package__  # noqa F401
+
+            return True
+
+    def test_requires_optional_package(self):
+        # Given class which has methods, some of which require optional packages
+        req_class = self.OptionalRequirementsClass()
+
+        def maybe_calls_requires_unavailable_package(does_call):
+            if does_call:
+                req_class.requires_unavailable_package()
+            return True
+
+        # When call methods where package requirements are satisfied
+        # Then no errors are raised
+        assert req_class.no_requirements()
+        assert req_class.requires_numpy_package()
+        assert maybe_calls_requires_unavailable_package(False)
+
+        # When call methods where package is missing (or method which calls said method)
+        # Then error is raised
+        with pytest.raises(MissingOptionalPackageError):
+            req_class.requires_unavailable_package()
+        with pytest.raises(MissingOptionalPackageError):
+            maybe_calls_requires_unavailable_package(True)
+
+    def test_requires_optional_package_with_add_to_class_and_instance(self):
+        # Given initially empty class
+        empty_class = self.EmptyClass()
+
+        @add_to_class(self.EmptyClass)
+        @requires_optional_package("__this_is_definitely_not_an_available_package__")
+        def requires_unavailable_package_and_is_added_to_class(self):
+            return True
+
+        @add_to_instance(empty_class)
+        @requires_optional_package("__this_is_definitely_not_an_available_package__")
+        def requires_unavailable_package_and_is_added_to_instance(self):
+            return True
+
+        # When call methods that require non-existing package which were added to the class
+        # Then error raised
+        with pytest.raises(MissingOptionalPackageError):
+            empty_class.requires_unavailable_package_and_is_added_to_class()
+
+        with pytest.raises(MissingOptionalPackageError):
+            empty_class.requires_unavailable_package_and_is_added_to_instance()

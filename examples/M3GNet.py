@@ -3,7 +3,6 @@ from scm.plams import *
 
 
 def main():
-    init()
 
     mol = from_smiles("O")
     mol.lattice = [
@@ -32,8 +31,6 @@ def main():
 
     energy = job.results.get_energy(unit="eV")
     print(f"M3GNet: final energy {energy:.3f} eV")
-
-    finish()
 
 
 if __name__ == "__main__":

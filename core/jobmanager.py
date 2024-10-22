@@ -3,10 +3,15 @@ import re
 import shutil
 import threading
 from os.path import join as opj
+from typing import TYPE_CHECKING
 
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.functions import config, log
+from scm.plams.core.enums import JobStatus
+
+if TYPE_CHECKING:
+    from scm.plams.core.basejob import Job
 
 __all__ = ["JobManager"]
 
@@ -135,7 +140,7 @@ class JobManager:
                     self.remove_job(otherjob)
             shutil.rmtree(job.path)
 
-    def _register(self, job):
+    def _register(self, job: "Job"):
         """Register the *job*. Register job's name (rename if needed) and create the job folder.
 
         If a job with the same name was already registered, *job* is renamed by appending consecutive integers. The number of digits in the appended number is defined by the ``counter_len`` value in ``settings``.
@@ -168,7 +173,7 @@ class JobManager:
             os.mkdir(job.path)
 
             self.jobs.append(job)
-            job.status = "registered"
+            job.status = JobStatus.REGISTERED
             log("Job {} registered".format(job.name), 7)
 
     def _check_hash(self, job):

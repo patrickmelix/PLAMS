@@ -1,5 +1,8 @@
+Worked Example
+--------------
+
 Initial imports
----------------
+~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -9,7 +12,7 @@ Initial imports
     import matplotlib.pyplot as plt
 
 Helper functions
-----------------
+~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -34,7 +37,7 @@ Helper functions
         plot_atoms(toASE(mol), **kwargs)
 
 Liquid water (fluid with 1 component)
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, create the gasphase molecule:
 
@@ -193,7 +196,7 @@ First, create the gasphase molecule:
 
 
 Water-acetonitrile mixture (fluid with 2 or more components)
-------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let’s also create a single acetonitrile molecule:
 
@@ -388,7 +391,7 @@ The ``details`` is a dictionary as follows:
 
 
 Pack inside sphere
-------------------
+~~~~~~~~~~~~~~~~~~
 
 Set ``sphere=True`` to pack in a sphere (non-periodic) instead of in a
 periodic box. The sphere will be centered near the origin.
@@ -449,7 +452,7 @@ periodic box. The sphere will be centered near the origin.
 
 
 Packing ions, total system charge
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The total system charge will be sum of the charges of the constituent
 molecules.
@@ -489,7 +492,7 @@ In PLAMS, ``molecule.properties.charge`` specifies the charge:
 
 
 Microsolvation
---------------
+~~~~~~~~~~~~~~
 
 ``packmol_microsolvation`` can create a microsolvation sphere around a
 solute.
@@ -517,7 +520,7 @@ solute.
 
 
 Solid-liquid or solid-gas interfaces
-------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, create a slab using the ASE ``fcc111`` function
 
@@ -575,7 +578,7 @@ First, create a slab using the ASE ``fcc111`` function
 
 
 Pack inside voids in crystals
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Use the ``packmol_in_void`` function. You can decrease ``tolerance`` if
 you need to pack very tightly. The default value for ``tolerance`` is
@@ -615,7 +618,7 @@ you need to pack very tightly. The default value for ``tolerance`` is
 
 
 Bonds, atom properties (force field types, regions, …)
-------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``packmol()`` function accepts the arguments ``keep_bonds`` and
 ``keep_atom_properties``. These options will keep the bonds defined for

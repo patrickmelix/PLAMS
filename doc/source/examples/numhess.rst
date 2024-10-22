@@ -13,7 +13,7 @@ Settings of ``NumHessJob`` are directly passed to children jobs, so creating a `
 The dedicated |Results| subclass for ``NumHessJob`` takes care of extracting the Hessian from results of all single point jobs.
 The returned Hessian can optionally be mass weighted.
 
-The source code of the whole module with both abovementioned classes:
+The source code of the whole module with both aforementioned classes:
 
 .. literalinclude:: ../../../recipes/numhess.py
 

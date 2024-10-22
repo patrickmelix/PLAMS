@@ -12,8 +12,8 @@ Every instance of |JobManager| is tied to a working folder.
 This folder is created when |JobManager| instance is initialized and all the jobs managed by that instance have their job folders inside the working folder.
 You should not change job manager's working folder after it has been created.
 
-When you initialize PLAMS environment with the |init| function, an instance of |JobManager| is created and stored in ``config.default_jobmanager``
-This instance is tied to the main working folder (see |master-script| for details) and used as a default every time some interaction with a job manager is required.
+When a PLAMS environment is initialized, an instance of |JobManager| is created and stored in ``config.default_jobmanager``
+This instance is tied to the main working folder (see :ref:`working-folder` for details) and used as a default every time some interaction with a job manager is required.
 In a normal situation you would never explicitly interact with a |JobManager| instance (create it manually, call any of its methods, explore its data etc.).
 All interactions are handled automatically from |run| or other methods.
 
@@ -75,7 +75,7 @@ Pickling
 
 The lifetime of the whole PLAMS environment is limited to a single script.
 That means every PLAMS script you run uses its own independent job manager, working folder and ``config`` settings.
-These objects are initialized at the beginning of the script with |init| command and they cease to exist when the script ends.
+These objects are initialized at the beginning of the script and they cease to exist when the script ends.
 Also all the settings adjustments (apart from those done by editing :ref:`plams-defaults`) are local and they affect only the current script.
 
 As a consequence of that, the |JobManager| of the current script is not aware of any jobs that had been run in past scripts.
@@ -163,38 +163,6 @@ But having to go to the old script's working folder and manually get paths to al
 Fortunately, one can use |load_all| function which takes a path to the main working folder of some finished PLAMS run and loads all ``.dill`` files present there.
 So when you edit your crashed script to remove mistakes you can add just one |load_all| call at the beginning.
 Then you run your corrected script and no unnecessary work is done: all the finished jobs are loaded from the previous run, the current run tries to run the same jobs again, but |RPM| detects that and copies/links old jobs' folders into the current main working folder.
-
-If you're executing your PLAMS scripts using the |master-script| restarting is even easier.
-It can be done in two ways:
-
-1.  If you wish to perform the restart run in a fresh, empty working folder, all you need to do is to import the contents of the previous working folder (from the crashed run) using ``-l`` flag:
-
-    .. code-block:: none
-
-        plams myscript.plms
-        [17:28:40] PLAMS working folder: /home/user/plams_workdir
-        #[crashed]
-        #[correct myscript.plms]
-        plams -l plams_workdir myscript.plms
-        [17:35:44] PLAMS working folder: /home/user/plams_workdir.002
-
-    This is eqivalent to putting ``load_all('plams_workdir')`` at the top of ``myscript.plms`` and running it with the usual ``plams myscript.plms``.
-
-
-2.  If you would prefer an in-place restart in the same working folder, you can use ``-r`` flag:
-
-    .. code-block:: none
-
-        plams myscript.plms
-        [17:28:40] PLAMS working folder: /home/user/plams_workdir
-        #[crashed]
-        #[correct myscript.plms]
-        plams -r myscript.plms
-        [17:35:44] PLAMS working folder: /home/user/plams_workdir
-
-    In this case the launch script will temporarily move all the contents of ``plams_workdir`` to ``plams_workdir.res``, import all the jobs from there and start a regular run in now empty ``plams_workdir``.
-
-
 
 .. note::
     Please remember that rerun prevention checks the hash of the job after the |prerun| method is executed.

@@ -1,8 +1,9 @@
-#!/usr/bin/env plams
+#!/usr/bin/env amspython
 import copy
 import multiprocessing
 
 from scm.input_classes import ADF, AMS
+from scm.plams import config, JobRunner, from_smiles, Settings, AMSJob
 
 # Run jobs as many jobs as possible in parallel:
 config.default_jobrunner = JobRunner(parallel=True, maxjobs=multiprocessing.cpu_count())

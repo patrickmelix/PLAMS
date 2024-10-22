@@ -1,8 +1,6 @@
 from scm.plams.recipes.adfcosmorsconformers import ADFCOSMORSConfJob, ADFCOSMORSConfFilter
-from scm.plams import Molecule, from_smiles, init, finish, Settings
+from scm.plams import from_smiles, Settings
 from scm.conformers import ConformersJob
-
-init()
 
 mol = from_smiles("CC(=O)O")
 
@@ -30,5 +28,3 @@ a = ADFCOSMORSConfJob(
     coskf_dir="test_coskfs",
 )
 a.run()
-
-finish()

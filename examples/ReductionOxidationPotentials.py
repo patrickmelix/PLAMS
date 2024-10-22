@@ -1,5 +1,5 @@
 #!/usr/bin/env amspython
-from scm.plams import *
+from scm.plams import from_smiles, CRSJob, Settings
 from scm.plams.recipes.redox import AMSRedoxScreeningJob, AMSRedoxDirectJob, AMSRedoxThermodynamicCycleJob
 
 
@@ -82,6 +82,4 @@ def print_results(jobs):
 
 
 if __name__ == "__main__":
-    init()
     main()
-    finish()

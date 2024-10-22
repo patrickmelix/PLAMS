@@ -12,8 +12,8 @@ description = "PLAMS is a library providing powerful, flexible and easily extend
 setup(
     name="plams",
     version=__version__,
-    author="Michał Handzlik",
-    author_email="handzlik@scm.com",
+    author="Software for Chemistry and Materials",
+    author_email="info@scm.com",
     url="https://www.scm.com/doc/plams/",
     download_url="https://github.com/SCM-NV/PLAMS/zipball/release",
     license="LGPLv3",
@@ -32,18 +32,17 @@ setup(
     ],
     keywords=["molecular modeling", "computational chemistry", "workflow", "python interface"],
     python_requires=">=3.6",
-    install_requires=["dill>=0.2.4", "numpy", "scipy", "natsort"],
+    install_requires=["dill>=0.2.4", "numpy<2", "scipy", "natsort"],
+    extras_require={"chem_tools": ["ase<3.23", "rdkit"], "results": ["networkx<3"]},
     packages=packages,
     package_dir={"scm.plams": "."},
     package_data={
         "scm.plams": [
             ".flake8",
-            "plams_defaults",
             "examples/*",
+            "examples/**/*",
             "unit_tests/*",
-            "unit_tests/xyz/*",
-            "unit_tests/pdb/*",
-            "unit_tests/rkf/*",
+            "unit_tests/**/*",
         ]
     },
     scripts=[opj("scripts", "plams")],
