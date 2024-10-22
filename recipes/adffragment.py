@@ -16,6 +16,17 @@ __all__ = ["ADFFragmentJob", "ADFFragmentResults"]
 
 class ADFFragmentResults(Results):
 
+    def check(self):
+        """Check if the calculation finished successfully.
+        
+        Overwriting the method of |MultiJob| because it only checks if the job
+        finished, not how it finished.
+        """
+        for job in self.job.children:
+            if not job.check():
+                return False
+        return True
+
     def get_properties(self):
         """Redirect to |ADFResults| of the full calculation."""
         return self.job.full.results.get_properties()
