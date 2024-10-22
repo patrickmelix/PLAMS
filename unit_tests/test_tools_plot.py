@@ -58,7 +58,7 @@ def test_plot_molecule():
         ]
     )
 
-    plot_molecule(glycine, rotation=("90x,45y,0z"))
+    plot_molecule(glycine, rotation=("90x,45y,0z"), keep_axis=True, figsize=(3, 2))
 
     plt.pause(2)
 
