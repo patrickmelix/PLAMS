@@ -72,12 +72,8 @@ class ADFFragmentResults(Results):
         res2 = self.job.f2.results
         pos = -4  # position of the energy in au the output
         # E_int appears in a comment below the PEDA Table of the output
-        ret["E_int"] = Units.convert(
-            float(res.grep_output("Total Bonding Energy:")[-2].split()[pos]), "au", unit
-        )
-        ret["E_int_disp"] = Units.convert(
-            float(res.grep_output("Dispersion Energy:")[-1].split()[pos]), "au", unit
-        )
+        ret["E_int"] = Units.convert(float(res.grep_output("Total Bonding Energy:")[-2].split()[pos]), "au", unit)
+        ret["E_int_disp"] = Units.convert(float(res.grep_output("Dispersion Energy:")[-1].split()[pos]), "au", unit)
         ret["E_Pauli"] = Units.convert(
             float(res.grep_output("Pauli Repulsion (Delta")[-1].split()[pos]),
             "au",
@@ -125,7 +121,7 @@ class ADFFragmentJob(MultiJob):
         full_settings: Settings = None,
         frag1_settings: Settings = None,
         frag2_settings: Settings = None,
-        **kwargs
+        **kwargs,
     ):
         """Create an ADFFragmentJob with the given fragments.
 
@@ -146,13 +142,9 @@ class ADFFragmentJob(MultiJob):
             **kwargs: Further keyword arguments for |MultiJob|.
         """
         MultiJob.__init__(self, **kwargs)
-        self.fragment1 = (
-            fragment1.copy() if isinstance(fragment1, Molecule) else fragment1
-        )
+        self.fragment1 = fragment1.copy() if isinstance(fragment1, Molecule) else fragment1
         self.frag1_settings = frag1_settings or Settings()
-        self.fragment2 = (
-            fragment2.copy() if isinstance(fragment2, Molecule) else fragment2
-        )
+        self.fragment2 = fragment2.copy() if isinstance(fragment2, Molecule) else fragment2
         self.frag2_settings = frag2_settings or Settings()
         self.full_settings = full_settings or Settings()
 
