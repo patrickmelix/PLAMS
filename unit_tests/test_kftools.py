@@ -192,6 +192,36 @@ class TestKFFile:
         with pytest.raises(ValueError):
             file.write("Test", "ListInvalidTypes", [{}, {}])
 
+    def test_contains(self, water_optimization_rkf):
+        happy_file = KFFile(water_optimization_rkf, autosave=False)
+        unhappy_file = KFFile("not-a-file", autosave=False)
+
+        # Section present
+        assert "Molecule" in happy_file
+        assert "General" in happy_file
+        # Section and variable present
+        assert ("Molecule", "nAtoms") in happy_file
+        assert ("General", "CPUTime") in happy_file
+        # Section not present
+        assert "Foo" not in happy_file
+        assert ("Foo", "Bar") not in happy_file
+        # Variable not present
+        assert ("Molecule", "Bar") not in happy_file
+        # No file present
+        assert "Molecule" not in unhappy_file
+        assert "General" not in unhappy_file
+        assert ("Molecule", "nAtoms") not in unhappy_file
+        assert ("General", "CPUTime") not in unhappy_file
+        assert "Foo" not in unhappy_file
+        assert ("Foo", "Bar") not in unhappy_file
+        assert ("Molecule", "Bar") not in unhappy_file
+
+        with pytest.raises(TypeError):
+            ("a", "b", "c") in happy_file
+
+        with pytest.raises(TypeError):
+            ("a", "b", "c") in unhappy_file
+
 
 class TestKFHistory:
     """

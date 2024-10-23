@@ -492,7 +492,7 @@ class KFFile:
             try:
                 self.read(*arg)
                 return True
-            except (KeyError, AttributeError):
+            except (KeyError, AttributeError, FileError):
                 return False
         raise TypeError("'in <KFFile>' requires string of a pair of strings as left operand")
 
