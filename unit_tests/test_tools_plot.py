@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import pytest
 from matplotlib.testing.decorators import image_comparison
+import matplotlib
 from pathlib import Path
 import numpy as np
 
@@ -22,6 +23,10 @@ from scm.plams.tools.plot import (
     get_correlation_xy,
     plot_msd,
 )
+
+# Use non-interactive backend for ci env
+# Results are available for inspection in the result_images directory
+matplotlib.use("Agg")
 
 
 @pytest.fixture
@@ -60,8 +65,6 @@ def test_plot_molecule():
 
     plot_molecule(glycine, rotation=("90x,45y,0z"), keep_axis=True, figsize=(3, 2))
 
-    plt.pause(2)
-
 
 # ----------------------------------------------------------
 # Testing plot_band_structure
@@ -99,8 +102,6 @@ def test_plot_band_structure(run_calculations, rkf_tools_plot):
     ax.set_xlabel("Path")
     ax.set_title("NiO with DFT+U")
 
-    plt.pause(2)
-
 
 # ----------------------------------------------------------
 # Testing plot_correlation & get_correlation_xy
@@ -131,8 +132,6 @@ def test_plot_correlation(run_calculations, rkf_tools_plot):
         job2 = AMSJob.load_external(rkf_tools_plot / "glycine-engine2")
 
     plot_correlation(job1, job2, section="AMSResults", variable="Gradients", file="engine")
-
-    plt.pause(2)
 
     x, y = get_correlation_xy(job1, job2, section="AMSResults", variable="Gradients", file="engine")
 
@@ -245,8 +244,6 @@ def test_plot_msd(run_calculations, rkf_tools_plot, xyz_folder):
 
     plot_msd(md_job)
 
-    plt.pause(2)
-
 
 # ----------------------------------------------------------
 # Testing plot_work_function
@@ -285,5 +282,3 @@ def test_plot_work_function(run_calculations, rkf_tools_plot):
     ax.set_title("Electrostatic Potential Profile", fontsize=14)
     ax.set_xlabel("Length (Angstroms)", fontsize=13)
     ax.set_ylabel("Energy (eV)", fontsize=13)
-
-    plt.pause(2)
