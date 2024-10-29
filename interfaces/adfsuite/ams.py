@@ -2758,7 +2758,7 @@ class AMSJob(SingleJob):
 
         def serialize(sett, prefix=""):
             for key, val in sett.items():
-                if prefix == "" and key.lower() in ["suffix", "ghost", "name", "supercell"]:
+                if prefix == "" and key.lower() in ["suffix", "ghost", "name", "supercell", "rdkit"]:
                     # Special atomic properties that are handled by _atom_symbol() already (handled explicitly below).
                     # Or internal PLAMS properties which are not accepted as valid atom properties in AMS, and so can be pruned out.
                     continue
