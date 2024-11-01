@@ -137,6 +137,6 @@ jobs:
       - name: Build Sphinx Docs
         working-directory: scm/plams/doc
         env:
-          MOCK_SCM_IMPORTS: true
+          IGNORE_IMPORT_ERRORS: true
         run: |
           python build_plams_doc
