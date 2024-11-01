@@ -134,8 +134,6 @@ jobs:
           cd doc
           pip install -r requirements.txt
 
-#     Turn on the -W flag when building once warnings to external links have been resolved
-#     ToDo: add a warning allowlist to check the warnings logged via -w
       - name: Build Sphinx Docs
         working-directory: scm/plams/doc
         run: |
