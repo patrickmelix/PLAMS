@@ -222,6 +222,8 @@ rst_epilog = """
 .. |PTError| replace:: :exc:`~scm.plams.core.errors.PTError`
 .. |UnitsError| replace:: :exc:`~scm.plams.core.errors.UnitsError`
 .. |MoleculeError| replace:: :exc:`~scm.plams.core.errors.MoleculeError`
+.. |MissingOptionalPackageError| replace:: :exc:`~scm.plams.core.errors.MissingOptionalPackageError`
+
 
 .. |Job| replace:: :class:`~scm.plams.core.basejob.Job`
 .. |SingleJob| replace:: :class:`~scm.plams.core.basejob.SingleJob`

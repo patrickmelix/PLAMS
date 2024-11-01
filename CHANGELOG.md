@@ -12,9 +12,10 @@ This changelog is effective from the 2025 releases.
 ## [Unreleased]
 
 ### Added
-* `get_system`, `get_input_system` and `get_main_system` to `AMSResults`, which return an AMS `ChemicalSystem` instead of a PLAMS `Molecule` 
-* `AMSJob` can accept an AMS `ChemicalSystem` instead of a PLAMS `Molecule` as an input system if required
+* Methods `get_system`, `get_input_system` and `get_main_system` to `AMSResults`, which return an AMS `ChemicalSystem` instead of a PLAMS `Molecule` 
+* `AMSJob` can accept an AMS `ChemicalSystem` instead of a PLAMS `Molecule` as an input system
 * Specific `ConfigSettings` and related settings classes with explicitly defined fields
+* Support for work functions: `AMSResults.get_work_function_results` and `plot_work_function`
 * Example on `MoleculeFormats`
 * Script `generate_example.sh` to generate documentation pages from notebook examples
 * GitHub workflows for CI and publishing to PyPI
@@ -25,7 +26,15 @@ This changelog is effective from the 2025 releases.
 * Global `config` is initialized with a `ConfigSettings` instead of loading from the standard `plams_defaults` file
 * `init` and `finish` functions are now optional
 * `Job.status` is a `JobStatus` string enum
+* Supercell and RDKit properties are no longer serialized to AMS input
 * Restructuring of examples and conversion of various examples to notebooks
+
+### Fixed
+* `Molecule.properties.charge` is a numeric instead of string type when loading molecule from a file
+* `Molecule.delete_all_bonds` removes the reference molecule from the removed bond instances
+* `SingleJob.load` returns the correctly loaded job
+* `AMSJob.check` handles a `NoneType` status, returning `False`
+
 
 ### Deprecated
 * `plams` launch script is deprecated in favour of simply running with `amspython`
@@ -33,10 +42,6 @@ This changelog is effective from the 2025 releases.
 ### Removed
 * Legacy `BANDJob`, `DFTBJob`, `UFFJob`, `MOPACJob`, `ReaxFFJob`, `CSHessianADFJob` and `ADFJob` have been removed
 
-### Fixed
-* `Molecule.properties.charge` is a numeric instead of string type when loading molecule from a file
-* `Molecule.delete_all_bonds` removes the reference molecule from the removed bond instances
-* `SingleJob.load` returns the loaded job
 
 
 
