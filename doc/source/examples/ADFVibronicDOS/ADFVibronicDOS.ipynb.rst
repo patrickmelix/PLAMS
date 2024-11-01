@@ -92,6 +92,7 @@ Use Frank-Condon jobs to calculate the vibronic spectra.
         settings_fcf.input.state2 = state2
         return FCFJob(inputjob1=state1, inputjob2=state2, settings=settings_fcf, name=name)
     
+    
     freq_radical = freq_results[0].rkfpath(file="adf")
     freq_anion = freq_results[1].rkfpath(file="adf")
     
