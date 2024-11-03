@@ -81,8 +81,8 @@ EndEngine
 
         # When get molecule from job
         # Then job molecule is a deep copy
-        assert not job.molecule == job_input.molecule
-        assert not job.molecule.atoms == job_input.molecule.atoms
+        assert job.molecule is not job_input.molecule
+        assert job.molecule.atoms is not job_input.molecule.atoms
 
     def test_pickle_dumps_and_loads_job_successfully(self, job_input):
         # Given job with molecule and settings
@@ -355,10 +355,10 @@ EndEngine
 
         # When get molecule from job
         # Then job molecule is a deep copy
-        assert not job.molecule == job_input.molecule
+        assert job.molecule is not job_input.molecule
         for name, mol in job.molecule.items():
-            assert not mol == job_input.molecule[name]
-            assert not mol.atoms == job_input.molecule[name].atoms
+            assert mol is not job_input.molecule[name]
+            assert mol.atoms is not job_input.molecule[name].atoms
 
 
 class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
