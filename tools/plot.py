@@ -8,6 +8,7 @@ import numpy as np
 __all__ = ["plot_band_structure", "plot_molecule", "plot_correlation", "plot_msd", "plot_work_function"]
 
 
+@requires_optional_package("matplotlib")
 def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, ax=None):
     """
     Plots an electronic band structure from DFTB or BAND with matplotlib.
@@ -91,6 +92,7 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
     return ax
 
 
+@requires_optional_package("matplotlib")
 @requires_optional_package("ase")
 def plot_molecule(molecule, figsize=None, ax=None, keep_axis: bool = False, **kwargs):
     """Show a molecule in a Jupyter notebook"""
@@ -155,6 +157,7 @@ def get_correlation_xy(
     return np.array(data1), np.array(data2)
 
 
+@requires_optional_package("matplotlib")
 def plot_correlation(
     job1: Union[AMSJob, List[AMSJob]],
     job2: Union[AMSJob, List[AMSJob]],
@@ -328,6 +331,7 @@ def plot_correlation(
     return ax
 
 
+@requires_optional_package("matplotlib")
 def plot_msd(job, start_time_fit_fs=None, ax=None):
     """
     job: AMSMSDJob
@@ -360,6 +364,7 @@ def plot_msd(job, start_time_fit_fs=None, ax=None):
     return ax
 
 
+@requires_optional_package("matplotlib")
 def plot_work_function(
     coordinate: np.ndarray,
     planarAverage: np.ndarray,

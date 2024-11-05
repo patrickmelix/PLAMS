@@ -1,6 +1,6 @@
 import numpy
-from scm.plams import Molecule
-from scm.plams import to_smiles
+from scm.plams.mol.molecule import Molecule
+from scm.plams.interfaces.molecule.rdkit import to_smiles
 
 
 class ReactionEquation:

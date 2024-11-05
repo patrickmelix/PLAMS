@@ -7,7 +7,7 @@ import os
 from collections import OrderedDict
 import numpy as np
 
-from scm.plams.core.errors import FileError, MoleculeError, PTError
+from scm.plams.core.errors import FileError, MoleculeError, PTError, MissingOptionalPackageError
 from scm.plams.core.functions import log, requires_optional_package
 from scm.plams.core.private import parse_action, smart_copy
 from scm.plams.core.settings import Settings
@@ -3455,7 +3455,10 @@ class Molecule:
         self.translate(vector, unit="angstrom")
 
         if watch:
-            import matplotlib.pyplot as plt
+            try:
+                import matplotlib.pyplot as plt
+            except ImportError:
+                raise MissingOptionalPackageError("matplotlib")
 
             from scm.plams.tools.plot import plot_molecule
 
