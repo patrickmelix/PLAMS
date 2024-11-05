@@ -2,9 +2,8 @@ import os
 from collections import OrderedDict
 
 from natsort import natsorted
-from scipy.optimize import curve_fit
 from scm.plams.core.basejob import MultiJob
-from scm.plams.core.functions import add_to_instance
+from scm.plams.core.functions import add_to_instance, requires_optional_package
 from scm.plams.core.results import Results
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 import numpy as np
@@ -15,6 +14,7 @@ from scm.plams.tools.kftools import KFFile
 __all__ = ["AMSGreenKuboViscosityJob", "AMSGreenKuboViscosityResults", "AMSPartialGreenKuboViscosityJob"]
 
 
+@requires_optional_package("scipy")
 def get_viscosity(job, max_dt_fs=50000, reuse=False):
     """
     job: AMSGreenKuboViscosityJob
@@ -36,6 +36,7 @@ def get_viscosity(job, max_dt_fs=50000, reuse=False):
     reuse : bool
         Will return the value of viscosity.txt if it exists (and not recalculate the autocorrelation function/integral)
     """
+    from scipy.optimize import curve_fit
 
     def f(x, A, tau):
         return A * (1 - np.exp(-x / tau))  # A is the final converged viscosity

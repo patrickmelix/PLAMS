@@ -1,4 +1,5 @@
 from scm.plams.mol.molecule import Molecule
+from scm.plams.core.errors import MissingOptionalPackageError
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from typing import Tuple, Union, List, Optional
 import numpy as np
@@ -278,7 +279,10 @@ def plot_correlation(
 
     linear_fit_title = None
     if show_linear_fit:
-        from scipy.stats import linregress
+        try:
+            from scipy.stats import linregress
+        except ImportError:
+            raise MissingOptionalPackageError("scipy")
 
         result = linregress(data1, data2)
         min_max_linear_fit = result.slope * min_max + result.intercept

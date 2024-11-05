@@ -4,6 +4,7 @@ from typing import List
 import numpy as np
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.results import Results
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
 from scm.plams.tools.units import Units
 from scm.plams.core.enums import JobStatus
@@ -57,6 +58,7 @@ class AMSMSDResults(AMSAnalysisResults):
 
         return time, y
 
+    @requires_optional_package("scipy")
     def get_linear_fit(self, start_time_fit_fs=None, end_time_fit_fs=None):
         """
         Fits the MSD between start_time_fit_fs and end_time_fit_fs

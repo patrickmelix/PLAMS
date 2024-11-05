@@ -1526,6 +1526,7 @@ class AMSResults(Results):
 
         return times, dipole_deriv_acf
 
+    @requires_optional_package("scipy")
     def get_diffusion_coefficient_from_velocity_acf(self, times=None, acf=None, n_dimensions=3):
         """
         Diffusion coefficient by integration of the velocity autocorrelation function
@@ -1619,6 +1620,7 @@ class AMSResults(Results):
         return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
 
     @staticmethod
+    @requires_optional_package("scipy")
     def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
         from scipy.integrate import cumtrapz
         from scm.plams.tools.units import Units
@@ -1649,6 +1651,7 @@ class AMSResults(Results):
 
         return integrated_times, viscosity
 
+    @requires_optional_package("scipy")
     def get_green_kubo_viscosity(
         self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True, pressuretensor=None
     ):
