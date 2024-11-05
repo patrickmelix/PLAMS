@@ -4,7 +4,7 @@ from typing import Dict, List, Literal, Set, Tuple, Union, Optional, TYPE_CHECKI
 import numpy as np
 
 from scm.plams.core.basejob import SingleJob
-from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError
+from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError, MissingOptionalPackageError
 from scm.plams.core.functions import config, log, parse_heredoc, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
@@ -227,6 +227,7 @@ class AMSResults(Results):
         """
         return ChemicalSystem.from_kf(self.rkfpath(file), section)
 
+    @requires_optional_package("ase")
     def get_ase_atoms(self, section: str, file: str = "ams") -> "AseAtoms":
         from ase import Atoms
 
@@ -297,6 +298,7 @@ class AMSResults(Results):
         """
         return self.get_system("Molecule", "ams")
 
+    @requires_optional_package("ase")
     def get_main_ase_atoms(self, get_results: bool = False) -> "AseAtoms":
         """Return an ase.Atoms instance with the final coordinates.
 
@@ -2882,7 +2884,10 @@ class AMSJob(SingleJob):
             preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
         elif os.path.exists(path):
-            from ase.io.formats import filetype
+            try:
+                from ase.io.formats import filetype
+            except ImportError:
+                raise MissingOptionalPackageError("ase")
 
             try:
                 ft = filetype(path)

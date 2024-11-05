@@ -1,5 +1,6 @@
 from scm.plams.mol.molecule import Molecule
 from scm.plams.core.errors import MissingOptionalPackageError
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from typing import Tuple, Union, List, Optional
 import numpy as np
@@ -90,6 +91,7 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
     return ax
 
 
+@requires_optional_package("ase")
 def plot_molecule(molecule, figsize=None, ax=None, keep_axis: bool = False, **kwargs):
     """Show a molecule in a Jupyter notebook"""
     import matplotlib.pyplot as plt

@@ -16,6 +16,7 @@ import numpy as np
 from scm.plams.core.errors import JobError, PlamsError, ResultsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.private import retry
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.molecule.ase import toASE
@@ -252,6 +253,7 @@ class AMSWorkerResults:
         return self._main_molecule
 
     @_restrict
+    @requires_optional_package("ase")
     def get_main_ase_atoms(self):
         """Return an ASE Atoms instance with the final coordinates."""
         from ase import Atoms
