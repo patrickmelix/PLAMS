@@ -11,7 +11,6 @@ import threading
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.core.settings import Settings
 from scm.plams.mol.molecule import Atom, Molecule
-from scm.plams.tools.units import Units
 from scm.plams.unit_tests.test_helpers import skip_if_no_scm_pisa, skip_if_no_scm_libbase
 
 
@@ -381,7 +380,7 @@ class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
         main_molecule.add_atom("N", coords=(1, 0, 0), unit="A")
         main_molecule.add_atom("H", coords=(2, 0, 0), unit="A")
         final_molecule = main_molecule.copy()
-        final_molecule.atoms[2].coords[0] = Units.convert(-1, "A", "au")
+        final_molecule.atoms[2].coords[0] = -1
         molecule = {"": main_molecule, "final": final_molecule}
 
         return molecule
