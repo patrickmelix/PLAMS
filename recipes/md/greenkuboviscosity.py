@@ -1,12 +1,11 @@
 import os
 from collections import OrderedDict
+import numpy as np
 
-from natsort import natsorted
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.functions import add_to_instance, requires_optional_package
 from scm.plams.core.results import Results
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
-import numpy as np
 from scm.plams.mol.molecule import Molecule
 from scm.plams.recipes.md.amsmdjob import AMSNVTJob
 from scm.plams.tools.kftools import KFFile
@@ -168,8 +167,10 @@ class AMSGreenKuboViscosityResults(Results):
         return get_viscosity(self.job, max_dt_fs=max_dt_fs, reuse=reuse)
 
     @staticmethod
+    @requires_optional_package("natsort")
     def _accumulate_results(path=None, previous_pressuretensors=None):
         import glob
+        from natsort import natsorted
 
         path = path or os.getcwd()
         complete_list = []

@@ -1062,6 +1062,7 @@ class AMSResults(Results):
             lambda x: x.read("AMSResults", "BulkModulus"), engine
         ) * Units.conversion_ratio("au", unit)
 
+    @requires_optional_package("natsort")
     def get_pesscan_results(self, molecules: bool = True):
         """
         For PESScan jobs, this functions extracts information about the scan coordinates and energies.
