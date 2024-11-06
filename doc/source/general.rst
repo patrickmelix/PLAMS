@@ -101,7 +101,7 @@ You can install PLAMS on your computer using one of the following ways:
 
 1.  If you are using Amsterdam Modeling Suite, PLAMS is included as a part of ``scm`` Python package (``$AMSHOME/scripting/scm/plams``) and configured to work with the `Python Stack <../Scripting/Python_Stack/Python_Stack.html>`__ coming with AMSuite (you can access it with ``$AMSBIN/amspython`` command).
 
-2.  The latest PLAMS stable release can be installed directly from PyPi by typing ``pip install plams`` in your command line.
+2.  The latest PLAMS stable release can be installed directly from PyPI by typing ``pip install plams`` in your command line.
 
 3.  Any current or historic version can be downloaded or cloned from PLAMS `GitHub page <https://github.com/SCM-NV/PLAMS>`_.
     The ``release`` branch points to the latest stable release, while the ``trunk`` branch is the most recent development snapshot.
@@ -183,8 +183,36 @@ For example:
 What's new in PLAMS for AMS2025?
 --------------------------------------
 
-* Call to |init| at the start of a PLAMS script is no longer required. In addition, a call to |finish| is automatically registered at exit. For more information see :ref:`public-functions`.
-* Deprecated ``BandJob``, ``DFTBJob``, ``UFFJob``, ``MOPACJob``, ``ReaxFFJob`` and ``ADFJob`` jobs have been removed. These were deprecated since AMS2019, and replaced by |AMSJob|.
+Added
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Support for AMS ``ChemicalSystem`` within |AMSJob| and |AMSResults|. |AMSJob| can accept a ``ChemicalSystem`` as an input system, and the methods :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_system`, :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_input_system` and :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_main_system` on |AMSResults| return a ``ChemicalSystem``. These provide the option to use a ``ChemicalSystem`` in place of a PLAMS ``Molecule``.
+* Support for work functions through :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_work_function_results` and :func:`~scm.plams.tools.plot.plot_work_function`
+
+Changed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Calling |init| and |finish| functions in a script is now optional
+* Functions for optional packages (e.g. RDKit, ASE) are available even when these packages are not installed, but will raise an |MissingOptionalPackageError| when called
+* :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_main_ase_atoms` also includes atomic charges
+* Global ``config`` is initialized with |ConfigSettings| instead of loading from the standard ``plams_defaults`` file (see |global-settings|)
+
+* :attr:`~scm.plams.core.basejob.Job.status` is a ``JobStatus`` string enum
+* Supercell and RDKit properties are no longer serialized to AMS input
+
+Fixed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* ``charge`` property on a |Molecule| is a numeric instead of string type when loading molecule from a file
+* :meth:`~scm.plams.mol.molecule.Molecule.delete_all_bonds` removes the reference molecule from the removed bond instances
+* :meth:`~scm.plams.core.basejob.SingleJob.load` returns the correctly loaded job
+* :meth:`~scm.plams.interfaces.adfsuite.ams.AMSJob.check` handles a ``NoneType`` status, returning ``False``
+
+Deprecated
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* PLAMS launch script is deprecated in favour of simply running with ``amspython``
+
+Removed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Legacy ``BANDJob``, ``DFTBJob``, ``UFFJob``, ``MOPACJob``, ``ReaxFFJob``, ``CSHessianADFJob`` and ``ADFJob`` have been removed. These were deprecated since AMS2019, and replaced by |AMSJob|.
 
 What's new in PLAMS for AMS2024?
 --------------------------------------
