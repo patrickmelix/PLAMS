@@ -1,0 +1,97 @@
+[project]
+name = "plams"
+dynamic = ["version"]
+description = "Python Library for Automating Molecular Simulations"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "LGPLv3" }
+authors = [
+    { name = "Michał Handzlik" }
+]
+maintainers = [
+    { name = "Software for Chemistry and Materials", email = "info@scm.com" }
+]
+classifiers = [
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = [
+    "molecular modeling",
+    "computational chemistry",
+    "workflow"
+]
+dependencies = [
+    "numpy>=1.23.4,<2",
+    "dill>=0.3.6"
+]
+
+[project.optional-dependencies]
+chem = [
+    "rdkit>=2017",
+    "ase>=3.22.1,<3.23"
+]
+
+ams = [
+    "psutil>=5.9.3",
+    "ubjson>=0.16.1",
+    "watchdog>=2.1.8"
+]
+
+analysis = [
+    "scipy>=1.9.3",
+    "matplotlib>=3.6.1",
+    "pandas>=1.5.2",
+    "networkx>=2.8.7",
+    "natsort>=8.1.0"
+]
+
+docs = [
+    "sphinx>=6.2.1",
+    "sphinx_copybutton>=0.5.2",
+    "sphinx_tabs>=3.4.7",
+    "ipython>=8.5.0"
+]
+
+examples = [
+    "jupyterlab>=3.5.2"
+]
+
+dev = [
+    "pytest>=7.4.0",
+    "coverage>=7.5.3",
+    "black>=24",
+    "black[jupyter]>=24",
+    "flake8==5.0.4",
+    "mypy==1.12.0"
+]
+
+[project.urls]
+Homepage = "https://www.scm.com/doc/plams/"
+Documentation = "https://www.scm.com/doc/plams/"
+GitHub = "https://github.com/SCM-NV/PLAMS/"
+Changelog = "https://github.com/SCM-NV/PLAMS/blob/trunk/CHANGELOG.md"
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+script-files = ["scripts/plams"]
+package-dir = { "scm.plams" = "." }
+
+[tool.setuptools.dynamic]
+version = {attr = "version.__version__"}
