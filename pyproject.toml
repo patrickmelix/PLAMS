@@ -47,7 +47,7 @@ chem = [
 
 ams = [
     "psutil>=5.9.3",
-    "ubjson>=0.16.1",
+    "py-ubjson>=0.16.1",
     "watchdog>=2.1.8"
 ]
 
