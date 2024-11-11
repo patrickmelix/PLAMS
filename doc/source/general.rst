@@ -213,6 +213,7 @@ Deprecated
 Removed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Legacy ``BANDJob``, ``DFTBJob``, ``UFFJob``, ``MOPACJob``, ``ReaxFFJob``, ``CSHessianADFJob`` and ``ADFJob`` have been removed. These were deprecated since AMS2019, and replaced by |AMSJob|.
+* Exception classes ``AMSPipeDecodeError``, ``AMSPipeError``, ``AMSPipeInvalidArgumentError``, ``AMSPipeLogicError``, ``AMSPipeRuntimeError``, ``AMSPipeUnknownArgumentError``, ``AMSPipeUnknownMethodError``, ``AMSPipeUnknownVersionError``, were moved from scm.plams to scm.amspipe.
 
 What's new in PLAMS for AMS2024?
 --------------------------------------

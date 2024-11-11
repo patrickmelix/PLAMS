@@ -1,4 +1,3 @@
-import collections
 import datetime
 import functools
 import os
@@ -11,13 +10,16 @@ import tempfile
 import threading
 import time
 import weakref
-from numbers import Integral
-from typing import Dict, Tuple, Union, List, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
+from scm.plams.core.errors import JobError, PlamsError, ResultsError
+from scm.plams.core.functions import config, log
 from scm.plams.core.private import retry
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.molecule.ase import toASE
+from scm.plams.tools.units import Units
 
 TMPDIR = os.environ["SCM_TMPDIR"] if "SCM_TMPDIR" in os.environ else None
 
@@ -67,19 +69,14 @@ spawn_lock = threading.Lock()
 
 try:
     import ubjson
+    from scm.amspipe import AMSPipeError, AMSPipeRuntimeError
+    from scm.amspipe.utils import flatten_arrays, unflatten_arrays
 
     if os.name == "nt":
         import psutil
     __all__ = ["AMSWorker", "AMSWorkerResults", "AMSWorkerError", "AMSWorkerPool"]
 except ImportError:
     __all__ = []
-
-from scm.plams.core.errors import JobError, PlamsError, ResultsError
-from scm.plams.core.functions import config, log
-from scm.plams.core.settings import Settings
-from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.interfaces.adfsuite.amspipeerror import AMSPipeError, AMSPipeRuntimeError
-from scm.plams.tools.units import Units
 
 
 def _restrict(func):
@@ -1197,44 +1194,10 @@ class AMSWorker:
             return False
 
     def _flatten_arrays(self, d):
-        out: Dict = {}
-        # import numpy as np
-        for key, val in d.items():
-
-            if (isinstance(val, collections.abc.Sequence) or isinstance(val, np.ndarray)) and not isinstance(val, str):
-                array = np.asarray(val)
-                if array.dtype == np.float32:
-                    # Workaround py-ubjson not knowing how to encode float32 yet
-                    array = array.astype(np.float64)
-                out[key] = array.ravel()
-                out[key + "_dim_"] = array.shape[::-1]
-                if issubclass(out[key].dtype.type, Integral) or out[key].dtype.type == np.bool_:
-                    # ubjson does not know how to convert numpy arrays of int/bool, so convert back to a list here
-                    out[key] = out[key].tolist()
-                elif out[key].dtype == np.bool_:
-                    out[key] = out[key].tolist()
-            elif isinstance(val, collections.abc.Mapping):
-                out[key] = self._flatten_arrays(val)
-            elif isinstance(val, np.float32):  # for scalar float32
-                out[key] = np.float64(val)
-            elif isinstance(val, np.int32):
-                out[key] = int(val)
-            else:
-                out[key] = val
-        return out
+        return flatten_arrays(d)
 
     def _unflatten_arrays(self, d):
-        out = {}
-        for key, val in d.items():
-            if key + "_dim_" in d:
-                out[key] = np.asarray(val).reshape(d[key + "_dim_"][::-1])
-            elif key.endswith("_dim_"):
-                pass
-            elif isinstance(val, collections.abc.Mapping):
-                out[key] = self._unflatten_arrays(val)
-            else:
-                out[key] = val
-        return out
+        return unflatten_arrays(d)
 
     def _read_exactly(self, pipe, n):
         buf = pipe.read(n)
