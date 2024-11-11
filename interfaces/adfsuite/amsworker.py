@@ -80,7 +80,6 @@ except ImportError:
     __all__ = []
 
 
-
 def _restrict(func):
     """Decorator that wraps methods of |AMSWorkerResults| instances.
 
