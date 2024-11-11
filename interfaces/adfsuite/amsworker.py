@@ -71,7 +71,7 @@ spawn_lock = threading.Lock()
 try:
     import ubjson
     from scm.amspipe import AMSPipeError, AMSPipeRuntimeError
-    from scm.amspipe.utils import flatten_arrays
+    from scm.amspipe.utils import flatten_arrays, unflatten_arrays
 
     if os.name == "nt":
         import psutil
@@ -1198,17 +1198,7 @@ class AMSWorker:
         return flatten_arrays(d)
 
     def _unflatten_arrays(self, d):
-        out = {}
-        for key, val in d.items():
-            if key + "_dim_" in d:
-                out[key] = np.asarray(val).reshape(d[key + "_dim_"][::-1])
-            elif key.endswith("_dim_"):
-                pass
-            elif isinstance(val, collections.abc.Mapping):
-                out[key] = self._unflatten_arrays(val)
-            else:
-                out[key] = val
-        return out
+        return unflatten_arrays(d)
 
     def _read_exactly(self, pipe, n):
         buf = pipe.read(n)
