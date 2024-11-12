@@ -59,11 +59,14 @@ class MissingOptionalPackageError(PlamsError):
         "natsort": "analysis",
     }
 
+    ams_install = {"scm.amspipe": "$AMSHOME/scripting/scm/amspipe"}
+
     def __init__(self, package_name: str):
         msg = f"The optional package '{package_name}' is required for this PLAMS functionality, but is not available. "
-        extras_name = self.extras_install.get(package_name, None)
-        if extras_name is not None:
+        if (extras_name := self.extras_install.get(package_name, None)) is not None:
             msg += f"It can be installed using the command: pip install 'plams[{extras_name}]'. "
+        elif (ams_path := self.ams_install.get(package_name, None)) is not None:
+            msg += f"It can be installed using the command: pip install {ams_path}. "
         msg += "Please install and try again."
 
         super().__init__(msg)

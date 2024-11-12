@@ -519,6 +519,19 @@ class TestDecorators:
 
             return True
 
+        @requires_optional_package("__this_is_definitely_not_an_available_package__", os.name)
+        def requires_unavailable_package_on_this_os(self):
+            import __this_is_definitely_not_an_available_package__  # noqa F401
+
+            return True
+
+        @requires_optional_package("__this_is_definitely_not_an_available_package__", "foo")
+        def requires_unavailable_package_on_another_os(self):
+            if os.name == "foo":
+                import __this_is_definitely_not_an_available_package__  # noqa F401
+
+            return True
+
     def test_requires_optional_package(self):
         # Given class which has methods, some of which require optional packages
         req_class = self.OptionalRequirementsClass()
@@ -533,6 +546,7 @@ class TestDecorators:
         assert req_class.no_requirements()
         assert req_class.requires_numpy_package()
         assert maybe_calls_requires_unavailable_package(False)
+        assert req_class.requires_unavailable_package_on_another_os()
 
         # When call methods where package is missing (or method which calls said method)
         # Then error is raised
@@ -540,6 +554,8 @@ class TestDecorators:
             req_class.requires_unavailable_package()
         with pytest.raises(MissingOptionalPackageError):
             maybe_calls_requires_unavailable_package(True)
+        with pytest.raises(MissingOptionalPackageError):
+            req_class.requires_unavailable_package_on_this_os()
 
     def test_requires_optional_package_with_add_to_class_and_instance(self):
         # Given initially empty class
