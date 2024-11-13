@@ -19,6 +19,7 @@ This changelog is effective from the 2025 releases.
 * Example on `MoleculeFormats`
 * Script `generate_example.sh` to generate documentation pages from notebook examples
 * GitHub workflows for CI and publishing to PyPI
+* Build using `pyproject.toml`, addition of extras groups to install optional dependencies
 
 ### Changed
 * Functions for optional packages (e.g. RDKit, ASE) are available even when these packages are not installed, but will raise an `MissingOptionalPackageError` when called
@@ -28,13 +29,13 @@ This changelog is effective from the 2025 releases.
 * `Job.status` is a `JobStatus` string enum
 * Supercell and RDKit properties are no longer serialized to AMS input
 * Restructuring of examples and conversion of various examples to notebooks
+* Support for `networkx>=3` and `ase>=3.23`
 
 ### Fixed
 * `Molecule.properties.charge` is a numeric instead of string type when loading molecule from a file
 * `Molecule.delete_all_bonds` removes the reference molecule from the removed bond instances
 * `SingleJob.load` returns the correctly loaded job
 * `AMSJob.check` handles a `NoneType` status, returning `False`
-
 
 ### Deprecated
 * `plams` launch script is deprecated in favour of simply running with `amspython`
