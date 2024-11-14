@@ -2285,7 +2285,9 @@ class Molecule:
         for i, vec in enumerate(self.lattice):
             if ams_convention:
                 # For 1D systems we only want to perturb the first number. For 2D systems only the first 2 numbers of each vector.
-                perturbed_vec = np.array(vec) + np.concatenate((np.random.uniform(-s, s, n), np.zeros(3 - n)))
+                perturbed_vec: np.ndarray = np.array(vec) + np.concatenate(
+                    (np.random.uniform(-s, s, n), np.zeros(3 - n))
+                )
             else:
                 perturbed_vec = np.array(vec) + np.random.uniform(-s, s, 3)
             self.lattice[i] = list(perturbed_vec)
