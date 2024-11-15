@@ -55,7 +55,7 @@ print("Initial coordinates:")
 print(atoms.get_positions())
 
 with AMSCalculator(settings=s, amsworker=True) as calc:
-    atoms.set_calculator(calc)
+    atoms.calc = calc
     optimizer = BFGS(atoms)
     optimizer.run(fmax=0.27)  # optimize until forces are smaller than 0.27 eV/ang
 
