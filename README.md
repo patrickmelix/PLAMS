@@ -1,90 +1,103 @@
-PLAMS
-=====
+PLAMS - Python Library for Automating Molecular Simulation
+==========================================================
 
-Python Library for Automating Molecular Simulation
-------------------------------------------------------
+Overview
+--------
 
-PLAMS is a collection of tools that aims to provide powerful, flexible and easily extendable Python interface to molecular modeling programs. It takes care of input preparation, job execution, file management and output processing as well as helps with building more advanced data workflows.
+PLAMS is a flexible and extensible toolkit for streamlining molecular simulation workflows.
 
-Usually the daily work of a computational chemist consists of running a number of calculations. Those calculations are done using one or more molecular modeling programs like ADF, BAND, Turbomole or Dirac (we will call such programs *external binaries*). Obtaining results with one of such programs requires a series of steps. First, the subject of the problem (description of a molecular system, set of desired simulation parameters) has to be presented in the format understandable by molecular modeling program and written to an *input file* which is usually a text file. Then the program is executed, it runs and produces *output* which is a collection of text or binary files. That output usually contains more information than is required for a particular problem so data of interest has to be extracted and (possibly) postprocessed. That different computational tools use different input and output formats and are executed differently. In most cases many *single calculations* need to be performed to solve the problem of interest. That requires significant effort to be put into data hygiene to avoid confusing or overwriting input and output files from distinct calculations.
+It simplifies and automates the process of configuring, running and analyzing computational chemistry calculations.
+The key features of PLAMS are:
 
-Each of the above steps, apart from actual calculation done by a molecular modeling program, needs to be performed by a human. Preparing and editing text files, creating folders in the filesystem, copying files between them and reading data from output are tedious, repetitive and highly error-prone work. Some users deal with it using automation, usually in form of ad hoc shell scripts. A few programs, like the Amsterdam Modeling Suite, offer graphical user interface to help with this kind of work, but again, input preparation and output examination, even though assisted with convenient tools, have to be done by a human. Quite often it turns out to be a performance bottleneck to create big  automatic computational workflows, where output data of one calculation is used (usually after some processing) as an input to another calculation, sometimes done with different program on a different machine.
+- **Amsterdam Modeling Suite (AMS) Integration**: Full support for interacting with AMS programs
+- **Parallel Processing**: Run jobs in parallel without any need for separate parallelization scripts
+- **Scheduler Integration**: Integration with job schedulers such as SLURM making large-scale computations easier to manage
+- **Automatic File and Folder Organization**: PLAMS automatically handles file organization, preventing overwrites and ensuring clean data flows
+- **Controllable Re-runs and Restarts**: Efficiently manage job executions by preventing redundant runs and easily restarting from crash points if needed
+- **Output processing**: Extract, post-process, and analyze results, ensuring that only relevant data is used for further calculations or workflows
+- **Compatibility with Chemistry Tools**: Includes built-in interfaces for popular programs and packages such as ASE, RDKit, Dirac, ORCA, CP2K, DFTB+ and Crystal and more
 
-PLAMS was created to solve these problems. It takes responsibility of tiresome and monotonous technical details allowing you to focus on real science and your problem. It lets you do all the things mentioned above (and many more) using simple Python scripts. It gives you a helping hand with automating repetitive or complicated tasks while still leaving you with 100% control over what is really happening with your files, disks and CPUs.
+Quick Start
+-----------
 
+PLAMS is available to all users of AMS "out of the box" as part of the [AMS Python Stack](https://www.scm.com/doc/Scripting/Python_Stack/Python_Stack.html), which can be accessed with the ``$AMSBIN/amspython`` command.
 
-What can be done with PLAMS
-----------------------------
+For most use-cases, no specific installation outside of AMS is required. For usage outside of `amspython`, please see the installation guide below.
 
-The key design principle of PLAMS is *flexibility*. If something (by something we mean: adjusting an input parameter, executing binary with particular options, extracting a value from output etc.) can be done by hand, it can be done with PLAMS. The internal structure of the library was designed in highly modular, object-oriented manner. Thanks to that it takes very little effort to adjust its behavior to one's personal needs or to extend its functionality.
-
-
-Most important features of PLAMS:
-*   preparing, running and examining results of molecular modeling job from within a single Python script
-*   convenient automatic file and folder management
-*   running jobs in parallel without a need to prepare a special script
-*   integration with popular job schedulers (OGE, SLURM, TORQUE)
-*   reading and writing molecular coordinates using various formats (`xyz`, `mol`, `mol2`, `pdb`)
-*   prevention of multiple runs of the same job
-*   easy data transfer between separate runs
-*   efficient restarting in case of crash
-*   full coverage of all input options and output data for programs of the Amsterdam Modeling Suite (ADF, BAND, DFTB, MOPAC, ReaxFF, ...)
-*   support for Dirac, Orca, Gamess and CP2K (more coming soon)
-*   easy extendable for other programs, job schedulers, file formats etc.
-
-
-Simple example
-----------------------------
-
-To provide some real life example, here is a simple PLAMS script performing the following work-flow:
-
-- generate xyz geometries from SMILES strings
-- optimize the structures using the fast semi-empirical method GFN1-xTB
-- compute the bonding energy for the optimized structures using the DFT engine ADF
+To get started with PLAMS, import `scm.plams` into your python script or jupyter notebook.
+Then, follow one of the examples to help create your script e.g.
 
 ```python
-# A dictionary with molecule names and smiles strings:
-mol_smiles = {'Methane'  : 'C',
-              'Ethane'   : 'C-C',
-              'Ethylene' : 'C=C',
-              'Acetylene': 'C#C'}
+    # water_opt.py
+    from scm.plams import from_smiles, AMSJob
+    from scm.input_classes import drivers, engines
 
-# Settings for the semi-empirical GFN1-xTB geometry optimization:
-go_xtb_settings = Settings()
-go_xtb_settings.input.ams.Task = 'GeometryOptimization'
-go_xtb_settings.input.dftb.Model = 'GFN1-xTB'
+    water = from_smiles("O")
 
-# Settings for the single point DFT calculation with ADF:
-sp_adf_settings = Settings()
-sp_adf_settings.input.ams.Task = 'SinglePoint'
-sp_adf_settings.input.adf.basis.type = 'DZP'
-sp_adf_settings.input.adf.XC.GGA = 'PBE'
+    driver = drivers.AMS()
+    driver.Task = "GeometryOptimization"
+    driver.Properties.NormalModes = "Yes"
+    driver.Engine = engines.ForceField()
+    driver.Engine.Type = "UFF"
 
-for name, smiles in mol_smiles.items():
-    # Generate an xyz structure from the smiles string:
-    mol = from_smiles(smiles)
+    job = AMSJob(molecule=water, settings=driver, name="water_opt")
+    results = job.run()
 
-    # Run the geometry optimization with GFN1-xTB:
-    go_job = AMSJob(molecule=mol, settings=go_xtb_settings, name=f'go_{name}')
-    go_job.run()
-    optimized_mol = go_job.results.get_main_molecule()
-
-    # Run the single point energy calcualtion with DFT (ADF:
-    sp_job = AMSJob(molecule=optimized_mol, settings=sp_adf_settings, name=f'sp_{name}')
-    sp_job.run()
-    bonding_energy = sp_job.results.get_energy(unit='kcal/mol')
-
-    # Print the results:
-    print(f"Energy for {name}: {bonding_energy} [kcal/mol]")
+    print("Optimized geometry:")
+    print(results.get_main_molecule())
 ```
 
-When executed, the above script creates uniquely named working folder, then runs a series of calculations, each in a separate subfolder of the working folder. All files created by each run are saved in the corresponding subfolder for future reference. 
+Running the command `$AMSBIN/amspython water_opt.py` produces the successful output:
+
+```
+    JOB water_opt RUNNING
+    JOB water_opt FINISHED
+    JOB water_opt SUCCESSFUL
+    Optimized geometry:
+      Atoms:
+        1         O      -0.000360       0.403461       0.000000
+        2         H      -0.783821      -0.202431       0.000000
+        3         H       0.784180      -0.201030       0.000000
+      Bonds:
+       (1)--1.0--(2)
+       (1)--1.0--(3)
+```
+
+For more advanced workflows including usage of other AMS engines, see the other examples.
 
 
-Further reading
---------------------
+Installation Guide
+------------------
 
-You can find full [PLAMS documentation](https://www.scm.com/doc/plams/index.html) hosted on our website, together with some [tutorials](https://www.scm.com/doc/Tutorials/Scripting/Scripting.html).
+As mentioned, PLAMS and all its required and optional dependencies are included as part of the AMS python stack.
+This is the easiest way to use PLAMS, as it requires no additional installation process.
 
-You can also build your local copy of the documentation by cloning this repository and executing `doc/build_plams_doc` script.
+However, if you want to use PLAMS outside of `amspython`, since `AMS2024.103` PLAMS is available on [PyPI](https://pypi.org/project/plams).
+and so can be installed via the `pip` python package installer.
 
+To install the latest version of PLAMS into your python environment, simply run `pip install plams`.
+To install a specific version of PLAMS (e.g. `2025.101`), run `pip install plams==2025.101`.
+
+By default, PLAMS only installs a minimal set of required packages on installation using pip.
+For additional functionality, further optional packages are required.
+Since `AMS2025`, these are available for installation through extra dependency groups with pip.
+
+The available groups are:
+
+- **chem**: for chemistry packages such as `RDKit`, `ase`
+- **analysis**: for packages used to analyse and plot results of calculations e.g. `scipy`, `matploblib`, `networkx`
+- **ams**: for technical packages for use with the AMS interface
+
+One or more of these can be installed using the command `pip install 'plams[chem,analysis,ams]'`.
+
+Users of the AMS will also have to install the `scm.amspipe` package using the command `pip install $AMSHOME/scripting/scm/amspipe`.
+
+License
+-------
+
+See [LICENSE.md](https://github.com/SCM-NV/PLAMS/blob/trunk/LICENSE.md) for details.
+
+Contributing
+------------
+
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/SCM-NV/PLAMS/blob/trunk/CONTRIBUTING.md) for details.

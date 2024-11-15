@@ -16,6 +16,7 @@ import numpy as np
 from scm.plams.core.errors import JobError, PlamsError, ResultsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.private import retry
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.molecule.ase import toASE
@@ -67,16 +68,7 @@ if os.name == "nt":
 spawn_lock = threading.Lock()
 
 
-try:
-    import ubjson
-    from scm.amspipe import AMSPipeError, AMSPipeRuntimeError
-    from scm.amspipe.utils import flatten_arrays, unflatten_arrays
-
-    if os.name == "nt":
-        import psutil
-    __all__ = ["AMSWorker", "AMSWorkerResults", "AMSWorkerError", "AMSWorkerPool"]
-except ImportError:
-    __all__ = []
+__all__ = ["AMSWorker", "AMSWorkerResults", "AMSWorkerError", "AMSWorkerPool"]
 
 
 def _restrict(func):
@@ -252,6 +244,7 @@ class AMSWorkerResults:
         return self._main_molecule
 
     @_restrict
+    @requires_optional_package("ase")
     def get_main_ase_atoms(self):
         """Return an ASE Atoms instance with the final coordinates."""
         from ase import Atoms
@@ -420,6 +413,9 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
+    @requires_optional_package("ubjson")
+    @requires_optional_package("scm.amspipe")
+    @requires_optional_package("psutil", "nt")
     def __init__(
         self,
         settings,
@@ -614,6 +610,7 @@ class AMSWorker:
             # down just by following PPIDs. We thus have to resort to heuristics to find all processes
             # that we need to kill. It'd be best to use Win32 Job objects for this, but the "subprocess"
             # module doesn't let us add the created child to a Job early enough.
+            import psutil
 
             # Get the PIDs of all processes sharing this console.
             bufsize = 1024
@@ -701,10 +698,13 @@ class AMSWorker:
 
         # Now that the pipes are down, the worker should certainly be exiting.
         if self.proc is not None:
+
             try:
                 self.proc.wait(timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 if os.name == "nt":
+                    import psutil
+
                     worker_procs = self._find_worker_processes()
                     # Send Ctrl-Break to the entire process group under self.proc.
                     # Ctrl-C is less reliable in convincing processes to quit.
@@ -849,6 +849,7 @@ class AMSWorker:
         convstep=None,
         convstressenergyperatom=None,
     ):
+        from scm.amspipe import AMSPipeRuntimeError
 
         if self.use_restart_cache and name in self.restart_cache:
             raise JobError(f'Name "{name}" is already associated with results from the restart cache.')
@@ -1194,9 +1195,13 @@ class AMSWorker:
             return False
 
     def _flatten_arrays(self, d):
+        from scm.amspipe.utils import flatten_arrays
+
         return flatten_arrays(d)
 
     def _unflatten_arrays(self, d):
+        from scm.amspipe.utils import unflatten_arrays
+
         return unflatten_arrays(d)
 
     def _read_exactly(self, pipe, n):
@@ -1207,6 +1212,9 @@ class AMSWorker:
             raise EOFError("Message truncated to " + str(len(buf)))
 
     def _call(self, method, args={}):
+        import ubjson
+        from scm.amspipe import AMSPipeError
+
         msg = ubjson.dumpb({method: self._flatten_arrays(args)})
         msglen = struct.pack("=i", len(msg))
         try:

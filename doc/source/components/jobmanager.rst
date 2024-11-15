@@ -10,13 +10,20 @@ It creates the structure of the working folder, manages its contents, and keeps 
 
 Every instance of |JobManager| is tied to a working folder.
 This folder is created when |JobManager| instance is initialized and all the jobs managed by that instance have their job folders inside the working folder.
+By default, the working folder is located in the directory where a script is executed and is called ``plams_workdir`` (``plams_workdir.002`` if ``plams_workdir`` already existed).
 You should not change job manager's working folder after it has been created.
 
-When a PLAMS environment is initialized, an instance of |JobManager| is created and stored in ``config.default_jobmanager``
-This instance is tied to the main working folder (see :ref:`working-folder` for details) and used as a default every time some interaction with a job manager is required.
-In a normal situation you would never explicitly interact with a |JobManager| instance (create it manually, call any of its methods, explore its data etc.).
-All interactions are handled automatically from |run| or other methods.
+Within a PLAMS environment, there is an instance of |JobManager| stored in ``config.default_jobmanager``.
+This can be left to default, or explicitly initialized, for example with:
 
+.. code-block:: python
+
+    # Either of the following are equivalent
+    config.default_jobmanager = JobManager(config.jobmanager, "my/path", "my_folder")
+    init(path="my/path", folder="my_folder")
+
+Aside from this, it is rare to interact explicitly with a |JobManager| instance (create it manually, call any of its methods, explore its data etc.).
+All interactions are handled automatically from |run| or other methods.
 
 .. technical::
 
@@ -76,7 +83,7 @@ Pickling
 The lifetime of the whole PLAMS environment is limited to a single script.
 That means every PLAMS script you run uses its own independent job manager, working folder and ``config`` settings.
 These objects are initialized at the beginning of the script and they cease to exist when the script ends.
-Also all the settings adjustments (apart from those done by editing :ref:`plams-defaults`) are local and they affect only the current script.
+Also all the settings adjustments (apart from those done by editing :ref:`global-settings`) are local and they affect only the current script.
 
 As a consequence of that, the |JobManager| of the current script is not aware of any jobs that had been run in past scripts.
 But often it would be very useful to import a previously run job to the current script and use its results or build some new jobs based on it.

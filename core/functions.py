@@ -475,17 +475,18 @@ def add_to_instance(instance):
 # ===========================================================================
 
 
-def requires_optional_package(package_name: str):
+def requires_optional_package(package_name: str, os_name: Optional[str] = None):
     """
     Ensures a given package is available before running a function, otherwise raises an ImportError.
     This can be used to check for optional dependencies which are required for specific functionality.
     :param package_name: name of the required package
+    :param os_name: name of the os that this package must be specified on, if omitted defaults to all os
     """
 
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            if find_spec(package_name) is None:
+            if (os_name is None or os.name == os_name) and find_spec(package_name) is None:
                 raise MissingOptionalPackageError(package_name)
             return func(*args, **kwargs)
 

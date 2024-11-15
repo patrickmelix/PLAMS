@@ -4,7 +4,7 @@ from typing import Dict, List, Literal, Set, Tuple, Union, Optional, TYPE_CHECKI
 import numpy as np
 
 from scm.plams.core.basejob import SingleJob
-from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError
+from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError, MissingOptionalPackageError
 from scm.plams.core.functions import config, log, parse_heredoc, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
@@ -227,6 +227,7 @@ class AMSResults(Results):
         """
         return ChemicalSystem.from_kf(self.rkfpath(file), section)
 
+    @requires_optional_package("ase")
     def get_ase_atoms(self, section: str, file: str = "ams") -> "AseAtoms":
         from ase import Atoms
 
@@ -297,6 +298,7 @@ class AMSResults(Results):
         """
         return self.get_system("Molecule", "ams")
 
+    @requires_optional_package("ase")
     def get_main_ase_atoms(self, get_results: bool = False) -> "AseAtoms":
         """Return an ase.Atoms instance with the final coordinates.
 
@@ -1060,6 +1062,7 @@ class AMSResults(Results):
             lambda x: x.read("AMSResults", "BulkModulus"), engine
         ) * Units.conversion_ratio("au", unit)
 
+    @requires_optional_package("natsort")
     def get_pesscan_results(self, molecules: bool = True):
         """
         For PESScan jobs, this functions extracts information about the scan coordinates and energies.
@@ -1526,6 +1529,7 @@ class AMSResults(Results):
 
         return times, dipole_deriv_acf
 
+    @requires_optional_package("scipy")
     def get_diffusion_coefficient_from_velocity_acf(self, times=None, acf=None, n_dimensions=3):
         """
         Diffusion coefficient by integration of the velocity autocorrelation function
@@ -1619,6 +1623,7 @@ class AMSResults(Results):
         return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
 
     @staticmethod
+    @requires_optional_package("scipy")
     def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
         from scipy.integrate import cumtrapz
         from scm.plams.tools.units import Units
@@ -1649,6 +1654,7 @@ class AMSResults(Results):
 
         return integrated_times, viscosity
 
+    @requires_optional_package("scipy")
     def get_green_kubo_viscosity(
         self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True, pressuretensor=None
     ):
@@ -2879,7 +2885,10 @@ class AMSJob(SingleJob):
             preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
         elif os.path.exists(path):
-            from ase.io.formats import filetype
+            try:
+                from ase.io.formats import filetype
+            except ImportError:
+                raise MissingOptionalPackageError("ase")
 
             try:
                 ft = filetype(path)
