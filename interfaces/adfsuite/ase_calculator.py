@@ -135,8 +135,8 @@ class AMSCalculator(Calculator):
                 .. code-block:: python
 
                     with AMSCalculator(settings=settings, amsworker=True) as calc:
-                        atoms.set_calculator(calc)
-                        atoms.get_potential_energy()
+                        atoms.calc = calc
+                        print(atoms.get_potential_energy())
 
                 If False, use AMSJob to set up an io session (a normal AMS calculation storing all output on disk).
     restart   : bool , optional
