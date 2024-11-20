@@ -35,7 +35,7 @@ keywords = [
     "workflow"
 ]
 dependencies = [
-    "numpy>=1.23.4",
+    "numpy>=1.21.2",
     "dill>=0.3.6"
 ]
 
@@ -46,16 +46,16 @@ chem = [
 ]
 
 ams = [
-    "psutil>=5.9.3",
+    "psutil>=5.8.0",
     "py-ubjson>=0.16.1",
     "watchdog>=2.1.8"
 ]
 
 analysis = [
-    "scipy>=1.9.3",
-    "matplotlib>=3.6.1",
+    "scipy>=1.8.0",
+    "matplotlib>=3.5.1",
     "pandas>=1.5.2",
-    "networkx>=2.8.7",
+    "networkx>=2.7.1",
     "natsort>=8.1.0"
 ]
 
@@ -63,7 +63,7 @@ docs = [
     "sphinx>=6.2.1",
     "sphinx_copybutton>=0.5.2",
     "sphinx_tabs>=3.4.7",
-    "ipython>=8.5.0"
+    "ipython>=7.22.0"
 ]
 
 examples = [
