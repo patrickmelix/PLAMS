@@ -1,7 +1,7 @@
 import os
 import subprocess
 import tempfile
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload, Sequence
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, overload, Sequence, TYPE_CHECKING
 
 import numpy as np
 from scm.plams.core.errors import MoleculeError
@@ -11,6 +11,19 @@ from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.periodic_table import PeriodicTable
 from scm.plams.tools.units import Units
 from scm.plams.interfaces.molecule.rdkit import readpdb, writepdb
+from scm.plams.core.functions import requires_optional_package, delete_job
+from scm.plams.core.settings import Settings
+
+if TYPE_CHECKING:
+    try:
+        from scm.libbase import (
+            UnifiedChemicalSystem as ChemicalSystem,
+            UnifiedElement as Element,
+            UnifiedElements as Elements,
+            UnifiedLattice as Lattice,
+        )
+    except ImportError:
+        pass
 
 __all__ = [
     "packmol",
@@ -297,6 +310,11 @@ class PackMol:
             output_molecule.lattice = self._get_complete_lattice()
 
         return output_molecule
+
+
+def sum_of_atomic_volumes(molecule: Molecule) -> float:
+    """Returns the sum of atomic volumes (calculated using vdW radii) in angstrom^3."""
+    return (4 / 3) * 3.14159 * sum(at.radius**3 for at in molecule)
 
 
 def guess_density(molecules: Sequence[Molecule], coeffs: Sequence[Union[int, float]]) -> float:
@@ -746,6 +764,127 @@ def packmol_in_void(
     )
 
     return ret
+
+
+@requires_optional_package("scm.libbase")
+def packmol_around(
+    current: Union[Molecule, "ChemicalSystem"],
+    molecules: Union[Molecule, List[Molecule]],
+    return_details: bool = False,
+    **kwargs,
+) -> Molecule:
+    """Pack around the current molecule.
+
+    ``current``: Molecule
+        Must have a 3D lattice
+
+    The ``current`` molecule will be mapped to [0..1]. The "box" will be set to the min/max of the components of each lattice vector.
+    """
+    from scm.libbase import (
+        UnifiedChemicalSystem as ChemicalSystem,
+        UnifiedLattice as Lattice,
+    )
+    from scm.utils.conversions import plams_molecule_to_chemsys, chemsys_to_plams_molecule
+
+    if isinstance(current, Molecule):
+        original_ucs = plams_molecule_to_chemsys(current)
+    else:
+        original_ucs = current.copy()
+    assert isinstance(current, ChemicalSystem)
+    original_ucs.map_atoms(0)
+
+    # step 1: find min/max of lattice
+    if current.lattice.num_vectors != 3:
+        raise ValueError(f"Input molecule `current` must have 3D lattice, got: {current.lattice}")
+    original_frac_coords = original_ucs.get_fractional_coordinates()
+
+    original_volume = original_ucs.lattice.get_volume()
+    original_lattice = original_ucs.lattice.copy()
+
+    # step 2, get remaining volume
+    current_atomic_volume = (
+        (4 / 3) * 3.14159 * np.sum(np.fromiter((at.element.radius for at in original_ucs), dtype=np.float32))
+    )
+    remaining_volume = original_volume - current_atomic_volume
+    # temporary value to call the original packmol with
+    box_bounds_for_remaining_volume = [
+        0.0,
+        0.0,
+        0.0,
+        remaining_volume ** (1 / 3.0),
+        remaining_volume ** (1 / 3.0),
+        remaining_volume ** (1 / 3.0),
+    ]
+    # it is unnecessary to actually pack the molecules, this is just used to get the "details"
+    _, details = packmol(molecules=molecules, return_details=True, box_bounds=box_bounds_for_remaining_volume, **kwargs)
+
+    maxcomponents = np.max(current.lattice.vectors, axis=0) - np.min(current.lattice.vectors, axis=0)
+    box_bounds = [0.0, 0.0, 0.0] + list(maxcomponents)
+
+    will_run_uff_md = any(not np.isclose(x, 90.0) for x in original_lattice.get_angles("degree"))
+
+    # we now know how many molecules to pack around the current molecule
+
+    distorted = original_ucs.copy()
+    distorted.lattice.vectors = np.diag(maxcomponents)
+    distorted.set_fractional_coordinates(original_frac_coords)
+    # remove bonds to be able to do "shake all bonds * *" for the remaining molecules
+    if will_run_uff_md:
+        distorted.bonds.clear_bonds()
+    distorted_with_molecules = [chemsys_to_plams_molecule(distorted)] + tolist(molecules)
+    n_molecules = [1] + details["n_molecules"]
+    # in general we need higher tolerance here since we may be expanding the original system,
+    # and we do not want the added molecules to enter in artificial "voids"
+    tolerance = kwargs.get("tolerance", 2.2)
+    my_packed, details = packmol(
+        molecules=distorted_with_molecules,
+        n_molecules=n_molecules,
+        fix_first=True,
+        box_bounds=box_bounds,
+        return_details=True,
+        tolerance=tolerance,
+    )
+    if will_run_uff_md:
+        nsteps = 500
+
+        s = Settings()
+        s.input.ForceField.Type = "UFF"
+        s.input.ams.Task = "MolecularDynamics"
+        s.input.ams.Constraints.AtomList = " ".join(str(x + 1) for x in range(len(current)))
+        s.input.ams.MolecularDynamics.NSteps = nsteps
+        s.input.ams.MolecularDynamics.TimeStep = 0.5
+        s.input.ams.MolecularDynamics.InitialVelocities.Temperature = 10
+        s.input.ams.MolecularDynamics.Shake.All = "bonds * *"
+
+        l = original_lattice.vectors
+        target_lattice_str = f"""
+            {l[0][0]} {l[0][1]} {l[0][2]}
+            {l[1][0]} {l[1][1]} {l[1][2]}
+            {l[2][0]} {l[2][1]} {l[2][2]}
+        """
+
+        s.input.ams.MolecularDynamics.Deformation.StartStep = 1
+        s.input.ams.MolecularDynamics.Deformation.TargetLattice._1 = target_lattice_str
+
+        job = AMSJob(settings=s, molecule=my_packed, name="shakemd")
+        job.run()
+        my_packed = job.results.get_main_molecule()
+        delete_job(job)
+
+    my_packed_ucs = plams_molecule_to_chemsys(my_packed)
+    my_packed_ucs.remove_atoms(range(len(original_ucs)))
+    my_packed_ucs.map_atoms_continuous()  # so that we can add_other without having incompatible lattices
+    my_packed_ucs.lattice = Lattice()
+
+    out_ucs = original_ucs.copy()
+    out_ucs.add_other(my_packed_ucs)
+    out_ucs.map_atoms(0)
+
+    out_mol = chemsys_to_plams_molecule(out_ucs)
+
+    if return_details:
+        return out_mol, details
+    return out_mol
 
 
 def packmol_on_slab(
