@@ -98,6 +98,8 @@ from scm.plams.interfaces.molecule.rdkit import (
     to_smiles,
     writepdb,
     yield_coords,
+    to_image,
+    get_reaction_image,
 )
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob, Cp2kResults, Cp2kSettings2Mol
 from scm.plams.interfaces.thirdparty.crystal import CrystalJob, mol2CrystalConf
