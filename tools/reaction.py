@@ -1,6 +1,7 @@
 import numpy
-from scm.plams import Molecule
-from scm.plams import to_smiles
+from scm.plams.mol.molecule import Molecule
+from scm.plams.interfaces.molecule.rdkit import to_smiles
+from scm.plams.core.functions import requires_optional_package
 
 
 class ReactionEquation:
@@ -213,6 +214,7 @@ class ReactionEquation:
         basis = self.basis[indexmap > 0]
         return basis
 
+    @requires_optional_package("pyomo")
     def setup_optimizer(self, basis):
         """
         Solve the problem using ILP.

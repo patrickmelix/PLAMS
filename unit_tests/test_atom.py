@@ -1,5 +1,6 @@
 import pytest
 
+from scm.plams.core.errors import PTError
 from scm.plams.mol.atom import Atom
 
 
@@ -26,6 +27,14 @@ class TestAtom:
         assert atom.connectors == 0
         assert not atom.is_metallic
         assert not atom.is_electronegative
+
+    def test_unhappy_atom_raises_error(self):
+        with pytest.raises(PTError):
+            Atom(symbol=42)
+        with pytest.raises(TypeError):
+            Atom(atnum="foo")
+        with pytest.raises(TypeError):
+            Atom(symbol="C", coords="foobar")
 
     def test_get_set_xyz_coords_as_expected(self):
         atom = Atom()

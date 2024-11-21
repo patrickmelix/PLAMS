@@ -148,6 +148,6 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     numgrad
     numhess
     pyAHFCDOS
-    fcf_dos
+    ADFVibronicDOS/ADFVibronicDOS.rst
     ReuseForceFieldParams
 

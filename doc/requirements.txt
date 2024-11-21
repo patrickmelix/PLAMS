@@ -1,4 +1,0 @@
-sphinx
-sphinx_copybutton
-sphinx_tabs
-ipython

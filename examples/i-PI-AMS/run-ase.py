@@ -41,7 +41,7 @@ def main():
     sett.runscript.nproc = 1
 
     with AMSCalculator(settings=sett, amsworker=True) as calc:
-        atoms.set_calculator(calc)
+        atoms.calc = calc
         client = SocketClient(unixsocket="driver-irpmd-16")  # socket should match the one given in input.xml
         client.run(atoms, use_stress=use_stress)
 

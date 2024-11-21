@@ -1,8 +1,9 @@
-from scm.plams.version import __version__
 from scm.plams.core.basejob import MultiJob, SingleJob
+from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import (
     FileError,
     JobError,
+    MissingOptionalPackageError,
     MoleculeError,
     PlamsError,
     PTError,
@@ -27,56 +28,30 @@ from scm.plams.core.jobmanager import JobManager
 from scm.plams.core.jobrunner import GridRunner, JobRunner
 from scm.plams.core.results import Results
 from scm.plams.core.settings import (
-    Settings,
-    SafeRunSettings,
+    ConfigSettings,
+    JobManagerSettings,
+    JobSettings,
     LogSettings,
     RunScriptSettings,
-    JobSettings,
-    JobManagerSettings,
-    ConfigSettings,
+    SafeRunSettings,
+    Settings,
 )
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
-from scm.plams.interfaces.adfsuite.amsanalysis import (
-    AMSAnalysisJob,
-    AMSAnalysisResults,
-    convert_to_unicode,
-)
-from scm.plams.interfaces.adfsuite.amspipeerror import (
-    AMSPipeDecodeError,
-    AMSPipeError,
-    AMSPipeInvalidArgumentError,
-    AMSPipeLogicError,
-    AMSPipeRuntimeError,
-    AMSPipeUnknownArgumentError,
-    AMSPipeUnknownMethodError,
-    AMSPipeUnknownVersionError,
-)
-from scm.plams.interfaces.adfsuite.amsworker import (
-    AMSWorker,
-    AMSWorkerError,
-    AMSWorkerPool,
-    AMSWorkerResults,
-)
+from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults, convert_to_unicode
+from scm.plams.interfaces.adfsuite.amsworker import AMSWorker, AMSWorkerError, AMSWorkerPool, AMSWorkerResults
 from scm.plams.interfaces.adfsuite.crs import CRSJob, CRSResults
 from scm.plams.interfaces.adfsuite.densf import DensfJob, DensfResults
 from scm.plams.interfaces.adfsuite.fcf import FCFJob, FCFResults
-from scm.plams.interfaces.adfsuite.forcefieldparams import (
-    ForceFieldPatch,
-    forcefield_params_from_kf,
-)
-from scm.plams.interfaces.adfsuite.quickjobs import (
-    preoptimize,
-    refine_density,
-    refine_lattice,
-)
+from scm.plams.interfaces.adfsuite.forcefieldparams import ForceFieldPatch, forcefield_params_from_kf
+from scm.plams.interfaces.adfsuite.quickjobs import preoptimize, refine_density, refine_lattice
 from scm.plams.interfaces.adfsuite.unifac import UnifacJob, UnifacResults
 from scm.plams.interfaces.molecule.ase import fromASE, toASE
 from scm.plams.interfaces.molecule.packmol import (
     PackMolError,
     packmol,
+    packmol_in_void,
     packmol_microsolvation,
     packmol_on_slab,
-    packmol_in_void,
 )
 from scm.plams.interfaces.molecule.rdkit import (
     add_Hs,
@@ -116,17 +91,15 @@ from scm.plams.mol.molecule import Molecule
 from scm.plams.mol.pdbtools import PDBHandler, PDBRecord
 from scm.plams.recipes.adffragment import ADFFragmentJob, ADFFragmentResults
 from scm.plams.recipes.adfnbo import ADFNBOJob
-from scm.plams.recipes.md.amsmdjob import AMSMDJob, AMSNVEJob, AMSNVTJob, AMSNPTJob
+from scm.plams.recipes.md.amsmdjob import AMSMDJob, AMSNPTJob, AMSNVEJob, AMSNVTJob
 from scm.plams.recipes.md.nvespawner import AMSNVESpawnerJob
-from scm.plams.recipes.md.trajectoryanalysis import AMSRDFJob, AMSVACFJob, AMSMSDJob
 from scm.plams.recipes.md.scandensity import AMSMDScanDensityJob
+from scm.plams.recipes.md.trajectoryanalysis import AMSMSDJob, AMSRDFJob, AMSVACFJob
 from scm.plams.recipes.numgrad import NumGradJob
 from scm.plams.recipes.numhess import NumHessJob
 from scm.plams.recipes.pestools.optimizer import Optimizer
-from scm.plams.recipes.reorganization_energy import ReorganizationEnergyJob
 from scm.plams.recipes.redox import AMSRedoxDirectJob, AMSRedoxScreeningJob, AMSRedoxThermodynamicCycleJob
-
-from scm.plams.tools.reaction import ReactionEquation
+from scm.plams.recipes.reorganization_energy import ReorganizationEnergyJob
 from scm.plams.tools.converters import (
     file_to_traj,
     gaussian_output_to_ams,
@@ -147,31 +120,27 @@ from scm.plams.tools.geometry import (
 )
 from scm.plams.tools.kftools import KFFile, KFHistory, KFReader
 from scm.plams.tools.periodic_table import PT, PeriodicTable
-from scm.plams.tools.plot import plot_band_structure, plot_molecule
-from scm.plams.tools.reaction_energies import (
-    balance_equation,
-    balance_equation_new,
-    get_stoichiometry,
-    reaction_energy,
+from scm.plams.tools.plot import (
+    get_correlation_xy,
+    plot_band_structure,
+    plot_correlation,
+    plot_molecule,
+    plot_msd,
+    plot_work_function,
 )
+from scm.plams.tools.reaction import ReactionEquation
+from scm.plams.tools.reaction_energies import balance_equation, balance_equation_new, get_stoichiometry, reaction_energy
 from scm.plams.tools.units import Units
 from scm.plams.trajectories.dcdfile import DCDTrajectoryFile
-from scm.plams.trajectories.rkffile import (
-    RKFTrajectoryFile,
-    write_general_section,
-    write_molecule_section,
-)
-from scm.plams.trajectories.rkfhistoryfile import (
-    RKFHistoryFile,
-    molecules_to_rkf,
-    rkf_filter_regions,
-)
+from scm.plams.trajectories.rkffile import RKFTrajectoryFile, write_general_section, write_molecule_section
+from scm.plams.trajectories.rkfhistoryfile import RKFHistoryFile, molecules_to_rkf, rkf_filter_regions
 from scm.plams.trajectories.sdffile import SDFTrajectoryFile, create_sdf_string
 from scm.plams.trajectories.sdfhistoryfile import SDFHistoryFile
 from scm.plams.trajectories.trajectory import Trajectory
 from scm.plams.trajectories.trajectoryfile import TrajectoryFile
 from scm.plams.trajectories.xyzfile import XYZTrajectoryFile, create_xyz_string
 from scm.plams.trajectories.xyzhistoryfile import XYZHistoryFile
+from scm.plams.version import __version__
 
 __all__ = [
     "Results",
@@ -198,6 +167,7 @@ __all__ = [
     "ConfigSettings",
     "SingleJob",
     "MultiJob",
+    "JobStatus",
     "PlamsError",
     "FileError",
     "ResultsError",
@@ -230,14 +200,7 @@ __all__ = [
     "ORCAResults",
     "CRSResults",
     "CRSJob",
-    "AMSPipeError",
-    "AMSPipeDecodeError",
-    "AMSPipeLogicError",
-    "AMSPipeRuntimeError",
-    "AMSPipeUnknownVersionError",
-    "AMSPipeUnknownMethodError",
-    "AMSPipeUnknownArgumentError",
-    "AMSPipeInvalidArgumentError",
+    "MissingOptionalPackageError",
     "ForceFieldPatch",
     "forcefield_params_from_kf",
     "AMSWorker",
@@ -309,6 +272,10 @@ __all__ = [
     "PT",
     "plot_band_structure",
     "plot_molecule",
+    "get_correlation_xy",
+    "plot_correlation",
+    "plot_msd",
+    "plot_work_function",
     "SDFTrajectoryFile",
     "create_sdf_string",
     "XYZHistoryFile",

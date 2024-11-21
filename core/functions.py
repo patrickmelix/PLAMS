@@ -10,13 +10,17 @@ from os.path import dirname, expandvars, isdir, isfile
 from os.path import join as opj
 from typing import Dict, Iterable, Optional, TYPE_CHECKING
 import atexit
+from importlib.util import find_spec
+import functools
 
-from scm.plams.core.errors import FileError
+from scm.plams.core.errors import FileError, MissingOptionalPackageError
 from scm.plams.core.private import retry
 from scm.plams.core.settings import Settings, ConfigSettings
+from scm.plams.core.enums import JobStatus
 
 if TYPE_CHECKING:
     from scm.plams.core.jobmanager import JobManager
+    from scm.plams.core.basejob import Job
 
 __all__ = [
     "init",
@@ -27,6 +31,7 @@ __all__ = [
     "delete_job",
     "add_to_class",
     "add_to_instance",
+    "requires_optional_package",
     "config",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
@@ -339,10 +344,10 @@ def load_all(path, jobmanager=None):
 
 
 @retry()
-def delete_job(job):
+def delete_job(job: "Job"):
     """Remove *job* from its corresponding |JobManager| and delete the job folder from the disk. Mark *job* as 'deleted'."""
 
-    if job.status != "created":
+    if job.status != JobStatus.CREATED:
         job.results.wait()
 
     # In case job.jobmanager is None, run() method was not called yet, so no JobManager knows about this job and no folder exists.
@@ -352,7 +357,7 @@ def delete_job(job):
     if job.parent is not None:
         job.parent.remove_child(job)
 
-    job.status = "deleted"
+    job.status = JobStatus.DELETED
     job._log_status(5)
 
 
@@ -470,6 +475,29 @@ def add_to_instance(instance):
 # ===========================================================================
 
 
+def requires_optional_package(package_name: str, os_name: Optional[str] = None):
+    """
+    Ensures a given package is available before running a function, otherwise raises an ImportError.
+    This can be used to check for optional dependencies which are required for specific functionality.
+    :param package_name: name of the required package
+    :param os_name: name of the os that this package must be specified on, if omitted defaults to all os
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if (os_name is None or os.name == os_name) and find_spec(package_name) is None:
+                raise MissingOptionalPackageError(package_name)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+# ===========================================================================
+
+
 def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
     """Take a string and isolate the content of a bash-style `Here Document`_.
 
@@ -535,11 +563,11 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
     end_heredoc = re.search(end_pattern, bash_input)
 
     # Prepare the slices
-    try:
+    if end_heredoc:
         i, j = start_heredoc.end(), end_heredoc.start()
-    except AttributeError as ex:
+    else:
         err = f"parse_heredoc: failed to find the final '{heredoc_delimit}' delimiter"
-        raise ValueError(err).with_traceback(ex.__traceback__)
+        raise ValueError(err)
 
     # Grab heredoced block and parse it
     _, ret = bash_input[i:j].split("\n", maxsplit=1)

@@ -3,6 +3,8 @@ from collections import OrderedDict
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
+from scm.plams.core.enums import JobStatus
+
 import numpy as np
 from scm.plams.recipes.md.amsmdjob import AMSNVEJob
 
@@ -81,7 +83,7 @@ class AMSNVESpawnerJob(MultiJob):
         """
 
         # use previously run previous_job
-        assert self.previous_job.status != "created", "You can only pass in a finished AMSJob"
+        assert self.previous_job.status != JobStatus.CREATED, "You can only pass in a finished AMSJob"
         try:
             self.previous_job.results.readrkf("MDHistory", "Velocities(1)")
         except KeyError:

@@ -2,10 +2,10 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict, namedtuple
 from dataclasses import dataclass
-from natsort import natsorted
 from pathlib import Path
 from typing import Dict, List, Tuple
 import numpy as np
+from scm.plams.core.functions import requires_optional_package
 import scm.plams as plams
 import scm.reactmap
 import warnings
@@ -234,11 +234,14 @@ class XYZReaction(BoostReaction):
     folder: Path  # a folder with .xyz files
     charge: float = 0
 
+    @requires_optional_package("natsort")
     def get_molecules_dict(self) -> Dict[str, plams.Molecule]:
         """
         read molecules from .xyz files in a directory ``self.folder``.
         Returns a dictionary suitable for AMSJob
         """
+        from natsort import natsorted
+
         # read all xyz files, dictionary key: Molecule
         molecules = plams.read_molecules(str(self.folder.resolve()))
 

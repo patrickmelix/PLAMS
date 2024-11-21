@@ -1,11 +1,13 @@
 import os
 import re
 import tempfile
+from typing import Optional
 
 from scm.plams.interfaces.molecule.ase import toASE
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.units import Units
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.trajectories.rkffile import RKFTrajectoryFile
 from scm.plams.trajectories.rkfhistoryfile import RKFHistoryFile
 
@@ -20,6 +22,7 @@ __all__ = [
 ]
 
 
+@requires_optional_package("ase")
 def traj_to_rkf(trajfile, rkftrajectoryfile, task=None, timestep: float = 0.25):
     """
     Convert ase .traj file to .rkf file. NOTE: The order of atoms (or the number of atoms) cannot change between frames!
@@ -93,8 +96,7 @@ def traj_to_rkf(trajfile, rkftrajectoryfile, task=None, timestep: float = 0.25):
             if str(task).lower() == "moleculardynamics" or len(mddata) > 0:
                 mddata["Time"] = timestep * i
 
-            if len(mddata) == 0:
-                mddata = None
+            final_mddata = None if len(mddata) == 0 else mddata
 
             # Create a historydata dictionary, to go into the History section
             historydata = {}
@@ -106,7 +108,7 @@ def traj_to_rkf(trajfile, rkftrajectoryfile, task=None, timestep: float = 0.25):
             if len(historydata) == 0:
                 historydata = {}
 
-            rkfout.write_next(coords=coords, cell=cell, historydata=historydata, mddata=mddata)
+            rkfout.write_next(coords=coords, cell=cell, historydata=historydata, mddata=final_mddata)
 
     finally:
         rkfout.close()
@@ -128,6 +130,7 @@ def traj_to_rkf(trajfile, rkftrajectoryfile, task=None, timestep: float = 0.25):
     return coords, cell
 
 
+@requires_optional_package("ase")
 def file_to_traj(outfile, trajfile):
     """
     outfile : str
@@ -211,7 +214,12 @@ def _postprocess_vasp_amsrkf(kffile, outcar):
 
 
 def vasp_output_to_ams(
-    vasp_folder, wdir=None, overwrite=False, write_engine_rkf=True, task: str = None, timestep: float = 0.25
+    vasp_folder: str,
+    wdir: Optional[str] = None,
+    overwrite: bool = False,
+    write_engine_rkf: bool = True,
+    task: Optional[str] = None,
+    timestep: float = 0.25,
 ):
     """
     Converts VASP output (OUTCAR, ...) to AMS output (ams.rkf, vasp.rkf)
@@ -429,6 +437,7 @@ def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf
     return wdir
 
 
+@requires_optional_package("ase")
 def rkf_to_ase_atoms(rkf_file, get_results=True):
     """
     Convert an ams.rkf trajectory to a list of ASE atoms
@@ -503,6 +512,7 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
     return all_atoms
 
 
+@requires_optional_package("ase")
 def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
     """
     Convert an ams.rkf trajectory to a different trajectory format (.xyz, .traj, anything supported by ASE)

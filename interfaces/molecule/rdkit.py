@@ -1,50 +1,42 @@
-from importlib.util import find_spec
-from typing import List, Literal, Optional, overload
-
-if find_spec("rdkit"):
-    __all__ = [
-        "add_Hs",
-        "apply_reaction_smarts",
-        "apply_template",
-        "gen_coords_rdmol",
-        "get_backbone_atoms",
-        "modify_atom",
-        "to_rdmol",
-        "from_rdmol",
-        "from_sequence",
-        "from_smiles",
-        "from_smarts",
-        "to_smiles",
-        "partition_protein",
-        "readpdb",
-        "writepdb",
-        "get_substructure",
-        "get_conformations",
-        "yield_coords",
-        "canonicalize_mol",
-    ]
-else:
-    __all__ = []
-
-"""
-@author: Lars Ridder
-@description: A set of functions to manipulate molecules based on RDKit
-
-This is a series of functions that apply RDKit functionality on PLAMS molecules
-"""
-
+from typing import List, Literal, Optional, overload, TYPE_CHECKING
 import random
 import sys
 from warnings import warn
 
-from scm.plams.core.errors import PlamsError
-from scm.plams.core.functions import add_to_class, log
+from scm.plams.core.functions import add_to_class, log, requires_optional_package
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
 from scm.plams.mol.molecule import Molecule
+from scm.plams.core.errors import PlamsError
+
+if TYPE_CHECKING:
+    from rdkit import Mol as RDKitMol
+
+__all__ = [
+    "add_Hs",
+    "apply_reaction_smarts",
+    "apply_template",
+    "gen_coords_rdmol",
+    "get_backbone_atoms",
+    "modify_atom",
+    "to_rdmol",
+    "from_rdmol",
+    "from_sequence",
+    "from_smiles",
+    "from_smarts",
+    "to_smiles",
+    "partition_protein",
+    "readpdb",
+    "writepdb",
+    "get_substructure",
+    "get_conformations",
+    "yield_coords",
+    "canonicalize_mol",
+]
 
 
-def from_rdmol(rdkit_mol, confid=-1, properties=True):
+@requires_optional_package("rdkit")
+def from_rdmol(rdkit_mol: "RDKitMol", confid: int = -1, properties: bool = True) -> Molecule:
     """
     Translate an RDKit molecule into a PLAMS molecule type.
     RDKit properties will be unpickled if their name ends with '_pickled'.
@@ -114,7 +106,14 @@ def from_rdmol(rdkit_mol, confid=-1, properties=True):
     return plams_mol
 
 
-def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False, presanitize=False):
+@requires_optional_package("rdkit")
+def to_rdmol(
+    plams_mol: Molecule,
+    sanitize: bool = True,
+    properties: bool = True,
+    assignChirality: bool = False,
+    presanitize: bool = False,
+) -> "RDKitMol":
     """
     Translate a PLAMS molecule into an RDKit molecule type.
     PLAMS |Molecule|, |Atom| or |Bond| properties are pickled if they are neither booleans, floats,
@@ -244,7 +243,8 @@ def to_rdmol(plams_mol, sanitize=True, properties=True, assignChirality=False, p
     return rdmol
 
 
-def to_smiles(plams_mol, short_smiles=True, **kwargs):
+@requires_optional_package("rdkit")
+def to_smiles(plams_mol: Molecule, short_smiles: bool = True, **kwargs) -> str:
     """
     Returns the RDKit-generated SMILES string of a PLAMS molecule.
 
@@ -313,6 +313,7 @@ def get_PDBResidueInfo(rdkit_atom):
     return pdb_info
 
 
+@requires_optional_package("rdkit")
 def set_PDBresidueInfo(rdkit_atom, pdb_info):
     from rdkit import Chem
 
@@ -396,6 +397,7 @@ def from_smiles(
 ) -> List[Molecule]: ...
 
 
+@requires_optional_package("rdkit")
 def from_smiles(
     smiles: str, nconfs: int = 1, name: Optional[str] = None, forcefield: Optional[str] = None, rms: float = 0.1
 ):
@@ -406,7 +408,7 @@ def from_smiles(
     :parameter int nconfs: Number of conformers to be generated
     :parameter str name: A name for the molecule
     :parameter str forcefield: Choose 'uff' or 'mmff' forcefield for geometry optimization
-        and ranking of comformations. The default value None results in skipping of the
+        and ranking of conformations. The default value None results in skipping of the
         geometry optimization step.
     :parameter float rms: Root Mean Square deviation threshold for
         removing similar/equivalent conformations
@@ -422,7 +424,10 @@ def from_smiles(
     return get_conformations(rdkit_mol, nconfs, name, forcefield, rms)
 
 
-def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
+@requires_optional_package("rdkit")
+def from_smarts(
+    smarts: str, nconfs: int = 1, name: Optional[str] = None, forcefield: Optional[str] = None, rms: float = 0.1
+):
     """
     Generates PLAMS molecule(s) from a smarts strings.
     This allows for example to define hydrogens explicitly.
@@ -449,6 +454,7 @@ def from_smarts(smarts, nconfs=1, name=None, forcefield=None, rms=0.1):
     return get_conformations(molecule, nconfs, name, forcefield, rms)
 
 
+@requires_optional_package("rdkit")
 def get_conformations(
     mol,
     nconfs=1,
@@ -608,6 +614,7 @@ def get_conformations(
         return [from_rdmol(rdkit_mol, cid) for cid in cids]
 
 
+@requires_optional_package("rdkit")
 def from_sequence(sequence, nconfs=1, name=None, forcefield=None, rms=0.1):
     """
     Generates PLAMS molecule from a peptide sequence.
@@ -632,6 +639,7 @@ def from_sequence(sequence, nconfs=1, name=None, forcefield=None, rms=0.1):
     return get_conformations(rdkit_mol, nconfs, name, forcefield, rms)
 
 
+@requires_optional_package("rdkit")
 def calc_rmsd(mol1, mol2):
     """
     Superimpose two molecules and calculate the root-mean-squared deviations of
@@ -653,6 +661,7 @@ def calc_rmsd(mol1, mol2):
         return -999
 
 
+@requires_optional_package("rdkit")
 def modify_atom(mol, idx, element):
     """
     Change atom "idx" in molecule "mol" to "element" and add or remove hydrogens accordingly
@@ -681,6 +690,7 @@ def modify_atom(mol, idx, element):
         return from_rdmol(newmol)
 
 
+@requires_optional_package("rdkit")
 def apply_template(mol, template):
     """
     Modifies bond orders in PLAMS molecule according template smiles structure.
@@ -699,6 +709,7 @@ def apply_template(mol, template):
     return from_rdmol(newmol)
 
 
+@requires_optional_package("rdkit")
 def apply_reaction_smarts(mol, reaction_smarts, complete=False, forcefield=None, return_rdmol=False):
     """
     Applies reaction smirks and returns product.
@@ -784,6 +795,7 @@ def gen_coords(plamsmol):
     return [a + 1 for a in unchanged]
 
 
+@requires_optional_package("rdkit")
 def gen_coords_rdmol(rdmol):
     from rdkit.Chem import AllChem
 
@@ -813,6 +825,7 @@ def gen_coords_rdmol(rdmol):
     return unchanged
 
 
+@requires_optional_package("rdkit")
 def optimize_coordinates(rdkit_mol, forcefield, fixed=[]):
     from rdkit import Chem
     from rdkit.Chem import AllChem
@@ -841,12 +854,14 @@ def optimize_coordinates(rdkit_mol, forcefield, fixed=[]):
     return
 
 
+@requires_optional_package("rdkit")
 def write_molblock(plams_mol, file=sys.stdout):
     from rdkit import Chem
 
     file.write(Chem.MolToMolBlock(to_rdmol(plams_mol)))
 
 
+@requires_optional_package("rdkit")
 def readpdb(pdb_file, sanitize=True, removeHs=False, proximityBonding=False, return_rdmol=False):
     """
     Generate a molecule from a PDB file
@@ -870,6 +885,7 @@ def readpdb(pdb_file, sanitize=True, removeHs=False, proximityBonding=False, ret
     return pdb_mol if return_rdmol else from_rdmol(pdb_mol)
 
 
+@requires_optional_package("rdkit")
 def writepdb(mol, pdb_file=sys.stdout):
     """
     Write a PDB file from a molecule
@@ -890,6 +906,7 @@ def writepdb(mol, pdb_file=sys.stdout):
     pdb_file.write(Chem.MolToPDBBlock(mol))
 
 
+@requires_optional_package("rdkit")
 def add_Hs(mol, forcefield=None, return_rdmol=False):
     """
     Add hydrogens to protein molecules read from PDB.
@@ -929,6 +946,7 @@ def add_Hs(mol, forcefield=None, return_rdmol=False):
     return retmol if return_rdmol else from_rdmol(retmol)
 
 
+@requires_optional_package("rdkit")
 def add_fragment(rwmol, frag, rwmol_atom_idx=None, frag_atom_idx=None, bond_order=None):
     from rdkit import Chem
 
@@ -948,6 +966,7 @@ def add_fragment(rwmol, frag, rwmol_atom_idx=None, frag_atom_idx=None, bond_orde
         rwmol.GetAtomWithIdx(new_indices[frag_atom_idx]).SetNumRadicalElectrons(0)
 
 
+@requires_optional_package("rdkit")
 def get_fragment(mol, indices, incl_expl_Hs=True, neutralize=True):
     from rdkit import Chem
 
@@ -991,6 +1010,7 @@ def get_fragment(mol, indices, incl_expl_Hs=True, neutralize=True):
     return ret_frag
 
 
+@requires_optional_package("rdkit")
 def partition_protein(mol, residue_bonds=None, split_heteroatoms=True, return_rdmol=False):
     """
     Splits a protein molecule into capped amino acid fragments and caps.
@@ -1051,6 +1071,7 @@ def partition_protein(mol, residue_bonds=None, split_heteroatoms=True, return_rd
     return frags, caps
 
 
+@requires_optional_package("rdkit")
 def charge_AAs(mol, return_rdmol=False):
     from rdkit import Chem
 
@@ -1084,6 +1105,7 @@ def get_backbone_atoms(mol):
     return [a for a in range(1, len(mol) + 1) if str(mol[a].properties.pdb_info.Name).strip() in backbone]
 
 
+@requires_optional_package("rdkit")
 def get_substructure(mol, func_list):
     """
     Search for functional groups within a molecule based on a list of reference functional groups.
@@ -1210,6 +1232,7 @@ def assign_chirality(self):
 
 
 @add_to_class(Molecule)
+@requires_optional_package("rdkit")
 def get_chirality(self):
     """
     Returns the chirality of the atoms
@@ -1220,6 +1243,7 @@ def get_chirality(self):
     return Chem.FindMolChiralCenters(rd_mol, force=True, includeUnassigned=True)
 
 
+@requires_optional_package("rdkit")
 def canonicalize_mol(mol, inplace=False, **kwargs):
     r"""Take a PLAMS molecule and sort its atoms based on their canonical rank.
 
