@@ -838,6 +838,18 @@ class AMSResults(Results):
         """
         return np.asarray(self._process_engine_results(lambda x: x.read("AMSResults", "Charges"), engine))
 
+    def get_atom_types(self, engine: Optional[str] = None) -> List[str]:
+        """Return the atomic types, for each atom in the system.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        indices = self._process_engine_results(lambda x: x.read("AMSResults", "AtomTyping.atomIndexToType"), engine)
+        types = self._process_engine_results(lambda x: x.read("AMSResults", "AtomTyping.atomTypes"), engine).split(
+            "\x00"
+        )
+
+        return [types[i - 1] for i in indices]
+
     def get_dipolemoment(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the electric dipole moment, expressed in atomic units.
 
