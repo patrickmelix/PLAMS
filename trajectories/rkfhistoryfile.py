@@ -341,10 +341,9 @@ class RKFHistoryFile(RKFTrajectoryFile):
                 for at in reversed(molecule.atoms):
                     molecule.delete_atom(at)
                 molecule.properties = Settings()
-                for iel, el in enumerate(elements):
-                    atom = new_mol.atoms[iel]
-                    atom.bonds = []
-                    # atom = Atom(PT.get_atomic_number(el))
+                atoms = [new_mol.atoms[iel] for iel, _ in enumerate(elements)]
+                for atom in atoms:
+                    new_mol.delete_atom(atom)
                     molecule.add_atom(atom)
                 _, _, _, _, self.props = self._read_plamsmol(molecule)
                 if "charge" in new_mol.properties:
