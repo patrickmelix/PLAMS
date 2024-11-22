@@ -10,6 +10,7 @@ from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.functions import config, get_logger, log
 from scm.plams.core.job_csv_formatter import JobCSVFormatter
+from scm.plams.core.logging import CSVLogger
 
 if TYPE_CHECKING:
     from scm.plams.core.basejob import Job
@@ -43,7 +44,7 @@ class JobManager:
 
     """
 
-    def __init__(self, settings, path=None, folder=None, use_existing_folder=False, csv_logger: "LoggerCSV" = None):
+    def __init__(self, settings, path=None, folder=None, use_existing_folder=False, csv_logger: CSVLogger = None):
 
         self.settings = settings
         self.jobs = []

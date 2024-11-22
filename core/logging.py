@@ -1,14 +1,11 @@
 import csv
 import json
 import logging
-import re
 import sys
 import threading
-import time
 from abc import ABC
 from io import StringIO
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Literal, Mapping, Optional, Union
 
 from scm.plams.core.errors import FileError
 
