@@ -14,7 +14,7 @@ from scm.plams.core.errors import FileError
 __all__ = ["get_logger", "Logger"]
 
 
-def get_logger(name: str, format: Optional[Literal["csv"]] = "str") -> "Logger":
+def get_logger(name: str, format: Optional[Literal["csv", "str"]] = "str") -> "Logger":
     """
     Get a logger with the specified name.
     If there is an existing logger with the same name this is returned, otherwise a new logger is created.
@@ -60,8 +60,9 @@ class Logger(ABC):
         """
         self._logger = logging.Logger(name)
         self._stdout_handler: Optional[logging.StreamHandler] = None
+        self._stdout_formatter: Optional[logging.Formatter] = None
         self._file_handler: Optional[logging.FileHandler] = None
-        self._formatter: Optional[logging.Formatter] = None
+        self._file_formatter: Optional[logging.Formatter] = None
         self._lock = threading.Lock()
 
     def configure(
@@ -71,6 +72,7 @@ class Logger(ABC):
         logfile_path: Optional[str] = None,
         include_date: bool = False,
         include_time: bool = False,
+        enforce_date_format: bool = True,
     ) -> None:
         """
         Configure logging to stdout and the logfile, and its formatting.
@@ -92,11 +94,11 @@ class Logger(ABC):
             # Initialise the stdout handler once
             if self._stdout_handler is None:
                 self._stdout_handler = logging.StreamHandler(sys.stdout)
-                self._stdout_handler.setFormatter(self._formatter)
+                self._stdout_handler.setFormatter(self._stdout_formatter)
                 self._logger.addHandler(self._stdout_handler)
 
             # Update the stdout handler level if required
-            if stdout_level != self._stdout_handler.level:
+            if stdout_level != 28 - self._stdout_handler.level:
                 self._stdout_handler.setLevel(28 - stdout_level)
 
             # Remove and close existing file handler if present and required
@@ -118,7 +120,7 @@ class Logger(ABC):
                         raise FileError(f"Logger '{name}' already exists with logfile path '{logfile_path}'")
 
                 self._file_handler = logging.FileHandler(logfile_path)
-                self._file_handler.setFormatter(self._formatter)
+                self._file_handler.setFormatter(self._file_formatter)
                 self._logger.addHandler(self._file_handler)
 
             # Update the logfile handler level if required
@@ -134,13 +136,17 @@ class Logger(ABC):
             elif include_time:
                 datefmt = "[%H:%M:%S]"
 
-            if self._formatter is None or datefmt != self._formatter.datefmt:
+            if self._stdout_formatter is None or (datefmt != self._stdout_formatter.datefmt and enforce_date_format):
                 fmt = "%(asctime)s %(message)s" if datefmt is not None else None
-                self._formatter = logging.Formatter(fmt, datefmt=datefmt)
+                self._stdout_formatter = logging.Formatter(fmt, datefmt=datefmt)
                 if self._stdout_handler is not None:
-                    self._stdout_handler.setFormatter(self._formatter)
+                    self._stdout_handler.setFormatter(self._stdout_formatter)
+
+            if self._file_formatter is None or (datefmt != self._file_formatter.datefmt and enforce_date_format):
+                fmt = "%(asctime)s %(message)s" if datefmt is not None else None
+                self._file_formatter = logging.Formatter(fmt, datefmt=datefmt)
                 if self._file_handler is not None:
-                    self._file_handler.setFormatter(self._formatter)
+                    self._file_handler.setFormatter(self._file_formatter)
 
     def log(self, message: Any, level: int) -> None:
         """
@@ -262,51 +268,54 @@ class CSVLogger(Logger):
         logfile_level=0,
         logfile_path=None,
         include_date=False,
-        include_time=False,
-        log_level=False,
+        include_time=True,
+        log_level=True,
         log_logger_name=False,
         log_lineno=False,
         csv_formatter_cls=CSVFormatter,
         **csv_args,
     ):
-        super().configure(stdout_level, logfile_level, logfile_path, include_date, include_time)
+        with self._lock:
+            datefmt = None
+            log_time = True
+            if include_date and include_time:
+                datefmt = "%d.%m|%H:%M:%S"
+            elif include_date:
+                datefmt = "%d.%m"
+            elif include_time:
+                datefmt = "%H:%M:%S"
+            else:
+                log_time = False
 
-        datefmt = None
-        log_time = True
-        if include_date and include_time:
-            datefmt = "%d.%m %H:%M:%S"
-        elif include_date:
-            datefmt = "%d.%m"
-        elif include_time:
-            datefmt = "%H:%M:%S"
-        else:
-            log_time = False
-
-        if self._formatter is None or datefmt != self._formatter.datefmt:
-            self._formatter: Optional[logging.Formatter] = csv_formatter_cls(
-                fmt=None,
-                datefmt=datefmt,
-                log_time=log_time,
-                log_level=log_level,
-                log_logger_name=log_logger_name,
-                log_lineno=log_lineno,
-                **csv_args,
-            )
-            if self._stdout_handler is not None:
-                self._stdout_handler.setFormatter(self._formatter)
-            if self._file_handler is not None:
-                # this is needed to write down the headers as swell
-                self._file_handler.setFormatter(
-                    csv_formatter_cls(
-                        fmt=None,
-                        datefmt=datefmt,
-                        log_time=log_time,
-                        log_level=log_level,
-                        log_logger_name=log_logger_name,
-                        log_lineno=log_lineno,
-                        **csv_args,
-                    )
+            if self._stdout_formatter is None or datefmt != self._stdout_formatter.datefmt:
+                self._stdout_formatter: Optional[logging.Formatter] = csv_formatter_cls(
+                    fmt=None,
+                    datefmt=datefmt,
+                    log_time=log_time,
+                    log_level=log_level,
+                    log_logger_name=log_logger_name,
+                    log_lineno=log_lineno,
+                    **csv_args,
                 )
+                if self._stdout_handler is not None:
+                    self._stdout_handler.setFormatter(self._stdout_formatter)
+
+            if self._file_formatter is None or datefmt != self._file_formatter.datefmt:
+                # this is needed to write down the headers as swell
+                self._file_formatter: Optional[logging.Formatter] = csv_formatter_cls(
+                    fmt=None,
+                    datefmt=datefmt,
+                    log_time=log_time,
+                    log_level=log_level,
+                    log_logger_name=log_logger_name,
+                    log_lineno=log_lineno,
+                    **csv_args,
+                )
+                if self._stdout_handler is not None:
+                    self._stdout_handler.setFormatter(self._file_formatter)
+        super().configure(
+            stdout_level, logfile_level, logfile_path, include_date, include_time, enforce_date_format=False
+        )
 
     def log(self, message: Mapping[str, Any], level: int = 2) -> None:
         """

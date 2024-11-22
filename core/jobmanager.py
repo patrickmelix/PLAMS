@@ -6,10 +6,10 @@ from os.path import join as opj
 from typing import TYPE_CHECKING
 
 from scm.plams.core.basejob import MultiJob
-from scm.plams.core.errors import FileError, PlamsError
-from scm.plams.core.functions import config, log
 from scm.plams.core.enums import JobStatus
-from scm.plams.core.csv_logger import LoggerCSV
+from scm.plams.core.errors import FileError, PlamsError
+from scm.plams.core.functions import config, get_logger, log
+from scm.plams.core.job_csv_formatter import JobCSVFormatter
 
 if TYPE_CHECKING:
     from scm.plams.core.basejob import Job
@@ -43,7 +43,7 @@ class JobManager:
 
     """
 
-    def __init__(self, settings, path=None, folder=None, use_existing_folder=False, csv_logger: LoggerCSV = None):
+    def __init__(self, settings, path=None, folder=None, use_existing_folder=False, csv_logger: "LoggerCSV" = None):
 
         self.settings = settings
         self.jobs = []
@@ -80,7 +80,14 @@ class JobManager:
             os.mkdir(self.workdir)
 
         if csv_logger is None:
-            csv_logger = LoggerCSV(log_path=opj(self.workdir, "logfile.csv"))
+            csv_logger = get_logger(os.path.basename(self.workdir), format="csv")
+            csv_logger.configure(
+                stdout_level=0,
+                logfile_level=7,
+                logfile_path=opj(self.workdir, "logfile.csv"),
+                csv_formatter_cls=JobCSVFormatter,
+                counter_len=self.settings.get_nested(("counter_len",), 3),
+            )
         self.logger_csv = csv_logger
 
     def load_job(self, filename):

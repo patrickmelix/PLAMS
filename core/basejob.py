@@ -1,18 +1,19 @@
 import copy
 import os
+import re
 import stat
 import threading
 import time
 from os.path import join as opj
-from typing import Optional, List, Generator, TYPE_CHECKING, Union, Dict, Iterable
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union
 
+from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.mol.molecule import Molecule
-from scm.plams.core.enums import JobStatus
 
 try:
     from scm.pisa.block import DriverBlock
@@ -22,8 +23,8 @@ except ImportError:
     _has_scm_pisa = False
 
 if TYPE_CHECKING:
-    from scm.plams.core.jobrunner import JobRunner
     from scm.plams.core.jobmanager import JobManager
+    from scm.plams.core.jobrunner import JobRunner
 
 __all__ = ["SingleJob", "MultiJob"]
 
@@ -291,7 +292,7 @@ class Job:
         log("{}._finalize() finished".format(self.name), 7)
         self._log_status(1)
 
-        self.jobmanager.logger_csv.job_log(self)
+        self.jobmanager.logger_csv.log(self, level=3)
 
     def __getstate__(self):
         """Prepare this job instance for pickling.

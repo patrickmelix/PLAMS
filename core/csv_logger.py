@@ -3,7 +3,7 @@ import re
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Mapping
+from typing import TYPE_CHECKING, Mapping, Union
 
 _stdlock = threading.Lock()
 _filelock = threading.Lock()
