@@ -1296,6 +1296,7 @@ def canonicalize_mol(mol, inplace=False, **kwargs):
         ret.atoms = [at for _, at in sorted(zip(idx_rank, ret.atoms), reverse=True)]
         return ret
 
+
 @requires_optional_package("rdkit")
 def to_image(mol, remove_hydrogens=True, filename=None, format="svg", as_string=True):
     """
@@ -1498,6 +1499,7 @@ def get_reaction_image_svg(reactants, products, width=200, height=100):
 
     return img_text
 
+
 def get_reaction_image_pil(reactants, products, format, width=200, height=100, as_string=True):
     """
     Create a 2D reaction image from reactants and products (PLAMS molecules)
@@ -1612,6 +1614,7 @@ def get_reaction_image_pil(reactants, products, format, width=200, height=100, a
 
     return img_text
 
+
 def _correct_svg(image):
     """
     Correct for a bug in the AMS rdkit created SVG file
@@ -1627,6 +1630,7 @@ def _correct_svg(image):
     image = "\n".join(lines)
     return image
 
+
 def _presanitize(mol, rdmol):
     """
     Change bonding and atom charges to avoid failed sanitization
@@ -1634,6 +1638,7 @@ def _presanitize(mol, rdmol):
     Note: Used by to_rdmol
     """
     from rdkit import Chem
+
     mol = mol.copy()
     for i in range(10):
         try:
@@ -1648,6 +1653,7 @@ def _presanitize(mol, rdmol):
     if stored_exc is not None:
         raise stored_exc
     return rdmol
+
 
 def _update_system_for_sanitation(rdmol, altered_bonds, altered_charge):
     """
@@ -1676,6 +1682,7 @@ def _update_system_for_sanitation(rdmol, altered_bonds, altered_charge):
         atom = rdmol.GetAtomWithIdx(iat)
         atom.SetFormalCharge(q)
     return rdmol
+
 
 def _kekulize(mol, text):
     """
@@ -1778,6 +1785,7 @@ def _kekulize(mol, text):
 
     return altered_bonds, altered_charge
 
+
 def _find_aromatic_sequence(mol, text):
     """
     Find the sequence of atoms with 1.5 bond orders
@@ -1813,6 +1821,7 @@ def _find_aromatic_sequence(mol, text):
         indices = [iat]
     return indices
 
+
 def _rdmol_for_image(mol, remove_hydrogens=True):
     """
     Convert PLAMS molecule to an RDKit molecule specifically for a 2D image
@@ -1839,9 +1848,18 @@ def _rdmol_for_image(mol, remove_hydrogens=True):
         rdmol.RemoveConformer(cid)
     return rdmol
 
-def _MolsToGridSVG(mols, molsPerRow=3, subImgSize=(200, 200), legends=None, highlightAtomLists=None,
-                   highlightBondLists=None, drawOptions=None, **kwargs):
-    """ 
+
+def _MolsToGridSVG(
+    mols,
+    molsPerRow=3,
+    subImgSize=(200, 200),
+    legends=None,
+    highlightAtomLists=None,
+    highlightBondLists=None,
+    drawOptions=None,
+    **kwargs,
+):
+    """
     Replaces the old version of this function in our RDKit for a more recent one, with more options
     """
     from rdkit.Chem.Draw import rdMolDraw2D
@@ -1865,8 +1883,13 @@ def _MolsToGridSVG(mols, molsPerRow=3, subImgSize=(200, 200), legends=None, high
                 setattr(dops, k, v)
                 del kwargs[k]
 
-    d2d.DrawMolecules(list(mols), legends=legends or None, highlightAtoms=highlightAtomLists or [],
-                    highlightBonds=highlightBondLists or [], **kwargs)
+    d2d.DrawMolecules(
+        list(mols),
+        legends=legends or None,
+        highlightAtoms=highlightAtomLists or [],
+        highlightBonds=highlightBondLists or [],
+        **kwargs,
+    )
     d2d.FinishDrawing()
     res = d2d.GetDrawingText()
     return res
