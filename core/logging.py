@@ -1,14 +1,11 @@
 import csv
 import json
 import logging
-import re
 import sys
 import threading
-import time
 from abc import ABC
 from io import StringIO
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Literal, Mapping, Optional, Union
 
 from scm.plams.core.errors import FileError
 
@@ -372,7 +369,7 @@ class CSVLogger(Logger):
             stdout_level, logfile_level, logfile_path, include_date, include_time, enforce_date_format=False
         )
 
-    def log(self, message: Mapping[str, Any], level: int = 2) -> None:
+    def log(self, message: Union[str, Mapping[str, Any]], level: int = 2) -> None:
         """
         Log a dictionary message in CSV format with verbosity level.
 
