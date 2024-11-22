@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 import re
 import sys
@@ -7,11 +8,11 @@ import time
 from abc import ABC
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Mapping, Optional, Union
 
 from scm.plams.core.errors import FileError
 
-__all__ = ["get_logger", "Logger"]
+__all__ = ["get_logger", "StrLogger", "CSVLogger"]
 
 
 def get_logger(name: str, format: Optional[Literal["csv", "str"]] = "str") -> "Logger":
@@ -181,7 +182,7 @@ class StrLogger(Logger):
             self._logger.log(28 - level, message)
 
 
-class CSVFormatter(logging.Formatter):
+class DictFormatter(logging.Formatter):
     def __init__(
         self,
         fmt: Optional[str] = None,
@@ -192,10 +193,10 @@ class CSVFormatter(logging.Formatter):
         log_logger_name: bool = False,
         log_time: bool = True,
         log_lineno: bool = False,
-        **csv_args,
+        **kwargs,
     ) -> None:
         """
-        Initialize the CSVFormatter.
+        Initialize the DictFormatter.
 
         :param fmt: Format string for time and other placeholders.
         :param datefmt: Date format string.
@@ -210,15 +211,9 @@ class CSVFormatter(logging.Formatter):
         self.log_time = log_time
         self.log_lineno = log_lineno
 
-        self.headers = None
-        self.written_headers = False
-
-    def format(self, record: logging.LogRecord) -> str:
+    def _format(self, record: logging.LogRecord) -> dict:
         """
-        Format the log record into a CSV row.
-
-        :param record: The log record to format.
-        :return: A CSV-formatted string.
+        Format the log record into a dict row.
         """
         # Extract core log fields
         log_record = {}
@@ -238,6 +233,40 @@ class CSVFormatter(logging.Formatter):
         else:
             log_record["message"] = record.getMessage()
 
+        return log_record
+
+    def format(self, record: logging.LogRecord) -> str:
+        return str(self._format(record))
+
+
+class CSVFormatter(DictFormatter):
+    def __init__(
+        self,
+        fmt: Optional[str] = None,
+        datefmt: Optional[str] = None,
+        style: Union[Literal["%"], Literal["{"], Literal["$"]] = "%",
+        validate: bool = True,
+        log_level: bool = True,
+        log_logger_name: bool = False,
+        log_time: bool = True,
+        log_lineno: bool = False,
+        **kwargs,
+    ) -> None:
+        super().__init__(fmt, datefmt, style, validate, log_level, log_logger_name, log_time, log_lineno, **kwargs)
+
+        self.headers = None
+        self.written_headers = False
+
+    def format(self, record: logging.LogRecord) -> str:
+        """
+        Format the log record into a CSV row.
+
+        :param record: The log record to format.
+        :return: A CSV-formatted string.
+        """
+        # Extract core log fields
+        log_record = super()._format(record)
+
         if self.headers is None:
             self.headers = list(log_record.keys())
 
@@ -249,6 +278,31 @@ class CSVFormatter(logging.Formatter):
 
         csv_writer.writerow(log_record)
         return row.getvalue().strip()
+
+
+class JSONFormatter(DictFormatter):
+    def __init__(
+        self,
+        fmt: Optional[str] = None,
+        datefmt: Optional[str] = None,
+        style: Union[Literal["%"], Literal["{"], Literal["$"]] = "%",
+        validate: bool = True,
+        log_level: bool = True,
+        log_logger_name: bool = False,
+        log_time: bool = True,
+        log_lineno: bool = False,
+        default_duper: Callable[[Any], Any] = str,
+        **kwargs,
+    ) -> None:
+        """_summary_"""
+        super().__init__(fmt, datefmt, style, validate, log_level, log_logger_name, log_time, log_lineno, **kwargs)
+
+        self.default_duper = default_duper
+
+    def format(self, record):
+        log_record = super()._format(record)
+        # Convert the dictionary to a JSON string
+        return json.dumps(log_record, default=self.default_duper)
 
 
 class CSVLogger(Logger):
@@ -279,9 +333,10 @@ class CSVLogger(Logger):
             datefmt = None
             log_time = True
             if include_date and include_time:
-                datefmt = "%d.%m|%H:%M:%S"
+                # Format choose because support datetime and  pandas.to_datetime conversion
+                datefmt = "%Y-%m-%d %H:%M:%S"
             elif include_date:
-                datefmt = "%d.%m"
+                datefmt = "%Y-%m-%d"
             elif include_time:
                 datefmt = "%H:%M:%S"
             else:
