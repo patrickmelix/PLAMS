@@ -1,12 +1,12 @@
-import re
-import uuid
-from unittest.mock import patch
-from io import StringIO
-import threading
-import pytest
-import time
 import random
+import re
+import threading
+import time
+import uuid
+from io import StringIO
+from unittest.mock import patch
 
+import pytest
 from scm.plams.core.errors import FileError
 from scm.plams.core.logging import get_logger
 from scm.plams.unit_tests.test_helpers import temp_file_path
@@ -231,3 +231,20 @@ To 2, level 1
                         + len(tf2.read().replace("\r\n", "\n").split("\n"))
                         == num_threads * num_msgs + 2
                     )
+
+    def test_configure_writes_to_logfile_csv_up_to_and_including_level(self):
+        with temp_file_path(suffix=".log") as temp_log_file:
+            logger = get_logger(str(uuid.uuid4()), format="csv")
+            logger.configure(
+                logfile_path=temp_log_file,
+                stdout_level=-1,
+                logfile_level=3,
+                include_date=False,
+                include_time=False,
+                log_level=False,
+            )
+            for i in range(10):
+                logger.log({"aa": 24, "bbb": "dsd"}, i)
+            with open(temp_log_file) as tf:
+                assert tf.read() == "aa,bbb\n24,dsd\n24,dsd\n24,dsd\n24,dsd\n"
+            logger.configure()  # close logfile

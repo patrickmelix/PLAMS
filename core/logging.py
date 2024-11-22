@@ -15,7 +15,7 @@ from scm.plams.core.errors import FileError
 __all__ = ["get_logger", "StrLogger", "CSVLogger"]
 
 
-def get_logger(name: str, format: Optional[Literal["csv", "str"]] = "str") -> "Logger":
+def get_logger(name: str, format: Optional[Literal["csv", "str"]] = "str") -> Union["StrLogger", "CSVLogger"]:
     """
     Get a logger with the specified name.
     If there is an existing logger with the same name this is returned, otherwise a new logger is created.
@@ -35,7 +35,7 @@ class LogManager:
         raise TypeError("LoggerManager cannot be directly instantiated.")
 
     @classmethod
-    def get_logger(cls, name: str, format: Optional[Literal["csv", "str"]] = "str") -> "Logger":
+    def get_logger(cls, name: str, format: Optional[Literal["csv", "str"]] = "str") -> Union["StrLogger", "CSVLogger"]:
         """
         Get a logger with the specified name.
         If there is an existing logger with the same name this is returned, otherwise a new logger is created.
@@ -189,7 +189,7 @@ class DictFormatter(logging.Formatter):
         datefmt: Optional[str] = None,
         style: Union[Literal["%"], Literal["{"], Literal["$"]] = "%",
         validate: bool = True,
-        log_level: bool = True,
+        log_level: bool = False,
         log_logger_name: bool = False,
         log_time: bool = True,
         log_lineno: bool = False,
@@ -246,7 +246,7 @@ class CSVFormatter(DictFormatter):
         datefmt: Optional[str] = None,
         style: Union[Literal["%"], Literal["{"], Literal["$"]] = "%",
         validate: bool = True,
-        log_level: bool = True,
+        log_level: bool = False,
         log_logger_name: bool = False,
         log_time: bool = True,
         log_lineno: bool = False,
@@ -287,7 +287,7 @@ class JSONFormatter(DictFormatter):
         datefmt: Optional[str] = None,
         style: Union[Literal["%"], Literal["{"], Literal["$"]] = "%",
         validate: bool = True,
-        log_level: bool = True,
+        log_level: bool = False,
         log_logger_name: bool = False,
         log_time: bool = True,
         log_lineno: bool = False,
@@ -321,13 +321,13 @@ class CSVLogger(Logger):
         stdout_level=0,
         logfile_level=0,
         logfile_path=None,
-        include_date=False,
+        include_date=True,
         include_time=True,
-        log_level=True,
+        log_level=False,
         log_logger_name=False,
         log_lineno=False,
         csv_formatter_cls=CSVFormatter,
-        **csv_args,
+        **csv_kwargs,
     ):
         with self._lock:
             datefmt = None
@@ -350,7 +350,7 @@ class CSVLogger(Logger):
                     log_level=log_level,
                     log_logger_name=log_logger_name,
                     log_lineno=log_lineno,
-                    **csv_args,
+                    **csv_kwargs,
                 )
                 if self._stdout_handler is not None:
                     self._stdout_handler.setFormatter(self._stdout_formatter)
@@ -364,7 +364,7 @@ class CSVLogger(Logger):
                     log_level=log_level,
                     log_logger_name=log_logger_name,
                     log_lineno=log_lineno,
-                    **csv_args,
+                    **csv_kwargs,
                 )
                 if self._stdout_handler is not None:
                     self._stdout_handler.setFormatter(self._file_formatter)
