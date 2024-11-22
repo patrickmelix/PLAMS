@@ -1,4 +1,6 @@
 from typing import List, Literal, Optional, overload, TYPE_CHECKING
+from typing import Dict
+from typing import Any
 import random
 import sys
 from warnings import warn
@@ -1320,7 +1322,7 @@ def to_image(mol, remove_hydrogens=True, filename=None, format="svg", as_string=
 
     extensions = ["svg", "png", "eps", "pdf", "jpeg"]
 
-    classes = {}
+    classes: Dict[str, Any] = {}
     classes["svg"] = _MolsToGridSVG
     for ext in extensions[1:]:
         classes[ext] = None
@@ -1340,7 +1342,7 @@ def to_image(mol, remove_hydrogens=True, filename=None, format="svg", as_string=
                 msg += ["Available extensions are: %s" % (" ".join(extensions))]
                 raise Exception("\n".join(msg))
         else:
-            filename = ".".join(filename, format)
+            filename = ".".join([filename, format])
 
     if format not in classes.keys():
         raise Exception("Image type %s not available." % (format))
@@ -1406,7 +1408,7 @@ def get_reaction_image(reactants, products, filename=None, format="svg", as_stri
                 msg += ["Available extensions are: %s" % (" ".join(extensions))]
                 raise Exception("\n".join(msg))
         else:
-            filename = ".".join(filename, format)
+            filename = ".".join([filename, format])
 
     if format.lower() not in extensions:
         raise Exception("Image type %s not available." % (format))
@@ -1801,6 +1803,7 @@ def _find_aromatic_sequence(mol, text):
             return indices
         line = "atom %i marked aromatic" % (indices[0])
         text = line
+    iat: Any
     if "marked aromatic" in text:
         iat = int(line.split("atom")[-1].split()[0])
         indices = [iat]
