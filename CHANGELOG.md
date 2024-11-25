@@ -17,6 +17,7 @@ This changelog is effective from the 2025 releases.
 * Specific `ConfigSettings` and related settings classes with explicitly defined fields
 * Support for work functions: `AMSResults.get_work_function_results` and `plot_work_function`
 * New `packmol_around` function for packing in non-orthorhombic boxes.
+* `Molecule.delete_atoms` method to delete multiple atoms with partial success 
 * Example on `MoleculeFormats`
 * Script `generate_example.sh` to generate documentation pages from notebook examples
 * GitHub workflows for CI and publishing to PyPI
@@ -44,6 +45,7 @@ This changelog is effective from the 2025 releases.
 * `SingleJob.load` returns the correctly loaded job
 * `AMSJob.check` handles a `NoneType` status, returning `False`
 * `MultiJob.run` locking resolved when errors raised within `prerun` and `postrun` methods
+* `Molecule.add_hatoms` to use bonding information if available when adding new hydrogen atoms
 
 ### Deprecated
 * `plams` launch script is deprecated in favour of simply running with `amspython`
