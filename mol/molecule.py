@@ -336,6 +336,26 @@ class Molecule:
             self.delete_bond(b)
         atom.mol = None
 
+    def delete_atoms(self, atoms: Iterable[Atom]) -> None:
+        """Delete multiple *atom* from the molecule.
+
+        *atom* should be an iterable of |Atom| instances which belong to the molecule. All bonds containing these atoms will be removed too.
+
+        Note that this method employs partial success, such that if deleting any atom results in an error, the remaining atoms will
+        still be deleted. An aggregate error will then be raised at the end of the operation if any errors were encountered.
+        """
+
+        errors = []
+        materialised_atoms = [at for at in atoms]  # make sure to materialise the atoms before starting deletion
+        for atom in materialised_atoms:
+            try:
+                self.delete_atom(atom)
+            except MoleculeError as err:
+                errors.append(f"{err}")
+        if any(errors):
+            errors = str.join("\n", errors)
+            raise MoleculeError(f"Encountered one or more errors when deleting atoms:\n{errors}")
+
     def add_bond(self, arg1: Union[Bond, Atom], arg2: Optional[Atom] = None, order: float = 1) -> None:
         """Add a new bond to the molecule.
 

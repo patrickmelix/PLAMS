@@ -2355,7 +2355,11 @@ class AMSJob(SingleJob):
         super().__init__(molecule, *args, **kwargs)
 
     def run(
-        self, jobrunner: "JobRunner" = None, jobmanager: "JobManager" = None, watch: bool = False, **kwargs
+        self,
+        jobrunner: Optional["JobRunner"] = None,
+        jobmanager: Optional["JobManager"] = None,
+        watch: bool = False,
+        **kwargs,
     ) -> AMSResults:
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
 

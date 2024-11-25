@@ -131,8 +131,28 @@ class TestWater(MoleculeTestBase):
         assert oh2.mol == peroxide4
         assert o1.mol == peroxide4
 
+        # 1) Add water to water
+        # 2) Delete extra H atoms (with partial success)
+        # 3) Add O-O bond and O-H bonds
+        peroxide5 = water.copy()
+        peroxide5.add_molecule(water, copy=True, margin=1.0)
+
+        def atoms_to_delete():
+            yield peroxide5[3]
+            yield peroxide5[6]
+            yield peroxide5[6]
+
+        with pytest.raises(MoleculeError):
+            peroxide5.delete_atoms(atoms_to_delete())
+
+        peroxide5.add_bond(peroxide5[1], peroxide5[3])
+        peroxide5.add_bond(peroxide5[1], peroxide5[2])
+        peroxide5.add_bond(peroxide5[3], peroxide5[4])
+
         # Assert the same
-        assert peroxide1.label(3) == peroxide2.label(3) == peroxide3.label(3) == peroxide4.label(3)
+        assert (
+            peroxide1.label(3) == peroxide2.label(3) == peroxide3.label(3) == peroxide4.label(3) == peroxide5.label(3)
+        )
 
     def test_add_delete_atoms_and_bonds_unhappy(self, water):
         water2 = water.copy()
@@ -158,6 +178,10 @@ class TestWater(MoleculeTestBase):
         water.atoms.remove(h2)
         with pytest.raises(MoleculeError):
             water.delete_atom(h2)
+
+        # Cannot delete multiple atoms which do not form part of the molecule
+        with pytest.raises(MoleculeError):
+            water.delete_atoms([water2[1], water2[2]])
 
         # Cannot add bond which has invalid arguments
         water2.guess_bonds()
