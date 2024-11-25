@@ -3361,8 +3361,8 @@ class Molecule:
         from subprocess import DEVNULL, Popen
         from tempfile import NamedTemporaryFile
 
-        with NamedTemporaryFile(mode="w+", suffix=".xyz", delete=False) as f_in:
-            self.writexyz(f_in)
+        with NamedTemporaryFile(mode="w+", suffix=".in", delete=False) as f_in:
+            self.writein(f_in)
             f_in.close()
             with NamedTemporaryFile(mode="w+", suffix=".xyz", delete=False) as f_out:
                 f_out.close()
@@ -3374,6 +3374,8 @@ class Molecule:
                 )
                 p.communicate()
                 retmol = self.__class__(f_out.name)
+                if any(self.bonds):
+                    retmol.guess_bonds()
                 os.remove(f_out.name)
             os.remove(f_in.name)
         return retmol

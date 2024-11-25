@@ -14,6 +14,7 @@ from scm.plams.mol.bond import Bond
 from scm.plams.mol.molecule import Molecule, MoleculeError
 from scm.plams.core.functions import read_all_molecules_in_xyz_file
 from scm.plams.interfaces.molecule.rdkit import from_smiles
+from scm.plams.unit_tests.test_helpers import skip_if_no_ams_installation
 
 
 class MoleculeTestBase(ABC):
@@ -239,6 +240,12 @@ class TestWater(MoleculeTestBase):
         mol.properties.charge = 3
         with pytest.raises(MoleculeError):
             assert mol.guess_atomic_charges() == [1, 1, 0, 0]
+
+    def test_add_hatoms(self, mol, hydroxide):
+        skip_if_no_ams_installation()
+
+        water = hydroxide.add_hatoms()
+        assert mol.label(4) == water.label(4)
 
     def test_get_complete_molecules_within_threshold(self, mol):
         m0 = mol.get_complete_molecules_within_threshold([2], 0)
@@ -613,6 +620,16 @@ class TestBenzene(MoleculeTestBase):
         assert_rings_equal(mol.locate_rings_networkx(False), expected)
         assert_rings_equal(mol.locate_rings_networkx(True), expected)
 
+    def test_add_hatoms(self, mol):
+        skip_if_no_ams_installation()
+
+        mol.guess_bonds()
+        mol2 = mol.copy()
+
+        mol2.delete_atoms([at for at in mol2 if at.symbol == "H"])
+        mol2 = mol2.add_hatoms()
+        assert mol.label(4) == mol2.label(4)
+
 
 def assert_rings_equal(actual, expected):
     assert len(actual) == len(expected)
@@ -941,6 +958,70 @@ class TestChlorophyll(MoleculeTestBase):
         assert_rings_equal(mol.locate_rings_acm(False), expected)
         assert_rings_equal(mol.locate_rings_acm(True), expected)
         assert_rings_equal(mol.locate_rings_networkx(True), expected)
+
+
+class TestFragments(MoleculeTestBase):
+
+    @pytest.fixture
+    def mol(self, xyz_folder):
+        mol = Molecule(xyz_folder / "C7H8N2_fragments.xyz")
+        return mol
+
+    @property
+    def expected_atoms(self):
+        return [
+            ("H", 37.97589166, 6.50362513, 6.10947932, {}),
+            ("H", 22.94566879, 5.21944993, 6.11208918, {}),
+            ("H", 24.24811668, 3.58937684, 3.1101599, {}),
+            ("H", 26.46029574, 4.22221813, 1.9970365, {}),
+            ("H", 28.11383033, 5.49145028, 3.3383532, {}),
+            ("H", 33.53518443, 7.87366456, 5.79895021, {}),
+            ("C", 36.81091549, 5.79838054, 2.99659108, {}),
+            ("N", 35.79722124, 6.77372035, 4.90114805, {}),
+            ("H", 27.40840017, 6.85618188, 6.76571824, {}),
+            ("C", 35.70493885, 6.05732335, 2.17566355, {}),
+            ("C", 34.68676663, 6.93124889, 4.1845686, {}),
+            ("C", 34.61783813, 6.60177631, 2.80991515, {}),
+            ("N", 25.60906993, 5.44707201, 5.57733345, {}),
+            ("N", 32.40678698, 7.45865484, 4.11253188, {}),
+            ("N", 28.93739263, 6.57981707, 5.45707573, {}),
+            ("H", 37.67050745, 5.3014948, 2.59000904, {}),
+            ("H", 35.78463338, 5.85496894, 1.08423825, {}),
+            ("H", 33.70046648, 6.8213344, 2.30167641, {}),
+            ("C", 37.95605417, 5.90776431, 5.20779435, {}),
+            ("C", 23.41069028, 4.45252478, 5.49358156, {}),
+            ("C", 24.74504443, 4.71605898, 4.8543161, {}),
+            ("C", 25.04631067, 4.17412898, 3.6262066, {}),
+            ("C", 26.2268722, 4.52245672, 2.98318138, {}),
+            ("C", 26.77975995, 5.66497554, 5.02272776, {}),
+            ("C", 27.10838378, 5.26861749, 3.73156573, {}),
+            ("C", 33.47999143, 7.48497558, 4.78073603, {}),
+            ("C", 36.82761129, 6.16730707, 4.30869146, {}),
+            ("C", 27.73379633, 6.4261697, 5.80579523, {}),
+            ("H", 29.31659198, 7.50946073, 5.34720982, {}),
+            ("H", 32.44075585, 7.41892399, 3.10388547, {}),
+        ]
+
+    def test_add_hatoms(self, mol):
+        skip_if_no_ams_installation()
+
+        # Given two fragments with no bond information
+        # When add H atoms
+        mol2 = mol.add_hatoms()
+
+        # Then adds hydrogens according to guessed bonds
+        assert mol2.get_formula() == "C14H15N4"
+
+        # But given bonding information
+        mol3 = mol.copy()
+        mol3.guess_bonds()
+        mol3[19, 27].order = 1
+
+        # When add H atoms
+        mol4 = mol3.add_hatoms()
+
+        # Then adds hydrogens which respect modified bond orders
+        assert mol4.get_formula() == "C14H16N4"
 
 
 def test_read_multiple_molecules_from_xyz(xyz_folder):
