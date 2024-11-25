@@ -353,8 +353,8 @@ class Molecule:
             except MoleculeError as err:
                 errors.append(f"{err}")
         if any(errors):
-            errors = str.join("\n", errors)
-            raise MoleculeError(f"Encountered one or more errors when deleting atoms:\n{errors}")
+            error_details = str.join("\n", errors)
+            raise MoleculeError(f"Encountered one or more errors when deleting atoms:\n{error_details}")
 
     def add_bond(self, arg1: Union[Bond, Atom], arg2: Optional[Atom] = None, order: float = 1) -> None:
         """Add a new bond to the molecule.
