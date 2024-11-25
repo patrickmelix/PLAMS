@@ -1,6 +1,4 @@
-from typing import List, Literal, Optional, overload, TYPE_CHECKING
-from typing import Dict
-from typing import Any
+from typing import List, Literal, Optional, overload, TYPE_CHECKING, Sequence, Dict, Any
 import random
 import sys
 from warnings import warn
@@ -34,6 +32,8 @@ __all__ = [
     "get_conformations",
     "yield_coords",
     "canonicalize_mol",
+    "to_image",
+    "get_reaction_image",
 ]
 
 
@@ -1300,7 +1300,14 @@ def canonicalize_mol(mol, inplace=False, **kwargs):
 
 
 @requires_optional_package("rdkit")
-def to_image(mol, remove_hydrogens=True, filename=None, format="svg", as_string=True):
+@requires_optional_package("PIL")
+def to_image(
+    mol: Molecule,
+    remove_hydrogens: bool = True,
+    filename: Optional[str] = None,
+    fmt: str = "svg",
+    as_string: bool = True,
+):
     """
     Convert single molecule to single image object
 
@@ -1336,36 +1343,36 @@ def to_image(mol, remove_hydrogens=True, filename=None, format="svg", as_string=
         if "." in filename:
             extension = filename.split(".")[-1]
             if extension in classes.keys():
-                format = extension
+                fmt = extension
             else:
-                msg = ["Image type %s not available." % (extension)]
-                msg += ["Available extensions are: %s" % (" ".join(extensions))]
+                msg = [f"Image type {extension} not available."]
+                msg += [f"Available extensions are: {' '.join(extensions)}"]
                 raise Exception("\n".join(msg))
         else:
-            filename = ".".join([filename, format])
+            filename = ".".join([filename, fmt])
 
-    if format not in classes.keys():
-        raise Exception("Image type %s not available." % (format))
+    if fmt not in classes.keys():
+        raise Exception(f"Image type {fmt} not available.")
 
     rdmol = _rdmol_for_image(mol, remove_hydrogens)
 
     # Draw the image
-    if classes[format.lower()] is None:
+    if classes[fmt.lower()] is None:
         # With AMS version of RDKit MolsToGridImage fails for eps (because of paste)
         img = Draw.MolToImage(rdmol, size=(200, 100))
         buf = BytesIO()
-        img.save(buf, format=format)
+        img.save(buf, format=fmt)
         img_text = buf.getvalue()
     else:
         # This fails for a C=C=O molecule, with AMS rdkit version
-        img = classes[format.lower()]([rdmol], molsPerRow=1, subImgSize=(200, 100))
+        img = classes[fmt.lower()]([rdmol], molsPerRow=1, subImgSize=(200, 100))
         img_text = img
         if isinstance(img, Image.Image):
             buf = BytesIO()
-            img.save(buf, format=format)
+            img.save(buf, format=fmt)
             img_text = buf.getvalue()
     # If I do not make this correction to the SVG text, it is not readable in JupyterLab
-    if format.lower() == "svg":
+    if fmt.lower() == "svg":
         img_text = _correct_svg(img_text)
 
     # Write to file, if required
@@ -1382,14 +1389,21 @@ def to_image(mol, remove_hydrogens=True, filename=None, format="svg", as_string=
 
 
 @requires_optional_package("rdkit")
-def get_reaction_image(reactants, products, filename=None, format="svg", as_string=True):
+@requires_optional_package("PIL")
+def get_reaction_image(
+    reactants: Sequence[Molecule],
+    products: Sequence[Molecule],
+    filename: Optional[str] = None,
+    fmt: str = "svg",
+    as_string: bool = True,
+):
     """
     Create a 2D reaction image from reactants and products (PLAMS molecules)
 
     * ``reactants`` -- Iterable of PLAMS Molecule objects representing the reactants.
-    * ``products`` -- Iterable of PLAMS Molecule objects representig the products.
+    * ``products`` -- Iterable of PLAMS Molecule objects representing the products.
     * ``filename`` -- Optional: Name of image file to be created.
-    * ``format``  -- The format of the image (svg, png, eps, pdf, jpeg).
+    * ``fmt``  -- The format of the image (svg, png, eps, pdf, jpeg).
                      The extension in the filename, if provided, takes precedence.
     * ``as_string`` -- Returns the image as a string or bytestring. If set to False, the original format
                        will be returned, which can be either a PIL image or SVG text
@@ -1402,22 +1416,22 @@ def get_reaction_image(reactants, products, filename=None, format="svg", as_stri
         if "." in filename:
             extension = filename.split(".")[-1]
             if extension in extensions:
-                format = extension
+                fmt = extension
             else:
-                msg = ["Image type %s not available." % (extension)]
-                msg += ["Available extensions are: %s" % (" ".join(extensions))]
+                msg = [f"Image type {extension} not available."]
+                msg += [f"Available extensions are: {' '.join(extensions)}"]
                 raise Exception("\n".join(msg))
         else:
-            filename = ".".join([filename, format])
+            filename = ".".join([filename, fmt])
 
-    if format.lower() not in extensions:
-        raise Exception("Image type %s not available." % (format))
+    if fmt.lower() not in extensions:
+        raise Exception(f"Image type {fmt} not available.")
 
     # Get the actual image
-    if format.lower() == "svg":
+    if fmt.lower() == "svg":
         img_text = get_reaction_image_svg(reactants, products)
     else:
-        img_text = get_reaction_image_pil(reactants, products, format, as_string=as_string)
+        img_text = get_reaction_image_pil(reactants, products, fmt, as_string=as_string)
 
     # Write to file, if required
     if filename is not None:
@@ -1429,12 +1443,14 @@ def get_reaction_image(reactants, products, filename=None, format="svg", as_stri
     return img_text
 
 
-def get_reaction_image_svg(reactants, products, width=200, height=100):
+def get_reaction_image_svg(
+    reactants: Sequence[Molecule], products: Sequence[Molecule], width: int = 200, height: int = 100
+):
     """
     Create a 2D reaction image from reactants and products (PLAMS molecules)
 
     * ``reactants`` -- Iterable of PLAMS Molecule objects representing the reactants.
-    * ``products`` -- Iterable of PLAMS Molecule objects representig the products.
+    * ``products`` -- Iterable of PLAMS Molecule objects representing the products.
     *      Returns -- SVG image text file.
     """
     from rdkit import Chem
@@ -1502,12 +1518,19 @@ def get_reaction_image_svg(reactants, products, width=200, height=100):
     return img_text
 
 
-def get_reaction_image_pil(reactants, products, format, width=200, height=100, as_string=True):
+def get_reaction_image_pil(
+    reactants: Sequence[Molecule],
+    products: Sequence[Molecule],
+    fmt: str,
+    width: int = 200,
+    height: int = 100,
+    as_string: bool = True,
+):
     """
     Create a 2D reaction image from reactants and products (PLAMS molecules)
 
     * ``reactants`` -- Iterable of PLAMS Molecule objects representing the reactants.
-    * ``products`` -- Iterable of PLAMS Molecule objects representig the products.
+    * ``products`` -- Iterable of PLAMS Molecule objects representing the products.
     *      Returns -- SVG image text file.
     """
     from io import BytesIO
@@ -1583,8 +1606,8 @@ def get_reaction_image_pil(reactants, products, format, width=200, height=100, a
     if not hasattr(rdMolDraw2D, "MolDraw2DCairo"):
         # We are working with the old AMS version of RDKit
         white = (255, 255, 255)
-        rimages = [to_image(mol, format=format, as_string=False) for i, mol in enumerate(reactants)]
-        pimages = [to_image(mol, format=format, as_string=False) for i, mol in enumerate(products)]
+        rimages = [to_image(mol, fmt=fmt, as_string=False) for i, mol in enumerate(reactants)]
+        pimages = [to_image(mol, fmt=fmt, as_string=False) for i, mol in enumerate(products)]
         blanc = Image.new("RGB", (width, height), white)
 
         # Get the image (with arrow)
@@ -1611,7 +1634,7 @@ def get_reaction_image_pil(reactants, products, format, width=200, height=100, a
     img_text = img
     if as_string:
         buf = BytesIO()
-        img.save(buf, format=format)
+        img.save(buf, format=fmt)
         img_text = buf.getvalue()
 
     return img_text
@@ -1832,7 +1855,6 @@ def _rdmol_for_image(mol, remove_hydrogens=True):
     from rdkit.Chem import AllChem
     from rdkit.Chem import RemoveHs
 
-    # rdmol = mol.to_rdmol_new()
     rdmol = to_rdmol(mol, presanitize=True)
 
     # Flatten the molecule

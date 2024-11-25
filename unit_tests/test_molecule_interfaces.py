@@ -6,7 +6,15 @@ from scm.plams.mol.molecule import Molecule
 from scm.plams.interfaces.molecule.ase import toASE, fromASE
 from scm.plams.unit_tests.test_helpers import get_mock_find_spec, get_mock_open_function
 from scm.plams.core.errors import MissingOptionalPackageError
-from scm.plams.interfaces.molecule.rdkit import from_rdmol, to_rdmol, from_smiles, to_smiles, from_smarts
+from scm.plams.interfaces.molecule.rdkit import (
+    from_rdmol,
+    to_rdmol,
+    from_smiles,
+    to_smiles,
+    from_smarts,
+    to_image,
+    get_reaction_image,
+)
 from scm.plams.interfaces.molecule.packmol import packmol
 
 
@@ -229,6 +237,38 @@ class TestRDKit:
                 to_smiles(plams_mols["water"])
             with pytest.raises(MissingOptionalPackageError):
                 from_smiles(smiles[0])
+
+    def test_to_image_and_get_reaction_image_can_generate_img_files(self, xyz_folder):
+        from pathlib import Path
+        import shutil
+
+        # Given molecules
+        reactants = [Molecule(f"{xyz_folder}/reactant{i}.xyz") for i in range(1, 3)]
+        products = [Molecule(f"{xyz_folder}/product{i}.xyz") for i in range(1, 3)]
+
+        # When create images for molecules and reactions
+        result_dir = Path("result_images/rdkit")
+        try:
+            shutil.rmtree(result_dir)
+        except FileNotFoundError:
+            pass
+        result_dir.mkdir(parents=True, exist_ok=True)
+
+        for i, m in enumerate(reactants):
+            m.guess_bonds()
+            to_image(m, filename=f"{result_dir}/reactant{i+1}.png")
+
+        for i, m in enumerate(products):
+            m.guess_bonds()
+            to_image(m, filename=f"{result_dir}/product{i+1}.png")
+
+        get_reaction_image(reactants, products, filename=f"{result_dir}/reaction.png")
+
+        # Then image files are successfully created
+        # N.B. for this test just check the files are generated, not that the contents is correct
+        for f in ["reactant1.png", "reactant2.png", "product1.png", "product2.png", "reaction.png"]:
+            file = result_dir / f
+            assert file.exists()
 
 
 class TestPackmol:

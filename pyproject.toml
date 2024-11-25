@@ -56,7 +56,8 @@ analysis = [
     "matplotlib>=3.5.1",
     "pandas>=1.5.2",
     "networkx>=2.7.1",
-    "natsort>=8.1.0"
+    "natsort>=8.1.0",
+    "pillow>=9.2.0"
 ]
 
 docs = [
