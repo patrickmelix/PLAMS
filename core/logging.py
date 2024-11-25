@@ -87,7 +87,7 @@ class Logger:
                 self._logger.addHandler(self._stdout_handler)
 
             # Update the stdout handler level if required
-            if stdout_level != self._stdout_handler.level:
+            if stdout_level != 28 - self._stdout_handler.level:
                 self._stdout_handler.setLevel(28 - stdout_level)
 
             # Remove and close existing file handler if present and required
