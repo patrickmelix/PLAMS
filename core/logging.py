@@ -334,31 +334,6 @@ class CSVFormatter(DictFormatter):
         return row.getvalue().strip()
 
 
-class JSONFormatter(DictFormatter):
-    def __init__(
-        self,
-        fmt: Optional[str] = None,
-        datefmt: Optional[str] = None,
-        style: Union[Literal["%"], Literal["{"], Literal["$"]] = "%",
-        validate: bool = True,
-        log_level: bool = False,
-        log_logger_name: bool = False,
-        log_time: bool = True,
-        log_lineno: bool = False,
-        default_duper: Callable[[Any], Any] = str,
-        **kwargs,
-    ) -> None:
-        """_summary_"""
-        super().__init__(fmt, datefmt, style, validate, log_level, log_logger_name, log_time, log_lineno, **kwargs)
-
-        self.default_duper = default_duper
-
-    def format(self, record):
-        log_record = super()._format(record)
-        # Convert the dictionary to a JSON string
-        return json.dumps(log_record, default=self.default_duper)
-
-
 class CSVLogger(Logger):
     """
     Logger that logs dictionary messages in CSV format with optional date and time stamps.
