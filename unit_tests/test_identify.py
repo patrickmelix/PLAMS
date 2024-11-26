@@ -38,3 +38,16 @@ class TestIdentify:
             assert (mol1.label(i) == mol2.label(i)) == (False if max_expected is None else i <= max_expected), print(
                 f"Failed for level {i}"
             )
+
+    def test_reorder_as_expected(self, xyz_folder):
+        chl1 = Molecule(xyz_folder / "chlorophyl1.xyz")
+        chl2 = Molecule(xyz_folder / "chlorophyl2.xyz")
+        benzene = Molecule(xyz_folder / "benzene.xyz")
+
+        # Reorder with different mismatching molecules gives None
+        assert chl1.reorder(benzene) is None
+
+        # Reorder maintains the geometry of the first molecule, but with the atom ordering of the second
+        chl3 = chl1.reorder(chl2)
+        assert chl3.label(4) == chl1.label(4) != chl2.label(4)
+        assert [at.symbol for at in chl3] == [at.symbol for at in chl2] != [at.symbol for at in chl1]

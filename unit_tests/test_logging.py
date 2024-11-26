@@ -1,13 +1,13 @@
-import random
 import re
-import threading
-import time
 import uuid
 from io import StringIO
 from unittest.mock import patch
-
+import threading
 import pytest
-from scm.plams.core.errors import FileError
+import time
+import random
+
+from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.logging import get_logger
 from scm.plams.unit_tests.test_helpers import temp_file_path
 
@@ -22,6 +22,10 @@ class TestGetLogger:
         logger3 = get_logger(name1)
 
         assert logger1 == logger3 != logger2
+
+    def test_get_logger_errors_with_unsupported_format(self):
+        with pytest.raises(PlamsError):
+            get_logger("foo", "bar")
 
 
 class TestLogger:
@@ -65,7 +69,31 @@ log line 2
 log line 3
 """
                 )
-            logger.configure()  # close logfile
+            logger.close()
+
+    def test_close_removes_stdout_and_logfile_handlers(self):
+        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+            with temp_file_path(suffix=".log") as temp_log_file:
+                logger = get_logger(str(uuid.uuid4()))
+                logger.configure(logfile_path=temp_log_file, logfile_level=3, stdout_level=3)
+                for i in range(10):
+                    logger.log(f"log line {i}", i)
+
+                logger.close()
+
+                for i in range(10):
+                    logger.log(f"log line {i}", i)
+
+                with open(temp_log_file) as tf:
+                    assert (
+                        tf.read()
+                        == mock_stdout.getvalue()
+                        == """log line 0
+log line 1
+log line 2
+log line 3
+"""
+                    )
 
     def test_multiple_loggers_cannot_write_to_same_file(self):
         with temp_file_path(suffix=".log") as temp_log_file:
@@ -74,8 +102,8 @@ log line 3
             logger1.configure(logfile_path=temp_log_file, logfile_level=2)
             with pytest.raises(FileError):
                 logger2.configure(logfile_path=temp_log_file, logfile_level=3)
-            logger1.configure()  # close logfile
-            logger2.configure()  # close logfile
+            logger1.close()
+            logger2.close()
 
     def test_multiple_loggers_can_write_to_stdout_and_different_files(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
@@ -117,8 +145,8 @@ From 2, level 1
 From 2, level 2
 """
                     )
-                logger1.configure()  # close logfile
-                logger2.configure()  # close logfile
+                logger1.close()
+                logger2.close()
 
     def test_same_logger_can_switch_write_files(self):
         with temp_file_path(suffix=".log") as temp_log_file1, temp_file_path(suffix=".log") as temp_log_file2:
@@ -162,7 +190,7 @@ To 1 again, level 2
 To 2, level 1
 """
                 )
-            logger.configure()  # close logfile
+            logger.close()
 
     def test_configure_prefixes_date_and_or_time_for_stdout_and_file(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
@@ -194,7 +222,7 @@ To 2, level 1
                             pattern = "\[\d{2}:\d{2}:\d{2}\] " + pattern
                         assert re.fullmatch(pattern, l1) is not None and re.fullmatch(pattern, l2) is not None
 
-                logger.configure()  # close logfile
+                logger.close()
 
     def test_thread_safe(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
@@ -221,7 +249,7 @@ To 2, level 1
                 for thread in threads:
                     thread.join()
 
-                get_logger(name).configure()  # close logfile
+                get_logger(name).close()
 
                 assert len(mock_stdout.getvalue().replace("\r\n", "\n").split("\n")) == num_threads * num_msgs + 1
 

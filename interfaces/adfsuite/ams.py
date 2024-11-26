@@ -1,10 +1,10 @@
 import os
 from os.path import join as opj
 from typing import Dict, List, Literal, Set, Tuple, Union, Optional, TYPE_CHECKING, Any
-
 import numpy as np
+
 from scm.plams.core.basejob import SingleJob
-from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError
+from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError, MissingOptionalPackageError
 from scm.plams.core.functions import config, log, parse_heredoc, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
@@ -71,6 +71,12 @@ try:
                         self._seekto = f.tell()
                 except FileNotFoundError:
                     self._seekto = 0
+
+        def trigger(self):
+            if self._job.path is None:
+                return
+            src_path = os.path.join(self._job.path, "ams.log")
+            self.on_any_event(FileModifiedEvent(src_path))
 
 except ImportError:
     _has_watchdog = False
@@ -221,6 +227,7 @@ class AMSResults(Results):
         """
         return ChemicalSystem.from_kf(self.rkfpath(file), section)
 
+    @requires_optional_package("ase")
     def get_ase_atoms(self, section: str, file: str = "ams") -> "AseAtoms":
         from ase import Atoms
 
@@ -291,6 +298,7 @@ class AMSResults(Results):
         """
         return self.get_system("Molecule", "ams")
 
+    @requires_optional_package("ase")
     def get_main_ase_atoms(self, get_results: bool = False) -> "AseAtoms":
         """Return an ase.Atoms instance with the final coordinates.
 
@@ -830,6 +838,18 @@ class AMSResults(Results):
         """
         return np.asarray(self._process_engine_results(lambda x: x.read("AMSResults", "Charges"), engine))
 
+    def get_atom_types(self, engine: Optional[str] = None) -> List[str]:
+        """Return the atomic types, for each atom in the system.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        indices = self._process_engine_results(lambda x: x.read("AMSResults", "AtomTyping.atomIndexToType"), engine)
+        types = self._process_engine_results(lambda x: x.read("AMSResults", "AtomTyping.atomTypes"), engine).split(
+            "\x00"
+        )
+
+        return [types[i - 1] for i in indices]
+
     def get_dipolemoment(self, engine: Optional[str] = None) -> np.ndarray:
         """Return the electric dipole moment, expressed in atomic units.
 
@@ -1054,6 +1074,7 @@ class AMSResults(Results):
             lambda x: x.read("AMSResults", "BulkModulus"), engine
         ) * Units.conversion_ratio("au", unit)
 
+    @requires_optional_package("natsort")
     def get_pesscan_results(self, molecules: bool = True):
         """
         For PESScan jobs, this functions extracts information about the scan coordinates and energies.
@@ -1520,6 +1541,7 @@ class AMSResults(Results):
 
         return times, dipole_deriv_acf
 
+    @requires_optional_package("scipy")
     def get_diffusion_coefficient_from_velocity_acf(self, times=None, acf=None, n_dimensions=3):
         """
         Diffusion coefficient by integration of the velocity autocorrelation function
@@ -1613,6 +1635,7 @@ class AMSResults(Results):
         return power_spectrum(times, acf, max_freq=max_freq, number_of_points=number_of_points)
 
     @staticmethod
+    @requires_optional_package("scipy")
     def _get_green_kubo_viscosity(pressuretensor, time_step, max_dt, volume, temperature, xy=True, yz=True, xz=True):
         from scipy.integrate import cumtrapz
         from scm.plams.tools.units import Units
@@ -1643,6 +1666,7 @@ class AMSResults(Results):
 
         return integrated_times, viscosity
 
+    @requires_optional_package("scipy")
     def get_green_kubo_viscosity(
         self, start_fs=0, end_fs=None, every_fs=None, max_dt_fs=None, xy=True, yz=True, xz=True, pressuretensor=None
     ):
@@ -1848,6 +1872,73 @@ class AMSResults(Results):
 
         z = (bin_edges[:-1] + bin_edges[1:]) / 2.0
         return z, density
+
+    def get_work_function_results(
+        self, energy_unit: str = "hartree", dist_unit: str = "bohr"
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, float, Tuple[float, float], Tuple[float, float]]:
+        """Return a tuple with the results of the work function calculation.
+
+        Returns: ``coordinate``, ``planarAverage``, ``macroscopicAverage``, ``Efermi``, ``Vbulk``, ``Vvacuum``, ``WF``.
+
+        ``coordinate``: 1D array of float.
+            The coordinate perpendicular to the surface. In units of ``dist_unit``
+
+        ``planarAverage``: 1D array of float.
+            The planar average of the electrostatic potential along the coordinate. In units of ``energy_unit``
+
+        ``macroscopicAverage``: 1D array of float.
+            The macroscopic average of the electrostatic potential along the coordinate. In units of ``energy_unit``
+
+        ``Efermi``: float.
+            The Fermi energy. In units of ``energy_unit``.
+
+        ``Vbulk``: float.
+            The average electrostatic potential in the bulk region of the material. In units of ``energy_unit``.
+
+        ``Vvacuum``: Tuple[float, float].
+            The average electrostatic potential in the vacuum region far from the surface.
+
+            This material is expected to have vacuum regions on *both* sides. Therefore, the potential is evaluated at the furthest point from the surface in each vacuum region. The first element corresponds to the potential at the furthest point from the surface on the left side,
+            and the second element corresponds to the potential at the furthest point from the surface on the right side. In units of ``energy_unit``.
+
+            Note: If the calculation uses a dipole correction with the QE engine (see `QuantumEspresso%Control%tefield` parameter in the QE engine), the potential is evaluated right before the x-coordinate where the dipole correction is applied.
+
+        ``WF``: Tuple[float, float].
+            The work function, calculated as WF = Vvacuum - Efermi.
+
+            Like `Vvacuum`, it is evaluated at two points, far from the surface on both sides (left and right). The first and second elements correspond to the work function calculated using the first and second elements of `Vvacuum`, respectively. In units of ``energy_unit``.
+
+        Arguments below:
+
+        ``energy_unit``: str
+            Unit of the returned energies
+
+        ``dist_unit``: str
+            Unit of the returned distances
+        """
+
+        to_eunit = Units.conversion_ratio("au", energy_unit)
+        to_dunit = Units.conversion_ratio("au", dist_unit)
+
+        coordinate = np.array(self.readrkf("WorkFunction", "coordinate", file="engine")) * to_dunit
+        planarAverage = np.array(self.readrkf("WorkFunction", "planarAverage", file="engine")) * to_eunit
+        macroscopicAverage = np.array(self.readrkf("WorkFunction", "macroscopicAverage", file="engine")) * to_eunit
+        Efermi = self.readrkf("WorkFunction", "fermiEnergy", file="engine") * to_eunit
+        Vbulk = self.readrkf("WorkFunction", "minMacroscopicAverPotential", file="engine") * to_eunit
+        leftVvacuum = self.readrkf("WorkFunction", "leftVacuumPotential", file="engine") * to_eunit
+        rightVvacuum = self.readrkf("WorkFunction", "rightVacuumPotential", file="engine") * to_eunit
+        leftWF = self.readrkf("WorkFunction", "leftWorkFunction", file="engine") * to_eunit
+        rightWF = self.readrkf("WorkFunction", "rightWorkFunction", file="engine") * to_eunit
+
+        return (
+            coordinate,
+            planarAverage,
+            macroscopicAverage,
+            Efermi,
+            Vbulk,
+            (leftVvacuum, rightVvacuum),
+            (leftWF, rightWF),
+        )
 
     def recreate_molecule(self) -> Union[None, Molecule, Dict[str, Molecule]]:
         """Recreate the input molecule(s) for the corresponding job based on files present in the job folder.
@@ -2268,7 +2359,8 @@ class AMSJob(SingleJob):
     ) -> AMSResults:
         """Run the job using *jobmanager* and *jobrunner* (or defaults, if ``None``).
 
-        If *watch* is set to ``True``, the contents of the AMS driver logfile will be forwarded line by line to the PLAMS logfile (and stdout), allowing for an easier monitoring of the running job. Not that the forwarding of the AMS driver logfile will cause make the call to this method block until the job's execution has finished, even when using a parallel |JobRunner|.
+        If *watch* is set to ``True``, the contents of the AMS driver logfile will be forwarded line by line to the PLAMS logfile (and stdout), allowing for an easier monitoring of the running job.
+        Not that the forwarding of the AMS driver logfile will make the call to this method block until the job's execution has finished, even when using a parallel |JobRunner|.
 
         Other keyword arguments (*\*\*kwargs*) are stored in ``run`` branch of job's settings.
 
@@ -2289,6 +2381,7 @@ class AMSJob(SingleJob):
             try:
                 results = super().run(jobrunner=jobrunner, jobmanager=jobmanager, **kwargs)
                 results.wait()
+                event_handler.trigger()
             finally:
                 observer.stop()
                 observer.join()
@@ -2683,9 +2776,9 @@ class AMSJob(SingleJob):
 
         def serialize(sett, prefix=""):
             for key, val in sett.items():
-                if prefix == "" and key.lower() in ["suffix", "ghost", "name"]:
-                    # Special atomic properties that are handled by _atom_symbol() already.
-                    # Suffix handled explicitly below ...
+                if prefix == "" and key.lower() in ["suffix", "ghost", "name", "supercell", "rdkit"]:
+                    # Special atomic properties that are handled by _atom_symbol() already (handled explicitly below).
+                    # Or internal PLAMS properties which are not accepted as valid atom properties in AMS, and so can be pruned out.
                     continue
                 if isinstance(val, Settings):
                     # Recursively serialize nested Settings object
@@ -2804,7 +2897,10 @@ class AMSJob(SingleJob):
             preferred_name = os.path.basename(os.path.dirname(os.path.abspath(path)))
             path = vasp_output_to_ams(os.path.dirname(path), overwrite=False)
         elif os.path.exists(path):
-            from ase.io.formats import filetype
+            try:
+                from ase.io.formats import filetype
+            except ImportError:
+                raise MissingOptionalPackageError("ase")
 
             try:
                 ft = filetype(path)

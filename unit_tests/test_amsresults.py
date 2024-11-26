@@ -750,3 +750,28 @@ class TestWaterOptimizationAMSResults:
 
         # Then mirrored in the results return value
         assert water_opt_results.name == "foo"
+
+
+class TestPropaneNitrileOptimizationAMSResults:
+    """
+    Test suite for AMSResults, using rkf files from propane nitrile optimization job.
+    """
+
+    @pytest.fixture
+    def propane_nitrile_opt_results(self, rkf_folder):
+        job = MagicMock(spec=AMSJob)
+        job.status = "successful"
+        job.path = str(rkf_folder / "propanenitrile")
+        results = AMSResults(job=job)
+        return results
+
+    def test_get_atom_types_as_expected(self, propane_nitrile_opt_results):
+        # Given propane nitrile optimization results with ff engine
+        # When get atom types
+        # Then returned as expected
+        propane_nitrile_opt_results.collect()
+        assert (
+            propane_nitrile_opt_results.get_atom_types()
+            == propane_nitrile_opt_results.get_atom_types("forcefield")
+            == ["C_1", "C_3", "C_3", "N_1", "H_", "H_", "H_", "H_", "H_"]
+        )

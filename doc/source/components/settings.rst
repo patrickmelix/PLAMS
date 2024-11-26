@@ -177,10 +177,18 @@ Global settings
 
 Global settings are stored in a public |ConfigSettings| instance named ``config``.
 They contain variables adjusting general behavior of PLAMS as well as default settings for various objects (jobs, job manager etc.)
-It is visible in the main PLAMS namespace so every time you wish to adjust some settings you can simply type in your script, for example::
 
+The default values are explained in the description of each property on ``config``.
+It is recommended to have a look at that these options, to give an overview of what behaviour can be configured.
+
+To change a setting for a script, just set the relevant option on the config to the preferred value, after the import statements.
+For example:
+
+.. code-block:: python
+
+    config.log.stdout = 1
     config.job.pickle = False
-    config.sleepstep = 10
+    config.default_jobrunner = JobRunner(parallel=True, maxjobs=8)
 
 The structure for the defined options on the nested settings objects are defined below.
 
