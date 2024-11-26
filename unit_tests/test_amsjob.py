@@ -562,4 +562,4 @@ class TestAMSJobRun:
                 assert len(postrun_lines) == 10
                 assert len(status_lines) == 4
 
-                logger.configure()
+                logger.close()

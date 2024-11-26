@@ -94,9 +94,7 @@ class Logger:
             if self._file_handler is not None and (
                 logfile_path is None or logfile_path != self._file_handler.baseFilename
             ):
-                self._logger.removeHandler(self._file_handler)
-                self._file_handler.flush()
-                self._file_handler.close()
+                self._remove_handler(self._file_handler)
                 self._file_handler = None
 
             # Add new file handler if required
@@ -133,6 +131,26 @@ class Logger:
                     self._stdout_handler.setFormatter(self._formatter)
                 if self._file_handler is not None:
                     self._file_handler.setFormatter(self._formatter)
+
+    def _remove_handler(self, handler: Optional[logging.Handler]) -> None:
+        """
+        Flush logs, close the handler and remove it from the logger.
+        """
+        if handler is not None:
+            handler.flush()
+            self._logger.removeHandler(handler)
+            handler.close()
+
+    def close(self) -> None:
+        """
+        Flush logs to stdout and logfile, then close the resources.
+        No further logs will then be written.
+        """
+        with self._lock:
+            self._remove_handler(self._file_handler)
+            self._remove_handler(self._stdout_handler)
+            self._file_handler = None
+            self._stdout_handler = None
 
     def log(self, message: str, level: int) -> None:
         """

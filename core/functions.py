@@ -245,6 +245,8 @@ def _finish():
     if not config.init:
         return
 
+    _logger.close()
+
     for thread in threading.enumerate():
         if thread.name == "plamsthread":
             thread.join()
