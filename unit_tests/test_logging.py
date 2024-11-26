@@ -7,7 +7,7 @@ import pytest
 import time
 import random
 
-from scm.plams.core.errors import FileError
+from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.logging import get_logger
 from scm.plams.unit_tests.test_helpers import temp_file_path
 
@@ -22,6 +22,10 @@ class TestGetLogger:
         logger3 = get_logger(name1)
 
         assert logger1 == logger3 != logger2
+
+    def test_get_logger_errors_with_unsupported_format(self):
+        with pytest.raises(PlamsError):
+            get_logger("foo", "bar")
 
 
 class TestLogger:

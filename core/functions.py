@@ -245,8 +245,6 @@ def _finish():
     if not config.init:
         return
 
-    _logger.close()
-
     for thread in threading.enumerate():
         if thread.name == "plamsthread":
             thread.join()
@@ -257,6 +255,16 @@ def _finish():
         config.default_jobmanager._clean()
 
         if config.erase_workdir is True:
+            from scm.plams.core.logging import LogManager
+
+            # Close all loggers which have files in the directory to be erased
+            workdir = os.path.abspath(config.default_jobmanager.workdir)
+            for logger in LogManager._loggers.values():
+                if logger._file_handler is not None:
+                    logfile = os.path.abspath(logger._file_handler.baseFilename)
+                    if os.path.commonpath([workdir]) == os.path.commonpath([workdir, logfile]):
+                        logger.close()
+
             shutil.rmtree(config.default_jobmanager.workdir)
 
     config.init = False
