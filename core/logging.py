@@ -97,6 +97,7 @@ class Logger:
                 self._logger.removeHandler(self._file_handler)
                 self._file_handler.flush()
                 self._file_handler.close()
+                self._file_handler = None
 
             # Add new file handler if required
             if logfile_path is not None and (
