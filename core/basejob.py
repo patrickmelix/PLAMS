@@ -291,8 +291,6 @@ class Job:
         log("{}._finalize() finished".format(self.name), 7)
         self._log_status(1)
 
-        self.jobmanager.job_logger.log(self, level=3)
-
     def __getstate__(self):
         """Prepare this job instance for pickling.
 
