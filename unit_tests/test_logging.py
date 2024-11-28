@@ -505,7 +505,7 @@ message
             with open(temp_log_file) as tf:
                 assert (
                     tf.read()
-                    == f"""foo,fizz
+                    == """foo,fizz
 bar0,buzz0
 bar1,buzz1
 bar2,buzz2
@@ -557,7 +557,7 @@ class TestJobCSVFormatter:
             logger.log(job1, 3)
             logger.log(job2, 3)
 
-            dir = os.path.dirname(os.path.abspath(__file__))
+            dir = os.getcwd()
             path1 = os.path.join(dir, "plams_workdir", "test_job_csv_formatter")
             path2 = os.path.join(dir, "plams_workdir", "test_job_csv_formatter.002")
 
@@ -571,3 +571,5 @@ test_job_csv_formatter,test_job_csv_formatter,successful,,,{path1},True,True,
 test_job_csv_formatter,test_job_csv_formatter.002,crashed,,,{path2},False,False,some error
 """
                 )
+
+            logger.close()

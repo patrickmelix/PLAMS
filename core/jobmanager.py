@@ -3,7 +3,7 @@ import re
 import shutil
 import threading
 from os.path import join as opj
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List, Dict
 
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.enums import JobStatus
@@ -56,9 +56,9 @@ class JobManager:
     ):
 
         self.settings = settings
-        self.jobs = []
-        self.names = {}
-        self.hashes = {}
+        self.jobs: List[Job] = []
+        self.names: Dict[str, int] = {}
+        self.hashes: Dict[str, Job] = {}
 
         self._register_lock = threading.RLock()
 

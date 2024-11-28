@@ -44,7 +44,7 @@ class LogManager:
         """
         if name not in cls._loggers:
             if fmt == "csv":
-                logger = CSVLogger(name)
+                logger: Logger = CSVLogger(name)
             elif fmt == "txt" or fmt is None:
                 logger = TextLogger(name)
             else:
@@ -161,12 +161,11 @@ class Logger(ABC):
             handler.close()
 
     @property
-    def logfile(self) -> str:
+    def logfile(self) -> Optional[str]:
         """
         Path of the logfile currently used for the logger.
         """
-        if self._file_handler is not None:
-            return self._file_handler.baseFilename
+        return self._file_handler.baseFilename if self._file_handler is not None else None
 
     def close(self) -> None:
         """
@@ -269,7 +268,7 @@ class CSVFormatter(logging.Formatter):
         self.log_time = datefmt is not None
         self.include_level = include_level
         self.include_name = include_name
-        self.headers = None
+        self.headers: Optional[list[str]] = None
         self._write_headers = True
 
     @property
@@ -291,7 +290,7 @@ class CSVFormatter(logging.Formatter):
         :return: A CSV-formatted string.
         """
         # Extract core log fields
-        log_record = {}
+        log_record: Dict[str, Any] = {}
         if self.include_name:
             log_record["logger_name"] = record.name
         if self.include_level:
@@ -310,7 +309,7 @@ class CSVFormatter(logging.Formatter):
 
         # Write headers if this is the first entry
         row = StringIO()
-        csv_writer = csv.DictWriter(row, fieldnames=self.headers, lineterminator=os.linesep)
+        csv_writer = csv.DictWriter(row, fieldnames=self.headers, lineterminator="\n")
         if self.write_headers:
             csv_writer.writeheader()
             self.write_headers = False
@@ -332,6 +331,8 @@ class CSVLogger(Logger):
     """
     Logger that logs dictionary messages in CSV format with optional date and time stamps.
     """
+
+    _file_formatter: CSVFormatter
 
     def configure(
         self,
@@ -386,7 +387,7 @@ class CSVLogger(Logger):
                 self._configure_file_formatter(file_formatter)
 
             # For files, check if the logfile is empty and therefore if the headers need to be written
-            if self._file_handler is not None:
+            if self._file_handler is not None and self._file_formatter is not None:
                 logfile = self._file_handler.baseFilename
                 has_logs = os.path.exists(logfile) and os.path.getsize(logfile) > 0
                 self._file_formatter.write_headers = not has_logs

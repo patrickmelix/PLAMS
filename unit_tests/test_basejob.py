@@ -5,7 +5,6 @@ from datetime import datetime
 from collections import namedtuple
 import shutil
 import re
-import os
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob
