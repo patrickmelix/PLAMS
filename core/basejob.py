@@ -4,7 +4,7 @@ import stat
 import threading
 import time
 from os.path import join as opj
-from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union, Any
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union
 
 from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError

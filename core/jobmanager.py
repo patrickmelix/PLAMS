@@ -225,4 +225,6 @@ class JobManager:
                     if not os.listdir(fullname):
                         os.rmdir(fullname)
 
+        self.job_logger.close()
+
         log("Job manager cleaned", 7)

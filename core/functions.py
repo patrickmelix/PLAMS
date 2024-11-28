@@ -261,7 +261,7 @@ def _finish():
             workdir = os.path.abspath(config.default_jobmanager.workdir)
             for logger in LogManager._loggers.values():
                 if (logfile := logger.logfile) is not None:
-                    if os.path.commonpath([workdir]) == os.path.commonpath([workdir, os.abspath(logfile)]):
+                    if os.path.commonpath([workdir]) == os.path.commonpath([workdir, os.path.abspath(logfile)]):
                         logger.close()
 
             shutil.rmtree(config.default_jobmanager.workdir)

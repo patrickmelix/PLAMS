@@ -1,3 +1,4 @@
+import os.path
 import re
 import uuid
 from io import StringIO
@@ -556,13 +557,17 @@ class TestJobCSVFormatter:
             logger.log(job1, 3)
             logger.log(job2, 3)
 
+            dir = os.path.dirname(os.path.abspath(__file__))
+            path1 = os.path.join(dir, "plams_workdir", "test_job_csv_formatter")
+            path2 = os.path.join(dir, "plams_workdir", "test_job_csv_formatter.002")
+
             with open(temp_log_file) as tf:
                 assert (
                     tf.read()
-                    == """job_base_name,job_name,job_status,job_parent_name,job_parent_path,job_path,job_ok,job_check,job_get_errormsg
+                    == f"""job_base_name,job_name,job_status,job_parent_name,job_parent_path,job_path,job_ok,job_check,job_get_errormsg
 test_job_csv_formatter,test_job_csv_formatter,created,,,,,,
 test_job_csv_formatter,test_job_csv_formatter.002,created,,,,,,
-test_job_csv_formatter,test_job_csv_formatter,successful,,,/Users/ormrodmorley/Documents/code/plams/scm/plams/unit_tests/plams_workdir/test_job_csv_formatter,True,True,
-test_job_csv_formatter,test_job_csv_formatter.002,crashed,,,/Users/ormrodmorley/Documents/code/plams/scm/plams/unit_tests/plams_workdir/test_job_csv_formatter.002,False,False,some error
+test_job_csv_formatter,test_job_csv_formatter,successful,,,{path1},True,True,
+test_job_csv_formatter,test_job_csv_formatter.002,crashed,,,{path2},False,False,some error
 """
                 )
