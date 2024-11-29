@@ -7,7 +7,7 @@
 
 # ### Progress Logger
 
-# PLAMS writes job progress to stdout and a plain text logfile. The location of this logfile is determined by the working directory of the default job manager.
+# PLAMS writes job progress to stdout and a plain text logfile. The location of this logfile is determined by the working directory of the default job manager, and is called `logfile`.
 #
 # Users can also write logs to the same locations using the `log` function. This takes a `level` argument. By convention in PLAMS, the level should be between 0-7, with 0 being the most and 7 the least important logging.
 #
@@ -49,14 +49,16 @@ job.run(watch=True)
 
 # ### Job Summary Logger
 
-# PLAMS also writes summaries of jobs to a CSV file, the location of which by default is also determined by the job manager.
+# PLAMS also writes summaries of jobs to a CSV file, the location of which by default is also determined by the job manager. It is called `job_logfile.csv`.
 
 from scm.plams import MultiJob
 
 
-multi_job = MultiJob(name="parent_job", children=[get_test_job() for _ in range(3)])
-multi_job.children[2].settings.input.ams.Task = "Not a task!"
-multi_job.run()
+jobs = [get_test_job() for _ in range(3)]
+jobs[2].settings.input.ams.Task = "Not a task!"
+
+for job in jobs:
+    job.run()
 
 
 # These CSVs give overall information on the status of all jobs run by a given job manager.
@@ -68,26 +70,3 @@ try:
     print(df[["job_name", "job_status", "job_ok", "job_get_errormsg"]])
 except ImportError:
     pass
-
-
-# ### Extra Loggers
-
-# PLAMS also provides access to text and csv loggers for use in your workflows. These are obtained with the `get_logger` method. Loggers need to be set up with the `configure` method, which determines which file to write to and whether to write to stdout.
-
-from scm.plams import get_logger
-
-my_text_logger = get_logger("my_text_logger", "txt")
-my_csv_logger = get_logger("my_csv_logger", "csv")
-
-my_text_logger.configure(logfile_level=3, logfile_path="./my_text_logger.txt", include_date=True, include_time=True)
-my_csv_logger.configure(logfile_level=3, logfile_path="./my_csv_logger.csv")
-
-my_text_logger.log("I want to log this to a separate file!", 3)
-my_csv_logger.log({"molecule": "Acetylacetonate", "short_name": "acac"}, 3)
-my_csv_logger.log({"molecule": "Ethylenediaminetetraaceticacid acid", "short_name": "EDTA"}, 3)
-
-with open(my_text_logger.logfile) as f:
-    print(f.read())
-
-with open(my_csv_logger.logfile) as f:
-    print(f.read())

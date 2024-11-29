@@ -93,7 +93,7 @@ class JobManager:
             job_logger = get_logger(os.path.basename(self.workdir), fmt="csv")
             job_logger.configure(
                 logfile_level=7,
-                logfile_path=opj(self.workdir, "logfile.csv"),
+                logfile_path=opj(self.workdir, "job_logfile.csv"),
                 csv_formatter=JobCSVFormatter,
                 include_date=True,
                 include_time=True,
