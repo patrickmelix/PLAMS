@@ -111,6 +111,9 @@ class Logger(ABC):
         """
 
         # Remove and close existing file handler if present and required
+        logfile_path = (
+            os.path.abspath(logfile_path) if logfile_path is not None else None
+        )  # convert any relative paths to abs paths
         if self._file_handler is not None and (logfile_path is None or logfile_path != self._file_handler.baseFilename):
             self._remove_handler(self._file_handler)
             self._file_handler = None
@@ -124,9 +127,13 @@ class Logger(ABC):
                 if logger._file_handler is not None and logger._file_handler.baseFilename == logfile_path:
                     raise FileError(f"Logger '{name}' already exists with logfile path '{logfile_path}'")
 
-            self._file_handler = logging.FileHandler(logfile_path)
-            self._file_handler.setFormatter(self._file_formatter)
-            self._logger.addHandler(self._file_handler)
+            try:
+                self._file_handler = logging.FileHandler(logfile_path)
+                self._file_handler.setFormatter(self._file_formatter)
+                self._logger.addHandler(self._file_handler)
+            except FileNotFoundError:
+                # Logger should not error if logfile directory does not exist
+                pass
 
         # Update the logfile handler level if required
         if self._file_handler is not None:

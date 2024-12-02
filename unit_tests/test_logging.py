@@ -83,6 +83,34 @@ log line 3
                 )
             logger.close()
 
+    def test_configure_does_not_error_with_invalid_logfile_location(self):
+        log_file = "not/a/file"
+        logger = get_logger(str(uuid.uuid4()))
+        logger.configure(logfile_path=log_file, logfile_level=3)
+        logger.log("log line", 3)
+
+        logger.close()
+
+    def test_configure_only_updates_logfile_handler_when_abspath_changes(self):
+        with temp_file_path(suffix=".log") as temp_log_file1:
+            with temp_file_path(suffix=".log") as temp_log_file2:
+                rel_path1 = temp_log_file1.split("/")[-1]
+                rel_path2 = temp_log_file2.split("/")[-1]
+
+                logger = get_logger(str(uuid.uuid4()))
+                logger.configure(logfile_path=rel_path1, logfile_level=3)
+                fh1 = logger._file_handler
+                logger.configure(logfile_path=rel_path1, logfile_level=3)
+                fh2 = logger._file_handler
+                logger.configure(logfile_path=rel_path2, logfile_level=3)
+                fh3 = logger._file_handler
+                logger.configure(logfile_path=rel_path2, logfile_level=3)
+                fh4 = logger._file_handler
+
+                assert fh1 == fh2 != fh3 == fh4
+
+                logger.close()
+
     def test_close_removes_stdout_and_logfile_handlers(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             with temp_file_path(suffix=".log") as temp_log_file:
