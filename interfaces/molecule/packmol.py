@@ -16,12 +16,7 @@ from scm.plams.core.settings import Settings
 
 if TYPE_CHECKING:
     try:
-        from scm.libbase import (
-            UnifiedChemicalSystem as ChemicalSystem,
-            UnifiedElement as Element,
-            UnifiedElements as Elements,
-            UnifiedLattice as Lattice,
-        )
+        from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
     except ImportError:
         pass
 
@@ -784,8 +779,7 @@ def _run_uff_md(
 
     Raises: PackmolError if something goes worng.
     """
-    from scm.plams.interfaces.adfsuite.quickjobs import _ensure_init
-    from scm.plams.core.functions import finish, delete_job
+    from scm.plams.core.functions import delete_job
     from scm.plams import config
 
     thermostatted_region = "PACKMOL_thermostatted"
