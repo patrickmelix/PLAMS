@@ -109,38 +109,38 @@ class ADFFragmentResults(Results):
 
     def get_nocv_eigenvalues(self) -> Union[List[float], Tuple[List[float]]]:
         """Get the NOCV eigenvalues of the full calculation."""
-        keys = self.job.full.results.get_rkf_skeleton(file='adf')
-        if 'NOCV' not in keys:
+        keys = self.job.full.results.get_rkf_skeleton(file="adf")
+        if "NOCV" not in keys:
             raise KeyError("NOCV section not found in the rkf file")
-        keys = keys['NOCV']
+        keys = keys["NOCV"]
         # restricted calculation
-        if 'NOCV_eigenvalues_restricted' in keys:
-            return self.job.full.results.readrkf('NOCV',
-                    'NOCV_eigenvalues_restricted', file='adf')
+        if "NOCV_eigenvalues_restricted" in keys:
+            return self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_restricted", file="adf")
         # unrestricted calculation
-        elif 'NOCV_eigenvalues_alpha' in keys:
-            tpl = (self.job.full.results.readrkf('NOCV',
-                    'NOCV_eigenvalues_alpha', file='adf'),
-                   self.job.full.results.readrkf('NOCV',
-                    'NOCV_eigenvalues_beta', file='adf'))
+        elif "NOCV_eigenvalues_alpha" in keys:
+            tpl = (
+                self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_alpha", file="adf"),
+                self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_beta", file="adf"),
+            )
             return tpl
         else:
             raise KeyError("NOCV eigenvalues not found in the rkf file")
 
     def check_nocv_eigenvalues(self) -> bool:
         """Basic NOCV check.
-        
+
         The eigenvalue #i should be equal to -eigenvalue #-i.
 
         Returns:
             bool: True if the check passes, False otherwise.
         """
+
         def _check_list(eigenvalues):
-            for i in range(int(len(eigenvalues)/2)):
-                if not np.isclose(eigenvalues[i], -1*eigenvalues[-i-1], atol=1e-4):
+            for i in range(int(len(eigenvalues) / 2)):
+                if not np.isclose(eigenvalues[i], -1 * eigenvalues[-i - 1], atol=1e-4):
                     return False
             return True
-        
+
         NOCV_eigenvalues = self.job.results.get_nocv_eigenvalues()
         # spin-restricted calculation
         if isinstance(NOCV_eigenvalues, list):
@@ -153,41 +153,37 @@ class ADFFragmentResults(Results):
         else:
             raise TypeError("Unexpected type for NOCV eigenvalues")
 
-
-    def get_nocv_orbital_interaction(self, unit='kcal/mol'
-                                     ) -> Union[List[float],
-                                                Tuple[List[float]]]:
+    def get_nocv_orbital_interaction(self, unit="kcal/mol") -> Union[List[float], Tuple[List[float]]]:
         """Get the NOCV orbital interactions of the full calculation."""
+
         def _calc_energies(oi) -> List[float]:
             ret = []
-            for i in range(int(len(oi)/2)):
+            for i in range(int(len(oi) / 2)):
                 a = oi[i]
                 b = oi[len(oi) - i - 1]
                 ret.append(a + b)
             return ret
 
-        keys = self.job.full.results.get_rkf_skeleton(file='adf')
-        if 'NOCV' not in keys:
+        keys = self.job.full.results.get_rkf_skeleton(file="adf")
+        if "NOCV" not in keys:
             raise KeyError("NOCV section not found in the rkf file")
-        keys = keys['NOCV']
+        keys = keys["NOCV"]
         # restricted calculation
-        if 'NOCV_oi_restricted' in keys:
-            oi = self.job.full.results.readrkf('NOCV',
-                    'NOCV_oi_restricted', file='adf')
+        if "NOCV_oi_restricted" in keys:
+            oi = self.job.full.results.readrkf("NOCV", "NOCV_oi_restricted", file="adf")
         # unrestricted calculation
-        elif 'NOCV_oi_alpha' in keys:
-            tpl = (self.job.full.results.readrkf('NOCV',
-                    'NOCV_oi_alpha', file='adf'),
-                    self.job.full.results.readrkf('NOCV',
-                    'NOCV_oi_beta', file='adf'))
+        elif "NOCV_oi_alpha" in keys:
+            tpl = (
+                self.job.full.results.readrkf("NOCV", "NOCV_oi_alpha", file="adf"),
+                self.job.full.results.readrkf("NOCV", "NOCV_oi_beta", file="adf"),
+            )
         else:
             raise KeyError("NOCV orbital interaction not found in rkf file")
         if isinstance(oi, tuple):
             energies = (_calc_energies(tpl[0]), _calc_energies(tpl[1]))
         else:
             energies = _calc_energies(oi)
-        return Units.convert(energies, 'kcal/mol', unit)
-            
+        return Units.convert(energies, "kcal/mol", unit)
 
 
 class ADFFragmentJob(MultiJob):
