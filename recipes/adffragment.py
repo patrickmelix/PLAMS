@@ -141,7 +141,7 @@ class ADFFragmentResults(Results):
                     return False
             return True
         
-        NOCV_eigenvalues = self.job.full.results.get_nocv_eigenvalues()
+        NOCV_eigenvalues = self.job.results.get_nocv_eigenvalues()
         # spin-restricted calculation
         if isinstance(NOCV_eigenvalues, list):
             return _check_list(NOCV_eigenvalues)
