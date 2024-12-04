@@ -29,23 +29,23 @@ class ADFFragmentResults(Results):
         return True
 
     def get_properties(self):
-        """Redirect to |ADFResults| of the full calculation."""
+        """Redirect to |AMSResults| of the full calculation."""
         return self.job.full.results.get_properties()
 
     def get_main_molecule(self):
-        """Redirect to |ADFResults| of the full calculation."""
+        """Redirect to |AMSResults| of the full calculation."""
         return self.job.full.results.get_main_molecule()
 
     def get_input_molecule(self):
-        """Redirect to |ADFResults| of the full calculation."""
+        """Redirect to |AMSResults| of the full calculation."""
         return self.job.full.results.get_input_molecule()
 
     def get_energy(self, unit="au"):
-        """Redirect to |ADFResults| of the full calculation."""
+        """Redirect to |AMSResults| of the full calculation."""
         return self.job.full.results.get_energy(unit)
 
     def get_dipole_vector(self, unit="au"):
-        """Redirect to |ADFResults| of the full calculation."""
+        """Redirect to |AMSResults| of the full calculation."""
         return self.job.full.results.get_dipole_vector(unit)
 
     def get_energy_decomposition(self, unit="kJ/mol") -> Dict[str, float]:
@@ -211,10 +211,10 @@ class ADFFragmentJob(MultiJob):
         Subclass of |MultiJob|.
 
         Args:
-            fragment1 (Molecule): The first fragment.
-            fragment2 (Molecule): The second fragment.
-            fragment1_opt (Molecule, optional): The optimized first fragment.
-            fragment2_opt (Molecule, optional): The optimized second fragment.
+            fragment1 (|Molecule|): The first fragment.
+            fragment2 (|Molecule|): The second fragment.
+            fragment1_opt (|Molecule|, optional): The optimized first fragment.
+            fragment2_opt (|Molecule|, optional): The optimized second fragment.
             full_settings (Settings): The settings for the full calculation.
             frag1_settings (Settings): Specific settings for the first fragment calculation.
             frag2_settings (Settings): Specific settings for the second fragment calculation.
