@@ -1,4 +1,3 @@
-import collections
 import datetime
 import functools
 import os
@@ -11,13 +10,17 @@ import tempfile
 import threading
 import time
 import weakref
-from numbers import Integral
-from typing import Dict, Tuple, Union, List, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
+from scm.plams.core.errors import JobError, PlamsError, ResultsError
+from scm.plams.core.functions import config, log
 from scm.plams.core.private import retry
+from scm.plams.core.functions import requires_optional_package
+from scm.plams.core.settings import Settings
+from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.molecule.ase import toASE
+from scm.plams.tools.units import Units
 
 TMPDIR = os.environ["SCM_TMPDIR"] if "SCM_TMPDIR" in os.environ else None
 
@@ -65,21 +68,7 @@ if os.name == "nt":
 spawn_lock = threading.Lock()
 
 
-try:
-    import ubjson
-
-    if os.name == "nt":
-        import psutil
-    __all__ = ["AMSWorker", "AMSWorkerResults", "AMSWorkerError", "AMSWorkerPool"]
-except ImportError:
-    __all__ = []
-
-from scm.plams.core.errors import JobError, PlamsError, ResultsError
-from scm.plams.core.functions import config, log
-from scm.plams.core.settings import Settings
-from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.interfaces.adfsuite.amspipeerror import AMSPipeError, AMSPipeRuntimeError
-from scm.plams.tools.units import Units
+__all__ = ["AMSWorker", "AMSWorkerResults", "AMSWorkerError", "AMSWorkerPool"]
 
 
 def _restrict(func):
@@ -255,6 +244,7 @@ class AMSWorkerResults:
         return self._main_molecule
 
     @_restrict
+    @requires_optional_package("ase")
     def get_main_ase_atoms(self):
         """Return an ASE Atoms instance with the final coordinates."""
         from ase import Atoms
@@ -423,6 +413,9 @@ class AMSWorker:
     If it is not possible to use the |AMSWorker| as a context manager, cleanup should be manually triggered by calling the :meth:`stop` method.
     """
 
+    @requires_optional_package("ubjson")
+    @requires_optional_package("scm.amspipe")
+    @requires_optional_package("psutil", "nt")
     def __init__(
         self,
         settings,
@@ -617,6 +610,7 @@ class AMSWorker:
             # down just by following PPIDs. We thus have to resort to heuristics to find all processes
             # that we need to kill. It'd be best to use Win32 Job objects for this, but the "subprocess"
             # module doesn't let us add the created child to a Job early enough.
+            import psutil
 
             # Get the PIDs of all processes sharing this console.
             bufsize = 1024
@@ -704,10 +698,13 @@ class AMSWorker:
 
         # Now that the pipes are down, the worker should certainly be exiting.
         if self.proc is not None:
+
             try:
                 self.proc.wait(timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 if os.name == "nt":
+                    import psutil
+
                     worker_procs = self._find_worker_processes()
                     # Send Ctrl-Break to the entire process group under self.proc.
                     # Ctrl-C is less reliable in convincing processes to quit.
@@ -852,6 +849,7 @@ class AMSWorker:
         convstep=None,
         convstressenergyperatom=None,
     ):
+        from scm.amspipe import AMSPipeRuntimeError
 
         if self.use_restart_cache and name in self.restart_cache:
             raise JobError(f'Name "{name}" is already associated with results from the restart cache.')
@@ -1197,44 +1195,14 @@ class AMSWorker:
             return False
 
     def _flatten_arrays(self, d):
-        out: Dict = {}
-        # import numpy as np
-        for key, val in d.items():
+        from scm.amspipe.utils import flatten_arrays
 
-            if (isinstance(val, collections.abc.Sequence) or isinstance(val, np.ndarray)) and not isinstance(val, str):
-                array = np.asarray(val)
-                if array.dtype == np.float32:
-                    # Workaround py-ubjson not knowing how to encode float32 yet
-                    array = array.astype(np.float64)
-                out[key] = array.ravel()
-                out[key + "_dim_"] = array.shape[::-1]
-                if issubclass(out[key].dtype.type, Integral) or out[key].dtype.type == np.bool_:
-                    # ubjson does not know how to convert numpy arrays of int/bool, so convert back to a list here
-                    out[key] = out[key].tolist()
-                elif out[key].dtype == np.bool_:
-                    out[key] = out[key].tolist()
-            elif isinstance(val, collections.abc.Mapping):
-                out[key] = self._flatten_arrays(val)
-            elif isinstance(val, np.float32):  # for scalar float32
-                out[key] = np.float64(val)
-            elif isinstance(val, np.int32):
-                out[key] = int(val)
-            else:
-                out[key] = val
-        return out
+        return flatten_arrays(d)
 
     def _unflatten_arrays(self, d):
-        out = {}
-        for key, val in d.items():
-            if key + "_dim_" in d:
-                out[key] = np.asarray(val).reshape(d[key + "_dim_"][::-1])
-            elif key.endswith("_dim_"):
-                pass
-            elif isinstance(val, collections.abc.Mapping):
-                out[key] = self._unflatten_arrays(val)
-            else:
-                out[key] = val
-        return out
+        from scm.amspipe.utils import unflatten_arrays
+
+        return unflatten_arrays(d)
 
     def _read_exactly(self, pipe, n):
         buf = pipe.read(n)
@@ -1244,6 +1212,9 @@ class AMSWorker:
             raise EOFError("Message truncated to " + str(len(buf)))
 
     def _call(self, method, args={}):
+        import ubjson
+        from scm.amspipe import AMSPipeError
+
         msg = ubjson.dumpb({method: self._flatten_arrays(args)})
         msglen = struct.pack("=i", len(msg))
         try:

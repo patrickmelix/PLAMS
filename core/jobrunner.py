@@ -136,6 +136,11 @@ class JobRunner(metaclass=_MetaRunner):
                 job._execute(self)
                 job._finalize()
         finally:
+            try:
+                jobmanager.job_logger.log(job, level=3)
+            except:  # logging should never throw, but best to make sure
+                pass
+
             if self.parallel and self._jobthread_limit:
                 self._jobthread_limit.release()
 
@@ -156,7 +161,7 @@ class GridRunner(JobRunner):
 
     The behavior of a |GridRunner| instance is determined by the contents of a |Settings| instance stored in its ``settings`` attribute. That |Settings| instance can be manually supplied by the user or taken from a collection of predefined instances stored as branches of ``GridRunner.config``. The adjustment is done with the *grid* parameter which should be a string or a |Settings| instance. If it's a string, it has to be a key occurring in ``GridRunner.config`` or ``'auto'`` for autodetection. For example, if ``grid='slurm'`` is passed, ``GridRunner.config.slurm`` is used as settings. If ``grid='auto'`` then entries present in ``GridRunner.config`` are tested and the first one that works (its submit command is present on your system) is chosen. When a |Settings| instance is passed as *grid*, it is directly used as ``settings``.
 
-    Currently two predefined schemes are available (see :ref:`plams-defaults`): ``slurm`` for SLURM and ``pbs`` for queueing systems following PBS syntax (PBS, TORQUE, Oracle Grid Engine etc.).
+    Currently two predefined schemes are available (see :ref:`global-settings`): ``slurm`` for SLURM and ``pbs`` for queueing systems following PBS syntax (PBS, TORQUE, Oracle Grid Engine etc.).
 
     The settings of |GridRunner| should have the following structure:
 

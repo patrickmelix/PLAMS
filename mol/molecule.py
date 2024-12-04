@@ -7,7 +7,7 @@ import os
 from collections import OrderedDict
 import numpy as np
 
-from scm.plams.core.errors import FileError, MoleculeError, PTError
+from scm.plams.core.errors import FileError, MoleculeError, PTError, MissingOptionalPackageError
 from scm.plams.core.functions import log, requires_optional_package
 from scm.plams.core.private import parse_action, smart_copy
 from scm.plams.core.settings import Settings
@@ -1522,7 +1522,7 @@ class Molecule:
         newmolecule = self.get_fragment([i for i in sorted_complete_indices])
         return newmolecule
 
-    def locate_rings(self):
+    def locate_rings(self) -> List[List[int]]:
         """
         Find the rings in the structure
         """
@@ -1578,7 +1578,7 @@ class Molecule:
         allrings = [self.order_ring(ring) for ring in allrings]
         return allrings
 
-    def locate_rings_acm(self, all_rings=True):
+    def locate_rings_acm(self, all_rings: bool = True) -> List[List[int]]:
         """
         Use the ACM algorithm to find rings
 
@@ -1597,36 +1597,6 @@ class Molecule:
               and 'CC1C2=CCC3=CC=CC=CC=CC4CCCCCC5CCC6C(=C(CCC6CO4)C2=C3)C=15').
         """
 
-        def find_cycle(tree, root, leaf):
-            """
-            Find the path from leaf to root in tree
-
-            Note: The problem is that a bond is not added when a cycle has closed.
-                  And even if we add that bond, I don't know how to find the path other than with Dijkstra
-            """
-            # First move from path to the top of the tree
-            prev = leaf
-            pathb = [leaf]
-            while prev != root:
-                prevlist = [b[0] for b in tree if b[1] == prev]
-                if len(prevlist) == 0:
-                    break
-                prev = prevlist[0]
-                pathb.append(prev)
-            if prev == root:
-                return pathb
-            # Also move forward, from the top to the root
-            prev = root
-            pathf = [root]
-            while prev not in pathb:
-                prevlist = [b[0] for b in tree if b[1] == prev]
-                if len(prevlist) == 0:
-                    break
-                prev = prevlist[0]
-                pathf.append(prev)
-            path = pathb[: pathb.index(prev)] + pathf[::-1]
-            return path
-
         rings = []
         rings_sorted = []
 
@@ -1637,11 +1607,9 @@ class Molecule:
         tree: List[List[int]] = [[] for _ in range(len(self))]
         counter = 0
         while 1:
-            # print ('%8i %8i %8i'%(counter,iat,len(rings)))
             counter += 1
             for jat in conect[iat]:
                 if jat in atoms_in_tree:
-                    # ring = find_cycle(tree,iat,jat)
                     for ring in self.shortest_path_dijkstra(iat, jat, conect=tree):
                         sorted_ring = sorted(ring)
                         if not sorted_ring in rings_sorted:
@@ -1654,7 +1622,6 @@ class Molecule:
                 # Add the connection to the tree
                 tree[iat].append(jat)
                 tree[jat].append(iat)
-                # tree.append([iat,jat])
                 # Remove the connection from the table
                 conect[iat] = [j for j in conect[iat] if not j == jat]
                 conect[jat] = [j for j in conect[jat] if not j == iat]
@@ -1682,9 +1649,9 @@ class Molecule:
         return new_ring
 
     @requires_optional_package("networkx")
-    def locate_rings_networkx(self, find_smallest=False):
+    def locate_rings_networkx(self, find_smallest: bool = False) -> List[List[int]]:
         """
-        Obtain a list of ring indices using RDKit (same as locate_rings, but much faster)
+        Obtain a list of ring indices using networkx (same as locate_rings, but much faster)
 
         * ``find_smallest`` -- Advised if the rings themselves will be used. Does not affect the number of rings.
 
@@ -1698,7 +1665,7 @@ class Molecule:
         matrix = self.bond_matrix()
         matrix = matrix.astype(np.int32)
         matrix[matrix > 0] = 1
-        graph = networkx.from_numpy_matrix(matrix)
+        graph = networkx.from_numpy_array(matrix)
         if find_smallest:
             rings = networkx.minimum_cycle_basis(graph)  # Very slow
         else:
@@ -2318,7 +2285,9 @@ class Molecule:
         for i, vec in enumerate(self.lattice):
             if ams_convention:
                 # For 1D systems we only want to perturb the first number. For 2D systems only the first 2 numbers of each vector.
-                perturbed_vec = np.array(vec) + np.concatenate((np.random.uniform(-s, s, n), np.zeros(3 - n)))
+                perturbed_vec: np.ndarray = np.array(vec) + np.concatenate(
+                    (np.random.uniform(-s, s, n), np.zeros(3 - n))
+                )
             else:
                 perturbed_vec = np.array(vec) + np.random.uniform(-s, s, 3)
             self.lattice[i] = list(perturbed_vec)
@@ -3455,7 +3424,10 @@ class Molecule:
         self.translate(vector, unit="angstrom")
 
         if watch:
-            import matplotlib.pyplot as plt
+            try:
+                import matplotlib.pyplot as plt
+            except ImportError:
+                raise MissingOptionalPackageError("matplotlib")
 
             from scm.plams.tools.plot import plot_molecule
 

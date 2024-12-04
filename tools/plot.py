@@ -1,12 +1,15 @@
 from scm.plams.mol.molecule import Molecule
+from scm.plams.core.errors import MissingOptionalPackageError
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from typing import Tuple, Union, List, Optional
 import numpy as np
 
-__all__ = ["plot_band_structure", "plot_molecule", "plot_correlation", "plot_work_function"]
+__all__ = ["plot_band_structure", "plot_molecule", "plot_correlation", "plot_msd", "plot_work_function"]
 
 
-def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, show=False):
+@requires_optional_package("matplotlib")
+def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, ax=None):
     """
     Plots an electronic band structure from DFTB or BAND with matplotlib.
 
@@ -31,8 +34,10 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
     zero: None or float or one of 'fermi', 'vbmax', 'cbmin'
         Shift the curves so that y=0 is at the specified value. If None, no shift is performed. 'fermi', 'vbmax', and 'cbmin' require that the ``fermi_energy`` is not None. Note: 'vbmax' and 'cbmin' calculate the zero as the highest (lowest) eigenvalue smaller (greater) than or equal to ``fermi_energy``. This is NOT necessarily equal to the valence band maximum or conduction band minimum as calculated by the compute engine.
 
-    show: bool
-        If True, call plt.show() at the end
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
     """
     import matplotlib.pyplot as plt
 
@@ -54,11 +59,12 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
 
     labels = labels or []
 
-    fig, ax = plt.subplots()
+    if ax is None:
+        _, ax = plt.subplots()
 
-    plt.plot(x, y_spin_up - zero, "-")
+    ax.plot(x, y_spin_up - zero, "-")
     if y_spin_down is not None:
-        plt.plot(x, y_spin_down - zero, "--")
+        ax.plot(x, y_spin_down - zero, "--")
 
     tick_x: List[float] = []
     tick_labels: List[str] = []
@@ -76,17 +82,18 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
                 tick_labels.append(ll)
 
     for xx in tick_x:
-        plt.axvline(xx)
+        ax.axvline(xx)
 
     if fermi_energy is not None:
-        plt.axhline(fermi_energy - zero, linestyle="--")
+        ax.axhline(fermi_energy - zero, linestyle="--")
 
-    plt.xticks(ticks=tick_x, labels=tick_labels)
+    ax.set_xticks(ticks=tick_x, labels=tick_labels)
 
-    if show:
-        plt.show()
+    return ax
 
 
+@requires_optional_package("matplotlib")
+@requires_optional_package("ase")
 def plot_molecule(molecule, figsize=None, ax=None, keep_axis: bool = False, **kwargs):
     """Show a molecule in a Jupyter notebook"""
     import matplotlib.pyplot as plt
@@ -96,16 +103,15 @@ def plot_molecule(molecule, figsize=None, ax=None, keep_axis: bool = False, **kw
     if isinstance(molecule, Molecule):
         molecule = toASE(molecule)
 
-    if not ax:
-        plt.figure(figsize=figsize or (2, 2))
+    if ax is None:
+        _, ax = plt.subplots(figsize=figsize or (2, 2))
 
     plot_atoms(molecule, ax=ax, **kwargs)
 
     if not keep_axis:
-        if ax:
-            ax.axis("off")
-        else:
-            plt.axis("off")
+        ax.axis("off")
+
+    return ax
 
 
 def get_correlation_xy(
@@ -151,6 +157,7 @@ def get_correlation_xy(
     return np.array(data1), np.array(data2)
 
 
+@requires_optional_package("matplotlib")
 def plot_correlation(
     job1: Union[AMSJob, List[AMSJob]],
     job2: Union[AMSJob, List[AMSJob]],
@@ -277,7 +284,10 @@ def plot_correlation(
 
     linear_fit_title = None
     if show_linear_fit:
-        from scipy.stats import linregress
+        try:
+            from scipy.stats import linregress
+        except ImportError:
+            raise MissingOptionalPackageError("scipy")
 
         result = linregress(data1, data2)
         min_max_linear_fit = result.slope * min_max + result.intercept
@@ -321,6 +331,7 @@ def plot_correlation(
     return ax
 
 
+@requires_optional_package("matplotlib")
 def plot_msd(job, start_time_fit_fs=None, ax=None):
     """
     job: AMSMSDJob
@@ -353,6 +364,7 @@ def plot_msd(job, start_time_fit_fs=None, ax=None):
     return ax
 
 
+@requires_optional_package("matplotlib")
 def plot_work_function(
     coordinate: np.ndarray,
     planarAverage: np.ndarray,
@@ -361,7 +373,7 @@ def plot_work_function(
     Vbulk: float,
     Vvacuum: Tuple[float, float],
     WF: Tuple[float, float],
-    show: bool = False,
+    ax=None,
 ):
     """
     Plots an Electrostatic Potential Profile from AMS-QE with matplotlib.
@@ -390,12 +402,18 @@ def plot_work_function(
     ``WF``: Tuple[float,float].
         Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
 
-    ``show``: bool
-        If True, call plt.show() at the end.
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+
+    Returns: matplotlib axis
     """
     import matplotlib.pyplot as plt
 
-    ax = plt.axes()
+    if ax is None:
+        _, ax = plt.subplots()
+
     ax.set_xlabel("Length", fontsize=13)
     ax.set_ylabel("Energy", fontsize=13)
 
@@ -405,20 +423,20 @@ def plot_work_function(
 
     ax.plot(coordinate, planarAverage, color="red", linestyle="-.", lw=2, zorder=1)
     ax.plot(coordinate, macroscopicAverage, color="blue", linestyle="-", lw=2, zorder=2)
-    plt.text(x0 + 0.8 * (x1 - x0), y0, "Planar\nAverage", fontsize=11, color="red")
-    plt.text(x0 + 0.0 * (x1 - x0), y0, "Macroscopic\nAverage", fontsize=11, color="blue")
-    plt.axhline(y=Efermi, color="black", linestyle="dashed", linewidth=1)
-    plt.text(x0 + 0.05 * (x1 - x0), Efermi + 0.1, "E. Fermi", fontsize=11, color="black")
-    plt.axhline(y=Vbulk, color="black", linestyle="dashed", linewidth=1)
-    plt.text(x0 + 0.05 * (x1 - x0), Vbulk + 0.1, "Pot. bulk", fontsize=11, color="black")
+    ax.text(x0 + 0.8 * (x1 - x0), y0, "Planar\nAverage", fontsize=11, color="red")
+    ax.text(x0 + 0.0 * (x1 - x0), y0, "Macroscopic\nAverage", fontsize=11, color="blue")
+    ax.axhline(y=Efermi, color="black", linestyle="dashed", linewidth=1)
+    ax.text(x0 + 0.05 * (x1 - x0), Efermi + 0.1, "E. Fermi", fontsize=11, color="black")
+    ax.axhline(y=Vbulk, color="black", linestyle="dashed", linewidth=1)
+    ax.text(x0 + 0.05 * (x1 - x0), Vbulk + 0.1, "Pot. bulk", fontsize=11, color="black")
 
     # If the material is symmetric:
     if abs(Vvacuum[0] - Vvacuum[1]) < 1e-3 or abs(Vvacuum[0] - Vvacuum[1]) < 1e-3:
-        plt.axhline(y=Vvacuum[0], color="black", linestyle="dashed", linewidth=1)
-        plt.text(min(coordinate), Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+        ax.axhline(y=Vvacuum[0], color="black", linestyle="dashed", linewidth=1)
+        ax.text(min(coordinate), Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
 
         head_length = 0.4
-        plt.arrow(
+        ax.arrow(
             x0 + 1.0 * (x1 - x0),
             Efermi,
             0.0,
@@ -428,7 +446,7 @@ def plot_work_function(
             fc="black",
             ec="black",
         )
-        plt.text(
+        ax.text(
             x0 + 0.98 * (x1 - x0),
             (Vvacuum[1] + Efermi) / 2,
             "WF=" + "%.1f" % WF[1] + " eV",
@@ -439,14 +457,14 @@ def plot_work_function(
 
     # Otherwise:
     else:
-        plt.plot([x0, x0 + 0.3 * (x1 - x0)], [Vvacuum[0], Vvacuum[0]], color="black", linestyle="dashed", linewidth=1)
-        plt.text(x0, Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+        ax.plot([x0, x0 + 0.3 * (x1 - x0)], [Vvacuum[0], Vvacuum[0]], color="black", linestyle="dashed", linewidth=1)
+        ax.text(x0, Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
 
-        plt.plot([x1, x1 - 0.3 * (x1 - x0)], [Vvacuum[1], Vvacuum[1]], color="black", linestyle="dashed", linewidth=1)
-        plt.text(x1 - 0.3 * (x1 - x0), Vvacuum[1] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+        ax.plot([x1, x1 - 0.3 * (x1 - x0)], [Vvacuum[1], Vvacuum[1]], color="black", linestyle="dashed", linewidth=1)
+        ax.text(x1 - 0.3 * (x1 - x0), Vvacuum[1] + 0.1, "Pot. vacuum", fontsize=11, color="black")
 
         head_length = 0.4
-        plt.arrow(
+        ax.arrow(
             x0 + 0.0 * (x1 - x0),
             Efermi,
             0.0,
@@ -456,10 +474,10 @@ def plot_work_function(
             fc="black",
             ec="black",
         )
-        plt.text(
+        ax.text(
             x0 + 0.02 * (x1 - x0), (Vvacuum[0] + Efermi) / 2, "WF=" + "%.1f" % WF[0] + " eV", fontsize=11, color="black"
         )
-        plt.arrow(
+        ax.arrow(
             x0 + 1.0 * (x1 - x0),
             Efermi,
             0.0,
@@ -469,7 +487,7 @@ def plot_work_function(
             fc="black",
             ec="black",
         )
-        plt.text(
+        ax.text(
             x0 + 0.98 * (x1 - x0),
             (Vvacuum[1] + Efermi) / 2,
             "WF=" + "%.1f" % WF[1] + " eV",
@@ -478,5 +496,4 @@ def plot_work_function(
             horizontalalignment="right",
         )
 
-    if show:
-        plt.show()
+    return ax

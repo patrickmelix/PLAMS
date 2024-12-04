@@ -11,7 +11,6 @@ import threading
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.core.settings import Settings
 from scm.plams.mol.molecule import Atom, Molecule
-from scm.plams.tools.units import Units
 from scm.plams.unit_tests.test_helpers import skip_if_no_scm_pisa, skip_if_no_scm_libbase
 
 
@@ -82,8 +81,8 @@ EndEngine
 
         # When get molecule from job
         # Then job molecule is a deep copy
-        assert not job.molecule == job_input.molecule
-        assert not job.molecule.atoms == job_input.molecule.atoms
+        assert job.molecule is not job_input.molecule
+        assert job.molecule.atoms is not job_input.molecule.atoms
 
     def test_pickle_dumps_and_loads_job_successfully(self, job_input):
         # Given job with molecule and settings
@@ -356,10 +355,10 @@ EndEngine
 
         # When get molecule from job
         # Then job molecule is a deep copy
-        assert not job.molecule == job_input.molecule
+        assert job.molecule is not job_input.molecule
         for name, mol in job.molecule.items():
-            assert not mol == job_input.molecule[name]
-            assert not mol.atoms == job_input.molecule[name].atoms
+            assert mol is not job_input.molecule[name]
+            assert mol.atoms is not job_input.molecule[name].atoms
 
 
 class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
@@ -381,7 +380,7 @@ class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
         main_molecule.add_atom("N", coords=(1, 0, 0), unit="A")
         main_molecule.add_atom("H", coords=(2, 0, 0), unit="A")
         final_molecule = main_molecule.copy()
-        final_molecule.atoms[2].coords[0] = Units.convert(-1, "A", "au")
+        final_molecule.atoms[2].coords[0] = -1
         molecule = {"": main_molecule, "final": final_molecule}
 
         return molecule
@@ -425,47 +424,142 @@ EndEngine
         pytest.skip("Cannot pickle ChemicalSystem")
 
 
+class TestAMSJobWithChainOfMolecules(TestAMSJob):
+    """
+    Test suite for AMSJob with a chain of water molecules.
+    """
+
+    @staticmethod
+    def get_input_molecule():
+        """
+        Get instance of the Molecule class passed to the AMSJob
+        """
+        mol = TestAMSJob.get_input_molecule()
+        mol.lattice = [[3, 0, 0]]
+        return mol.supercell(4)
+
+    @staticmethod
+    def get_input_settings():
+        """
+        Instance of the Settings class passed to the AMSJob
+        """
+        settings = Settings()
+        settings.input.Mopac.SCF.ConvergenceThreshold = 1.0e-8
+        settings.input.Mopac.model = "pm6"
+        settings.input.AMS.Task = "SinglePoint"
+        settings.input.AMS.Properties.Gradients = "Yes"
+        settings.input.AMS.NumericalDifferentiation.Parallel.nCoresPerGroup = 1
+        settings.input.AMS.NumericalDifferentiation.NuclearStepSize = 0.0001
+        settings.input.AMS.EngineDebugging.IgnoreGradientsRequest = "No"
+        settings.input.AMS.System.ElectrostaticEmbedding.ElectricField = "0.0 0.0 0.0"
+        settings.input.AMS.Task = "SinglePoint"
+        settings.input.AMS.Properties.Gradients = "Yes"
+        settings.input.AMS.NumericalDifferentiation.Parallel.nCoresPerGroup = 1
+        settings.input.AMS.NumericalDifferentiation.NuclearStepSize = 0.0001
+        return settings
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """EngineDebugging
+  IgnoreGradientsRequest No
+End
+
+NumericalDifferentiation
+  NuclearStepSize 0.0001
+  Parallel
+    nCoresPerGroup 1
+  End
+End
+
+Properties
+  Gradients Yes
+End
+
+System
+  Atoms
+              O       0.0000000000       0.0000000000       0.0000000000
+              H       1.0000000000       0.0000000000       0.0000000000
+              H       0.0000000000       1.0000000000       0.0000000000
+              O       3.0000000000       0.0000000000       0.0000000000
+              H       4.0000000000       0.0000000000       0.0000000000
+              H       3.0000000000       1.0000000000       0.0000000000
+              O       6.0000000000       0.0000000000       0.0000000000
+              H       7.0000000000       0.0000000000       0.0000000000
+              H       6.0000000000       1.0000000000       0.0000000000
+              O       9.0000000000       0.0000000000       0.0000000000
+              H      10.0000000000       0.0000000000       0.0000000000
+              H       9.0000000000       1.0000000000       0.0000000000
+  End
+  ElectrostaticEmbedding
+    ElectricField 0.0 0.0 0.0
+  End
+  Lattice
+        12.0000000000     0.0000000000     0.0000000000
+  End
+End
+
+Task SinglePoint
+
+Engine Mopac
+  SCF
+    ConvergenceThreshold 1e-08
+  End
+  model pm6
+EndEngine
+
+"""
+
+
 class TestAMSJobRun:
 
     def test_run_with_watch_forwards_ams_logs_to_stdout(self, config):
         # Patch the config and the stdout
+        from scm.plams.core.logging import get_logger
+
         with patch("scm.plams.interfaces.adfsuite.ams.config", config), patch(
             "sys.stdout", new_callable=StringIO
         ) as mock_stdout:
-            config.log.date = False
-            config.log.time = False
+            logger = get_logger("test_run_with_watch_forwards_ams_logs_to_stdout")
+            with patch("scm.plams.core.functions._logger", logger):
+                config.log.date = False
+                config.log.time = False
 
-            # Given a dummy job
-            job = AMSJob()
+                # Given a dummy job
+                job = AMSJob()
 
-            # Which writes logs to logfile periodically on background thread
-            logfile = os.path.join(config.default_jobmanager.workdir, job.name, "ams.log")
+                # Which writes logs to logfile periodically on background thread
+                logfile = os.path.join(config.default_jobmanager.workdir, job.name, "ams.log")
 
-            def write_logs():
-                for i in range(10):
-                    time.sleep(0.01)
-                    try:
-                        with open(logfile, "a") as f:
-                            f.write(f"<Oct21-2024> <09:34:54>  line {i}\n")
-                            f.flush()
-                    except FileNotFoundError:
-                        pass
+                def write_logs():
+                    for i in range(10):
+                        time.sleep(0.01)
+                        try:
+                            with open(logfile, "a") as f:
+                                f.write(f"<Oct21-2024> <09:34:54>  line {i}\n")
+                                f.flush()
+                        except FileNotFoundError:
+                            pass
 
-            background_thread = threading.Thread(target=write_logs)
+                background_thread = threading.Thread(target=write_logs)
 
-            def get_runscript() -> str:
-                background_thread.start()
-                return "sleep 1"
+                def get_runscript() -> str:
+                    background_thread.start()
+                    return "sleep 1"
 
-            job.get_runscript = get_runscript
+                job.get_runscript = get_runscript
 
-            # When run job and watching output
-            job.run(watch=True)
+                # When run job and watching output
+                job.run(watch=True)
 
-            # Then ams logs are also forwarded to the standard output
-            stdout = mock_stdout.getvalue().replace("\r\n", "\n").split("\n")
-            postrun_lines = [l for l in stdout if re.fullmatch("plamsjob: line \d", l)]
-            status_lines = [l for l in stdout if re.fullmatch("JOB plamsjob (STARTED|RUNNING|FINISHED|FAILED)", l)]
+                # Then ams logs are also forwarded to the standard output
+                stdout = mock_stdout.getvalue().replace("\r\n", "\n").split("\n")
+                postrun_lines = [l for l in stdout if re.fullmatch("plamsjob: line \d", l)]
+                status_lines = [l for l in stdout if re.fullmatch("JOB plamsjob (STARTED|RUNNING|FINISHED|FAILED)", l)]
 
-            assert len(postrun_lines) == 10
-            assert len(status_lines) == 4
+                assert len(postrun_lines) == 10
+                assert len(status_lines) == 4
+
+                logger.close()

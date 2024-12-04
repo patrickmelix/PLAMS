@@ -6,18 +6,11 @@ from os.path import join as opj
 from typing import List, Optional, Union
 
 from scm.plams.core.basejob import SingleJob
-from scm.plams.core.errors import FileError, JobError, ResultsError
+from scm.plams.core.errors import FileError, JobError, MissingOptionalPackageError
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.crs import CRSResults
+from scm.plams.interfaces.molecule.rdkit import from_smiles
 from scm.plams.mol.molecule import Molecule
-
-try:
-    from scm.plams.interfaces.molecule.rdkit import from_smiles
-    from rdkit.Chem import MolToSmiles, RemoveHs
-
-    RDKIT_EX = None
-except (ImportError, SystemError) as ex:
-    RDKIT_EX = ex
 
 __all__ = ["UnifacJob", "UnifacResults"]
 
@@ -30,10 +23,6 @@ class UnifacResults(CRSResults):
 
         Molecules are extracted from the SMILES string(s) in the .run file.
         """
-        if RDKIT_EX is not None:
-            err = f"SMILES to Molecule conversion requires the 'rdkit' package: {RDKIT_EX}"
-            raise ResultsError(err).with_traceback(RDKIT_EX.__traceback__)
-
         s = self.recreate_settings()
         if isinstance(s.input.smiles, list):
             from_smiles(s.input.smiles[geometry])
@@ -160,11 +149,12 @@ class UnifacJob(SingleJob):
         super().__init__(**kwargs)
 
         # If supplied, convert self.molecule into a SMILES string
-        if self.molecule and RDKIT_EX is not None:
-            err = f"Molecule to SMILES conversion requires the 'rdkit' package: {RDKIT_EX}"
-            raise JobError(err).with_traceback(RDKIT_EX.__traceback__)
+        if self.molecule:
+            try:
+                from rdkit.Chem import MolToSmiles, RemoveHs
+            except ImportError:
+                MissingOptionalPackageError("rdkit")
 
-        elif self.molecule:
             mol_list = [self.molecule] if isinstance(self.molecule, Molecule) else self.molecule
             k1 = self.settings.input.find_case("smiles")
             k2 = self.settings.input.find_case("-smiles")

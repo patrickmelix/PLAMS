@@ -316,7 +316,7 @@ def get_graph(mol, dic, level=1):
     matrix *= identifiers.reshape((nats, 1))
 
     # Create the graph
-    graph = networkx.from_numpy_matrix(matrix)
+    graph = networkx.from_numpy_array(matrix)
 
     return graph
 

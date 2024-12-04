@@ -19,6 +19,7 @@ Getting Started
    AMSSettingsSystem/AMSSettingsSystem
    He2DissociationCurve/He2DissociationCurve
    ManyJobsInParallel/ManyJobsInParallel
+   Logging/Logging
 
 Molecule analysis
 ---------------------
@@ -149,6 +150,6 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     numgrad
     numhess
     pyAHFCDOS
-    fcf_dos
+    ADFVibronicDOS/ADFVibronicDOS.rst
     ReuseForceFieldParams
 

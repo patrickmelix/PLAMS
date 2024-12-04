@@ -7,6 +7,7 @@ from scm.plams.interfaces.molecule.ase import toASE
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.units import Units
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.trajectories.rkffile import RKFTrajectoryFile
 from scm.plams.trajectories.rkfhistoryfile import RKFHistoryFile
 
@@ -21,6 +22,7 @@ __all__ = [
 ]
 
 
+@requires_optional_package("ase")
 def traj_to_rkf(trajfile, rkftrajectoryfile, task=None, timestep: float = 0.25):
     """
     Convert ase .traj file to .rkf file. NOTE: The order of atoms (or the number of atoms) cannot change between frames!
@@ -128,6 +130,7 @@ def traj_to_rkf(trajfile, rkftrajectoryfile, task=None, timestep: float = 0.25):
     return coords, cell
 
 
+@requires_optional_package("ase")
 def file_to_traj(outfile, trajfile):
     """
     outfile : str
@@ -434,6 +437,7 @@ def gaussian_output_to_ams(outfile, wdir=None, overwrite=False, write_engine_rkf
     return wdir
 
 
+@requires_optional_package("ase")
 def rkf_to_ase_atoms(rkf_file, get_results=True):
     """
     Convert an ams.rkf trajectory to a list of ASE atoms
@@ -508,6 +512,7 @@ def rkf_to_ase_atoms(rkf_file, get_results=True):
     return all_atoms
 
 
+@requires_optional_package("ase")
 def rkf_to_ase_traj(rkf_file, out_file, get_results=True):
     """
     Convert an ams.rkf trajectory to a different trajectory format (.xyz, .traj, anything supported by ASE)

@@ -1,6 +1,6 @@
-===================================================
-Python Library for Automating Molecular Simulations
-===================================================
+==========================================================
+PLAMS: Python Library for Automating Molecular Simulations
+==========================================================
 
 .. toctree::
     :caption: Table of contents

@@ -46,7 +46,27 @@ class TrajectoryError(PlamsError):
 class MissingOptionalPackageError(PlamsError):
     """Missing optional package related error."""
 
+    extras_install = {
+        "rdkit": "chem",
+        "ase": "chem",
+        "psutil": "ams",
+        "ubjson": "ams",
+        "watchdog": "ams",
+        "scipy": "analysis",
+        "matplotlib": "analysis",
+        "pandas": "analysis",
+        "networkx": "analysis",
+        "natsort": "analysis",
+    }
+
+    ams_install = {"scm.amspipe": "$AMSHOME/scripting/scm/amspipe"}
+
     def __init__(self, package_name: str):
-        super().__init__(
-            f"The optional package '{package_name}' is required for this PLAMS functionality, but is not available. Please install and try again."
-        )
+        msg = f"The optional package '{package_name}' is required for this PLAMS functionality, but is not available. "
+        if (extras_name := self.extras_install.get(package_name, None)) is not None:
+            msg += f"It can be installed using the command: pip install 'plams[{extras_name}]'. "
+        elif (ams_path := self.ams_install.get(package_name, None)) is not None:
+            msg += f"It can be installed using the command: pip install {ams_path}. "
+        msg += "Please install and try again."
+
+        super().__init__(msg)

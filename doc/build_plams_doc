@@ -46,8 +46,8 @@ else:
 warning_file = "build_plams_doc_warn_errors.txt"
 if isinstance(command, list):
     # on windows command is a list of multiple items
-    return_code = subprocess.call(command + [source, target, "-w", warning_file])
+    return_code = subprocess.call(command + [source, target, "-W", "-w", warning_file])
 else:
-    return_code = subprocess.call([command, source, target, "-w", warning_file])
+    return_code = subprocess.call([command, source, target, "-W", "-w", warning_file])
 
 sys.exit(return_code)
