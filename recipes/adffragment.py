@@ -6,6 +6,7 @@ from scm.plams.tools.units import Units
 from scm.plams.core.errors import FileError
 from scm.plams.mol.molecule import Molecule
 
+import numpy as np
 
 from os.path import join as opj
 from os.path import abspath, isdir, basename
@@ -125,6 +126,33 @@ class ADFFragmentResults(Results):
             return tpl
         else:
             raise KeyError("NOCV eigenvalues not found in the rkf file")
+
+    def check_nocv_eigenvalues(self) -> bool:
+        """Basic NOCV check.
+        
+        The eigenvalue #i should be equal to -eigenvalue #-i.
+
+        Returns:
+            bool: True if the check passes, False otherwise.
+        """
+        def _check_list(eigenvalues):
+            for i in range(int(len(eigenvalues)/2)):
+                if not np.isclose(eigenvalues[i], -1*eigenvalues[-i-1], atol=1e-4):
+                    return False
+            return True
+        
+        NOCV_eigenvalues = self.job.full.results.get_nocv_eigenvalues()
+        # spin-restricted calculation
+        if isinstance(NOCV_eigenvalues, list):
+            return _check_list(NOCV_eigenvalues)
+        elif isinstance(NOCV_eigenvalues, tuple):
+            for eigenvalues in NOCV_eigenvalues:
+                if not _check_list(eigenvalues):
+                    return False
+            return True
+        else:
+            raise TypeError("Unexpected type for NOCV eigenvalues")
+
 
     def get_nocv_orbital_interaction(self, unit='kcal/mol'
                                      ) -> Union[List[float],
