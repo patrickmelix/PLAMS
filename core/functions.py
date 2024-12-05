@@ -43,7 +43,6 @@ config = ConfigSettings()
 # ===========================================================================
 
 _logger = get_logger("plams")
-_logger.configure(3)
 
 
 def log(message: str, level: int = 0) -> None:
@@ -56,11 +55,13 @@ def log(message: str, level: int = 0) -> None:
     Date and/or time can be added based on ``config.log.date`` and ``config.log.time``.
     All logging activity is thread safe.
     """
-    if config.init and config["default_jobmanager"] is not None:
-        logger = config.default_jobmanager.logger
+    if config.init and "log" in config:
+        logfile = config.default_jobmanager.logfile if config["default_jobmanager"] is not None else None
+        _logger.configure(config.log.stdout, config.log.file, logfile, config.log.date, config.log.time)
     else:
-        logger = _logger
-    logger.log(message, level)
+        # By default write to stdout with level 3
+        _logger.configure(3)
+    _logger.log(message, level)
 
 
 # ===========================================================================

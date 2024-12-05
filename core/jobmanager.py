@@ -11,7 +11,6 @@ from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.functions import config, get_logger, log
 from scm.plams.core.logging import Logger
 from scm.plams.core.formatters import JobCSVFormatter
-from scm.plams.core.settings import LogSettings
 
 if TYPE_CHECKING:
     from scm.plams.core.basejob import Job
@@ -53,7 +52,6 @@ class JobManager:
         path: Optional[str] = None,
         folder: Optional[str] = None,
         use_existing_folder: bool = False,
-        logger: Optional[Logger] = None,
         job_logger: Optional[Logger] = None,
     ):
 
@@ -85,28 +83,14 @@ class JobManager:
                 n += 1
 
         self.workdir = opj(self.path, self.foldername)
+        self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self.workdir, "logfile")
         self.input = opj(self.workdir, "input")
 
         if not (use_existing_folder and os.path.exists(self.workdir)):
             os.mkdir(self.workdir)
 
-        if logger is None:
-            self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self.workdir, "logfile")
-            logger = get_logger(os.path.basename(self.workdir), fmt="txt")
-            log_settings = config.log if "log" in config else LogSettings()
-            logger.configure(
-                log_settings.stdout,
-                log_settings.file,
-                self.logfile,
-                log_settings.date,
-                log_settings.time
-            )
-        else:
-            self.logfile = logger.logfile
-        self.logger = logger
-
         if job_logger is None:
-            job_logger = get_logger(f"{os.path.basename(self.workdir)}_job", fmt="csv")
+            job_logger = get_logger(os.path.basename(self.workdir), fmt="csv")
             job_logger.configure(
                 logfile_level=7,
                 logfile_path=opj(self.workdir, "job_logfile.csv"),
@@ -241,7 +225,6 @@ class JobManager:
                     if not os.listdir(fullname):
                         os.rmdir(fullname)
 
-        self.logger.close()
         self.job_logger.close()
 
         log("Job manager cleaned", 7)
