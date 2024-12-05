@@ -5,6 +5,7 @@ from datetime import datetime
 from collections import namedtuple
 import shutil
 import re
+from io import StringIO
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob
@@ -70,6 +71,9 @@ class DummySingleJob(SingleJob):
 
     def check(self) -> bool:
         return self.results.read_file(self._filename("err")) == ""
+
+    def get_errormsg(self) -> str:
+        return self.results.read_file(self._filename("err"))
 
 
 class TestSingleJob:
@@ -315,3 +319,30 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         job_manager.job_logger.close()
         shutil.rmtree(job_manager.workdir)
+
+    def test_job_errors_logged_to_stdout(self, config):
+        from scm.plams.core.logging import get_logger
+
+        logger = get_logger(f"plams-{uuid.uuid4()}")
+
+        with patch("scm.plams.core.functions._logger", logger):
+            with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+                job1 = DummySingleJob(cmd="not_a_cmd")
+                job2 = DummySingleJob(cmd="x\n" * 50)
+
+                job1.run()
+                job2.run()
+
+                assert (
+                    f"""Error message for job {job1.name} was:
+	./{job1.name}.run: line 3: not_a_cmd: command not found"""
+                    in mock_stdout.getvalue()
+                )
+
+            assert (
+                f"""
+	./{job2.name}.run: line 21: x: command not found
+	./{job2.name}.run: line 22: x: command not found
+	... (see output for full error)"""
+                in mock_stdout.getvalue()
+            )
