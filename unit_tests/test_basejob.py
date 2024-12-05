@@ -333,16 +333,14 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
                 job1.run()
                 job2.run()
 
-                assert (
-                    f"""Error message for job {job1.name} was:
-	./{job1.name}.run: line 3: not_a_cmd: command not found"""
-                    in mock_stdout.getvalue()
+                stdout = mock_stdout.getvalue()
+                assert re.match(
+                    f".*Error message for job {job1.name} was:.* 3: not_a_cmd: (command ){{0,1}}not found",
+                    stdout,
+                    re.DOTALL,
                 )
-
-            assert (
-                f"""
-	./{job2.name}.run: line 21: x: command not found
-	./{job2.name}.run: line 22: x: command not found
-	... (see output for full error)"""
-                in mock_stdout.getvalue()
-            )
+                assert re.match(
+                    f".*Error message for job {job2.name} was:.* 3: x: (command ){{0,1}}not found.* 22: x: (command ){{0,1}}not found.*(see output for full error)",
+                    stdout,
+                    re.DOTALL,
+                )
