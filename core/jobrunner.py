@@ -147,7 +147,7 @@ class JobRunner(metaclass=_MetaRunner):
                         else "Could not determine error message. Please check the output manually."
                     )
                     err_lines = err_msg.splitlines()
-                    max_lines = 20
+                    max_lines = 30
                     if len(err_lines) > max_lines:
                         err_lines = err_lines[:max_lines]
                         err_lines.append("... (see output for full error)")

@@ -570,7 +570,7 @@ class TestAMSJobRun:
         # Invalid license
         job = AMSJob()
         results = MagicMock(spec=AMSResults)
-        results.readrkf.return_value = None
+        results.readrkf.side_effect = FileError()
         results.grep_file.side_effect = FileError()
         results.get_output_chunk.return_value = [
             "LICENSE INVALID",
@@ -606,6 +606,7 @@ License file: ./license.txt"""
 
         # Error in calculation
         results.readrkf.return_value = "NORMAL TERMINATION with errors"
+        results.readrkf.side_effect = None
         results.grep_file.return_value = [
             "<Dec05-2024> <13:44:55>  ERROR: Geometry optimization failed! (Did not converge.)"
         ]

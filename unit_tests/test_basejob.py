@@ -340,7 +340,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
                     re.DOTALL,
                 )
                 assert re.match(
-                    f".*Error message for job {job2.name} was:.* 3: x: (command ){{0,1}}not found.* 22: x: (command ){{0,1}}not found.*(see output for full error)",
+                    f".*Error message for job {job2.name} was:.* 3: x: (command ){{0,1}}not found.* 32: x: (command ){{0,1}}not found.*(see output for full error)",
                     stdout,
                     re.DOTALL,
                 )
