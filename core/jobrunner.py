@@ -139,7 +139,7 @@ class JobRunner(metaclass=_MetaRunner):
             # Log job summaries
             try:
                 # Log any error messages to the standard logger
-                if not job.check():
+                if not job.ok(False) or not job.check():
                     # get_errormsg is not required by the base job class, but often implemented by convention
                     err_msg = (
                         job.get_errormsg()
