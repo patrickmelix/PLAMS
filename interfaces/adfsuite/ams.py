@@ -2522,7 +2522,7 @@ class AMSJob(SingleJob):
                         with open(self.results["$JN.err"]) as err:
                             msg = err.read().strip()
 
-                elif termination_status == "IN PROGRESS" and "$JN.err" in self.results:
+                elif "$JN.err" in self.results:
                     # If the status is still "IN PROGRESS", that probably means AMS was shut down hard from the outside.
                     # E.g. it got SIGKILL from the scheduler for exceeding some resource limit.
                     # In this case useful information may be found on stderr.
@@ -2530,7 +2530,10 @@ class AMSJob(SingleJob):
                         errlines = err.read().splitlines()
                     for el in reversed(errlines):
                         if el != "" and not el.isspace():
-                            msg = "Killed while IN PROGRESS: " + el
+                            msg = (
+                                f"Termination status: {termination_status}. Message: {el} . "
+                                f"Check the files in {self.path} for more details."
+                            )
                             break
             except:
                 pass
