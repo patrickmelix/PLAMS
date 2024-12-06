@@ -301,7 +301,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         with open(job_manager.job_logger.logfile) as f:
             assert (
                 f.readline()
-                == """asctime,job_base_name,job_name,job_status,job_parent_name,job_parent_path,job_path,job_ok,job_check,job_get_errormsg
+                == """logged_at,job_base_name,job_name,job_status,job_path,job_ok,job_check,job_get_errormsg,job_parent_name,job_parent_path
 """
             )
 

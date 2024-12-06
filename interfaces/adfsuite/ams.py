@@ -2488,41 +2488,41 @@ class AMSJob(SingleJob):
             try:
                 # Something went wrong. The first place to check is the termination status on the ams.rkf.
                 # If the AMS driver stopped with a known error (called StopIt in the Fortran code), the error will be in there.
-                # Note AMS can crash before even creating an rkf, at which point the log and stderr files are available.
+                # Status can be:
+                # - NORMAL TERMINATION with errors: find the error from the ams log file
+                # - IN PROGRESS: probably means AMS was shut down hard from the outside
+                #                e.g. it got SIGKILL from the scheduler for exceeding some resource limit
+                #                find the last error from the stderr
+                # Note AMS can crash before even creating an rkf, then can just check the output and error files.
                 try:
                     termination_status = self.results.readrkf("General", "termination status")
                 except FileError:
                     termination_status = None
 
-                if termination_status == "NORMAL TERMINATION with errors" or termination_status is None:
-                    # First look for the last error in the logfile
-                    try:
-                        log_err_lines = self.results.grep_file("ams.log", "ERROR: ")
-                        if log_err_lines:
-                            return log_err_lines[-1].partition("ERROR: ")[2]
-                    except FileError:
-                        pass
+                # First look for the last error in the logfile
+                try:
+                    log_err_lines = self.results.grep_file("ams.log", "ERROR: ")
+                    if log_err_lines:
+                        return log_err_lines[-1].partition("ERROR: ")[2]
+                except FileError:
+                    pass
 
-                    # Then for a licensing issue, check the output logs directly
-                    try:
-                        license_err_lines = self.results.get_output_chunk(
-                            begin="LICENSE INVALID",
-                            end="License file",
-                            inc_begin=True,
-                            inc_end=True,
-                            match=1,
-                        )
-                        if license_err_lines:
-                            return str.join("\n", license_err_lines)
-                    except FileError:
-                        pass
+                # Then for a licensing issue, check the output logs directly
+                try:
+                    license_err_lines = self.results.get_output_chunk(
+                        begin="LICENSE INVALID",
+                        end="License file",
+                        inc_begin=True,
+                        inc_end=True,
+                        match=1,
+                    )
+                    if license_err_lines:
+                        return str.join("\n", license_err_lines)
+                except FileError:
+                    pass
 
-                    # For any other issue fall back to the error file directly
-                    if "$JN.err" in self.results:
-                        with open(self.results["$JN.err"]) as err:
-                            msg = err.read().strip()
-
-                elif "$JN.err" in self.results:
+                # For any other issue fall back to the error file directly
+                if "$JN.err" in self.results:
                     # If the status is still "IN PROGRESS", that probably means AMS was shut down hard from the outside.
                     # E.g. it got SIGKILL from the scheduler for exceeding some resource limit.
                     # In this case useful information may be found on stderr.
