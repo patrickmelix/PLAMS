@@ -83,6 +83,7 @@ class Job(ABC):
         self.default_settings = [config.job]
         self.depend = depend or []
         self._dont_pickle: List[str] = []
+        self._error_msg: Optional[str] = None
         if settings is not None:
             if isinstance(settings, Settings):
                 self.settings = settings.copy()
@@ -186,6 +187,17 @@ class Job(ABC):
     @abstractmethod
     def check(self) -> bool:
         """Check if the execution of this instance was successful."""
+
+    def get_errormsg(self) -> Optional[str]:
+        """Tries to get an error message for a failed job. This method returns ``None`` for successful jobs."""
+        if self.check():
+            return None
+
+        return (
+            self._error_msg
+            if self._error_msg
+            else "Could not determine error message. Please check the output manually."
+        )
 
     @abstractmethod
     def hash(self) -> Optional[str]:
