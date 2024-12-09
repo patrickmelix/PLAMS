@@ -4,7 +4,7 @@ import stat
 import threading
 import time
 from os.path import join as opj
-from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union, Callable, Any
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union
 from abc import ABC, abstractmethod
 import traceback
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 __all__ = ["SingleJob", "MultiJob"]
 
 
-def _fail_on_exception(func: Callable[["Job", Any], Any]) -> Callable[["Job", Any], Any]:
+def _fail_on_exception(func):
     """Decorator to wrap a job method and mark the job as failed on any exception."""
 
     def wrapper(self: "Job", *args, **kwargs):
@@ -39,11 +39,11 @@ def _fail_on_exception(func: Callable[["Job", Any], Any]) -> Callable[["Job", An
         except:
             # Mark job status as failed and the results as complete
             self.status = JobStatus.FAILED
-            self.results.finished.set()
-            self.results.done.set()
+            self.results.finished.set()  # type: ignore
+            self.results.done.set()  # type: ignore
             # Notify any parent multi-job of the failure
-            if self.parent and self in self.parent:
-                self.parent._notify()
+            if self.parent and self in self.parent:  # type: ignore
+                self.parent._notify()  # type: ignore
             # Store the exception message to be accessed from get_errormsg
             self._error_msg = traceback.format_exc()
 

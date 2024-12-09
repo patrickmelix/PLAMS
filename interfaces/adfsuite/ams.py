@@ -1802,8 +1802,8 @@ class AMSResults(Results):
 
         start_step, end_step, every, _ = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, None)
         nEntries = self.readrkf("History", "nEntries")
-        coords = np.array(self.get_history_property("Coords")).reshape(nEntries, -1, 3)
-        coords = coords[start_step:end_step:every]
+        history_coords = np.array(self.get_history_property("Coords")).reshape(nEntries, -1, 3)
+        coords = history_coords[start_step:end_step:every]
         nEntries = len(coords)
 
         axis2index = {"x": 0, "y": 1, "z": 2}
@@ -2507,7 +2507,7 @@ class AMSJob(SingleJob):
                 try:
                     log_err_lines = self.results.grep_file("ams.log", "ERROR: ")
                     if log_err_lines:
-                        self._error_msg = log_err_lines[-1].partition("ERROR: ")[2]
+                        self._error_msg: Optional[str] = log_err_lines[-1].partition("ERROR: ")[2]
                         return self._error_msg
                 except FileError:
                     pass
