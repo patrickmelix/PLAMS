@@ -5,6 +5,7 @@ import threading
 import time
 from os.path import join as opj
 from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union
+from abc import ABC, abstractmethod
 
 from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 __all__ = ["SingleJob", "MultiJob"]
 
 
-class Job:
+class Job(ABC):
     """General abstract class for all kind of computational tasks.
 
     Methods common for all kinds of jobs are gathered here. Instances of |Job| should never be created. It should not be subclassed either. If you wish to define a new type of job please subclass either |SingleJob| or |MultiJob|.
@@ -182,13 +183,13 @@ class Job:
         self.results.wait()
         return self.status in [JobStatus.SUCCESSFUL, JobStatus.COPIED]
 
+    @abstractmethod
     def check(self) -> bool:
-        """Check if the execution of this instance was successful. Abstract method meant for internal use."""
-        raise PlamsError("Trying to run an abstract method Job.check()")
+        """Check if the execution of this instance was successful."""
 
+    @abstractmethod
     def hash(self) -> Optional[str]:
-        """Calculate the hash of this instance. Abstract method meant for internal use."""
-        raise PlamsError("Trying to run an abstract method Job.hash()")
+        """Calculate the hash of this instance."""
 
     def prerun(self) -> None:  # noqa F811
         """Actions to take before the actual job execution.
@@ -248,13 +249,13 @@ class Job:
         self._log_status(3)
         return prev is None
 
+    @abstractmethod
     def _get_ready(self) -> None:
-        """Get ready for :meth:`~Job._execute`. This is the last step before :meth:`~Job._execute` is called. Abstract method."""
-        raise PlamsError("Trying to run an abstract method Job._get_ready()")
+        """Get ready for :meth:`~Job._execute`. This is the last step before :meth:`~Job._execute` is called."""
 
+    @abstractmethod
     def _execute(self, jobrunner: "JobRunner") -> None:
-        """Execute the job. Abstract method."""
-        raise PlamsError("Trying to run an abstract method Job._execute()")
+        """Execute the job."""
 
     def _finalize(self) -> None:
         """Gather the results of the job execution and organize them. This method collects steps 9-12 from :ref:`job-life-cycle`. Should not be overridden."""
@@ -333,15 +334,16 @@ class SingleJob(Job):
         Job.__init__(self, **kwargs)
         self.molecule = molecule.copy() if isinstance(molecule, Molecule) else molecule
 
+    @abstractmethod
     def get_input(self) -> str:
-        """Generate the input file. Abstract method.
+        """Generate the input file.
 
         This method should return a single string with the full content of the input file. It should process information stored in the ``input`` branch of job settings and in the ``molecule`` attribute.
         """
-        raise PlamsError("Trying to run an abstract method SingleJob._get_input()")
 
+    @abstractmethod
     def get_runscript(self) -> str:
-        """Generate the runscript. Abstract method.
+        """Generate the runscript.
 
         This method should return a single string with the runscript contents. It can process information stored in ``runscript`` branch of job  settings. In general the full runscript has the following form::
 
@@ -355,7 +357,6 @@ class SingleJob(Job):
 
         When overridden, this method should pay attention to ``.runscript.stdout_redirect`` key in job's ``settings``.
         """
-        raise PlamsError("Trying to run an abstract method SingleJob._get_runscript()")
 
     def hash_input(self) -> str:
         """Calculate SHA256 hash of the input file."""
