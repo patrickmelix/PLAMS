@@ -4,8 +4,9 @@ import stat
 import threading
 import time
 from os.path import join as opj
-from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union, Callable, Any
 from abc import ABC, abstractmethod
+import traceback
 
 from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
@@ -27,6 +28,26 @@ if TYPE_CHECKING:
     from scm.plams.core.jobrunner import JobRunner
 
 __all__ = ["SingleJob", "MultiJob"]
+
+
+def _fail_on_exception(func: Callable[["Job", Any], Any]) -> Callable[["Job", Any], Any]:
+    """Decorator to wrap a job method and mark the job as failed on any exception."""
+
+    def wrapper(self: "Job", *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except:
+            # Mark job status as failed and the results as complete
+            self.status = JobStatus.FAILED
+            self.results.finished.set()
+            self.results.done.set()
+            # Notify any parent multi-job of the failure
+            if self.parent and self in self.parent:
+                self.parent._notify()
+            # Store the exception message to be accessed from get_errormsg
+            self._error_msg = traceback.format_exc()
+
+    return wrapper
 
 
 class Job(ABC):
@@ -130,6 +151,7 @@ class Job(ABC):
         """
         if self.status != JobStatus.CREATED:
             raise JobError("Trying to run previously started job {}".format(self.name))
+        self._error_msg = None
         self.status = JobStatus.STARTED
         self._log_status(1)
 
@@ -217,6 +239,7 @@ class Job(ABC):
 
     # =======================================================================
 
+    @_fail_on_exception
     def _prepare(self, jobmanager: "JobManager") -> bool:
         """Prepare the job for execution. This method collects steps 1-7 from :ref:`job-life-cycle`. Should not be overridden. Returned value indicates if job execution should continue (|RPM| did not find this job as previously run)."""
 
@@ -269,6 +292,7 @@ class Job(ABC):
     def _execute(self, jobrunner: "JobRunner") -> None:
         """Execute the job."""
 
+    @_fail_on_exception
     def _finalize(self) -> None:
         """Gather the results of the job execution and organize them. This method collects steps 9-12 from :ref:`job-life-cycle`. Should not be overridden."""
         log("Starting {}._finalize()".format(self.name), 7)
@@ -446,6 +470,7 @@ class SingleJob(Job):
 
         os.chmod(runfile, os.stat(runfile).st_mode | stat.S_IEXEC)
 
+    @_fail_on_exception
     def _execute(self, jobrunner) -> None:
         """Execute previously created runscript using *jobrunner*.
 
@@ -674,6 +699,7 @@ class MultiJob(Job):
         with self._lock:
             self._active_children -= 1
 
+    @_fail_on_exception
     def _execute(self, jobrunner: "JobRunner") -> None:
         """Run all children from ``children``. Then use :meth:`~MultiJob.new_children` and run all jobs produced by it. Repeat this procedure until :meth:`~MultiJob.new_children` returns an empty list. Wait for all started jobs to finish."""
         log("Starting {}._execute()".format(self.name), 7)
