@@ -3361,22 +3361,31 @@ class Molecule:
         from subprocess import DEVNULL, Popen
         from tempfile import NamedTemporaryFile
 
+        # Pass an input file to amsprep which contains current geometry and bonding information
         with NamedTemporaryFile(mode="w+", suffix=".in", delete=False) as f_in:
             self.writein(f_in)
             f_in.close()
+
+            # Get .xyz file from amsprep containing the geometry to the same precision (.mol file causes rounding)
+            # And then load the bonding information from the output
             with NamedTemporaryFile(mode="w+", suffix=".xyz", delete=False) as f_out:
-                f_out.close()
-                amsprep = os.path.join(os.environ["AMSBIN"], "amsprep")
-                p = Popen(
-                    f"sh {amsprep} -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name}",
-                    shell=True,
-                    stdout=DEVNULL,
-                )
-                p.communicate()
-                retmol = self.__class__(f_out.name)
-                if any(self.bonds):
-                    retmol.guess_bonds()
-                os.remove(f_out.name)
+                with NamedTemporaryFile(mode="w+", suffix=".out", delete=False) as f_out_bonds:
+                    f_out.close()
+                    f_out_bonds.close()
+                    amsprep = os.path.join(os.environ["AMSBIN"], "amsprep")
+                    p = Popen(
+                        f"sh {amsprep} -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name} -bondsonly > {f_out_bonds.name}",
+                        shell=True,
+                        stdout=DEVNULL,
+                    )
+                    p.communicate()
+                    retmol = self.__class__(f_out.name)
+                    with open(f_out_bonds.name) as bonds_file:
+                        for line in bonds_file:
+                            _, i, j, bo = line.split()
+                            retmol.add_bond(retmol[int(i)], retmol[int(j)], float(bo))
+                    os.remove(f_out.name)
+                    os.remove(f_out_bonds.name)
             os.remove(f_in.name)
         return retmol
 

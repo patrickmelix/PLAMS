@@ -628,6 +628,7 @@ class TestBenzene(MoleculeTestBase):
 
         mol2.delete_atoms([at for at in mol2 if at.symbol == "H"])
         mol2 = mol2.add_hatoms()
+        assert len(mol2.bonds) == len(mol.bonds) == 12
         assert mol.label(4) == mol2.label(4)
 
 
