@@ -1802,8 +1802,8 @@ class AMSResults(Results):
 
         start_step, end_step, every, _ = self._get_integer_start_end_every_max(start_fs, end_fs, every_fs, None)
         nEntries = self.readrkf("History", "nEntries")
-        coords = np.array(self.get_history_property("Coords")).reshape(nEntries, -1, 3)
-        coords = coords[start_step:end_step:every]
+        history_coords = np.array(self.get_history_property("Coords")).reshape(nEntries, -1, 3)
+        coords = history_coords[start_step:end_step:every]
         nEntries = len(coords)
 
         axis2index = {"x": 0, "y": 1, "z": 2}
@@ -2483,10 +2483,14 @@ class AMSJob(SingleJob):
         if self.check():
             return None
         else:
+            # Check if there is an error captured during the job process, or a previously cached error
+            if self._error_msg:
+                return self._error_msg
+
             default_msg = "Could not determine error message. Please check the output manually."
             msg = None
             try:
-                # Something went wrong. The first place to check is the termination status on the ams.rkf.
+                # If not, the first place to check is the termination status on the ams.rkf.
                 # If the AMS driver stopped with a known error (called StopIt in the Fortran code), the error will be in there.
                 # Status can be:
                 # - NORMAL TERMINATION with errors: find the error from the ams log file
@@ -2503,7 +2507,8 @@ class AMSJob(SingleJob):
                 try:
                     log_err_lines = self.results.grep_file("ams.log", "ERROR: ")
                     if log_err_lines:
-                        return log_err_lines[-1].partition("ERROR: ")[2]
+                        self._error_msg: Optional[str] = log_err_lines[-1].partition("ERROR: ")[2]
+                        return self._error_msg
                 except FileError:
                     pass
 
@@ -2517,7 +2522,8 @@ class AMSJob(SingleJob):
                         match=1,
                     )
                     if license_err_lines:
-                        return str.join("\n", license_err_lines)
+                        self._error_msg = str.join("\n", license_err_lines)
+                        return self._error_msg
                 except FileError:
                     pass
 
@@ -2537,7 +2543,11 @@ class AMSJob(SingleJob):
                             break
             except:
                 pass
-            return msg if msg else default_msg
+
+            # Cache error message if called again
+            self._error_msg = msg if msg else default_msg
+
+            return self._error_msg
 
     def hash_input(self) -> str:
         """Calculate the hash of the input file.

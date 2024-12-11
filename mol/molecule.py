@@ -1487,7 +1487,7 @@ class Molecule:
 
         return ret
 
-    def get_complete_molecules_within_threshold(self, atom_indices, threshold: float):
+    def get_complete_molecules_within_threshold(self, atom_indices: List[int], threshold: float):
         """
         Returns a new molecule containing complete submolecules for any molecules
         that are closer than ``threshold`` to any of the atoms in ``atom_indices``.
@@ -1509,7 +1509,7 @@ class Molecule:
         D = distance_array(solvated_coords, solvated_coords)[zero_based_indices]
         less_equal = np.less_equal(D, threshold)
         within_threshold = np.any(less_equal, axis=0)
-        good_indices = [i for i, value in enumerate(within_threshold) if value]
+        good_indices = [i for i, value in enumerate(within_threshold) if value]  # type: ignore
 
         complete_indices: Set[int] = set()
         for indlist in molecule_indices:

@@ -38,15 +38,8 @@ class JobCSVFormatter(CSVFormatter):
 
             if job.status not in [JobStatus.REGISTERED, JobStatus.RUNNING]:
                 message.update({"job_ok": job.ok()})
-                try:
-                    message.update({"job_check": job.check()})
-                except TypeError:
-                    pass
-                try:
-                    # this one it is not supported by the Job class but on many jobs they have it implemented
-                    message.update({"job_get_errormsg": job.get_errormsg()})
-                except (AttributeError, TypeError):
-                    pass
+                message.update({"job_check": job.check()})
+                message.update({"job_get_errormsg": job.get_errormsg()})
 
         if job.parent:
             message["job_parent_name"] = job.parent.name

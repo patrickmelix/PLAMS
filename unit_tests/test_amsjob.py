@@ -569,6 +569,7 @@ class TestAMSJobRun:
 
         # Invalid license
         job = AMSJob()
+        job._error_msg = None
         results = MagicMock(spec=AMSResults)
         results.readrkf.side_effect = FileError()
         results.grep_file.side_effect = FileError()
@@ -595,6 +596,7 @@ License file: ./license.txt"""
         )
 
         # Invalid input
+        job._error_msg = None
         results.grep_file.side_effect = None
         results.grep_file.return_value = [
             '<Dec05-2024> <12:03:49>  ERROR: Input error: value "foo" found in line 13 for multiple choice key "Task" is not an allowed choice'
@@ -605,9 +607,14 @@ License file: ./license.txt"""
         )
 
         # Error in calculation
+        job._error_msg = None
         results.readrkf.return_value = "NORMAL TERMINATION with errors"
         results.readrkf.side_effect = None
         results.grep_file.return_value = [
             "<Dec05-2024> <13:44:55>  ERROR: Geometry optimization failed! (Did not converge.)"
         ]
         assert job.get_errormsg() == "Geometry optimization failed! (Did not converge.)"
+
+        # Error in prerun
+        job._error_msg = "RuntimeError: something went wrong"
+        assert job.get_errormsg() == "RuntimeError: something went wrong"
