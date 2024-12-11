@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Uni
 from abc import ABC, abstractmethod
 import traceback
 
-from scm.plams.core.enums import JobStatus
+from scm.plams.core.enums import JobStatus, JobStatusType
 from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.private import sha256
@@ -124,14 +124,14 @@ class Job(ABC):
     # =======================================================================
 
     @property
-    def status(self) -> JobStatus:
+    def status(self) -> JobStatusType:
         """
         Current status of the job
         """
         return self._status
 
     @status.setter
-    def status(self, value: JobStatus) -> None:
+    def status(self, value: JobStatusType) -> None:
         # This setter should really be private i.e. internally should use self._status
         # But for backwards compatibility it is exposed and set by e.g. the JobManager
         self._status = value
