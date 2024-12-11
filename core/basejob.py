@@ -36,7 +36,7 @@ def _fail_on_exception(func):
     def wrapper(self: "Job", *args, **kwargs):
         try:
             return func(self, *args, **kwargs)
-        except:
+        except Exception:
             # Mark job status as failed and the results as complete
             self.status = JobStatus.FAILED
             self.results.finished.set()  # type: ignore
