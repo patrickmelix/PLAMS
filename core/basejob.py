@@ -2,9 +2,10 @@ import copy
 import os
 import stat
 import threading
+import datetime
 import time
 from os.path import join as opj
-from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union, Tuple
 from abc import ABC, abstractmethod
 import traceback
 
@@ -94,6 +95,7 @@ class Job(ABC):
     ):
         if os.path.sep in name:
             raise PlamsError("Job name cannot contain {}".format(os.path.sep))
+        self._status_log: List[Tuple[datetime.datetime, str]] = []
         self.status = JobStatus.CREATED
         self.results = self.__class__._result_type(self)
         self.name = name
@@ -135,6 +137,15 @@ class Job(ABC):
         # This setter should really be private i.e. internally should use self._status
         # But for backwards compatibility it is exposed and set by e.g. the JobManager
         self._status = value
+        self._status_log.append((datetime.datetime.now(), str(value)))
+
+    @property
+    def status_log(self) -> List[Tuple[datetime.datetime, str]]:
+        """
+        Log of the status changes of the job, in chronological order.
+        Each entry in the list consists of a timestamp and the set status.
+        """
+        return self._status_log
 
     def run(
         self, jobrunner: Optional["JobRunner"] = None, jobmanager: Optional["JobManager"] = None, **kwargs

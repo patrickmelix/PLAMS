@@ -29,6 +29,7 @@ class JobCSVFormatter(CSVFormatter):
             "job_ok": "",
             "job_check": "",
             "job_get_errormsg": "",
+            "job_timeline": str.join(" -> ", [f"{dt.strftime('%Y-%m-%d %H:%M:%S')} {s}" for dt, s in job.status_log]),
             "job_parent_name": "",
             "job_parent_path": "",
         }
