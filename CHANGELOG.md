@@ -16,6 +16,7 @@ This changelog is effective from the 2025 releases.
 * `AMSJob` can accept an AMS `ChemicalSystem` instead of a PLAMS `Molecule` as an input system
 * Specific `ConfigSettings` and related settings classes with explicitly defined fields
 * Support for work functions: `AMSResults.get_work_function_results` and `plot_work_function`
+* New `packmol_around` function for packing in non-orthorhombic boxes.
 * Example on `MoleculeFormats`
 * Script `generate_example.sh` to generate documentation pages from notebook examples
 * GitHub workflows for CI and publishing to PyPI

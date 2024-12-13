@@ -13,6 +13,7 @@ from scm.plams.tools.units import Units
 from scm.plams.interfaces.molecule.rdkit import readpdb, writepdb
 from scm.plams.core.functions import requires_optional_package, log
 from scm.plams.core.settings import Settings
+from scm.plams.core.jobmanager import JobManager
 
 if TYPE_CHECKING:
     try:
@@ -816,24 +817,27 @@ def _run_uff_md(
         s.input.ams.MolecularDynamics.Deformation.TargetLattice._1 = target_lattice_str
 
     previous_config = config.copy()
-    config.job.pickle = False
-    config.log.stdout = 0
-    # TODO: fix this so that it doesn't leave plams_workdir on disk if it is created
-    job = AMSJob(settings=s, molecule=md_ucs, name="shakemd")
-    job.run()
-    job.results.wait()
-    config.job.pickle = previous_config.job.pickle
-    config.log.stdout = previous_config.log.stdout
-    if not job.ok():
-        raise PackMolError(
-            f"Try a lower density or a less skewed cell! Original file in {job.path} . "
-            + str(job.results.get_errormsg())
-        )
-    my_packed = job.results.get_main_system()
-    if not keepjob:
-        delete_job(job)
+    try:
+        config.job.pickle = False
+        config.log.stdout = 0
 
-    my_packed.remove_region("PACKMOL_thermostatted")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            job_manager = JobManager(config.jobmanager, path=tmp_dir)
+            job = AMSJob(settings=s, molecule=md_ucs, name="shakemd")
+            job.run(jobmanager=job_manager)
+
+            if not job.ok():
+                raise PackMolError(
+                    f"Try a lower density or a less skewed cell! Original file in {job.path} . "
+                    + str(job.results.get_errormsg())
+                )
+            my_packed = job.results.get_main_system()
+            my_packed.remove_region("PACKMOL_thermostatted")
+
+    finally:
+        config.job.pickle = previous_config.job.pickle
+        config.log.stdout = previous_config.log.stdout
+
     return my_packed
 
 
@@ -855,7 +859,7 @@ def packmol_around(
 
     For all other arguments, see the ``packmol`` function.
 
-    In the returned ``Molecule`, the system will be mapped to [0..1]. It has the same lattice has ``current``.
+    In the returned ``Molecule``, the system will be mapped to ``[0..1]``. It has the same lattice has ``current``.
     """
     from scm.libbase import (
         UnifiedChemicalSystem as ChemicalSystem,
@@ -924,16 +928,17 @@ def packmol_around(
         supercell.supercell_trafo(trafo)
         supercell.map_atoms(0)
         system_for_packing = supercell
+        tolerance = kwargs.get("tolerance", 1.5)
     else:
         # now distort the original system to the target lattice
         distorted = original_ucs.copy()
         distorted.lattice.vectors = np.diag(maxcomponents)
         distorted.set_fractional_coordinates(original_frac_coords)
         system_for_packing = distorted
+        # in general we need higher tolerance here since we may be expanding the original system,
+        # and we do not want the added molecules to enter in artificial "voids"
+        tolerance = kwargs.get("tolerance", 1.5) * 1.3  # should depend on distortion_vol_expansion_factor somehow
 
-    # in general we need higher tolerance here since we may be expanding the original system,
-    # and we do not want the added molecules to enter in artificial "voids"
-    tolerance = kwargs.get("tolerance", 1.5) * 1.3  # should depend on distortion_vol_expansion_factor somehow
     log(f"{system_for_packing_type=}", loglevel)
     log(f"{n_molecules=}, {box_bounds=}, {tolerance=}", loglevel)
     my_packed, details = packmol(
