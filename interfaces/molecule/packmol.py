@@ -780,7 +780,6 @@ def _run_uff_md(
 
     Raises: PackmolError if something goes worng.
     """
-    from scm.plams.core.functions import delete_job
     from scm.plams import config
 
     thermostatted_region = "PACKMOL_thermostatted"
