@@ -149,9 +149,7 @@ class PackMolStructure:
             """
         elif self.sphere:
             vol = self.get_volume()
-            # vol = 4*pi*r^3 /3
-            # radius = (3*vol/(4*pi))**0.33333
-            radius = (3 * vol / (4 * 3.14159)) ** 0.3333
+            radius = np.cbrt(3 * vol / (4 * np.pi))
             ret = f"""
             structure {fname}
               number {self.n_molecules}
@@ -248,7 +246,7 @@ class PackMol:
         :rtype: float
         """
         volume = self._get_complete_volume()
-        radius = (3 * volume / (4 * 3.14159)) ** 0.3333
+        radius = np.cbrt(3 * volume / (4 * np.pi))
 
         return radius
 
@@ -313,7 +311,7 @@ class PackMol:
 
 def sum_of_atomic_volumes(molecule: Molecule) -> float:
     """Returns the sum of atomic volumes (calculated using vdW radii) in angstrom^3."""
-    return (4 / 3) * 3.14159 * sum(at.radius**3 for at in molecule)
+    return (4 / 3) * np.pi * sum(at.radius**3 for at in molecule)
 
 
 def guess_density(molecules: Sequence[Molecule], coeffs: Sequence[Union[int, float]]) -> float:
@@ -340,9 +338,9 @@ def guess_density(molecules: Sequence[Molecule], coeffs: Sequence[Union[int, flo
             if PeriodicTable.get_metallic(at.symbol):
                 radius *= 0.5
             bond_volume_decrease += (
-                coeff * bond_volume_decrease_factor * min(len(at.bonds), 0.3) ** 0.3 * (4 / 3) * 3.14159 * radius**3
+                coeff * bond_volume_decrease_factor * min(len(at.bonds), 0.3) ** 0.3 * (4 / 3) * np.pi * radius**3
             )
-            sum_atomic_volumes += coeff * (4 / 3) * 3.14159 * radius**3  # ang^3
+            sum_atomic_volumes += coeff * (4 / 3) * np.pi * radius**3  # ang^3
             sum_atomic_masses += coeff * PeriodicTable.get_mass(at.symbol)
 
         estimated_volume += sum_atomic_volumes - bond_volume_decrease
@@ -655,7 +653,7 @@ def packmol(
     }
 
     if sphere:
-        details["radius"] = (volume * 3 / (4 * 3.1415926535)) ** (1 / 3.0)
+        details["radius"] = np.cbrt(volume * 3 / (4 * np.pi))
 
     if keep_atom_properties:
         for at, molecule_type_index, atom_index_in_molecule in zip(
@@ -885,12 +883,12 @@ def packmol_around(
 
     # step 2, get remaining volume
     current_atomic_volume = (
-        (4 / 3) * 3.14159 * np.sum(np.fromiter((at.element.radius for at in original_ucs), dtype=np.float32))
+        (4 / 3) * np.pi * np.sum(np.fromiter((at.element.radius for at in original_ucs), dtype=np.float32))
     )
     current_atomic_volume /= 0.74  # use packing efficiency in ccp as example to take up more volume
     remaining_volume = original_volume - current_atomic_volume
     # temporary value to call the original packmol with
-    temp_L = remaining_volume ** (1 / 3.0)
+    temp_L = np.cbrt(remaining_volume)
     box_bounds_for_remaining_volume = [0.0, 0.0, 0.0, temp_L, temp_L, temp_L]
     # it is unnecessary to actually pack the molecules, this is just used to get the "details"
     # details will contain the correct number of molecules to pack in the combined system
