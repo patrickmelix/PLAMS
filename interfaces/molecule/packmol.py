@@ -768,7 +768,6 @@ def _run_uff_md(
     nsteps: int = 1000,
     vectors=None,
     fixed_atoms: Optional[Sequence[int]] = None,
-    keepjob: bool = False,
 ) -> "ChemicalSystem":
     """
     Runs UFF MD with SHAKE all bonds, keeps ``fixed_atoms`` (0-based atom indices) fixed,
@@ -971,7 +970,6 @@ def packmol_around(
             nsteps=1500,
             vectors=original_ucs.lattice.vectors,
             fixed_atoms=list(range(len(original_ucs))),
-            keepjob=True,
         )
 
     distorted.remove_atoms(range(len(original_ucs)))
@@ -1044,7 +1042,7 @@ def packmol_on_slab(
     #       The lattice of the liquid is different ...
     liquid.lattice = slab.lattice
     # If the slab has cell-shifts for the bonds, the liquid also needs to have
-    # them. If if would not have cell-shifts, they would not be updated in the
+    # them. If would not have cell-shifts, they would not be updated in the
     # map_to_central_cell call, even though they would become significant when
     # combining with the slab that has them: minimum image convention is only
     # assumed if no bond has cell-shifts.
