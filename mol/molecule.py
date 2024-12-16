@@ -2000,11 +2000,11 @@ class Molecule:
         unit_conversion_coeff = Units.convert(1.0, "amu", unit)
         return [at.mass * unit_conversion_coeff for at in self.atoms]
 
-    def get_mass(self, unit="amu"):
+    def get_mass(self, unit="amu") -> float:
         """Return the mass of the molecule, by default in atomic mass units."""
         return sum([at.mass for at in self.atoms]) * Units.convert(1.0, "amu", unit)
 
-    def get_density(self):
+    def get_density(self) -> float:
         """Return the density in kg/m^3"""
         vol = self.unit_cell_volume(unit="angstrom") * 1e-30  # in m^3
         mass = self.get_mass(unit="kg")
