@@ -81,8 +81,11 @@ EndEngine
 
         # When get molecule from job
         # Then job molecule is a deep copy
-        assert job.molecule is not job_input.molecule
-        assert job.molecule.atoms is not job_input.molecule.atoms
+        if job_input.molecule is not None:
+            assert job.molecule is not job_input.molecule
+            assert job.molecule.atoms is not job_input.molecule.atoms
+        else:
+            assert job.molecule is None
 
     def test_pickle_dumps_and_loads_job_successfully(self, job_input):
         # Given job with molecule and settings
@@ -243,9 +246,9 @@ class TestAMSJobWithChemicalSystem(TestAMSJob):
         from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
 
         molecule = ChemicalSystem()
-        molecule.add_atom("O", coords=[0, 0, 0], unit="A")
-        molecule.add_atom("H", coords=[1, 0, 0], unit="A")
-        molecule.add_atom("H", coords=[0, 1, 0], unit="A")
+        molecule.add_atom("O", coords=[0, 0, 0])
+        molecule.add_atom("H", coords=[1, 0, 0])
+        molecule.add_atom("H", coords=[0, 1, 0])
         return molecule
 
     @staticmethod
@@ -272,9 +275,6 @@ Engine DFTB
 EndEngine
 
 """
-
-    def test_pickle_dumps_and_loads_job_successfully(self, job_input):
-        pytest.skip("Cannot pickle ChemicalSystem")
 
 
 class TestAMSJobWithMultipleMolecules(TestAMSJob):
@@ -361,6 +361,67 @@ EndEngine
             assert mol.atoms is not job_input.molecule[name].atoms
 
 
+class TestAMSJobWithMultipleMoleculesAndPisa(TestAMSJobWithMultipleMolecules):
+    """
+    Test suite for AMSJob using multiple molecules and PISA.
+    Sets up a NEB calculation for the isomerisation of HCN.
+    """
+
+    @staticmethod
+    def get_input_settings():
+        """
+        Instance of the Settings class passed to the AMSJob
+        """
+        from scm.input_classes.drivers import AMS
+        from scm.input_classes.engines import DFTB
+
+        settings = Settings()
+        driver = AMS()
+        driver.Task = "NEB"
+        driver.NEB.Images = 9
+        driver.NEB.Iterations = 100
+        driver.Engine = DFTB()
+        driver.Engine.Model = "DFTB3"
+        driver.Engine.ResourcesDir = "DFTB.org/3ob-3-1"
+        driver.Engine.DispersionCorrection = "D3-BJ"
+        settings.input = driver
+        return settings
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """NEB
+  Images 9
+  Iterations 100
+End
+Task NEB
+
+Engine DFTB
+  DispersionCorrection D3-BJ
+  Model DFTB3
+  ResourcesDir DFTB.org/3ob-3-1
+EndEngine
+
+System
+  Atoms
+              C       0.0000000000       0.0000000000       0.0000000000
+              N       1.1800000000       0.0000000000       0.0000000000
+              H       2.1960000000       0.0000000000       0.0000000000
+  End
+End
+
+System final
+  Atoms
+              C       0.0000000000       0.0000000000       0.0000000000
+              N       1.1630000000       0.0000000000       0.0000000000
+              H      -1.0780000000       0.0000000000       0.0000000000
+  End
+End
+"""
+
+
 class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
     """
     Test suite for AMSJob using multiple Chemical Systems.
@@ -376,9 +437,9 @@ class TestAMSJobWithMultipleChemicalSystems(TestAMSJobWithMultipleMolecules):
         from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
 
         main_molecule = ChemicalSystem()
-        main_molecule.add_atom("C", coords=(0, 0, 0), unit="A")
-        main_molecule.add_atom("N", coords=(1, 0, 0), unit="A")
-        main_molecule.add_atom("H", coords=(2, 0, 0), unit="A")
+        main_molecule.add_atom("C", coords=(0, 0, 0))
+        main_molecule.add_atom("N", coords=(1, 0, 0))
+        main_molecule.add_atom("H", coords=(2, 0, 0))
         final_molecule = main_molecule.copy()
         final_molecule.atoms[2].coords[0] = -1
         molecule = {"": main_molecule, "final": final_molecule}
@@ -419,9 +480,6 @@ Engine DFTB
 EndEngine
 
 """
-
-    def test_pickle_dumps_and_loads_job_successfully(self, job_input):
-        pytest.skip("Cannot pickle ChemicalSystem")
 
 
 class TestAMSJobWithChainOfMolecules(TestAMSJob):
@@ -509,6 +567,239 @@ Engine Mopac
   End
   model pm6
 EndEngine
+
+"""
+
+
+class TestAMSJobWithSystemBlockSettings(TestAMSJob):
+    """
+    Test suite for AMSJob with system block overrides/settings in the settings object.
+    Sets up MD of Lennard-Jones system.
+    """
+
+    @staticmethod
+    def get_input_molecule():
+        """
+        Get instance of the Molecule class passed to the AMSJob
+        """
+        molecule = Molecule()
+        molecule.add_atom(Atom(symbol="Ar", coords=(0, 0, 0)))
+        molecule.add_atom(Atom(symbol="Ar", coords=(1.605, 0.9266471820493496, 2.605)))
+        molecule.lattice = [[3.21, 0.0, 0.0], [1.605, 2.779941546148048, 0.0], [0.0, 0.0, 5.21]]
+        molecule.properties.charge = 42  # value to be overridden
+        return molecule
+
+    @staticmethod
+    def get_input_settings():
+        """
+        Get instance of the Settings class passed to the AMSJob
+        """
+        settings = Settings()
+        settings.input.ams.Task = "MolecularDynamics"
+        settings.input.ams.MolecularDynamics.nSteps = 200
+        settings.input.ams.MolecularDynamics.TimeStep = 5.0
+        settings.input.ams.MolecularDynamics.Thermostat.Type = "NHC"
+        settings.input.ams.MolecularDynamics.Thermostat.Temperature = 298.15
+        settings.input.ams.MolecularDynamics.Thermostat.Tau = 100
+        settings.input.ams.MolecularDynamics.Trajectory.SamplingFreq = 20
+        settings.input.ams.MolecularDynamics.InitialVelocities.Type = "random"
+        settings.input.ams.MolecularDynamics.InitialVelocities.Temperature = 200
+        settings.input.ams.System.SuperCell = "4 4 4"
+        settings.input.ams.System.PerturbCoordinates = 0.1
+        settings.input.ams.System.Charge = 0
+
+        return settings
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """\
+MolecularDynamics
+  InitialVelocities
+    Temperature 200
+    Type random
+  End
+  Thermostat
+    Tau 100
+    Temperature 298.15
+    Type NHC
+  End
+  TimeStep 5.0
+  Trajectory
+    SamplingFreq 20
+  End
+  nSteps 200
+End
+
+System
+  Atoms
+             Ar       0.0000000000       0.0000000000       0.0000000000
+             Ar       1.6050000000       0.9266471820       2.6050000000
+  End
+  Charge 0
+  Lattice
+         3.2100000000     0.0000000000     0.0000000000
+         1.6050000000     2.7799415461     0.0000000000
+         0.0000000000     0.0000000000     5.2100000000
+  End
+  PerturbCoordinates 0.1
+  SuperCell 4 4 4
+End
+
+Task MolecularDynamics
+
+"""
+
+
+class TestAMSJobWithSystemBlockSettingsAndPisa(TestAMSJobWithSystemBlockSettings):
+    """
+    Test suite for AMSJob with system block overrides/settings in the settings object and PISA.
+    Sets up MD of Lennard-Jones system.
+    """
+
+    @staticmethod
+    def get_input_molecule():
+        """
+        Get instance of the Molecule class passed to the AMSJob
+        """
+        return None
+
+    @staticmethod
+    def get_input_settings():
+        """
+        Get instance of the Settings class passed to the AMSJob
+        """
+        from scm.input_classes.drivers import AMS
+
+        settings = Settings()
+        driver = AMS()
+        driver.Task = "MolecularDynamics"
+        driver.MolecularDynamics.NSteps = 200
+        driver.MolecularDynamics.TimeStep = 5.0
+        driver.MolecularDynamics.Thermostat.Type = "NHC"
+        driver.MolecularDynamics.Thermostat.Temperature = [298.15]
+        driver.MolecularDynamics.Thermostat.Tau = 100
+        driver.MolecularDynamics.Trajectory.SamplingFreq = 20
+        driver.MolecularDynamics.InitialVelocities.Type = "random"
+        driver.MolecularDynamics.InitialVelocities.Temperature = 200
+        driver.System.Atoms = [
+            "Ar 0.0000000000       0.0000000000       0.0000000000",
+            "Ar 1.6050000000       0.9266471820       2.6050000000",
+        ]
+        driver.System.Lattice = [
+            "3.2100000000     0.0000000000     0.0000000000",
+            "1.6050000000     2.7799415461     0.0000000000",
+            "0.0000000000     0.0000000000     5.2100000000",
+        ]
+        driver.System.SuperCell = [4, 4, 4]
+        driver.System.PerturbCoordinates = 0.1
+        driver.System.Charge = 0
+        settings.input = driver
+
+        return settings
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """\
+MolecularDynamics
+  InitialVelocities
+    Temperature 200.0
+    Type Random
+  End
+  NSteps 200
+  Thermostat
+    Tau 100.0
+    Temperature 298.15
+    Type NHC
+  End
+  TimeStep 5.0
+  Trajectory
+    SamplingFreq 20
+  End
+End
+System
+  Atoms
+    Ar 0.0000000000       0.0000000000       0.0000000000
+    Ar 1.6050000000       0.9266471820       2.6050000000
+  End
+  Charge 0.0
+  Lattice
+    3.2100000000     0.0000000000     0.0000000000
+    1.6050000000     2.7799415461     0.0000000000
+    0.0000000000     0.0000000000     5.2100000000
+  End
+  PerturbCoordinates 0.1
+  SuperCell 4 4 4
+End
+Task MolecularDynamics
+"""
+
+
+class TestAMSJobWithSystemBlockSettingsAndChemicalSystem(TestAMSJobWithSystemBlockSettings):
+    """
+    Test suite for AMSJob with system block overrides/settings in the settings object and a chemical system.
+    Sets up MD of Lennard-Jones system.
+    """
+
+    @staticmethod
+    def get_input_molecule():
+        """
+        Get instance of the Molecule class passed to the AMSJob
+        """
+        skip_if_no_scm_libbase()
+        from scm.libbase import UnifiedChemicalSystem as ChemicalSystem, UnifiedLattice as Lattice
+
+        molecule = ChemicalSystem()
+        molecule.add_atom("Ar", coords=(0, 0, 0))
+        molecule.add_atom("Ar", coords=(1.605, 0.9266471820493496, 2.605))
+        molecule.lattice = Lattice([[3.21, 0.0, 0.0], [1.605, 2.779941546148048, 0.0], [0.0, 0.0, 5.21]])
+        molecule.charge = 42  # value to be overridden
+        return molecule
+
+    @staticmethod
+    def get_expected_input():
+        """
+        Get expected input file
+        """
+        return """\
+MolecularDynamics
+  InitialVelocities
+    Temperature 200
+    Type random
+  End
+  Thermostat
+    Tau 100
+    Temperature 298.15
+    Type NHC
+  End
+  TimeStep 5.0
+  Trajectory
+    SamplingFreq 20
+  End
+  nSteps 200
+End
+
+System
+  Atoms
+     Ar   0.0000000000000000  0.0000000000000000  0.0000000000000000
+     Ar   1.6050000000000000  0.9266471820493496  2.6050000000000000
+  End
+  Charge 0
+  Lattice
+     3.2100000000000000   0.0000000000000000   0.0000000000000000
+     1.6050000000000000   2.7799415461480477   0.0000000000000000
+     0.0000000000000000   0.0000000000000000   5.2100000000000000
+  End
+  PerturbCoordinates 0.1
+  SuperCell 4 4 4
+End
+
+Task MolecularDynamics
 
 """
 
