@@ -10,6 +10,7 @@ import threading
 
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.core.settings import Settings
+from scm.plams.core.errors import PlamsError
 from scm.plams.mol.molecule import Atom, Molecule
 from scm.plams.unit_tests.test_helpers import skip_if_no_scm_pisa, skip_if_no_scm_libbase
 
@@ -372,6 +373,8 @@ class TestAMSJobWithMultipleMoleculesAndPisa(TestAMSJobWithMultipleMolecules):
         """
         Instance of the Settings class passed to the AMSJob
         """
+        skip_if_no_scm_pisa()
+
         from scm.input_classes.drivers import AMS
         from scm.input_classes.engines import DFTB
 
@@ -802,6 +805,33 @@ End
 Task MolecularDynamics
 
 """
+
+
+class TestAMSJobUnhappyInputs:
+
+    def test_pisa_with_settings_system_block_and_molecule(self):
+        skip_if_no_scm_pisa()
+
+        from scm.input_classes.drivers import AMS
+        from scm.input_classes.engines import DFTB
+
+        settings = Settings()
+        driver = AMS()
+        driver.Task = "GeometryOptimization"
+        driver.Properties.NormalModes = "True"
+        driver.Engine = DFTB()
+        driver.Engine.Model = "GFN1-xTB"
+        driver.System.SuperCell = [2, 2, 2]
+        settings.input = driver
+
+        for mol in [TestAMSJob.get_input_molecule(), TestAMSJobWithMultipleMolecules.get_input_molecule()]:
+            self.verify_get_input_errors(mol, settings)
+
+    def verify_get_input_errors(self, molecule, settings):
+        job = AMSJob(molecule=molecule, settings=settings)
+
+        with pytest.raises(PlamsError):
+            job.get_input()
 
 
 class TestAMSJobRun:

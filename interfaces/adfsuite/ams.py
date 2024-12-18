@@ -2662,17 +2662,10 @@ class AMSJob(SingleJob):
             systems = self._serialize_molecule()
             for system in systems:
                 system_input = serialize("System", system, 0)
-                # merge existing system block with one serialized from the molecule
                 if hasattr(self.settings.input, "System") and self.settings.input.System.value_changed:
-                    if system["_h"]:
-                        split_line = f"System {system['_h']}\n"
-                    else:
-                        split_line = "System\n"
-                    start, end = txtinp.split(split_line)
-                    # strip duplicate 'End' from molecule system block
-                    system_input = "".join(system_input.splitlines(keepends=True)[:-1])
-                    # insert system input in proper place
-                    txtinp = start + system_input + end
+                    raise PlamsError(
+                        f"Cannot set system block in settings and provide molecule(s). Please remove either 'settings.input.{self.settings.input.name}.System' or the input molecule(s)."
+                    )
                 else:
                     txtinp += "\n" + system_input
 
