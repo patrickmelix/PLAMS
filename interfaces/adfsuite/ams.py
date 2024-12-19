@@ -2653,80 +2653,129 @@ class AMSJob(SingleJob):
                 ret += " " * indent + key + " " + str(unspec(value)) + "\n"
             return ret
 
+        def merge_system_blocks(input_settings):
+            """
+            Given a settings.input Settings object, combine the system blocks with any systems explicitly specified
+            via the input molecule. These can either be PLAMS Molecules or Chemical Systems, but in both cases
+            they are first serialised to a Settings instance, then to text.
+            """
+            ams_key = input_settings.find_case("ams")
+            system_key = input_settings[ams_key].find_case("system")
+
+            input_systems_settings = {}
+            for item in input_settings[ams_key]:
+                if item == system_key:
+                    input_system_settings = input_settings[ams_key][item]
+                    input_system_settings_list = (
+                        input_system_settings if isinstance(input_system_settings, list) else [input_system_settings]
+                    )
+                    input_systems_settings = {s._h if "_h" in s else "": s for s in input_system_settings_list}
+
+            systems_settings = {n: self._serialize_single_molecule(n, m) for n, m in systems.items()}
+
+            merged_systems = {}
+            for name in set(input_systems_settings.keys()).union(set(systems_settings.keys())):
+                input_system_settings = input_systems_settings.get(name, Settings())
+                system_settings = systems_settings.get(name, Settings())
+                merged_system_settings = input_system_settings + system_settings
+                merged_system = serialize("System", merged_system_settings, 0)
+                merged_systems[name] = merged_system
+
+            return merged_systems
+
+        if isinstance(self.molecule, Molecule) or (_has_scm_chemsys and isinstance(self.molecule, ChemicalSystem)):
+            systems = {"": self.molecule}
+        elif isinstance(self.molecule, dict):
+            systems = self.molecule
+        elif self.molecule is None:
+            systems = {}
+        else:
+            raise JobError(
+                f"Incorrect 'molecule' attribute of job {self._full_name()}. 'molecule' should be a Molecule, a UnifiedChemicalSystem, a dictionary or None, and not {type(self.molecule).__name__}"
+            )
+
         if _has_scm_pisa and isinstance(self.settings.input, DriverBlock):
             # AMS specific way of writing input files:
             #   self.settings.input is an input class that knows how to serialize itself to text input.
 
-            txtinp = self.settings.input.get_input_string()
+            # Generate initial input text
+            input_settings = self.settings.input
+            txtinp = input_settings.get_input_string()
+            has_input_systems = hasattr(input_settings, "System") and input_settings.System.value_changed
 
-            systems = self._serialize_molecule()
-            for system in systems:
-                system_input = serialize("System", system, 0)
-                if hasattr(self.settings.input, "System") and self.settings.input.System.value_changed:
-                    raise PlamsError(
-                        f"Cannot set system block in settings and provide molecule(s). Please remove either 'settings.input.{self.settings.input.name}.System' or the input molecule(s)."
-                    )
-                else:
+            # Add/update any systems using the input molecules
+            if not has_input_systems:
+                # if there are no system blocks in the input settings there is an optimisation whereby any
+                # chemical systems can be serialised straight to text
+                system_blocks = {}
+                for name, system in systems.items():
+                    if _has_scm_chemsys and isinstance(system, ChemicalSystem):
+                        system_input = str(system)
+                        if name:
+                            system_input = system_input.replace("System", f"System {name}", 1)
+                    else:
+                        system_settings = self._serialize_single_molecule(name, system)
+                        system_input = serialize("System", system_settings, 0)
+                    system_blocks[name] = system_input
                     txtinp += "\n" + system_input
+            elif systems:
+                # otherwise have to go first via serialisation to settings, merge, then serialise to text
+                # to avoid duplication replace the original text system block with the updated text
+                sys_text = str(input_settings.System)
+                sys_text_updated = ""
+                system_blocks = merge_system_blocks(input_settings.to_settings())
+                for system_block in system_blocks.values():
+                    sys_text_updated += "\n" + system_block
+                txtinp = txtinp.replace(sys_text, sys_text_updated)
 
         else:
             # Open-source PLAMS way of writing input files:
             #    self.settings.input is a Settings object that we need to serialize to text input.
 
-            fullinput = self.settings.input.copy()
+            input_settings = self.settings.input.copy()
 
-            # prepare contents of 'system' block(s)
-            more_systems = self._serialize_molecule()
-            if more_systems:
-                if "system" in fullinput.ams:
-                    # nonempty system block was already present in input.ams
-                    system = fullinput.ams.System
-                    system_list = system if isinstance(system, list) else [system]
-
-                    system_list_set = Settings({(s._h if "_h" in s else ""): s for s in system_list})
-                    more_systems_set = Settings({(s._h if "_h" in s else ""): s for s in more_systems})
-
-                    system_list_set += more_systems_set
-                    system_list = list(system_list_set.values())
-                    system = system_list[0] if len(system_list) == 1 else system_list
-                    fullinput.ams.System = system
-
-                else:
-                    fullinput.ams.System = more_systems[0] if len(more_systems) == 1 else more_systems
+            ams = input_settings.find_case("ams")
+            syst = input_settings[ams].find_case("system")
 
             txtinp = ""
-            ams = fullinput.find_case("ams")
+            has_input_systems = False
 
-            # contents of the 'ams' block (AMS input) go first
-            for item in fullinput[ams]:
-                txtinp += serialize(item, fullinput[ams][item], 0) + "\n"
+            # contents of the 'ams' block (AMS input) go first, excluding the system blocks
+            for item in self.settings.input[ams]:
+                if item == syst:
+                    has_input_systems = True
+                    continue
+                txtinp += serialize(item, input_settings[ams][item], 0) + "\n"
+
+            # then process the system blocks
+            if not has_input_systems:
+                # if there are no system blocks in the input settings there is an optimisation whereby any
+                # chemical systems can be serialised straight to text
+                system_blocks = {}
+                for name, system in systems.items():
+                    if _has_scm_chemsys and isinstance(system, ChemicalSystem):
+                        system_input = str(system) + "\n"
+                        if name:
+                            system_input = system_input.replace("System", f"System {name}", 1)
+                    else:
+                        system_settings = self._serialize_single_molecule(name, system)
+                        system_input = serialize("System", system_settings, 0)
+                    system_blocks[name] = system_input
+            else:
+                # otherwise have to go first via serialisation to settings, merge, then serialise to text
+                system_blocks = merge_system_blocks(input_settings)
+
+            for system_block in system_blocks.values():
+                txtinp += system_block
 
             # and then engines
-            for engine in fullinput:
+            for engine in input_settings:
                 if engine != ams:
-                    txtinp += serialize("Engine " + engine, fullinput[engine], 0, end="EndEngine") + "\n"
+                    txtinp += "\n" + serialize("Engine " + engine, input_settings[engine], 0, end="EndEngine") + "\n"
 
         return txtinp
 
-    def _serialize_molecule(self):
-        """Return a list of |Settings| instances containing the information about one or more |Molecule| instances stored in the ``molecule`` attribute.
-
-        Molecular charge is taken from ``molecule.properties.charge``, if present. Additional, atom-specific information to be put in ``atoms`` block after XYZ coordinates can be supplied with ``atom.properties.suffix``.
-
-        If the ``molecule`` attribute is a dictionary, the returned list is of the same length as the size of the dictionary. Keys from the dictionary are used as headers of returned ``system`` blocks.
-        """
-
-        def serialize_to_settings(name, mol):
-            if isinstance(mol, Molecule):
-                sett = serialize_molecule_to_settings(mol, name)
-            elif _has_scm_chemsys and isinstance(mol, ChemicalSystem):
-                sett = serialize_unichemsys_to_settings(mol)
-
-            if name:
-                sett._h = name
-
-            return sett
-
+    def _serialize_single_molecule(self, name: str, mol: Union[Molecule, "ChemicalSystem"]) -> Settings:
         def serialize_unichemsys_to_settings(mol):
             from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
 
@@ -2777,6 +2826,26 @@ class AMSJob(SingleJob):
 
             return sett
 
+        if isinstance(mol, Molecule):
+            sett = serialize_molecule_to_settings(mol, name)
+        elif _has_scm_chemsys and isinstance(mol, ChemicalSystem):
+            sett = serialize_unichemsys_to_settings(mol)
+        else:
+            raise PlamsError(f"Cannot serialize molecule of type {type(mol).__name__} to settings.")
+
+        if name:
+            sett._h = name
+
+        return sett
+
+    def _serialize_molecule(self):
+        """Return a list of |Settings| instances containing the information about one or more |Molecule| instances stored in the ``molecule`` attribute.
+
+        Molecular charge is taken from ``molecule.properties.charge``, if present. Additional, atom-specific information to be put in ``atoms`` block after XYZ coordinates can be supplied with ``atom.properties.suffix``.
+
+        If the ``molecule`` attribute is a dictionary, the returned list is of the same length as the size of the dictionary. Keys from the dictionary are used as headers of returned ``system`` blocks.
+        """
+
         if self.molecule is None:
             return Settings()
 
@@ -2786,12 +2855,10 @@ class AMSJob(SingleJob):
             moldict = self.molecule
         else:
             raise JobError(
-                "Incorrect 'molecule' attribute of job {}. 'molecule' should be a Molecule, a UnifiedChemicalSystem, a dictionary or None, and not {}".format(
-                    self._full_name(), type(self.molecule)
-                )
+                f"Incorrect 'molecule' attribute of job {self._full_name()}. 'molecule' should be a Molecule, a UnifiedChemicalSystem, a dictionary or None, and not {type(self.molecule).__name__}"
             )
 
-        ret = [serialize_to_settings(name, molecule) for name, molecule in moldict.items()]
+        ret = [self._serialize_single_molecule(name, molecule) for name, molecule in moldict.items()]
 
         return ret
 
