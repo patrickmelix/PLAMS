@@ -30,7 +30,16 @@ def plams_mols(xyz_folder, pdb_folder, rkf_folder):
     water_molecule_in_box.lattice = [[100, 0, 0], [0, 100, 0], [0, 0, 100]]
     benzene = Molecule(xyz_folder / "benzene.xyz")
     chlorophyl = Molecule(xyz_folder / "chlorophyl1.xyz")
+    chlorophyl.guess_bonds()
     chymotrypsin = Molecule(pdb_folder / "chymotrypsin.pdb")
+    chymotrypsin.guess_bonds()
+    o_hydroxybenzoate = Molecule(xyz_folder / "reactant2.xyz")
+    o_hydroxybenzoate.guess_bonds()
+    hydronium = from_smiles("[OH3+]")
+    # Remove the charge, so that it becomes a difficult molecule for RDKit
+    for at in hydronium.atoms:
+        if at.symbol == "O":
+            del at.properties.rdkit.charge
 
     return {
         "water": water_molecule,
@@ -39,6 +48,8 @@ def plams_mols(xyz_folder, pdb_folder, rkf_folder):
         "benzene": benzene,
         "chlorophyl": chlorophyl,
         "chymotrypsin": chymotrypsin,
+        "o_hydroxybenzoate": o_hydroxybenzoate,
+        "hydronium": hydronium,
     }
 
 
@@ -185,7 +196,19 @@ class TestRDKit:
     def test_to_rdmol_from_rdmol_roundtrip(self, plams_mols):
         from_mol = lambda mol: to_rdmol(mol)
         to_mol = lambda mol: from_rdmol(mol)
-        self.roundtrip_and_assert(plams_mols, from_mol, to_mol)
+        from_bad_mol = lambda mol: to_rdmol(mol, presanitize=True)
+
+        # These molecules throw errors when sanitized by RDKit
+        badmolnames = ["chlorophyl", "chymotrypsin", "o_hydroxybenzoate", "hydronium"]
+
+        # Most molecules do not change at all during round trip
+        molecules = {k: v for k, v in plams_mols.items() if k not in badmolnames}
+
+        # This molecule needs presanitization, meaning bond orders and charge change
+        badmols = {k: v for k, v in plams_mols.items() if k in badmolnames}
+
+        self.roundtrip_and_assert(molecules, from_mol, to_mol)
+        self.roundtrip_and_assert(badmols, from_bad_mol, to_mol, level=1)
 
     @pytest.mark.parametrize("short_smiles,ff", [(True, None), (False, None), (False, "uff"), (False, "mmff")])
     def test_to_smiles_from_smiles_roundtrip(self, plams_mols, short_smiles, ff):
@@ -197,7 +220,10 @@ class TestRDKit:
 
         # For chlorophyl we get a kekulize error...
         # For chymotrypsin we get a aromatic error...
-        err_mols = {k: v for k, v in plams_mols.items() if k in ["chlorophyl", "chymotrypsin"]}
+        # For o_hydroxybenzoate we get a kekulize error...
+        # For hydronium we get a valence error...
+        errmolnames = ["chlorophyl", "chymotrypsin", "o_hydroxybenzoate", "hydronium"]
+        err_mols = {k: v for k, v in plams_mols.items() if k in errmolnames}
 
         # Everything else should match up to bond order level
         lvl2_mols = {k: v for k, v in plams_mols.items() if k not in lvl1_mols.keys() and k not in err_mols.keys()}

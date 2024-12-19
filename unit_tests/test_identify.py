@@ -3,8 +3,6 @@ import pytest
 from scm.plams.tools.periodic_table import PT
 from scm.plams.mol.molecule import Molecule
 
-PT.set_connectors("Mg", 4)
-
 
 class TestIdentify:
     """

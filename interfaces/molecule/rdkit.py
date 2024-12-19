@@ -1,6 +1,7 @@
 from typing import List, Literal, Optional, overload, TYPE_CHECKING, Sequence, Dict, Any
 import random
 import sys
+import copy
 from warnings import warn
 
 from scm.plams.core.functions import add_to_class, log, requires_optional_package
@@ -125,6 +126,8 @@ def to_rdmol(
     :parameter bool sanitize: Kekulize, check valencies, set aromaticity, conjugation and hybridization
     :parameter bool properties: If all |Molecule|, |Atom| and |Bond| properties should be converted from PLAMS to RDKit format.
     :parameter bool assignChirality: Assign R/S and cis/trans information, insofar as this was not yet present in the PLAMS molecule.
+    :parameter bool presanitize: Iteratively adjust bonding and atomic charges, to avoid failure of sanitization.
+                                 Only relevant is sanitize is set to True.
     :type plams_mol: |Molecule|
     :return: an RDKit molecule
     :rtype: rdkit.Chem.Mol
@@ -1306,6 +1309,7 @@ def to_image(
     remove_hydrogens: bool = True,
     filename: Optional[str] = None,
     fmt: str = "svg",
+    size: Sequence[int] = (200, 100),
     as_string: bool = True,
 ):
     """
@@ -1314,12 +1318,13 @@ def to_image(
     * ``mol`` -- PLAMS Molecule object
     * ``remove_hydrogens`` -- Wether or not to remove the H-atoms from the image
     * ``filename`` -- Optional: Name of image file to be created.
-    * ``format`` -- One of "svg", "png", "eps", "pdf", "jpeg"
+    * ``fmt`` -- One of "svg", "png", "eps", "pdf", "jpeg"
+    * ``size`` -- Tuple/list containing width and height of image in pixels.
     * ``as_string`` -- Returns the image as a string or bytestring. If set to False, the original format
                        will be returned, which can be either a PIL image or SVG text
                        We do this because after converting a PIL image to a bytestring it is not possible
                        to further edit it (with our version of PIL).
-    * Returns -- SVG image text file.
+    * Returns -- Image text file / binary of image text file / PIL Image object.
     """
     from io import BytesIO
     from PIL import Image
@@ -1359,13 +1364,13 @@ def to_image(
     # Draw the image
     if classes[fmt.lower()] is None:
         # With AMS version of RDKit MolsToGridImage fails for eps (because of paste)
-        img = Draw.MolToImage(rdmol, size=(200, 100))
+        img = Draw.MolToImage(rdmol, size=size)
         buf = BytesIO()
         img.save(buf, format=fmt)
         img_text = buf.getvalue()
     else:
         # This fails for a C=C=O molecule, with AMS rdkit version
-        img = classes[fmt.lower()]([rdmol], molsPerRow=1, subImgSize=(200, 100))
+        img = classes[fmt.lower()]([rdmol], molsPerRow=1, subImgSize=size)
         img_text = img
         if isinstance(img, Image.Image):
             buf = BytesIO()
@@ -1395,6 +1400,7 @@ def get_reaction_image(
     products: Sequence[Molecule],
     filename: Optional[str] = None,
     fmt: str = "svg",
+    size: Sequence[int] = (200, 100),
     as_string: bool = True,
 ):
     """
@@ -1405,6 +1411,7 @@ def get_reaction_image(
     * ``filename`` -- Optional: Name of image file to be created.
     * ``fmt``  -- The format of the image (svg, png, eps, pdf, jpeg).
                      The extension in the filename, if provided, takes precedence.
+    * ``size`` -- Tuple/list containing width and height of image in pixels.
     * ``as_string`` -- Returns the image as a string or bytestring. If set to False, the original format
                        will be returned, which can be either a PIL image or SVG text
     *      Returns -- SVG image text file.
@@ -1428,10 +1435,12 @@ def get_reaction_image(
         raise Exception(f"Image type {fmt} not available.")
 
     # Get the actual image
+    width = size[0]
+    height = size[1]
     if fmt.lower() == "svg":
-        img_text = get_reaction_image_svg(reactants, products)
+        img_text = _get_reaction_image_svg(reactants, products, width, height)
     else:
-        img_text = get_reaction_image_pil(reactants, products, fmt, as_string=as_string)
+        img_text = _get_reaction_image_pil(reactants, products, fmt, width, height, as_string=as_string)
 
     # Write to file, if required
     if filename is not None:
@@ -1443,7 +1452,7 @@ def get_reaction_image(
     return img_text
 
 
-def get_reaction_image_svg(
+def _get_reaction_image_svg(
     reactants: Sequence[Molecule], products: Sequence[Molecule], width: int = 200, height: int = 100
 ):
     """
@@ -1518,7 +1527,7 @@ def get_reaction_image_svg(
     return img_text
 
 
-def get_reaction_image_pil(
+def _get_reaction_image_pil(
     reactants: Sequence[Molecule],
     products: Sequence[Molecule],
     fmt: str,
@@ -1667,49 +1676,25 @@ def _presanitize(mol, rdmol):
     mol = mol.copy()
     for i in range(10):
         try:
-            Chem.SanitizeMol(rdmol)
+            rdmol_test = copy.deepcopy(rdmol)
+            Chem.SanitizeMol(rdmol_test)
             stored_exc = None
             break
         except ValueError as exc:
             stored_exc = exc
             text = repr(exc)
-        bonds, charges = _kekulize(mol, text)
-        rdmol = _update_system_for_sanitation(rdmol, bonds, charges)
+        # Fix the problem
+        rdmol, bonds, charges = _kekulize(mol, rdmol, text)
+        # print ("REB bonds charges: ",bonds, charges)
+
     if stored_exc is not None:
         raise stored_exc
+    else:
+        rdmol = rdmol_test
     return rdmol
 
 
-def _update_system_for_sanitation(rdmol, altered_bonds, altered_charge):
-    """
-    Change bond orders and charges if rdkit molecule, so that sanitiation will succeed.
-    """
-    from rdkit import Chem
-
-    emol = Chem.RWMol(rdmol)
-    for (iat, jat), order in altered_bonds.items():
-        bond = emol.GetBondBetweenAtoms(iat, jat)
-        bond.SetBondType(Chem.BondType(order))
-        for ind in (iat, jat):
-            at = emol.GetAtomWithIdx(ind)
-            if not at.GetIsAromatic:
-                continue
-            # Only change this if we are sure the atom is not aromatic anymore
-            aromatic = False
-            for bond in at.GetBonds():
-                if str(bond.GetBondType()) == "AROMATIC":
-                    aromatic = True
-                    break
-            if not aromatic:
-                at.SetIsAromatic(False)
-    rdmol = emol.GetMol()
-    for iat, q in altered_charge.items():
-        atom = rdmol.GetAtomWithIdx(iat)
-        atom.SetFormalCharge(q)
-    return rdmol
-
-
-def _kekulize(mol, text):
+def _kekulize(mol, rdmol, text, use_dfs=True):
     """
     Kekulize the atoms indicated as problematic by RDKit
 
@@ -1718,15 +1703,172 @@ def _kekulize(mol, text):
 
     Note: Returns the changes in bond orders and atomic charges, that will make sanitation succeed.
     """
-    from scm.plams import PeriodicTable as PT
+    from rdkit import Chem
 
     # Find the indices of the problematic atoms
-    indices = _find_aromatic_sequence(mol, text)
+    indices = _find_aromatic_sequence(rdmol, text)
+    if indices is None:
+        return rdmol, {}, {}
 
+    # Set the bond orders along the chain to 2, 1, 2, 1,...
+    altered_bonds = {}
+    if len(indices) > 1:
+        emol = Chem.RWMol(rdmol)
+        if use_dfs:
+            # It may be better to create the tree first, and then start at a leaf
+            altered_bonds = _alter_aromatic_bonds(emol, indices[0])
+            indices = list(set([ind for tup in altered_bonds.keys() for ind in tup]))
+        else:
+            indices = _order_atom_indices(emol, indices)
+            altered_bonds = _alter_bonds_along_chain(emol, indices)
+        _adjust_atom_aromaticity(emol, altered_bonds)
+        rdmol = emol.GetMol()
+        # Adjust the PLAMS molecule as well
+        for (iat, jat), order in altered_bonds.items():
+            for bond in mol.atoms[iat].bonds:
+                if mol.index(bond.other_end(mol.atoms[iat])) - 1 == jat:
+                    bond.order = order
+                    break
+
+    # If the atom at the chain end has the wrong bond order, give it a charge.
+    altered_charge = {}
+    atom_indices, dangling_bonds = _get_charged_atoms(rdmol, indices)
+    if len(atom_indices) > 0:
+        iat = atom_indices[0]
+        ndangling = dangling_bonds[iat]
+        altered_charge = _guess_atomic_charge(iat, ndangling, rdmol, mol)
+        rdmol.GetAtomWithIdx(iat).SetFormalCharge(altered_charge[iat])
+
+    return rdmol, altered_bonds, altered_charge
+
+
+def _find_aromatic_sequence(rdmol, text):
+    """
+    Find the sequence of atoms with 1.5 bond orders
+    """
+    indices = None
+    lines = text.split("\n")
+    line = lines[-1]
+    if "Unkekulized atoms:" in line:
+        text = line.split("Unkekulized atoms:")[-1].split("\\n")[0]
+        if '"' in text:
+            text = text.split('"')[0]
+        indices = [int(w) for w in text.split()]
+        if len(indices) > 1:
+            return indices
+        line = "atom %i marked aromatic" % (indices[0])
+    iat: Any
+    if "marked aromatic" in line:
+        iat = int(line.split("atom")[-1].split()[0])
+        indices = [iat]
+        while iat is not None:
+            icurrent = iat
+            iat = None
+            for bond in rdmol.GetAtomWithIdx(icurrent).GetBonds():
+                if str(bond.GetBondType()) == "AROMATIC":
+                    iat = bond.GetOtherAtomIdx(icurrent)
+                    if iat in indices:
+                        iat = None
+                        continue
+                    indices.append(iat)
+                    break
+    elif "Explicit valence for atom" in line:
+        iat = int(line.split("#")[-1].split()[0])
+        indices = [iat]
+    return indices
+
+
+def _alter_aromatic_bonds(emol, iat, depth=0, double_first=False):
+    """
+    Switch all thearomitic bonds to single/double, starting at iat
+
+    * ``emol`` -- RDKit EditableMol type, for which bond orders will be changed
+    * ``iat``  -- Starting point for depth first search
+    """
+    from collections import OrderedDict
+    from rdkit import Chem
+    from scm.plams import PeriodicTable as PT
+
+    # Use OrderedDict, so that the leaves of the tree
+    # will be at the end
+    bonds_changed = OrderedDict()
+
+    at = emol.GetAtomWithIdx(iat)
+    valence = PT.get_connectors(at.GetAtomicNum())
+    bonds = at.GetBonds()
+    are_aromatic = [str(b.GetBondType()) == "AROMATIC" for b in bonds]
+    int_orders = sum([b.GetBondTypeAsDouble() for i, b in enumerate(bonds) if not are_aromatic[i]])
+    numbonds = len([b for i, b in enumerate(bonds) if are_aromatic[i]])
+    t = (bonds[0].GetBeginAtomIdx(), bonds[0].GetEndAtomIdx())
+    valence -= int(int_orders)
+    # Here I place the double bond first.
+    # I could also start with a single bond instead.
+    orders = [1 for i in range(numbonds)]
+    if valence > numbonds:
+        for i in range(min(numbonds, valence - numbonds)):
+            if double_first:
+                orders[i] = 2
+            else:
+                orders[numbonds - i - 1] = 2
+
+    for i, bond in enumerate(bonds):
+        jat = bond.GetOtherAtomIdx(iat)
+        if are_aromatic[i]:
+            pair = tuple(sorted([iat, jat]))
+            order = orders.pop(0)
+            bond.SetBondType(Chem.BondType(order))
+            bonds_changed[pair] = order
+            d = _alter_aromatic_bonds(emol, jat, depth + 1)
+            bonds_changed.update(d)
+    return bonds_changed
+
+
+def _alter_bonds_along_chain(emol, indices):
+    """
+    Along the chain of atoms (indices), alternate double and single bonds
+    """
+    from scm.plams import PeriodicTable as PT
+    from rdkit import Chem
+
+    if len(indices) > 1:
+        # The first bond order is set to 2, if aromic
+        # Else it is flipped
+        first_bond = emol.GetBondBetweenAtoms(indices[0], indices[1])
+        if str(first_bond.GetBondType()) == "AROMATIC":
+            new_order = 2
+        else:
+            new_order = first_bond.GetBondTypeAsDouble()
+            new_order = (new_order % 2) + 1
+        # Unless this breaks valence rules.
+        iat = indices[0]
+        at = emol.GetAtomWithIdx(iat)
+        valence = PT.get_connectors(at.GetAtomicNum())
+        orders = [b.GetBondTypeAsDouble() for b in at.GetBonds()]
+        jat = indices[1]
+        at_next = emol.GetAtomWithIdx(jat)
+        valence_next = PT.get_connectors(at_next.GetAtomicNum())
+        orders_next = [b.GetBondTypeAsDouble() for b in at_next.GetBonds()]
+        if sum(orders) > valence or sum(orders_next) > valence_next:
+            new_order = 1
+    # Set the bond orders along the chain to 2, 1, 2, 1,...
+    altered_bonds = {}
+    for i, iat in enumerate(indices[:-1]):
+        bond = emol.GetBondBetweenAtoms(iat, indices[i + 1])
+        bond.SetBondType(Chem.BondType(new_order))
+        altered_bonds[iat, indices[i + 1]] = new_order
+        new_order = ((new_order) % 2) + 1
+    return altered_bonds
+
+
+def _order_atom_indices(rdmol, indices):
+    """
+    Order the atomic indices so that they are consecutive along a bonded chain
+    """
     # Order the indices, so that they are consecutive in the molecule
     start = 0
     for i, iat in enumerate(indices):
-        neighbors = [mol.index(at) - 1 for at in mol.neighbors(mol.atoms[iat])]
+        at = rdmol.GetAtomWithIdx(iat)
+        neighbors = [b.GetOtherAtomIdx(iat) for b in at.GetBonds()]
         relevant_neighbors = [jat for jat in neighbors if jat in indices]
         if len(relevant_neighbors) == 1:
             start = i
@@ -1734,7 +1876,8 @@ def _kekulize(mol, text):
     iat = indices[start]
     atoms = [iat]
     while 1:
-        neighbors = [mol.index(at) - 1 for at in mol.neighbors(mol.atoms[iat])]
+        at = rdmol.GetAtomWithIdx(iat)
+        neighbors = [b.GetOtherAtomIdx(iat) for b in at.GetBonds()]
         relevant_neighbors = [jat for jat in neighbors if jat in indices and not jat in atoms]
         if len(relevant_neighbors) == 0:
             break
@@ -1743,109 +1886,76 @@ def _kekulize(mol, text):
     if len(atoms) < len(indices):
         raise Exception("The unkekulized atoms are not in a consecutive chain")
     indices = atoms
-
-    if len(indices) > 1:
-        # The first bond order is set to 2.
-        new_order = 2
-        shift = 0
-        # Unless this breaks valence rules.
-        iat = indices[0]
-        at = mol.atoms[iat]
-        valence = PT.get_connectors(at.atnum)
-        orders = [b.order for b in at.bonds]
-        jat = indices[1]
-        at_next = mol.atoms[jat]
-        valence_next = PT.get_connectors(at_next.atnum)
-        orders_next = [b.order for b in at_next.bonds]
-        if sum(orders) > valence or sum(orders_next) > valence_next:
-            new_order = 1
-            shift = 1
-    # Set the bond orders along the chain to 2, 1, 2, 1,...
-    altered_bonds = {}
-    for i, iat in enumerate(indices[:-1]):
-        bonds = mol.atoms[iat].bonds
-        bond = [b for b in bonds if b.other_end(mol.atoms[iat]) == mol.atoms[indices[i + 1]]][0]
-        bond.order = new_order
-        altered_bonds[((mol.index(bond.atom1) - 1, mol.index(bond.atom2) - 1))] = new_order
-        new_order = ((i + shift) % 2) + 1
-
-    # If the atom at the chain end has the wrong bond order, give it a charge.
-    for iat in indices[::-1]:
-        at = mol.atoms[iat]
-        valence = PT.get_connectors(at.atnum)
-        bonds = at.bonds
-        orders = [b.order for b in bonds]
-        charge = int(valence - sum(orders))
-        if charge != 0:
-            break
-
-    # Adjust the sign of the charge (taking already assigned atomic charges into account)
-    charges = []
-    for i, at in enumerate(mol.atoms):
-        q = 0.0
-        if "rdkit" in at.properties:
-            if "charge" in at.properties.rdkit:
-                q = at.properties.rdkit.charge
-        charges.append(q)
-    totcharge = sum(charges) - charges[iat]
-    # Assign the charge
-    altered_charge = {}
-    if charge != 0:
-        sign = charge / (abs(charge))
-        # Here I hope that the estimated charge will be more reliable than the
-        # actual (user defined) system charge, but am not sure
-        est_charges = mol.guess_atomic_charges(adjust_to_systemcharge=False, depth=0)
-        molcharge = int(sum(est_charges))
-        molcharge = molcharge - totcharge
-        if molcharge != 0:
-            sign = molcharge / (abs(molcharge))
-        elif est_charges[iat] != 0:
-            sign = est_charges[iat] / abs(est_charges[iat])
-        charge = int(sign * abs(charge))
-        # Perhaps we tried this already
-        if charge == charges[iat]:
-            charge = -charge
-        mol.atoms[iat].properties.rdkit.charge = charge
-        altered_charge[iat] = charge
-
-    return altered_bonds, altered_charge
-
-
-def _find_aromatic_sequence(mol, text):
-    """
-    Find the sequence of atoms with 1.5 bond orders
-    """
-    lines = text.split("\n")
-    line = lines[-1]
-    if "Unkekulized atoms:" in text:
-        text = line.split("Unkekulized atoms:")[-1].split("\\n")[0]
-        if '"' in text:
-            text = text.split('"')[0]
-        indices = [int(w) for w in text.split()]
-        if len(indices) > 1:
-            return indices
-        line = "atom %i marked aromatic" % (indices[0])
-        text = line
-    iat: Any
-    if "marked aromatic" in text:
-        iat = int(line.split("atom")[-1].split()[0])
-        indices = [iat]
-        while iat is not None:
-            at = mol.atoms[iat]
-            iat = None
-            for bond in at.bonds:
-                if bond.order == 1.5:
-                    nextat = bond.other_end(at)
-                    iat = mol.index(nextat) - 1
-                    if iat in indices:
-                        iat = None
-                        continue
-                    indices.append(iat)
-                    break
-    elif "Explicit valence for atom" in text:
-        iat = int(line.split("#")[-1].split()[0])
-        indices = [iat]
     return indices
+
+
+def _adjust_atom_aromaticity(emol, altered_bonds):
+    """
+    Assign aromaticity to the atoms based on the new bond orders
+    """
+    indices = list(set([ind for tup in altered_bonds.keys() for ind in tup]))
+    for ind in indices:
+        at = emol.GetAtomWithIdx(ind)
+        if not at.GetIsAromatic():
+            continue
+        # Only change this if we are sure the atom is not aromatic anymore
+        aromatic = False
+        for bond in at.GetBonds():
+            if str(bond.GetBondType()) == "AROMATIC":
+                aromatic = True
+                break
+        if not aromatic:
+            at.SetIsAromatic(False)
+
+
+def _get_charged_atoms(rdmol, indices):
+    """
+    Locate the atoms that need a charge
+    """
+    from scm.plams import PeriodicTable as PT
+
+    atom_indices = []
+    dangling_bonds = {}
+    for iat in indices[::-1]:
+        at = rdmol.GetAtomWithIdx(iat)
+        valence = PT.get_connectors(at.GetAtomicNum())
+        bonds = at.GetBonds()
+        orders = [b.GetBondTypeAsDouble() for b in bonds]
+        ndangling = int(valence - sum(orders))
+        if ndangling != 0:
+            dangling_bonds[iat] = ndangling
+            atom_indices.append(iat)
+    return atom_indices, dangling_bonds
+
+
+def _guess_atomic_charge(iat, ndangling, rdmol, mol):
+    """
+    Guess the best atomic charge for atom iat
+    """
+    # Get the total charge from atomic charges already set
+    charges = [at.GetFormalCharge() for at in rdmol.GetAtoms()]
+    totcharge = sum(charges) - charges[iat]
+
+    # Here I hope that the estimated charge will be more reliable than the
+    # actual (user defined) system charge, but am not sure
+    est_charges = mol.guess_atomic_charges(adjust_to_systemcharge=False, depth=0)
+    molcharge = int(sum(est_charges))
+    molcharge = molcharge - totcharge
+
+    # Adjust the sign based on the estimated charge
+    sign = ndangling / (abs(ndangling))
+    if molcharge != 0:
+        sign = molcharge / (abs(molcharge))
+    elif est_charges[iat] != 0:
+        sign = est_charges[iat] / abs(est_charges[iat])
+
+    # Then use the over/under valence with the new sign as the atomic charge
+    charge = int(sign * abs(ndangling))
+    # Perhaps we tried this already
+    if charge == charges[iat]:
+        charge = -charge
+    altered_charge = {iat: charge}
+    return altered_charge
 
 
 def _rdmol_for_image(mol, remove_hydrogens=True):
