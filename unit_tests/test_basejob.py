@@ -6,6 +6,7 @@ from collections import namedtuple
 import shutil
 import re
 from io import StringIO
+import csv
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob, MultiJob
@@ -357,23 +358,46 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         job2.run(jobmanager=job_manager)
         job3.run(jobmanager=job_manager)
 
-        with open(job_manager.job_logger.logfile) as f:
-            assert (
-                f.readline()
-                == """logged_at,job_base_name,job_name,job_status,job_path,job_ok,job_check,job_get_errormsg,job_parent_name,job_parent_path
-"""
-            )
+        dt_fmt = "\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"
 
-            assert (
-                re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},plamsjob,plamsjob,successful", f.readline()) is not None
-            )
-            assert (
-                re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},plamsjob,plamsjob\.002,copied", f.readline())
-                is not None
-            )
-            assert (
-                re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},plamsjob,plamsjob\.003,crashed", f.readline())
-                is not None
+        def assert_csv_entry(entry, statuses, postfix="", ok="True", check="True", error_msg=""):
+            assert re.match(dt_fmt, entry[0])
+            assert entry[1] == "plamsjob"
+            assert entry[2] == f"plamsjob{postfix}"
+            assert entry[3] == statuses[-1]
+            assert entry[4].endswith(f"plamsjob{postfix}")
+            assert entry[5] == ok
+            assert entry[6] == check
+            assert error_msg in entry[7]
+            status_pattern = str.join(" -> ", [rf"{dt_fmt} {s}" for s in statuses])
+            assert re.match(status_pattern, entry[8])
+
+        with open(job_manager.job_logger.logfile) as f:
+            reader = csv.reader(f)
+
+            assert next(reader) == [
+                "logged_at",
+                "job_base_name",
+                "job_name",
+                "job_status",
+                "job_path",
+                "job_ok",
+                "job_check",
+                "job_get_errormsg",
+                "job_timeline",
+                "job_parent_name",
+                "job_parent_path",
+            ]
+
+            assert_csv_entry(next(reader), ["created", "started", "registered", "running", "finished", "successful"])
+            assert_csv_entry(next(reader), ["created", "started", "registered", "copied"], postfix=".002")
+            assert_csv_entry(
+                next(reader),
+                ["created", "started", "registered", "running", "crashed"],
+                postfix=".003",
+                error_msg="not_a_cmd",
+                ok="False",
+                check="False",
             )
 
         job_manager.job_logger.close()
