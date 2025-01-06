@@ -48,7 +48,7 @@ This changelog is effective from the 2025 releases.
 * `Molecule.add_hatoms` to use bonding information if available when adding new hydrogen atoms
 
 ### Deprecated
-* `plams` launch script is deprecated in favour of simply running with `amspython`
+* `plams` launch script is deprecated in favor of simply running with `amspython`
 
 ### Removed
 * Legacy `BANDJob`, `DFTBJob`, `UFFJob`, `MOPACJob`, `ReaxFFJob`, `CSHessianADFJob` and `ADFJob` have been removed

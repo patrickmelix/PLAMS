@@ -1,6 +1,7 @@
 import contextlib
 import textwrap
 from functools import wraps
+import threading
 from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type
 
 __all__ = [
@@ -789,6 +790,8 @@ class ConfigSettings(Settings):
 
         # Default job runner and job manager are lazily initialised on first access
         # This is to allow users to change their settings before initialisation (due to side effects in init)
+        # Make sure to do the initialisation inside a lock to avoid race-conditions between multiple threads
+        self.__lazylock__ = threading.Lock()  # N.B. nomenclature used purely to avoid adding to settings dictionary
         self.default_jobrunner = None
         self.default_jobmanager = None
 
@@ -922,9 +925,10 @@ class ConfigSettings(Settings):
         """
         from scm.plams.core.jobrunner import JobRunner
 
-        if self["default_jobrunner"] is None:
-            self["default_jobrunner"] = JobRunner()
-        return self["default_jobrunner"]
+        with self.__lazylock__:
+            if self["default_jobrunner"] is None:
+                self["default_jobrunner"] = JobRunner()
+            return self["default_jobrunner"]
 
     @default_jobrunner.setter
     def default_jobrunner(self, value: "JobRunner") -> None:
@@ -937,9 +941,10 @@ class ConfigSettings(Settings):
         """
         from scm.plams.core.jobmanager import JobManager
 
-        if self["default_jobmanager"] is None:
-            self["default_jobmanager"] = JobManager(self.jobmanager)
-        return self["default_jobmanager"]
+        with self.__lazylock__:
+            if self["default_jobmanager"] is None:
+                self["default_jobmanager"] = JobManager(self.jobmanager)
+            return self["default_jobmanager"]
 
     @default_jobmanager.setter
     def default_jobmanager(self, value: "JobManager") -> None:
