@@ -823,12 +823,15 @@ def _run_uff_md(
             job.run(jobmanager=job_manager)
 
             if not job.ok():
+                error_msg = job.results.get_errormsg()
+                job_manager._clean()
                 raise PackMolError(
-                    f"Try a lower density or a less skewed cell! Original file in {job.path} . "
-                    + str(job.results.get_errormsg())
+                    f"Try a lower density or a less skewed cell! Original file in {job.path}. {error_msg}"
                 )
+
             my_packed = job.results.get_main_system()
             my_packed.remove_region("PACKMOL_thermostatted")
+            job_manager._clean()
 
     finally:
         config.job.pickle = previous_config.job.pickle
