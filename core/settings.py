@@ -790,7 +790,8 @@ class ConfigSettings(Settings):
 
         # Default job runner and job manager are lazily initialised on first access
         # This is to allow users to change their settings before initialisation (due to side effects in init)
-        self._lock = threading.Lock()
+        # Make sure to do the initialisation inside a lock to avoid race-conditions between multiple threads
+        self.__lazylock__ = threading.Lock()  # N.B. nomenclature used purely to avoid adding to settings dictionary
         self.default_jobrunner = None
         self.default_jobmanager = None
 
@@ -924,7 +925,7 @@ class ConfigSettings(Settings):
         """
         from scm.plams.core.jobrunner import JobRunner
 
-        with self._lock:
+        with self.__lazylock__:
             if self["default_jobrunner"] is None:
                 self["default_jobrunner"] = JobRunner()
             return self["default_jobrunner"]
@@ -940,7 +941,7 @@ class ConfigSettings(Settings):
         """
         from scm.plams.core.jobmanager import JobManager
 
-        with self._lock:
+        with self.__lazylock__:
             if self["default_jobmanager"] is None:
                 self["default_jobmanager"] = JobManager(self.jobmanager)
             return self["default_jobmanager"]
