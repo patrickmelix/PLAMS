@@ -2,7 +2,8 @@ import contextlib
 import textwrap
 from functools import wraps
 import threading
-from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type
+from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type, Hashable, Any, Optional
+from collections.abc import Iterable as ColIterable
 
 __all__ = [
     "Settings",
@@ -269,12 +270,61 @@ class Settings(dict):
         """
         return SuppressMissing(Settings)
 
-    def get_nested(self, key_tuple, suppress_missing=False):
+    def contains_nested(self, key_tuple: Tuple[Hashable, ...], suppress_missing: bool = False) -> bool:
+        """Check if a nested key is present by recursively iterating through this instance using the keys in *key_tuple*.
+
+        The get item method is called recursively on this instance until all keys in key_tuple are exhausted.
+
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+
+         .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = 1
+            >>> value = s.contains_nested(('a', 'b', 'c'))
+            >>> print(value)
+            True
+        """
+        # Allow a slightly wider definition for the key_tuple than the type-hint suggests for backwards-compatibility
+        if not isinstance(key_tuple, ColIterable) or isinstance(key_tuple, (str, bytes)):
+            raise TypeError(
+                f"Argument 'key_tuple' must be a non-string iterable but was type {type(key_tuple).__name__}"
+            )
+
+        s = self
+        for k in key_tuple:
+            if isinstance(s, Settings):
+                # Add explicit check for key and use get instead of getitem to avoid calling __missing__ and adding phantom entries to the settings
+                if k not in s:
+                    if suppress_missing:
+                        raise KeyError(f"Key '{k}' not present in the nested Settings object.")
+                    else:
+                        return False
+                else:
+                    s = s[k]
+            else:
+                try:
+                    s = s[k]
+                except (KeyError, TypeError) as e:
+                    if suppress_missing:
+                        raise KeyError(f"Cannot access key '{k}' in the nested Settings object. Error was: {str(e)}.")
+                    else:
+                        return False
+
+        return True
+
+    def get_nested(
+        self,
+        key_tuple: Tuple[Hashable, ...],
+        suppress_missing: bool = False,
+        default: Optional[Any] = None,
+    ) -> Optional[Any]:
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`.Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
+        The get item method is called recursively on this instance until all keys in key_tuple are exhausted.
 
-        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+        Otherwise, the default value will be returned.
 
         .. code:: python
 
@@ -284,19 +334,22 @@ class Settings(dict):
             >>> print(value)
             True
         """
+        if not self.contains_nested(key_tuple, suppress_missing):
+            return default
+
         s = self
-        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
-            for k in key_tuple:
-                s = s[k]
+        for k in key_tuple:
+            s = s[k]
+
         return s
 
-    def set_nested(self, key_tuple, value, suppress_missing=False):
+    def set_nested(self, key_tuple: Tuple[Hashable, ...], value: Optional[Any], suppress_missing: bool = False):
         """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`.Settings.__getitem__` method is called recursively on this instance, followed by :meth:`.Settings.__setitem__`, until all keys in key_tuple are exhausted.
+        The get item method followed finally by set item is called recursively on this instance until all keys in key_tuple are exhausted.
 
-
-        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+        Otherwise, no set operation will be performed.
 
         .. code:: python
 
@@ -307,11 +360,46 @@ class Settings(dict):
               b:
                 c: 	True
         """
+        self.contains_nested(key_tuple[:-1], suppress_missing)
+
         s = self
-        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
-            for k in key_tuple[:-1]:
-                s = s[k]
+        for k in key_tuple[:-1]:
+            s = s[k]
+
         s[key_tuple[-1]] = value
+
+    def pop_nested(
+        self,
+        key_tuple: Tuple[Hashable, ...],
+        suppress_missing: bool = False,
+        default: Optional[Any] = None,
+    ) -> Optional[Any]:
+        """
+        Pop a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
+
+        The get item method followed finally by pop item is called recursively on this instance until all keys in key_tuple are exhausted.
+
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+        Otherwise, the default value will be returned.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = s.pop_nested(('a', 'b', 'c'))
+            >>> print(value)
+            True
+            >>> print(s)
+            <empty Settings>
+        """
+        if not self.contains_nested(key_tuple, suppress_missing):
+            return default
+
+        s = self
+        for k in key_tuple[:-1]:
+            s = s[k]
+
+        return s.pop(key_tuple[-1], default)
 
     def flatten(self, flatten_list=True) -> "Settings":
         """Return a flattened copy of this instance.

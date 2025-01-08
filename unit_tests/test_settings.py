@@ -290,13 +290,50 @@ class TestSettings:
     @pytest.mark.parametrize(
         "suppress_missing", [True, False], ids=["with_suppress_missing", "without_suppress_missing"]
     )
+    def test_settings_contains_nested_as_expected(self, suppress_missing, nested_settings):
+        assert nested_settings.contains_nested(("eleMENTS", "Fe", "NAME"))
+        assert nested_settings.contains_nested([1, 2])
+        assert nested_settings.contains_nested((False,))
+        assert nested_settings.contains_nested(("elements", "H", "common_isotopes"))
+        assert nested_settings.contains_nested({"elements": 1, "H": 2, "common_isotopes": 3})
+        assert nested_settings.contains_nested(("elements", "H", "common_isotopes", 0, "name"))
+
+        if suppress_missing:
+            with pytest.raises(KeyError):
+                nested_settings.contains_nested(("eleMENTS", "Zn", "NAME"), True)
+            with pytest.raises(KeyError):
+                nested_settings.contains_nested(("elements", "Fe", "num", 32), True)
+        else:
+            assert not nested_settings.contains_nested(("eleMENTS", "Zn", "NAME"))
+            assert not nested_settings.contains_nested(("elements", "Fe", "num", 32))
+
+        with pytest.raises(TypeError):
+            nested_settings.contains_nested("elements")
+
+    @pytest.mark.parametrize(
+        "suppress_missing", [True, False], ids=["with_suppress_missing", "without_suppress_missing"]
+    )
     def test_settings_get_nested_as_expected(self, suppress_missing, nested_settings):
         assert nested_settings.get_nested(("eleMENTS", "Fe", "NAME")) == "Iron"
+        assert nested_settings.get_nested([1, 2]) == "two"
+        assert nested_settings.get_nested((False,)) == {"s": "string", True: "bool", 42: "int", 42.99: "float"}
+        assert nested_settings.get_nested(("elements", "H", "common_isotopes")) == [
+            {"name": "H1", "mass": 1, "abundance": 99.99},
+            {"name": "H2", "mass": 2, "abundance": 0.01},
+        ]
+        assert nested_settings.get_nested(("elements", "H", "common_isotopes", 0, "name")) == "H1"
+
         if suppress_missing:
             with pytest.raises(KeyError):
                 nested_settings.get_nested(("eleMENTS", "Zn", "NAME"), True)
+            with pytest.raises(KeyError):
+                nested_settings.get_nested(("elements", "Fe", "num", 32), True)
         else:
-            assert nested_settings.get_nested(("eleMENTS", "Zn", "NAME")) == Settings()
+            assert nested_settings.get_nested(("eleMENTS", "Zn", "NAME")) is None
+            assert nested_settings.get_nested(("elements", "Fe", "num", 32), default=42) == 42
+
+        with pytest.raises(TypeError):
+            nested_settings.get_nested("elements")
 
     @pytest.mark.parametrize(
         "suppress_missing", [True, False], ids=["with_suppress_missing", "without_suppress_missing"]
@@ -304,12 +341,57 @@ class TestSettings:
     def test_settings_set_nested_as_expected(self, suppress_missing, nested_settings):
         nested_settings.set_nested(("eleMENTS", "Fe", "NAME"), "Ferrum")
         assert nested_settings.elements.Fe.name == "Ferrum"
+
+        nested_settings.set_nested([1, 2], "2")
+        assert nested_settings.get_nested((1, 2)) == "2"
+
+        nested_settings.set_nested((False,), {"s": "string", False: "bool", 43: "int"})
+        assert nested_settings.get_nested((False,)) == {"s": "string", False: "bool", 43: "int"}
+
+        nested_settings.set_nested(
+            ("elements", "H", "common_isotopes"),
+            [
+                {"name": "H1", "mass": 1, "abundance": 99.999},
+                {"name": "H_2", "mass": 2, "abundance": 0.001},
+            ],
+        )
+        nested_settings.set_nested(("elements", "H", "common_isotopes", 0, "name"), "H_1")
+        assert nested_settings.get_nested(("elements", "H", "common_isotopes")) == [
+            {"name": "H_1", "mass": 1, "abundance": 99.999},
+            {"name": "H_2", "mass": 2, "abundance": 0.001},
+        ]
+
         if suppress_missing:
             with pytest.raises(KeyError):
                 nested_settings.set_nested(("eleMENTS", "Zn", "NAME"), "Zinc", True)
         else:
             nested_settings.set_nested(("eleMENTS", "Zn", "NAME"), "Zinc")
             assert nested_settings.elements.Zn.name == "Zinc"
+
+    @pytest.mark.parametrize(
+        "suppress_missing", [True, False], ids=["with_suppress_missing", "without_suppress_missing"]
+    )
+    def test_settings_pop_nested_as_expected(self, suppress_missing, nested_settings):
+        assert nested_settings.pop_nested(("eleMENTS", "Fe", "NAME")) == "Iron"
+        assert nested_settings.pop_nested((1, 2)) == "two"
+        assert nested_settings.pop_nested((False,)) == {"s": "string", True: "bool", 42: "int", 42.99: "float"}
+        assert nested_settings.pop_nested(("elements", "H", "common_isotopes", 0, "name")) == "H1"
+        assert nested_settings.pop_nested(("elements", "H", "common_isotopes")) == [
+            {"mass": 1, "abundance": 99.99},
+            {"name": "H2", "mass": 2, "abundance": 0.01},
+        ]
+
+        if suppress_missing:
+            with pytest.raises(KeyError):
+                nested_settings.pop_nested(("eleMENTS", "Zn", "NAME"), True)
+            with pytest.raises(KeyError):
+                nested_settings.pop_nested(("elements", "Fe", "num", 32), True)
+        else:
+            assert nested_settings.pop_nested(("eleMENTS", "Zn", "NAME")) is None
+            assert nested_settings.pop_nested(("elements", "Fe", "num", 32), default=42) == 42
+
+        with pytest.raises(TypeError):
+            nested_settings.pop_nested("elements")
 
     def test_settings_flatten_as_expected(self, nested_settings, extra_nested_settings):
         # Flatten, with a case of not flattening lists

@@ -28,6 +28,7 @@ This changelog is effective from the 2025 releases.
 * Logging of AMS job error messages to stdout and logfile on job failure
 * Method `get_errormsg` enforced on the `Job` base class, with a default implementation
 * Added an interface to the Serenity program through methods such as `SerenityJob`, `SerenityResults` and `SerenitySettings`
+* Methods `Settings.contains_nested` and `Settings.pop_nested` for checking if nested keys exist in a settings object and popping them
 
 ### Changed
 * Functions for optional packages (e.g. RDKit, ASE) are available even when these packages are not installed, but will raise an `MissingOptionalPackageError` when called
@@ -41,6 +42,7 @@ This changelog is effective from the 2025 releases.
 * Use standard library logger for `log` function
 * Make `Job` class inherit from `ABC` and mark abstract methods 
 * Exceptions raised in `prerun` and `postrun` will always be caught and populate error message
+* `Settings.get_nested` takes a default argument which is returned if the nested key is not present in the settings instance
 
 ### Fixed
 * `Molecule.properties.charge` is a numeric instead of string type when loading molecule from a file
