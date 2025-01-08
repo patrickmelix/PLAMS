@@ -2717,7 +2717,7 @@ class AMSJob(SingleJob):
                         if name:
                             system_input = system_input.replace("System", f"System {name}", 1)
                     else:
-                        system_settings = self._serialize_single_molecule(name, system)
+                        system_settings = AMSJob._serialize_single_molecule(name, system)
                         system_input = serialize("System", system_settings, 0)
                     system_blocks[name] = system_input
                     txtinp += "\n" + system_input
@@ -2761,7 +2761,7 @@ class AMSJob(SingleJob):
                         if name:
                             system_input = system_input.replace("System", f"System {name}", 1)
                     else:
-                        system_settings = self._serialize_single_molecule(name, system)
+                        system_settings = AMSJob._serialize_single_molecule(name, system)
                         system_input = serialize("System", system_settings, 0)
                     system_blocks[name] = system_input
             else:
@@ -2778,7 +2778,8 @@ class AMSJob(SingleJob):
 
         return txtinp
 
-    def _serialize_single_molecule(self, name: str, mol: Union[Molecule, "ChemicalSystem"]) -> Settings:
+    @staticmethod
+    def _serialize_single_molecule(name: str, mol: Union[Molecule, "ChemicalSystem"]) -> Settings:
 
         def serialize_unichemsys_to_settings(mol: "ChemicalSystem") -> Settings:
             from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
@@ -2791,14 +2792,13 @@ class AMSJob(SingleJob):
 
             if len(mol.lattice) in [1, 2] and mol.align_lattice():
                 log(
-                    "The lattice of {} Molecule supplied for job {} did not follow the convention required by AMS. I rotated the whole system for you. You're welcome".format(
-                        name if name else "main", self._full_name()
-                    ),
+                    "The lattice of {} Molecule supplied did not follow the convention required by AMS. "
+                    "I rotated the whole system for you. You're welcome".format(name if name else "main"),
                     3,
                 )
 
             sett.Atoms._1 = [
-                atom.str(symbol=self._atom_symbol(atom), space=18, decimal=10, suffix=self._atom_suffix(atom))
+                atom.str(symbol=AMSJob._atom_symbol(atom), space=18, decimal=10, suffix=AMSJob._atom_suffix(atom))
                 for atom in mol
             ]
 
@@ -2862,7 +2862,7 @@ class AMSJob(SingleJob):
                 f"Incorrect 'molecule' attribute of job {self._full_name()}. 'molecule' should be a Molecule, a UnifiedChemicalSystem, a dictionary or None, and not {type(self.molecule).__name__}"
             )
 
-        ret = [self._serialize_single_molecule(name, molecule) for name, molecule in moldict.items()]
+        ret = [AMSJob._serialize_single_molecule(name, molecule) for name, molecule in moldict.items()]
 
         return ret
 
