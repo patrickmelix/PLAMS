@@ -1,5 +1,6 @@
 from scm.plams import *
 import os
+
 init()
 
 molecule = from_smiles("[HH]")
@@ -8,7 +9,7 @@ molecule = from_smiles("[HH]")
 s = Settings()
 s.input.ams.Task = "PESScan"
 s.input.ams.PESScan.ScanCoordinate.nPoints = 5
-s.input.ams.PESScan.ScanCoordinate.Distance = '1 2 0.65 0.8'
+s.input.ams.PESScan.ScanCoordinate.Distance = "1 2 0.65 0.8"
 s.input.ForceField.Type = "UFF"
 psjob = AMSJob(settings=s, molecule=molecule, name="ams_pesscan")
 psjob.run()
@@ -29,7 +30,6 @@ if errormsg:
 
 replayresults = job.results.get_pesscan_results()
 log(replayresults)
-
 
 
 finish()
