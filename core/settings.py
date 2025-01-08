@@ -2,7 +2,8 @@ import contextlib
 import textwrap
 from functools import wraps
 import threading
-from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type, Hashable, Any, Optional
+import numbers
+from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type, Hashable, Any, Optional, Dict
 from collections.abc import Iterable as ColIterable
 
 __all__ = [
@@ -193,6 +194,38 @@ class Settings(dict):
         """
         ret = self.copy()
         ret.soft_update(other)
+        return ret
+
+    def remove(self, other: "Settings"):
+        """
+        Update this instance removing keys from *other*. Nested |Settings| instances are updated recursively.
+
+        Shortcut ``A -= B`` can be used instead of ``A.remove(B)``.
+        """
+
+        def sort_key(t):
+            """
+            Sort tuples based on:
+            - Number of elements (fewest first), this prunes larger branches of the nested settings first
+            - Numeric values from highest to lowest, this ensures that popping on lists works as expected
+            - Everything else from the natural sort
+            """
+            elements = tuple((str(-el) if isinstance(el, numbers.Real) else str(el)) for el in t)
+            return len(t), elements
+
+        sorted_keys = sorted(other.flatten().keys(), key=sort_key)
+
+        for key in sorted_keys:
+            self.pop_nested(key)
+
+    def difference(self: TSelf, other: "Settings") -> TSelf:
+        """
+        Return new instance of |Settings| that is a copy of this instance with keys of *other* removed.
+
+        Shortcut ``A - B`` can be used instead of ``A.difference(B)``.
+        """
+        ret = self.copy()
+        ret.remove(other)
         return ret
 
     def find_case(self, key):
@@ -399,7 +432,45 @@ class Settings(dict):
         for k in key_tuple[:-1]:
             s = s[k]
 
-        return s.pop(key_tuple[-1], default)
+        return s.pop(key_tuple[-1])
+
+    def compare(self, other: "Settings") -> dict[str, Union[dict[Any, Any], dict[Any, tuple[Any, Any]]]]:
+        """
+        Compare this settings object to another to get the difference between them.
+
+        The result is a dictionary containing three entries:
+            - added: the flattened keys present in this settings object and not in the other, with their values
+            - removed: the flattened keys present in the other settings object and not in this, with their values
+            - modified: the flattened keys present in both settings objects, with both values in this and the other object
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> t = Settings()
+            >>> s.a.b = 1
+            >>> s.c.d = 2
+            >>> t.c.d = 3
+            >>> t.e.f = 4
+            >>> value = s.compare(t)
+            >>> print(value)
+            {'added': {('a', 'b'): 1}, 'modified': {('c', 'd'): (2, 3)}, 'removed': {('e', 'f'): 4}}
+        """
+        ref = self.flatten()
+        cs = other.flatten()
+
+        ref_keys = set(ref.keys())
+        cs_keys = set(cs.keys())
+
+        added_keys = ref_keys - cs_keys
+        removed_keys = cs_keys - ref_keys
+        modified_keys = ref_keys & cs_keys
+
+        # Iterate over dict keys and check in set to maintain original ordering
+        added = {k: ref[k] for k in ref.keys() if k in added_keys}
+        removed = {k: cs[k] for k in cs.keys() if k in removed_keys}
+        modified = {k: (ref[k], cs[k]) for k in ref.keys() if k in modified_keys and ref[k] != cs[k]}
+
+        return {"added": added, "removed": removed, "modified": modified}
 
     def flatten(self, flatten_list=True) -> "Settings":
         """Return a flattened copy of this instance.
@@ -569,6 +640,8 @@ class Settings(dict):
     __repr__ = __str__
     __iadd__ = soft_update
     __add__ = merge
+    __isub__ = remove
+    __sub__ = difference
     __copy__ = copy
 
 

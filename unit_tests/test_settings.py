@@ -246,6 +246,58 @@ class TestSettings:
         # Settings objects should be deep copied
         assert merged.elements is not nested_settings.elements
 
+    def test_settings_remove_deletes_matching_keys(self, nested_settings):
+        nested_settings.remove(
+            Settings(
+                {
+                    "elements": {
+                        "H": {
+                            "mass": 1.008,
+                            "metal": False,
+                            "common_isotopes": {},
+                            "properties": ["gas", "dimer"],
+                        },
+                        "O": None,
+                        "Fe": {"name": "Iron", "num": 26, "mass": 55.845, "metal": True, "properties": ["common"]},
+                    },
+                    False: {},
+                    2: {1: "one", 2.0: "two", 3.0001: "three"},
+                }
+            )
+        )
+
+        assert nested_settings["elements"] == {
+            "Fe": {"properties": []},
+            "H": {"name": "Hydrogen", "num": 1, "properties": []},
+        }
+        assert False not in nested_settings
+
+    def test_settings_difference_returns_keys_not_in_other(self, nested_settings):
+        diff = nested_settings.difference(
+            Settings(
+                {
+                    "elements": {
+                        "H": {
+                            "mass": 1.008,
+                            "metal": False,
+                            "common_isotopes": {},
+                            "properties": ["gas", "dimer"],
+                        },
+                        "O": None,
+                        "Fe": {"name": "Iron", "num": 26, "mass": 55.845, "metal": True, "properties": ["common"]},
+                    },
+                    False: {},
+                    2: {1: "one", 2.0: "two", 3.0001: "three"},
+                }
+            )
+        )
+
+        assert diff["elements"] == {
+            "Fe": {"properties": []},
+            "H": {"name": "Hydrogen", "num": 1, "properties": []},
+        }
+        assert False not in diff
+
     def test_settings_dictionary_equivalent_methods_case_insensitive(self, nested_settings):
         # Variety of dictionary methods should behave as usual but with case-insensitivity
         assert nested_settings.get("Elements").get("FE").get("NAME") == "Iron"
@@ -392,6 +444,61 @@ class TestSettings:
 
         with pytest.raises(TypeError):
             nested_settings.pop_nested("elements")
+
+    def test_settings_compare_added_removed_and_modified(self, nested_settings):
+        no_diff = nested_settings.compare(nested_settings)
+
+        assert no_diff == {"added": {}, "removed": {}, "modified": {}}
+
+        other = Settings(
+            {
+                "H": {
+                    "name": "Hydrogen",
+                    "num": 1,
+                    "mass": 1.00799,
+                    "common_isotopes": [
+                        {"name": "H1", "mass": 1, "abundance": 99.99},
+                        {"name": "H2", "mass": 2, "abundance": 0.01},
+                    ],
+                    "properties": ["gas", "dimer", "combustible"],
+                },
+                "O": {
+                    "name": "Oxygen",
+                    "num": 8,
+                    "mass": 15.9999,
+                    "metal": False,
+                    "colour": {"liquid": "blue", "gas": "colourless"},
+                    "common_isotopes": [
+                        {"name": "O16", "mass": 16, "abundance": 99.8},
+                        {"name": "O18", "mass": 18, "abundance": 0.02},
+                    ],
+                },
+                "C": {"name": "Carbon"},
+            }
+        )
+
+        diff = nested_settings["elements"].compare(other)
+
+        assert diff["added"] == {
+            ("Fe", "mass"): 55.845,
+            ("Fe", "metal"): True,
+            ("Fe", "name"): "Iron",
+            ("Fe", "num"): 26,
+            ("Fe", "properties", 0): "common",
+            ("H", "metal"): False,
+        }
+
+        assert diff["removed"] == {
+            ("C", "name"): "Carbon",
+            ("H", "properties", 2): "combustible",
+            ("O", "colour", "gas"): "colourless",
+            ("O", "colour", "liquid"): "blue",
+        }
+
+        assert diff["modified"] == {
+            ("H", "mass"): (1.008, 1.00799),
+            ("O", "mass"): (15.999, 15.9999),
+        }
 
     def test_settings_flatten_as_expected(self, nested_settings, extra_nested_settings):
         # Flatten, with a case of not flattening lists
