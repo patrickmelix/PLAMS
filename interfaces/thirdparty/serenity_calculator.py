@@ -2,7 +2,7 @@ from ase.calculators.calculator import Calculator, all_changes
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 # from scm.plams.interfaces.molecule.ase import fromASE
-from scm.plams import init, finish, Units, config
+from scm.plams import finish, Units, config
 import os
 
 
@@ -15,7 +15,6 @@ class SerenityCalculator(Calculator):
         self.results = dict()
 
     def calculate(self, atoms=None, properties=["energy"], system_changes=all_changes):
-        init()
         config.default_jobmanager.hashing = None
         config.jobmanager.hashing = None
         atoms.write("my_system.xyz")

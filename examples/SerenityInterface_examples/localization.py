@@ -1,4 +1,4 @@
-from scm.plams import init, finish
+from scm.plams import init
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="test_localization")
@@ -20,5 +20,3 @@ sersett.input.task.cube.occOrbitals = "true"
 
 serjob = SerenityJob(settings=sersett, name="Serenity_localization")
 serjob.run()
-
-finish()

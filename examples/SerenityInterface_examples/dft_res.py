@@ -1,4 +1,4 @@
-from scm.plams import init, finish
+from scm.plams import init
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="test_riboflavin")
@@ -29,5 +29,3 @@ sersett.input.task.SCF.printLevel = "normal"
 
 serjob = SerenityJob(settings=sersett, name="Serenity_Riboflavin")
 serjob.run()
-
-finish()

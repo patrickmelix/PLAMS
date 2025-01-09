@@ -1,7 +1,5 @@
 import os
-from scm.plams import init, finish, from_smiles, Settings, AMSJob, log
-
-init()
+from scm.plams import from_smiles, Settings, AMSJob, log
 
 molecule = from_smiles("[HH]")
 
@@ -30,6 +28,3 @@ if errormsg:
 
 replayresults = job.results.get_pesscan_results()
 log(replayresults)
-
-
-finish()

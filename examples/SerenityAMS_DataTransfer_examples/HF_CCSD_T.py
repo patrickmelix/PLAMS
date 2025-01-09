@@ -1,4 +1,4 @@
-from scm.plams import init, finish, Molecule, Settings, AMSJob
+from scm.plams import init, Molecule, Settings, AMSJob
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="PLAMS_CCSD_T_HF_TZP")
@@ -32,5 +32,3 @@ serjob = SerenityJob(settings=sersett, name="Serenity_HF_CCSD_T")
 serjob.run()
 ccsd_correction = serjob.results.get_ccsd_energy_correction()
 print(f"Serenity CCSD energy correction: {ccsd_correction} hartree")
-
-finish()
