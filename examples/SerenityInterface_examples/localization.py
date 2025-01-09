@@ -1,4 +1,5 @@
-from scm.plams import *
+from scm.plams import init, finish
+from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="test_localization")
 

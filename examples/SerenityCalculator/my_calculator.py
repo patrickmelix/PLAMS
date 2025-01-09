@@ -1,6 +1,5 @@
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings
 from scm.plams.interfaces.thirdparty.serenity_calculator import SerenityCalculator
-import os
 
 
 def get_calculator() -> SerenityCalculator:

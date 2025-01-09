@@ -1,4 +1,5 @@
-from scm.plams import *
+from scm.plams import init, finish, Molecule, Settings, AMSJob
+from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="PLAMS_CCSD_T_HF_TZP")
 

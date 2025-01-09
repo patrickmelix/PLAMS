@@ -176,7 +176,7 @@ class SerenityJob(SingleJob):
     def get_runscript(self):
         """Returned runscript: ``serenity myinput.in |tee ser_myinput.out`` or ``serenity myinput.in``"""
         input_file = self._filename("inp")
-        output_file = self._filename("out")
+        # output_file = self._filename("out")
 
         # return 'serenity {} |tee ser_{}'.format(input_file, output_file)
         return "serenity {}".format(input_file)

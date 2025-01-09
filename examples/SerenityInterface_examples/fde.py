@@ -1,4 +1,5 @@
-from scm.plams import *
+from scm.plams import init, finish, Molecule, Atom
+from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="test")
 
