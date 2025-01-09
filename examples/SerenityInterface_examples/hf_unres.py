@@ -1,4 +1,4 @@
-from scm.plams import init, finish
+from scm.plams import init
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="test_methylradical")
@@ -18,5 +18,3 @@ sersett.input.task.SCF.act = "MethylRadical"
 
 serjob = SerenityJob(settings=sersett, name="Serenity_methylradical")
 serjob.run()
-
-finish()

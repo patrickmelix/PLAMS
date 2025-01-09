@@ -1,4 +1,4 @@
-from scm.plams import init, finish, Molecule, Atom
+from scm.plams import init, Molecule, Atom
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
 init(folder="test")
@@ -27,5 +27,3 @@ sersett.input.task.fde.emb.naddkinfunc = "pw91k"
 # when using a dictionary and the molecule class to provide geometries you have no make sure that the given names match the systems that should use the respective geometry
 serjob = SerenityJob(molecule={"water1": mol1, "water2": mol2}, settings=sersett, name="water_dimer")
 serjob.run()
-
-finish()
