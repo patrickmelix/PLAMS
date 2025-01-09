@@ -1,6 +1,7 @@
 from ase.calculators.calculator import Calculator, all_changes
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
-from scm.plams.interfaces.molecule.ase import fromASE
+
+# from scm.plams.interfaces.molecule.ase import fromASE
 from scm.plams import init, finish, Units, config
 import os
 

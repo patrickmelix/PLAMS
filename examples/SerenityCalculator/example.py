@@ -1,5 +1,5 @@
-from scm.plams import *
 import os
+from scm.plams import init, finish, from_smiles, Settings, AMSJob, log
 
 init()
 
