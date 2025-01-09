@@ -421,7 +421,7 @@ class TestAMSJobWithMultipleMolecules(TestAMSJob):
         settings.input.ams.NEB.Images = 9
         settings.input.ams.NEB.Iterations = 100
         settings.input.DFTB.Model = "DFTB3"
-        settings.input.DFTB.ResourcesDir = "DFTB.org/3ob-3-1"
+        settings.input.DFTB.ResourcesDir = "3ob-3-1"
         settings.input.DFTB.DispersionCorrection = "D3-BJ"
         return settings
 
@@ -456,7 +456,7 @@ End
 Engine DFTB
   DispersionCorrection D3-BJ
   Model DFTB3
-  ResourcesDir DFTB.org/3ob-3-1
+  ResourcesDir 3ob-3-1
 EndEngine
 
 """
@@ -484,7 +484,7 @@ class TestAMSJobWithMultipleMoleculesAndPisa(TestAMSJobWithMultipleMolecules):
         driver.NEB.Iterations = 100
         driver.Engine = DFTB()
         driver.Engine.Model = "DFTB3"
-        driver.Engine.ResourcesDir = "DFTB.org/3ob-3-1"
+        driver.Engine.ResourcesDir = "3ob-3-1"
         driver.Engine.DispersionCorrection = "D3-BJ"
         settings.input = driver
         return settings
@@ -504,7 +504,7 @@ Task NEB
 Engine DFTB
   DispersionCorrection D3-BJ
   Model DFTB3
-  ResourcesDir DFTB.org/3ob-3-1
+  ResourcesDir 3ob-3-1
 EndEngine
 
 System
@@ -554,7 +554,7 @@ class TestAMSJobWithMultipleMoleculesAndPisaOnly(TestAMSJobWithMultipleMolecules
         driver.NEB.Iterations = 100
         driver.Engine = DFTB()
         driver.Engine.Model = "DFTB3"
-        driver.Engine.ResourcesDir = "DFTB.org/3ob-3-1"
+        driver.Engine.ResourcesDir = "3ob-3-1"
         driver.Engine.DispersionCorrection = "D3-BJ"
         driver.System[0].Atoms = [
             "C       0.0000000000       0.0000000000       0.0000000000",
@@ -599,7 +599,7 @@ Task NEB
 Engine DFTB
   DispersionCorrection D3-BJ
   Model DFTB3
-  ResourcesDir DFTB.org/3ob-3-1
+  ResourcesDir 3ob-3-1
 EndEngine
 """
 
@@ -659,7 +659,7 @@ End
 Engine DFTB
   DispersionCorrection D3-BJ
   Model DFTB3
-  ResourcesDir DFTB.org/3ob-3-1
+  ResourcesDir 3ob-3-1
 EndEngine
 
 """
@@ -704,7 +704,7 @@ Task NEB
 Engine DFTB
   DispersionCorrection D3-BJ
   Model DFTB3
-  ResourcesDir DFTB.org/3ob-3-1
+  ResourcesDir 3ob-3-1
 EndEngine
 
 System
