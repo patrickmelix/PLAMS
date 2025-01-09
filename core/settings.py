@@ -3,7 +3,7 @@ import textwrap
 from functools import wraps
 import threading
 import numbers
-from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type, Hashable, Any, Optional, Dict
+from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type, Hashable, Any, Optional, Dict, Generator
 from collections.abc import Iterable as ColIterable
 
 __all__ = [
@@ -228,7 +228,7 @@ class Settings(dict):
         ret.remove(other)
         return ret
 
-    def find_case(self, key):
+    def find_case(self, key: Hashable) -> Hashable:
         """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*."""
         if not isinstance(key, str):
             return key
@@ -241,27 +241,27 @@ class Settings(dict):
                 pass
         return key
 
-    def get(self, key, default=None):
+    def get(self, key: Hashable, default: Optional[Any] = None) -> Optional[Any]:
         """Like regular ``get``, but ignore the case."""
         return dict.get(self, self.find_case(key), default)
 
-    def pop(self, key, *args):
+    def pop(self, key: Hashable, *args) -> Optional[Any]:
         """Like regular ``pop``, but ignore the case."""
         # A single positional argument can be supplied `*args`,
         # functioning as a default return value in case `key` is not present in this instance
         return dict.pop(self, self.find_case(key), *args)
 
-    def popitem(self):
+    def popitem(self) -> Any:
         """Like regular ``popitem``, but ignore the case."""
         return dict.popitem(self)
 
-    def setdefault(self, key, default=None):
+    def setdefault(self, key: Hashable, default: Optional[Any] = None):
         """Like regular ``setdefault``, but ignore the case and if the value is a dict, convert it to |Settings|."""
         if isinstance(default, dict) and not isinstance(default, Settings):
             default = Settings(default)
         return dict.setdefault(self, self.find_case(key), default)
 
-    def as_dict(self):
+    def as_dict(self) -> Dict:
         """Return a copy of this instance with all |Settings| replaced by regular Python dictionaries."""
         d = {}
         for k, v in self.items():
@@ -434,7 +434,37 @@ class Settings(dict):
 
         return s.pop(key_tuple[-1])
 
-    def compare(self, other: "Settings") -> dict[str, Union[dict[Any, Any], dict[Any, tuple[Any, Any]]]]:
+    def get_branch_keys(
+        self, flatten_list: bool = False, include_empty: bool = False
+    ) -> Generator[Tuple[Hashable, ...], None, None]:
+        """
+        Get the nested keys corresponding to the internal nodes in this instance, also referred to as 'branches'.
+        These internal nodes correspond to |Settings| objects.
+
+        If *flatten_list* is set to ``True``, all nested lists will be flattened and elements converted to internal nodes.
+
+        If *include_empty* is set to ``True``, nodes without values in the |Settings| are also returned.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = list(s.get_branch_keys())
+            >>> print(value)
+            [('a',), ('a', 'b')]
+
+        """
+        seen = set()
+        for k, v in self.flatten(flatten_list=flatten_list).items():
+            for i in range(len(k) - 1, 0, -1):
+                bk = k[:-i]
+                if bk not in seen:
+                    seen.add(bk)
+                    yield bk
+            if include_empty and isinstance(v, Settings) and not v:
+                yield k
+
+    def compare(self, other: "Settings") -> Dict[str, Union[Dict[Any, Any], Dict[Any, Tuple[Any, Any]]]]:
         """
         Compare this settings object to another to get the difference between them.
 
@@ -472,7 +502,7 @@ class Settings(dict):
 
         return {"added": added, "removed": removed, "modified": modified}
 
-    def flatten(self, flatten_list=True) -> "Settings":
+    def flatten(self, flatten_list: bool = True) -> "Settings":
         """Return a flattened copy of this instance.
 
         New keys are constructed by concatenating the (nested) keys of this instance into tuples.
@@ -515,7 +545,7 @@ class Settings(dict):
         _concatenate((), self)
         return ret
 
-    def unflatten(self, unflatten_list=True) -> "Settings":
+    def unflatten(self, unflatten_list: bool = True) -> "Settings":
         """Return a nested copy of this instance.
 
         New keys are constructed by expanding the keys of this instance (*e.g.* tuples) into new nested |Settings| instances.

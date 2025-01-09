@@ -445,6 +445,41 @@ class TestSettings:
         with pytest.raises(TypeError):
             nested_settings.pop_nested("elements")
 
+    def test_settings_get_branch_keys(self, nested_settings):
+        sett = Settings()
+        sett.elements = nested_settings.elements
+        sett.empty  # Add empty branches
+        sett.elements.Fe.empty
+
+        keys = list(sett.get_branch_keys())
+        assert keys == [("elements",), ("elements", "H"), ("elements", "O"), ("elements", "Fe")]
+
+        keys = list(sett.get_branch_keys(flatten_list=True))
+        assert keys == [
+            ("elements",),
+            ("elements", "H"),
+            ("elements", "H", "common_isotopes"),
+            ("elements", "H", "common_isotopes", 0),
+            ("elements", "H", "common_isotopes", 1),
+            ("elements", "H", "properties"),
+            ("elements", "O"),
+            ("elements", "O", "common_isotopes"),
+            ("elements", "O", "common_isotopes", 0),
+            ("elements", "O", "common_isotopes", 1),
+            ("elements", "Fe"),
+            ("elements", "Fe", "properties"),
+        ]
+
+        keys = list(sett.get_branch_keys(include_empty=True))
+        assert keys == [
+            ("elements",),
+            ("elements", "H"),
+            ("elements", "O"),
+            ("elements", "Fe"),
+            ("elements", "Fe", "empty"),
+            ("empty",),
+        ]
+
     def test_settings_compare_added_removed_and_modified(self, nested_settings):
         no_diff = nested_settings.compare(nested_settings)
 
