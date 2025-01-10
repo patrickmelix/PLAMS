@@ -3393,10 +3393,10 @@ class Molecule:
                         stdout=DEVNULL,
                         stderr=PIPE,  # Redirect stderr to a pipe
                     )
-                    stdout, stderr = p.communicate()
-                    stderr_str = stderr.decode("utf-8").strip() if stderr else ""
-                    if stderr_str != "":
-                        print(f"amsprep raised: {stderr} \n run the command ${command} to get more info")
+                    _, stderr = p.communicate()
+                    if stderr:
+                        stderr_str = stderr.decode("utf-8").strip()
+                        log(f"amsprep raised: {stderr_str} \n Run the command ${command} to get more information")
                     retmol = self.__class__(f_out.name)
                     with open(f_out_bonds.name) as bonds_file:
                         for line in bonds_file:
