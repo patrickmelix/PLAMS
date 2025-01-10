@@ -5,23 +5,34 @@ import itertools
 import math
 import os
 from collections import OrderedDict
-import numpy as np
 
-from scm.plams.core.errors import FileError, MoleculeError, PTError, MissingOptionalPackageError
+import numpy as np
+from scm.plams.core.errors import (
+    FileError,
+    MissingOptionalPackageError,
+    MoleculeError,
+    PTError,
+)
 from scm.plams.core.functions import log, requires_optional_package
 from scm.plams.core.private import parse_action, smart_copy
 from scm.plams.core.settings import Settings
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
 from scm.plams.mol.context import AsArrayContext
-from scm.plams.mol.pdbtools import PDBHandler, PDBAtom
-from scm.plams.tools.geometry import axis_rotation_matrix, cell_angles, cell_lengths, distance_array, rotation_matrix
+from scm.plams.mol.pdbtools import PDBAtom, PDBHandler
+from scm.plams.tools.geometry import (
+    axis_rotation_matrix,
+    cell_angles,
+    cell_lengths,
+    distance_array,
+    rotation_matrix,
+)
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.periodic_table import PT
 from scm.plams.tools.units import Units
 
 input_parser_available = "AMSBIN" in os.environ
-from typing import Union, List, Optional, Tuple, overload, Iterable, Dict, Set, Callable
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple, Union, overload
 
 __all__ = ["Molecule"]
 
@@ -3227,7 +3238,9 @@ class Molecule:
         * ``filename`` -- Name of the RKF file that contains ForceField data
         """
         from scm.plams.interfaces.adfsuite.ams import AMSJob
-        from scm.plams.interfaces.adfsuite.forcefieldparams import forcefield_params_from_kf
+        from scm.plams.interfaces.adfsuite.forcefieldparams import (
+            forcefield_params_from_kf,
+        )
 
         # Read atom types and charges
         kf = KFFile(filename)
@@ -3259,8 +3272,8 @@ class Molecule:
             raise NotImplementedError(
                 "Reading from System blocks from AMS input files requires an AMS installation to be available."
             )
-        from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
         from scm.plams.interfaces.adfsuite.ams import AMSJob
+        from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
 
         sett = Settings()
         sett.input.AMS = Settings(InputParserFacade().to_dict("ams", f.read(), string_leafs=True))
@@ -3358,7 +3371,7 @@ class Molecule:
                 3         H      0.327778       0.033891      -0.901672
 
         """
-        from subprocess import DEVNULL, Popen
+        from subprocess import DEVNULL, PIPE, Popen
         from tempfile import NamedTemporaryFile
 
         # Pass an input file to amsprep which contains current geometry and bonding information
@@ -3373,12 +3386,17 @@ class Molecule:
                     f_out.close()
                     f_out_bonds.close()
                     amsprep = os.path.join(os.environ["AMSBIN"], "amsprep")
+                    command = f"sh {amsprep} -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name} -bondsonly > {f_out_bonds.name}"
                     p = Popen(
-                        f"sh {amsprep} -t SP -m {f_in.name} -addhatoms -exportcoordinates {f_out.name} -bondsonly > {f_out_bonds.name}",
+                        command,
                         shell=True,
                         stdout=DEVNULL,
+                        stderr=PIPE,  # Redirect stderr to a pipe
                     )
-                    p.communicate()
+                    stdout, stderr = p.communicate()
+                    stderr_str = stderr.decode("utf-8").strip() if stderr else ""
+                    if stderr_str != "":
+                        print(f"amsprep raised: {stderr} \n run the command ${command} to get more info")
                     retmol = self.__class__(f_out.name)
                     with open(f_out_bonds.name) as bonds_file:
                         for line in bonds_file:
