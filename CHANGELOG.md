@@ -19,7 +19,8 @@ This changelog is effective from the 2025 releases.
 * New `packmol_around` function for packing in non-orthorhombic boxes.
 * New `plot_grid_molecules` function for plotting with rdkit multiple molecules.
 * `Molecule.delete_atoms` method to delete multiple atoms with partial success 
-* Example on `MoleculeFormats`
+* Examples on `MoleculeFormats` and `MoleculeTools`
+* Examples on `Logging`
 * Script `generate_example.sh` to generate documentation pages from notebook examples
 * GitHub workflows for CI and publishing to PyPI
 * Build using `pyproject.toml`, addition of extras groups to install optional dependencies
