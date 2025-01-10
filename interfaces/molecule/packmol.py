@@ -920,11 +920,10 @@ def packmol_around(
         # Create a supercell that should encompass the target x/y/z lattice
         # this is used for the initial packing of molecules to ensure there is no overlap
         # with the original atoms
-        supercell = original_ucs.copy()
         trafo = np.linalg.inv(original_ucs.lattice.vectors) @ np.array(target_lattice)
         trafo = np.sign(trafo) * np.ceil(np.abs(trafo))
         trafo = np.int_(trafo)
-        supercell.supercell_trafo(trafo)
+        supercell = original_ucs.make_supercell_trafo(trafo)
         supercell.map_atoms(0)
         system_for_packing = supercell
         tolerance = kwargs.get("tolerance", 1.5)
