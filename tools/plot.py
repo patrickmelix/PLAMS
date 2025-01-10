@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 from scm.plams.core.errors import MissingOptionalPackageError
@@ -6,6 +6,11 @@ from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.molecule.rdkit import to_rdmol
 from scm.plams.mol.molecule import Molecule
+
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
+    from os import PathLike
+    from PIL import Image as PilImage
 
 __all__ = [
     "plot_band_structure",
@@ -128,17 +133,15 @@ def plot_grid_molecules(
     molecules: List[Molecule],
     legends: Optional[List[str]] = None,
     molsPerRow: int = 2,
-    subImgSize=(200, 200),
-    ax=None,
-    save_svg_path=None,
+    subImgSize: Tuple[int, int] = (200, 200),
+    ax: Optional["plt.Axes"] = None,
+    save_svg_path: Optional[Union[str, "PathLike"]] = None,
     **kwargs,
-):
-    """plot using rdkit
+) -> Union["PilImage", "plt.Axes", str]:
+    """Plot series of molecules in a grid using RDKit
 
-    :param ax: if provided it plots the molecules in that ax and returns the ax, for doing that the quality of the image might reduce, defaults to None
-    :type ax: plt.Axes, optional
+    :param ax: if provided molecules are plotted in these axes, note that the quality of the image might reduce, defaults to None
     :param save_svg_path: pathlike of the file, with formats .svg to save it as image, it returns the svg string, defaults to None
-    :type save_svg_path: pathlike type, optional
     :return: an image of the molecules
     :rtype: pil.Image or plt.Axes or string
     """
@@ -169,14 +172,16 @@ def plot_grid_molecules(
         legends=legends,
         **kwargs,
     )
+
     if save_svg_path is not None:
-        assert isinstance(
-            img, str
-        ), f"{type(img)=} but expected str, most likely it is due to previously using ipy_useSVG=True in a notebook"
+        if not isinstance(img, str):
+            raise TypeError(
+                f"{type(img)=} but expected str, most likely it is due to previously using ipy_useSVG=True in a notebook"
+            )
         with open(save_svg_path, "w") as f:
             f.write(img)
-        print(f"Image saved: {save_svg_path}")
         return img
+
     if ax is not None and save_svg_path is None:
         image_data = np.array(img, dtype=np.int32)
         ax.imshow(image_data)
