@@ -105,7 +105,7 @@ def test_plot_grid_molecules():
         ]
     )
     molecules = [ethanol, glycine]
-    fig, ax = plt.subplots(figsize=(3, 2))
+    _, ax = plt.subplots(figsize=(3, 2))
     ax.axis("off")
     plot_grid_molecules(molecules, ax=ax)
 
@@ -116,14 +116,14 @@ def test_plot_grid_molecules_options_products():
     save_svg_path = Path("mols.svg")
 
     def svg_plot(molecules):
-        img = plot_grid_molecules(molecules, molsPerRow=2, save_svg_path=save_svg_path)
+        _ = plot_grid_molecules(molecules, molsPerRow=2, save_svg_path=save_svg_path)
 
     def ax_plot(molecules):
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
         ax = plot_grid_molecules(molecules, molsPerRow=2, ax=ax)
 
     def pil_notebook_plot(molecules):
-        img = plot_grid_molecules(molecules, molsPerRow=2)
+        _ = plot_grid_molecules(molecules, molsPerRow=2)
 
     def iterate_options(molecules, options):
         for x in options:

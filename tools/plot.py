@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from scm.plams.core.errors import MissingOptionalPackageError
