@@ -17,8 +17,10 @@ This changelog is effective from the 2025 releases.
 * Specific `ConfigSettings` and related settings classes with explicitly defined fields
 * Support for work functions: `AMSResults.get_work_function_results` and `plot_work_function`
 * New `packmol_around` function for packing in non-orthorhombic boxes.
+* New `plot_grid_molecules` function for plotting with rdkit multiple molecules.
 * `Molecule.delete_atoms` method to delete multiple atoms with partial success 
-* Example on `MoleculeFormats`
+* Examples on `MoleculeFormats` and `MoleculeTools`
+* Examples on `Logging`
 * Script `generate_example.sh` to generate documentation pages from notebook examples
 * GitHub workflows for CI and publishing to PyPI
 * Build using `pyproject.toml`, addition of extras groups to install optional dependencies
