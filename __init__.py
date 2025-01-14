@@ -66,6 +66,7 @@ from scm.plams.interfaces.molecule.ase import fromASE, toASE
 from scm.plams.interfaces.molecule.packmol import (
     PackMolError,
     packmol,
+    packmol_around,
     packmol_in_void,
     packmol_microsolvation,
     packmol_on_slab,
@@ -258,6 +259,7 @@ __all__ = [
     "toASE",
     "fromASE",
     "packmol",
+    "packmol_around",
     "packmol_on_slab",
     "packmol_microsolvation",
     "packmol_in_void",
