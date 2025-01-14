@@ -434,8 +434,39 @@ class Settings(dict):
 
         return s.pop(key_tuple[-1])
 
-    def get_branch_keys(
-        self, flatten_list: bool = False, include_empty: bool = False
+    def nested_keys(
+        self, flatten_list: bool = True, include_empty: bool = False
+    ) -> Generator[Tuple[Hashable, ...], None, None]:
+        """
+        Get the nested keys corresponding to all nodes in this instance, both 'branches' and 'leaves'.
+
+        If *flatten_list* is set to ``True``, all nested lists will be flattened and elements converted to nodes.
+
+        If *include_empty* is set to ``True``, nodes without values are also returned.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = list(s.nested_keys())
+            >>> print(value)
+            [('a',), ('a', 'b'), ('a', 'b', 'c')]
+
+        """
+        def iter_block(bk):
+            return bk.items() if isinstance(bk, Settings) else enumerate(bk)
+
+        branch_keys = list(self.branch_keys(flatten_list, include_empty))
+        for bk in branch_keys:
+            yield bk
+            for k, v in iter_block(self.get_nested(bk)):
+                # Maintain ordering by skipping branch keys here
+                fk = bk + (k,)
+                if (include_empty or v) and fk not in branch_keys:
+                    yield fk
+
+    def branch_keys(
+        self, flatten_list: bool = True, include_empty: bool = False
     ) -> Generator[Tuple[Hashable, ...], None, None]:
         """
         Get the nested keys corresponding to the internal nodes in this instance, also referred to as 'branches'.
@@ -449,7 +480,7 @@ class Settings(dict):
 
             >>> s = Settings()
             >>> s.a.b.c = True
-            >>> value = list(s.get_branch_keys())
+            >>> value = list(s.branch_keys())
             >>> print(value)
             [('a',), ('a', 'b')]
 
