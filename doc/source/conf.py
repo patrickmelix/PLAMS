@@ -312,6 +312,10 @@ rst_epilog = """
 .. |VASPJob| replace:: :class:`VASPJob<scm.plams.interfaces.thirdparty.vasp.VASPJob>`
 .. |VASPResults| replace:: :class:`VASPResults<scm.plams.interfaces.thirdparty.vasp.VASPResults>`
 
+.. |SerenityJob| replace:: :class:`~scm.plams.interfaces.serenity.SerenityJob`
+.. |SerenitySettings| replace:: :class:`~scm.plams.interfaces.serenity.SerenitySettings`
+.. |SerenityResults| replace:: :class:`~scm.plams.interfaces.serenity.SerenityResults`
+
 .. |CRSJob| replace:: :class:`CRSJob<scm.plams.interfaces.adfsuite.crs.CRSJob>`
 .. |CRSResults| replace:: :class:`CRSResults<scm.plams.interfaces.adfsuite.crs.CRSResults>`
 
