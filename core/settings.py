@@ -260,11 +260,11 @@ class Settings(dict):
         """Like regular ``setdefault``, but ignore the case and if the value is a dict, convert it to |Settings|."""
         if isinstance(default, dict) and not isinstance(default, Settings):
             default = Settings(default)
-        return dict.setdefault(self, self.find_case(key), default)
+        return dict.setdefault(self, self.find_case(key), default)  # type: ignore
 
     def as_dict(self) -> Dict:
         """Return a copy of this instance with all |Settings| replaced by regular Python dictionaries."""
-        d = {}
+        d: Dict = {}
         for k, v in self.items():
             if isinstance(v, Settings):
                 d[k] = v.as_dict()
