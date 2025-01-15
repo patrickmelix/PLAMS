@@ -455,6 +455,7 @@ class Settings(dict):
             [('a',), ('a', 'b'), ('a', 'b', 'c')]
 
         """
+
         def iter_block(bk):
             return bk.items() if isinstance(bk, Settings) else enumerate(bk)
 
