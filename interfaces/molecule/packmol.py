@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "packmol",
+    "packmol_around",
     "packmol_in_void",
     "packmol_on_slab",
     "packmol_microsolvation",

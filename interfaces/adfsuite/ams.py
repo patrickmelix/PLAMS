@@ -2671,7 +2671,9 @@ class AMSJob(SingleJob):
                     input_system_settings_list = (
                         input_system_settings if isinstance(input_system_settings, list) else [input_system_settings]
                     )
-                    input_systems_settings = {s._h if "_h" in s else "": s for s in input_system_settings_list}
+                    input_systems_settings = {
+                        s._h if "_h" in s else "": s for s in input_system_settings_list if isinstance(s, Settings)
+                    }
 
             systems_settings = {n: self._serialize_single_molecule(n, m) for n, m in systems.items()}
 
