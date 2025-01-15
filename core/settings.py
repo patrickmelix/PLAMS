@@ -217,6 +217,7 @@ class Settings(dict):
 
         for key in sorted_keys:
             self.pop_nested(key)
+        return self
 
     def difference(self: TSelf, other: "Settings") -> TSelf:
         """
