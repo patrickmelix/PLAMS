@@ -65,7 +65,7 @@ class SerenityJob(SingleJob):
 
     def _get_ready(self):
         """If molecule is defined, xyz files are generated accordingly. If there is data to transfer between ADF and Serenity, file formats are converted."""
-        self._get_ready(self)
+        super()._get_ready()
         if isinstance(self.molecule, dict):
             for name, mol in self.molecule.items():
                 mol.write(os.path.join(self.path, f"{name}.xyz"))
