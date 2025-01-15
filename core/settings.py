@@ -311,13 +311,14 @@ class Settings(dict):
 
         Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
 
-         .. code:: python
+        .. code:: python
 
             >>> s = Settings()
             >>> s.a.b.c = 1
             >>> value = s.contains_nested(('a', 'b', 'c'))
             >>> print(value)
             True
+
         """
         # Allow a slightly wider definition for the key_tuple than the type-hint suggests for backwards-compatibility
         if not isinstance(key_tuple, ColIterable) or isinstance(key_tuple, (str, bytes)):
