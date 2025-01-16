@@ -21,13 +21,13 @@ class TestFormatInTable:
             t
             == """\
 +-----+-------+-------+------------+-----------------+
-|  A  |   B   | CCCCC |     D      |     EEEEEEEE    |
+| A   | B     | CCCCC | D          | EEEEEEEE        |
 +-----+-------+-------+------------+-----------------+
-|  1  |  one  |  max  | evenbigger |      header     |
-|  22 |  two  |  col  |    than    |       also      |
-|  -3 | three | width |  maximum   | evenbiggerrrrrr |
-|  44 |  four |   is  |   column   |       than      |
-| -55 |  five |  five |   width    |       max       |
+| 1   | one   | max   | evenbigger | header          |
+| 22  | two   | col   | than       | also            |
+| -3  | three | width | maximum    | evenbiggerrrrrr |
+| 44  | four  | is    | column     | than            |
+| -55 | five  | five  | width      | max             |
 +-----+-------+-------+------------+-----------------+"""
         )
 
@@ -37,12 +37,12 @@ class TestFormatInTable:
             t
             == """\
 +-----+------+-------+----------+----------+
-|  A  |  B   | CCCCC |    D     | EEEEE... |
+| A   | B    | CCCCC | D        | EEEEE... |
 +-----+------+-------+----------+----------+
-|  1  | one  |  max  | evenb... | heade... |
-| ... | ...  |  ...  |   ...    |   ...    |
-|  44 | four |   is  | colum... |   than   |
-| -55 | five |  five |  width   |   max    |
+| 1   | one  | max   | evenb... | heade... |
+| ... | ...  | ...   | ...      | ...      |
+| 44  | four | is    | colum... | than     |
+| -55 | five | five  | width    | max      |
 +-----+------+-------+----------+----------+"""
         )
 
@@ -51,22 +51,31 @@ class TestFormatInTable:
             t
             == """\
 +-----+--------+--------+--------+--------+
-|  A  |   B    | CCC... |   D    | EEE... |
+| A   | B      | CCC... | D      | EEE... |
 +-----+--------+--------+--------+--------+
-|  1  |  one   |  max   | eve... | hea... |
-| ... |  ...   |  ...   |  ...   |  ...   |
-| -55 | fiv... | fiv... | wid... |  max   |
+| 1   | one    | max    | eve... | hea... |
+| ... | ...    | ...    | ...    | ...    |
+| -55 | fiv... | fiv... | wid... | max    |
 +-----+--------+--------+--------+--------+"""
         )
 
         t = format_in_table(data, max_col_width=100, max_rows=1)
+        t = format_in_table(
+            {
+                "A": range(1, 6),
+                "B": ["one", "two", "three", "four", "five"],
+                "C": ["row one", "row two", "row three", "row four", "row five"],
+            },
+            max_col_width=5,
+            max_rows=2,
+        )
         assert (
             t
             == """\
 +-----+------+-------+-------+----------+
-|  A  |  B   | CCCCC |   D   | EEEEEEEE |
+| A   | B    | CCCCC | D     | EEEEEEEE |
 +-----+------+-------+-------+----------+
-| ... | ...  |  ...  |  ...  |   ...    |
-| -55 | five |  five | width |   max    |
+| ... | ...  | ...   | ...   | ...      |
+| -55 | five | five  | width | max      |
 +-----+------+-------+-------+----------+"""
         )

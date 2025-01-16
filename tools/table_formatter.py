@@ -15,13 +15,13 @@ def format_in_table(
 
     .. code-block:: python
 
-        +---+-------+----------+
-        | A |   B   |    C     |
-        +---+-------+----------+
-        | 1 |  one  | row 1... |
-        | . |  ...  |   ...    |
-        | 5 |  five | row 5... |
-        +---+-------+----------+
+        +---+------+----------+
+        | A | B    | C        |
+        +---+------+----------+
+        | 1 | one  | row o... |
+        | . | ...  | ...      |
+        | 5 | five | row f... |
+        +---+------+----------+
 
     :param data: data to format in the table
     :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
@@ -59,28 +59,28 @@ def format_in_table(
 
     # Prepare the table
     table_rows = [separator]
-    header_row = f"| {' | '.join(f'{truncated_header[i].center(col_widths[i])}' for i in range(len(keys)))} |"
+    header_row = f"| {' | '.join(f'{truncated_header[i].ljust(col_widths[i])}' for i in range(len(keys)))} |"
     table_rows.append(header_row)
     table_rows.append(separator)
 
     if write_all_rows:
         # Make all rows
         for row in values:
-            row_text = f"| {' | '.join(f'{str(row[i]).center(col_widths[i])}' for i in range(len(keys)))} |"
+            row_text = f"| {' | '.join(f'{str(row[i]).ljust(col_widths[i])}' for i in range(len(keys)))} |"
             table_rows.append(row_text)
     else:
         # First part of the rows
         for row in values[:rows_at_start]:
-            row_text = f"| {' | '.join(f'{str(row[i]).center(col_widths[i])}' for i in range(len(keys)))} |"
+            row_text = f"| {' | '.join(f'{str(row[i]).ljust(col_widths[i])}' for i in range(len(keys)))} |"
             table_rows.append(row_text)
 
         # Separator row with '...'
-        dots_row = f"| {' | '.join(f'{elip[:col_widths[i]].center(col_widths[i])}' for i in range(len(keys)))} |"
+        dots_row = f"| {' | '.join(f'{elip[:col_widths[i]].ljust(col_widths[i])}' for i in range(len(keys)))} |"
         table_rows.append(dots_row)
 
         # Last part of the rows
         for row in values[-rows_at_end:]:
-            row_text = f"| {' | '.join(f'{str(row[i]).center(col_widths[i])}' for i in range(len(keys)))} |"
+            row_text = f"| {' | '.join(f'{str(row[i]).ljust(col_widths[i])}' for i in range(len(keys)))} |"
             table_rows.append(row_text)
     table_rows.append(separator)
 
