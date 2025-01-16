@@ -552,6 +552,7 @@ class LogSettings(Settings):
 
         self.file = 5
         self.stdout = 3
+        self.csv = 7
         self.time = True
         self.date = True
 
@@ -576,6 +577,17 @@ class LogSettings(Settings):
     @stdout.setter
     def stdout(self, value: int) -> None:
         self["stdout"] = value
+
+    @property
+    def csv(self) -> int:
+        """
+        Verbosity of the log printed to .csv job log file in the main working folder. Defaults to ``7``.
+        """
+        return self["csv"]
+
+    @csv.setter
+    def csv(self, value: int) -> None:
+        self["csv"] = value
 
     @property
     def time(self) -> bool:
