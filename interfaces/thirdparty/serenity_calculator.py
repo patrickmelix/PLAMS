@@ -1,7 +1,6 @@
 from ase.calculators.calculator import Calculator, all_changes
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
-# from scm.plams.interfaces.molecule.ase import fromASE
 from scm.plams import finish, Units, config
 import os
 
@@ -24,7 +23,6 @@ class SerenityCalculator(Calculator):
         job.run()
         self.results = dict()
         self.results["energy"] = job.results.get_energy() * Units.convert(1.0, "hartree", "eV")
-        # delete_job(job)
 
     def clean_exit(self):
         finish()

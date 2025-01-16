@@ -1,6 +1,7 @@
 from scm.plams.core.basejob import SingleJob
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.units import Units
 
@@ -81,6 +82,7 @@ class SerenityJob(SingleJob):
             self._translate_AMSJob_to_Serenity(ams_job_dirs[0])  # Processes the first matching directory
         return
 
+    @requires_optional_package("h5py")
     def _translate_AMSJob_to_Serenity(self, AMSJob_folder):
         def convert_to_HDF5(binary_file, hdf5_file, dataset_name, shape=None):
             hdf5_file_path = Path(self.path) / hdf5_file
