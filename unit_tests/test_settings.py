@@ -570,6 +570,7 @@ jobmanager:
 log: 	
     file: 	5
     stdout: 	3
+    csv: 	7
     time: 	True
     date: 	True
 preview: 	False
