@@ -459,20 +459,20 @@ class Settings(dict):
         def iter_block(bk):
             return bk.items() if isinstance(bk, Settings) else enumerate(bk)
 
-        branch_keys = list(self.branch_keys(flatten_list, include_empty))
-        for bk in branch_keys:
+        block_keys = list(self.block_keys(flatten_list, include_empty))
+        for bk in block_keys:
             yield bk
             for k, v in iter_block(self.get_nested(bk)):
                 # Maintain ordering by skipping branch keys here
                 fk = bk + (k,)
-                if (include_empty or v) and fk not in branch_keys:
+                if (include_empty or v) and fk not in block_keys:
                     yield fk
 
-    def branch_keys(
+    def block_keys(
         self, flatten_list: bool = True, include_empty: bool = False
     ) -> Generator[Tuple[Hashable, ...], None, None]:
         """
-        Get the nested keys corresponding to the internal nodes in this instance, also referred to as 'branches'.
+        Get the nested keys corresponding to the internal nodes in this instance, also referred to as 'blocks' or 'branches'.
         These internal nodes correspond to |Settings| objects.
 
         If *flatten_list* is set to ``True``, all nested lists will be flattened and elements converted to internal nodes.

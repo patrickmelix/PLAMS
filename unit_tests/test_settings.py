@@ -603,7 +603,7 @@ class TestSettings:
         ]
         assert all([sett.contains_nested(k) for k in keys])
 
-    def test_settings_branch_keys(self, nested_settings):
+    def test_settings_block_keys(self, nested_settings):
         sett = Settings()
         sett.elements = nested_settings.elements
         sett.empty  # Add empty branches
@@ -611,11 +611,11 @@ class TestSettings:
         sett.elements.empty_list = []
         sett.elements.half_empty = [Settings(), Settings({"k": "v", "empty": ""})]
 
-        keys = list(sett.branch_keys(flatten_list=False))
+        keys = list(sett.block_keys(flatten_list=False))
         assert keys == [("elements",), ("elements", "H"), ("elements", "O"), ("elements", "Fe")]
         assert all([sett.contains_nested(k) for k in keys])
 
-        keys = list(sett.branch_keys(flatten_list=False, include_empty=True))
+        keys = list(sett.block_keys(flatten_list=False, include_empty=True))
         assert keys == [
             ("elements",),
             ("elements", "H"),
@@ -626,7 +626,7 @@ class TestSettings:
         ]
         assert all([sett.contains_nested(k) for k in keys])
 
-        keys = list(sett.branch_keys())
+        keys = list(sett.block_keys())
         assert keys == [
             ("elements",),
             ("elements", "H"),
@@ -645,7 +645,7 @@ class TestSettings:
         ]
         assert all([sett.contains_nested(k) for k in keys])
 
-        keys = list(sett.branch_keys(include_empty=True))
+        keys = list(sett.block_keys(include_empty=True))
         assert keys == [
             ("elements",),
             ("elements", "H"),

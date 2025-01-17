@@ -25,7 +25,7 @@ def format_in_table(
 
     :param data: data to format in the table
     :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
-    :param max_rows: can be integer positive value or -1, defaults to 10
+    :param max_rows: can be integer positive value or -1, defaults to 30
     :return: formatted string table
     """
     elip = "..."

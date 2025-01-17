@@ -60,15 +60,6 @@ class TestFormatInTable:
         )
 
         t = format_in_table(data, max_col_width=100, max_rows=1)
-        t = format_in_table(
-            {
-                "A": range(1, 6),
-                "B": ["one", "two", "three", "four", "five"],
-                "C": ["row one", "row two", "row three", "row four", "row five"],
-            },
-            max_col_width=5,
-            max_rows=2,
-        )
         assert (
             t
             == """\
