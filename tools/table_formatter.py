@@ -3,6 +3,9 @@ from typing import Dict, List
 import numpy as np
 
 
+__all__ = ["format_in_table"]
+
+
 def format_in_table(
     data: Dict[str, List],
     max_col_width: int = -1,

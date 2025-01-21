@@ -140,6 +140,7 @@ from scm.plams.tools.geometry import (
 )
 from scm.plams.tools.kftools import KFFile, KFHistory, KFReader
 from scm.plams.tools.periodic_table import PT, PeriodicTable
+from scm.plams.tools.table_formatter import format_in_table
 from scm.plams.tools.plot import (
     get_correlation_xy,
     plot_band_structure,
@@ -306,6 +307,7 @@ __all__ = [
     "reaction_energy",
     "PeriodicTable",
     "PT",
+    "format_in_table",
     "plot_band_structure",
     "plot_molecule",
     "plot_grid_molecules",
