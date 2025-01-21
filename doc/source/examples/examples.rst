@@ -17,6 +17,7 @@ Getting Started
  
    WaterOptimization/WaterOptimization
    AMSSettingsSystem/AMSSettingsSystem
+   AMSSettingsInput/AMSSettingsInput
    He2DissociationCurve/He2DissociationCurve
    ManyJobsInParallel/ManyJobsInParallel
    Logging/Logging
