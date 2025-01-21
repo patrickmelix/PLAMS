@@ -11,17 +11,15 @@ def format_in_table(
     """
     Create a table from a dictionary of data, with the keys as column headers and the values as rows.
 
-    This will appear as follows:
+    This will appear in a Markdown compatible format, as follows:
 
     .. code-block:: python
 
-        +---+------+----------+
         | A | B    | C        |
-        +---+------+----------+
+        |---|------|----------|
         | 1 | one  | row o... |
         | . | ...  | ...      |
         | 5 | five | row f... |
-        +---+------+----------+
 
     :param data: data to format in the table
     :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
@@ -55,10 +53,10 @@ def format_in_table(
     ]
 
     # Create the separator line
-    separator = f"+-{'-+-'.join('-' * width for width in col_widths)}-+"
+    separator = f"|-{'-|-'.join('-' * width for width in col_widths)}-|"
 
     # Prepare the table
-    table_rows = [separator]
+    table_rows = []
     header_row = f"| {' | '.join(f'{truncated_header[i].ljust(col_widths[i])}' for i in range(len(keys)))} |"
     table_rows.append(header_row)
     table_rows.append(separator)
@@ -82,7 +80,6 @@ def format_in_table(
         for row in values[-rows_at_end:]:
             row_text = f"| {' | '.join(f'{str(row[i]).ljust(col_widths[i])}' for i in range(len(keys)))} |"
             table_rows.append(row_text)
-    table_rows.append(separator)
 
     table = "\n".join(table_rows)
 

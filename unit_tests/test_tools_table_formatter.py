@@ -20,15 +20,13 @@ class TestFormatInTable:
         assert (
             t
             == """\
-+-----+-------+-------+------------+-----------------+
 | A   | B     | CCCCC | D          | EEEEEEEE        |
-+-----+-------+-------+------------+-----------------+
+|-----|-------|-------|------------|-----------------|
 | 1   | one   | max   | evenbigger | header          |
 | 22  | two   | col   | than       | also            |
 | -3  | three | width | maximum    | evenbiggerrrrrr |
 | 44  | four  | is    | column     | than            |
-| -55 | five  | five  | width      | max             |
-+-----+-------+-------+------------+-----------------+"""
+| -55 | five  | five  | width      | max             |"""
         )
 
     def test_format_in_table_with_max_column_width_and_max_rows(self, data):
@@ -36,37 +34,31 @@ class TestFormatInTable:
         assert (
             t
             == """\
-+-----+------+-------+----------+----------+
 | A   | B    | CCCCC | D        | EEEEE... |
-+-----+------+-------+----------+----------+
+|-----|------|-------|----------|----------|
 | 1   | one  | max   | evenb... | heade... |
 | ... | ...  | ...   | ...      | ...      |
 | 44  | four | is    | colum... | than     |
-| -55 | five | five  | width    | max      |
-+-----+------+-------+----------+----------+"""
+| -55 | five | five  | width    | max      |"""
         )
 
         t = format_in_table(data, max_col_width=3, max_rows=2)
         assert (
             t
             == """\
-+-----+--------+--------+--------+--------+
 | A   | B      | CCC... | D      | EEE... |
-+-----+--------+--------+--------+--------+
+|-----|--------|--------|--------|--------|
 | 1   | one    | max    | eve... | hea... |
 | ... | ...    | ...    | ...    | ...    |
-| -55 | fiv... | fiv... | wid... | max    |
-+-----+--------+--------+--------+--------+"""
+| -55 | fiv... | fiv... | wid... | max    |"""
         )
 
         t = format_in_table(data, max_col_width=100, max_rows=1)
         assert (
             t
             == """\
-+-----+------+-------+-------+----------+
 | A   | B    | CCCCC | D     | EEEEEEEE |
-+-----+------+-------+-------+----------+
+|-----|------|-------|-------|----------|
 | ... | ...  | ...   | ...   | ...      |
-| -55 | five | five  | width | max      |
-+-----+------+-------+-------+----------+"""
+| -55 | five | five  | width | max      |"""
         )
