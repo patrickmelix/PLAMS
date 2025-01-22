@@ -281,18 +281,18 @@ class TestJobAnalysis:
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Input.Adf.Basis.Type | Input.Ams.Task       | Input.Ams.Properties.Normalmodes | Input.Adf.Xc.Gga | Runscript.Shebang |
-|--------------|------|-------|----------|---------|--------|----------------------|----------------------|----------------------------------|------------------|-------------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | TZP                  | SinglePoint          | False                            | None             | #!/bin/sh         |
-| dummyjob.002 | True | True  | None     | CH4     | C      | TZP                  | GeometryOptimization | True                             | pbe              | #!/bin/sh         |
-| dummyjob.003 | True | True  | None     | H2O     | O      | TZP                  | SinglePoint          | True                             | None             | #!/bin/sh         |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP                  | GeometryOptimization | False                            | pbe              | #!/bin/sh         |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP                  | SinglePoint          | True                             | None             | #!/bin/sh         |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None                 | GeometryOptimization | True                             | None             | #!/bin/sh         |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None                 | SinglePoint          | False                            | None             | #!/bin/sh         |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None                 | GeometryOptimization | True                             | None             | #!/bin/sh         |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None                 | SinglePoint          | True                             | None             | #!/bin/sh         |
-| dummyjob.010 | True | True  | None     | None    | None   | None                 | GeometryOptimization | False                            | None             | #!/bin/sh         |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | InputAdfBasisType | InputAmsTask         | InputAmsPropertiesNormalmodes | InputAdfXcGga | RunscriptShebang |
+|--------------|------|-------|----------|---------|--------|-------------------|----------------------|-------------------------------|---------------|------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | TZP               | SinglePoint          | False                         | None          | #!/bin/sh        |
+| dummyjob.002 | True | True  | None     | CH4     | C      | TZP               | GeometryOptimization | True                          | pbe           | #!/bin/sh        |
+| dummyjob.003 | True | True  | None     | H2O     | O      | TZP               | SinglePoint          | True                          | None          | #!/bin/sh        |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP               | GeometryOptimization | False                         | pbe           | #!/bin/sh        |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP               | SinglePoint          | True                          | None          | #!/bin/sh        |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None              | GeometryOptimization | True                          | None          | #!/bin/sh        |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None              | SinglePoint          | False                         | None          | #!/bin/sh        |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None              | GeometryOptimization | True                          | None          | #!/bin/sh        |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None              | SinglePoint          | True                          | None          | #!/bin/sh        |
+| dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | #!/bin/sh        |"""
         )
 
         ja.remove_settings_fields()
@@ -301,18 +301,18 @@ class TestJobAnalysis:
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Input.Adf.Basis.Type | Input.Ams.Task       | Input.Ams.Properties.Normalmodes | Input.Adf.Xc.Gga | Input.Ams.System.Atoms.0                              | Input.Ams.System.Atoms.1                              |
-|--------------|------|-------|----------|---------|--------|----------------------|----------------------|----------------------------------|------------------|-------------------------------------------------------|-------------------------------------------------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | TZP                  | SinglePoint          | False                            | None             | None                                                  | None                                                  |
-| dummyjob.002 | True | True  | None     | CH4     | C      | TZP                  | GeometryOptimization | True                             | pbe              | None                                                  | None                                                  |
-| dummyjob.003 | True | True  | None     | H2O     | O      | TZP                  | SinglePoint          | True                             | None             | None                                                  | None                                                  |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP                  | GeometryOptimization | False                            | pbe              | None                                                  | None                                                  |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP                  | SinglePoint          | True                             | None             | None                                                  | None                                                  |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None                 | GeometryOptimization | True                             | None             | None                                                  | None                                                  |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None                 | SinglePoint          | False                            | None             | None                                                  | None                                                  |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None                 | GeometryOptimization | True                             | None             | None                                                  | None                                                  |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None                 | SinglePoint          | True                             | None             | None                                                  | None                                                  |
-| dummyjob.010 | True | True  | None     | None    | None   | None                 | GeometryOptimization | False                            | None             | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | InputAdfBasisType | InputAmsTask         | InputAmsPropertiesNormalmodes | InputAdfXcGga | InputAmsSystemAtoms0                                  | InputAmsSystemAtoms1                                  |
+|--------------|------|-------|----------|---------|--------|-------------------|----------------------|-------------------------------|---------------|-------------------------------------------------------|-------------------------------------------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | TZP               | SinglePoint          | False                         | None          | None                                                  | None                                                  |
+| dummyjob.002 | True | True  | None     | CH4     | C      | TZP               | GeometryOptimization | True                          | pbe           | None                                                  | None                                                  |
+| dummyjob.003 | True | True  | None     | H2O     | O      | TZP               | SinglePoint          | True                          | None          | None                                                  | None                                                  |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP               | GeometryOptimization | False                         | pbe           | None                                                  | None                                                  |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP               | SinglePoint          | True                          | None          | None                                                  | None                                                  |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None              | GeometryOptimization | True                          | None          | None                                                  | None                                                  |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None              | SinglePoint          | False                         | None          | None                                                  | None                                                  |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None              | GeometryOptimization | True                          | None          | None                                                  | None                                                  |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None              | SinglePoint          | True                          | None          | None                                                  | None                                                  |
+| dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
         )
 
     def test_get_set_del_item(self, dummy_single_jobs):
@@ -383,7 +383,7 @@ class TestJobAnalysis:
         assert (
             ja.to_table(max_col_width=10, max_rows=6)
             == """\
-| Name          | Formula | Smiles | Input.Ams.... |
+| Name          | Formula | Smiles | InputAmsPr... |
 |---------------|---------|--------|---------------|
 | dummyjob      | C2H6    | CC     | False         |
 | dummyjob.0... | CH4     | C      | True          |
@@ -410,7 +410,7 @@ class TestJobAnalysis:
         assert (
             csv
             == """\
-Name,Formula,Smiles,Input.Ams.Properties.Normalmodes
+Name,Formula,Smiles,InputAmsPropertiesNormalmodes
 dummyjob,C2H6,CC,False
 dummyjob.002,CH4,C,True
 dummyjob.003,H2O,O,True
@@ -444,8 +444,8 @@ dummyjob.010,,,False
             "Name",
             "Formula",
             "Smiles",
-            "Input.Task",
-            "Input.Ams.Properties.Normalmodes",
+            "InputTask",
+            "InputAmsPropertiesNormalmodes",
         ]
         assert df.Formula.to_list() == [
             "C2H6",
@@ -517,18 +517,18 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Input.Adf.Basis.Type | Input.Ams.Task       | Input.Ams.Properties.Normalmodes | Input.Adf.Xc.Gga | Runscript.Shebang |
-|--------------|------|-------|----------|---------|--------|----------------------|----------------------|----------------------------------|------------------|-------------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | TZP                  | SinglePoint          | False                            | None             | #!/bin/sh         |
-| dummyjob.002 | True | True  | None     | CH4     | C      | TZP                  | GeometryOptimization | True                             | pbe              | #!/bin/sh         |
-| dummyjob.003 | True | True  | None     | H2O     | O      | TZP                  | SinglePoint          | True                             | None             | #!/bin/sh         |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP                  | GeometryOptimization | False                            | pbe              | #!/bin/sh         |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP                  | SinglePoint          | True                             | None             | #!/bin/sh         |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None                 | GeometryOptimization | True                             | None             | #!/bin/sh         |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None                 | SinglePoint          | False                            | None             | #!/bin/sh         |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None                 | GeometryOptimization | True                             | None             | #!/bin/sh         |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None                 | SinglePoint          | True                             | None             | #!/bin/sh         |
-| dummyjob.010 | True | True  | None     | None    | None   | None                 | GeometryOptimization | False                            | None             | #!/bin/sh         |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | InputAdfBasisType | InputAmsTask         | InputAmsPropertiesNormalmodes | InputAdfXcGga | RunscriptShebang |
+|--------------|------|-------|----------|---------|--------|-------------------|----------------------|-------------------------------|---------------|------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | TZP               | SinglePoint          | False                         | None          | #!/bin/sh        |
+| dummyjob.002 | True | True  | None     | CH4     | C      | TZP               | GeometryOptimization | True                          | pbe           | #!/bin/sh        |
+| dummyjob.003 | True | True  | None     | H2O     | O      | TZP               | SinglePoint          | True                          | None          | #!/bin/sh        |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP               | GeometryOptimization | False                         | pbe           | #!/bin/sh        |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP               | SinglePoint          | True                          | None          | #!/bin/sh        |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None              | GeometryOptimization | True                          | None          | #!/bin/sh        |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None              | SinglePoint          | False                         | None          | #!/bin/sh        |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None              | GeometryOptimization | True                          | None          | #!/bin/sh        |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None              | SinglePoint          | True                          | None          | #!/bin/sh        |
+| dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | #!/bin/sh        |"""
         )
 
         ja.remove_settings_fields()
@@ -538,18 +538,18 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Input.Adf.Basis.Type | Input.Ams.Task       | Input.Ams.Properties.Normalmodes | Input.Adf.Xc.Gga | Input.Ams.System.0.Atoms._1.0                         | Input.Ams.System.0.Atoms._1.1                         |
-|--------------|------|-------|----------|---------|--------|----------------------|----------------------|----------------------------------|------------------|-------------------------------------------------------|-------------------------------------------------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | TZP                  | SinglePoint          | False                            | None             | None                                                  | None                                                  |
-| dummyjob.002 | True | True  | None     | CH4     | C      | TZP                  | GeometryOptimization | True                             | pbe              | None                                                  | None                                                  |
-| dummyjob.003 | True | True  | None     | H2O     | O      | TZP                  | SinglePoint          | True                             | None             | None                                                  | None                                                  |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP                  | GeometryOptimization | False                            | pbe              | None                                                  | None                                                  |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP                  | SinglePoint          | True                             | None             | None                                                  | None                                                  |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None                 | GeometryOptimization | True                             | None             | None                                                  | None                                                  |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None                 | SinglePoint          | False                            | None             | None                                                  | None                                                  |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None                 | GeometryOptimization | True                             | None             | None                                                  | None                                                  |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None                 | SinglePoint          | True                             | None             | None                                                  | None                                                  |
-| dummyjob.010 | True | True  | None     | None    | None   | None                 | GeometryOptimization | False                            | None             | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | InputAdfBasisType | InputAmsTask         | InputAmsPropertiesNormalmodes | InputAdfXcGga | InputAmsSystem0Atoms_10                               | InputAmsSystem0Atoms_11                               |
+|--------------|------|-------|----------|---------|--------|-------------------|----------------------|-------------------------------|---------------|-------------------------------------------------------|-------------------------------------------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | TZP               | SinglePoint          | False                         | None          | None                                                  | None                                                  |
+| dummyjob.002 | True | True  | None     | CH4     | C      | TZP               | GeometryOptimization | True                          | pbe           | None                                                  | None                                                  |
+| dummyjob.003 | True | True  | None     | H2O     | O      | TZP               | SinglePoint          | True                          | None          | None                                                  | None                                                  |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | TZP               | GeometryOptimization | False                         | pbe           | None                                                  | None                                                  |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | TZP               | SinglePoint          | True                          | None          | None                                                  | None                                                  |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None              | GeometryOptimization | True                          | None          | None                                                  | None                                                  |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None              | SinglePoint          | False                         | None          | None                                                  | None                                                  |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None              | GeometryOptimization | True                          | None          | None                                                  | None                                                  |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None              | SinglePoint          | True                          | None          | None                                                  | None                                                  |
+| dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
         )
 
 

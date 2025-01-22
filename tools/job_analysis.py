@@ -597,7 +597,7 @@ class JobAnalysis:
         :param key_tuple: nested tuple of keys in the settings object
         """
         self.add_field(
-            ".".join([str(k).title() for k in key_tuple]),
+            "".join([str(k).title() for k in key_tuple]),
             lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),
             group="settings",
         )
@@ -631,7 +631,7 @@ class JobAnalysis:
         for key in all_keys:
             # Take only final nested keys i.e. those which are not block keys and satisfy the predicate
             if key not in all_blocks and predicate(key):
-                name = ".".join([str(k).title() for k in key])
+                name = "".join([str(k).title() for k in key])
                 field = self._Field(
                     name=name, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), group=group
                 )
