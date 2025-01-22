@@ -78,7 +78,9 @@ class JobAnalysis:
         _Field(
             name="Smiles",
             group="mol",
-            value_extractor=lambda j: to_smiles(j.molecule) if isinstance(j, SingleJob) else None,
+            value_extractor=lambda j: (
+                JobAnalysis._mol_smiles_extractor(j.molecule) if isinstance(j, SingleJob) else None
+            ),
         ),
     ]
 
@@ -131,6 +133,8 @@ class JobAnalysis:
         else:
             print(f"**** {mol}")
         return None
+
+    _reserved_names = ["_jobs", "_fields", "_pisa_programs"]
 
     def __init__(self, paths: Optional[Sequence[Union[str, os.PathLike]]] = None, jobs: Optional[Sequence[Job]] = None):
         self._jobs: Dict[str, Job] = {}
@@ -194,7 +198,7 @@ class JobAnalysis:
             try:
                 return value_extractor(job)
             except Exception as e:
-                f"ERROR: {str(e)}"
+                return f"ERROR: {str(e)}"
 
         log_stdout = config.log.stdout
         log_file = config.log.file
@@ -202,10 +206,36 @@ class JobAnalysis:
             # Disable logging while fetching results
             config.log.stdout = 0
             config.log.file = 0
-            return {
-                col_name: [safe_value(j, row_val.value_extractor) for j in self._jobs.values()]
-                for col_name, row_val in self._fields.items()
-            }
+            return {col_name: self._get_field_analysis(col_name) for col_name in self._fields}
+        finally:
+            config.log.stdout = log_stdout
+            config.log.file = log_file
+
+    def _get_field_analysis(self, name) -> List:
+        """
+        Gets analysis data for field with a given name. This gives a list of data for the given field, with a  value for each job.
+
+        :param: name of the field
+        :return: analysis data as list of job values
+        """
+        if name not in self._fields:
+            raise KeyError(f"Field with name '{name}' is not part of the analysis.")
+
+        value_extractor = self._fields[name].value_extractor
+
+        def safe_value(job: Job):
+            try:
+                return value_extractor(job)
+            except Exception as e:
+                return f"ERROR: {str(e)}"
+
+        log_stdout = config.log.stdout
+        log_file = config.log.file
+        try:
+            # Disable logging while fetching results
+            config.log.stdout = 0
+            config.log.file = 0
+            return [safe_value(j) for j in self._jobs.values()]
         finally:
             config.log.stdout = log_stdout
             config.log.file = log_file
@@ -659,16 +689,83 @@ class JobAnalysis:
     def __str__(self) -> str:
         return format_in_table(self.get_analysis(), max_col_width=12, max_rows=5)
 
-    def __getitem__(self, key: str) -> List[Any]:
-        return self.get_analysis()[key]
+    def __getitem__(self, name: str) -> List[Any]:
+        """
+        Get analysis data for a given field.
 
-    def __setitem__(self, key: str, value: Callable[[Job], Any]):
+        :param name: name of the field
+        :return: list of values for each job
+        """
+        return self._get_field_analysis(name)
+
+    def __setitem__(self, name: str, value: Callable[[Job], Any]) -> None:
+        """
+        Set analysis for given field.
+
+        :param name: name of the field
+        :param value: callable to extract the value for the field from a job
+        """
         if not callable(value):
             raise TypeError(f"To set a field, the value must be a callable which accepts a Job.")
 
-        if key in self._fields:
-            self.remove_field(key)
-        self.add_field(key, value_extractor=value)
+        if name in self._fields:
+            self.remove_field(name)
+        self.add_field(name, value_extractor=value)
 
-    def __delitem__(self, key: str) -> None:
-        self.remove_field(key)
+    def __delitem__(self, name: str) -> None:
+        """
+        Delete analysis for given field.
+
+        :param name: name of the field
+        """
+        self.remove_field(name)
+
+    def __getattr__(self, name: str) -> List[Any]:
+        """
+        Fallback to get analysis for given field when an attribute is not present.
+
+        :param name: name of the field
+        :return: list of values for each job
+        """
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute or analysis field with name '{name}'"
+            )
+
+    def __setattr__(self, name, value) -> None:
+        """
+        Fallback to set analysis for given field.
+
+        :param name: name of the field
+        :param value: callable to extract the value for the field from a job
+        """
+        if name in self._reserved_names or hasattr(self.__class__, name):
+            super().__setattr__(name, value)
+        else:
+            self[name] = value
+
+    def __delattr__(self, name) -> None:
+        """
+        Fallback to set analysis for given field.
+
+        :param name: name of the field
+        """
+        if name in self._reserved_names or hasattr(self.__class__, name):
+            super().__delattr__(name)
+        else:
+            try:
+                del self[name]
+            except KeyError:
+                raise AttributeError(
+                    f"'{self.__class__.__name__}' object has no attribute or analysis field with name '{name}'"
+                )
+
+    def __dir__(self):
+        """
+        Return standard attributes, plus dynamically added field names which can be accessed via dot notation.
+        """
+        return [x for x in super().__dir__()] + [
+            k for k in self._fields.keys() if isinstance(k, str) and k.isidentifier()
+        ]

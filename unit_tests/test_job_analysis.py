@@ -1,9 +1,10 @@
 import pytest
+import shutil
 
 from scm.plams.interfaces.molecule.rdkit import from_smiles
 from scm.plams.core.jobmanager import JobManager
 from scm.plams.unit_tests.test_basejob import DummySingleJob
-from scm.plams.unit_tests.test_helpers import temp_file_path, skip_if_no_scm_pisa
+from scm.plams.unit_tests.test_helpers import temp_file_path, skip_if_no_scm_pisa, skip_if_no_scm_libbase
 from scm.plams.tools.job_analysis import JobAnalysis
 from scm.plams.core.settings import Settings, JobManagerSettings
 
@@ -39,7 +40,7 @@ class TestJobAnalysis:
             j.run()
             j.ok()
 
-        return jobs
+        yield jobs
 
     def test_init_with_jobs(self, dummy_single_jobs):
         ja = JobAnalysis(jobs=dummy_single_jobs)
@@ -337,6 +338,39 @@ class TestJobAnalysis:
         assert ja["Smiles"] == ["CC", "C", "O", "CO", "CCC", "CCCC", "CCCO", "CCCCCC", "CCCOC", None]
         assert ja["OK"] == ["Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes"]
         assert ja["Id"] == ["dummyjob", "002", "003", "004", "005", "006", "007", "008", "009", "010"]
+        with pytest.raises(KeyError):
+            ja["Foo"]
+        with pytest.raises(KeyError):
+            del ja["Bar"]
+
+    def test_get_set_del_attributes(self, dummy_single_jobs):
+        ja = JobAnalysis(jobs=dummy_single_jobs)
+        ja.add_molecule_fields()
+        del ja.Path
+        del ja.Check
+
+        ja.OK = lambda j: "Yes" if j.ok() else "No"
+        ja.Id = lambda j: j.name.split(".")[-1]
+
+        assert ja.Name == [
+            "dummyjob",
+            "dummyjob.002",
+            "dummyjob.003",
+            "dummyjob.004",
+            "dummyjob.005",
+            "dummyjob.006",
+            "dummyjob.007",
+            "dummyjob.008",
+            "dummyjob.009",
+            "dummyjob.010",
+        ]
+        assert ja.Smiles == ["CC", "C", "O", "CO", "CCC", "CCCC", "CCCO", "CCCCCC", "CCCOC", None]
+        assert ja.OK == ["Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes", "Yes"]
+        assert ja.Id == ["dummyjob", "002", "003", "004", "005", "006", "007", "008", "009", "010"]
+        with pytest.raises(AttributeError):
+            ja.Foo
+        with pytest.raises(AttributeError):
+            del ja.Bar
 
     def test_to_table(self, dummy_single_jobs):
         ja = JobAnalysis(jobs=dummy_single_jobs)
@@ -468,7 +502,10 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
         for j in jobs:
             j.run(jobmanager=jm)
             j.ok()
-        return jobs
+        yield jobs
+
+        jm._clean()
+        shutil.rmtree(jm.workdir)
 
     def test_settings_fields(self, dummy_single_jobs):
         ja = JobAnalysis(jobs=dummy_single_jobs)
@@ -514,3 +551,46 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None                 | SinglePoint          | True                             | None             | None                                                  | None                                                  |
 | dummyjob.010 | True | True  | None     | None    | None   | None                 | GeometryOptimization | False                            | None             | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
         )
+
+
+class TestJobAnalysisWithChemicalSystem(TestJobAnalysis):
+
+    @pytest.fixture(scope="class")
+    def dummy_single_jobs(self):
+        # Generate dummy jobs for a selection of molecules and input settings
+        skip_if_no_scm_libbase()
+        from scm.utils.conversions import plams_molecule_to_chemsys
+
+        smiles = ["CC", "C", "O", "CO", "CCC", "CCCC", "CCCO", "CCCCCC", "CCCOC", "Sys"]
+        jobs = []
+        for i, s in enumerate(smiles):
+            sett = Settings()
+            sett.input.ams.task = "GeometryOptimization" if i % 2 else "SinglePoint"
+            sett.input.ams.Properties.NormalModes = "True" if i % 3 else "False"
+            if i < 5:
+                sett.input.ADF.Basis.Type = "TZP"
+                if i % 2:
+                    sett.input.ADF.xc.gga = "pbe"
+            else:
+                sett.input.DFTB
+            if s == "Sys":
+                sett.input.ams.System.Atoms = [
+                    "Ar 0.0000000000       0.0000000000       0.0000000000",
+                    "Ar 1.6050000000       0.9266471820       2.6050000000",
+                ]
+                mol = None
+            else:
+                mol = from_smiles(s)
+                mol = plams_molecule_to_chemsys(mol)
+
+            jobs.append(DummySingleJob(wait=i / 100, molecule=mol, settings=sett, name="dummyjob"))
+
+        jm = JobManager(JobManagerSettings())
+        for j in jobs:
+            j.run(jobmanager=jm)
+            j.ok()
+
+        yield jobs
+
+        jm._clean()
+        shutil.rmtree(jm.workdir)
