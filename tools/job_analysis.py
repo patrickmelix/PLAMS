@@ -130,8 +130,6 @@ class JobAnalysis:
             return to_smiles(mol)
         elif _has_scm_libbase and isinstance(mol, ChemicalSystem):
             return JobAnalysis._mol_smiles_extractor(chemsys_to_plams_molecule(mol))
-        else:
-            print(f"**** {mol}")
         return None
 
     _reserved_names = ["_jobs", "_fields", "_pisa_programs"]
@@ -350,6 +348,34 @@ class JobAnalysis:
             if predicate(data):
                 self.remove_job(j)
 
+    def sort_jobs(
+        self,
+        field_names: Optional[Sequence[str]] = None,
+        key: Optional[Callable[[Dict[str, Any]], Any]] = None,
+        reverse: bool = False,
+    ) -> None:
+        """
+        Sort jobs according to a single or multiple fields. This is the order the rows will appear in the analysis data.
+
+        Either one of ``field_names`` or ``key`` must be provided.
+        If ``field_names`` is provided, the values from these field(s) will be used to sort, in the order they are specified.
+        If ``key`` is provided, the sorting function will be applied to all fields.
+
+        :param field_names: field names to sort by,
+        :param key: sorting function which takes a dictionary of field names and their values
+        :param reverse: reverse sort order, defaults to ``False``
+        """
+        analysis = self.get_analysis()
+        key = key if key else lambda data: tuple([str(v) for v in data.values()])
+        field_names = set(field_names) if field_names else set(self.field_names)
+
+        def sort_key(ik):
+            i, _ = ik
+            return key({k: v[i] for k, v in analysis.items() if k in field_names})
+
+        sorted_keys = sorted(enumerate(self._jobs.keys()), key=sort_key, reverse=reverse)
+        self._jobs = {k: self._jobs[k] for _, k in sorted_keys}
+
     def add_field(self, name: str, value_extractor: Callable[[Job], Any], group: Optional[str] = None) -> None:
         """
         Add a field to the analysis. This adds a column to the analysis data.
@@ -398,13 +424,14 @@ class JobAnalysis:
 
         self.sort_fields(key=key)
 
-    def sort_fields(self, key: Callable[[str], Any]) -> None:
+    def sort_fields(self, key: Callable[[str], Any], reverse: bool = False) -> None:
         """
         Sort fields according to a sort key. This is the order the columns will appear in the analysis data.
 
         :param key: sorting function which accepts the field name
+        :param reverse: reverse sort order, defaults to ``False``
         """
-        sorted_keys = sorted(self._fields.keys(), key=key)
+        sorted_keys = sorted(self._fields.keys(), key=key, reverse=reverse)
         self._fields = {k: self._fields[k] for k in sorted_keys}
 
     def remove_field(self, name: str) -> None:

@@ -272,6 +272,72 @@ class TestJobAnalysis:
             "Wait",
         ]
 
+        ja.sort_fields(lambda k: len(k), reverse=True)
+
+        assert ja.field_names == [
+            "ElapsedTime",
+            "ErrorMsg",
+            "CPUTime",
+            "Formula",
+            "SysTime",
+            "Smiles",
+            "Check",
+            "Name",
+            "Path",
+            "Wait",
+            "OK",
+        ]
+
+    def test_sort_jobs(self, dummy_single_jobs):
+        ja = JobAnalysis(jobs=dummy_single_jobs)
+        ja.add_molecule_fields()
+        ja.add_timing_fields()
+        ja.add_field("Wait", lambda j: j.wait, group="w")
+
+        ja.sort_jobs(field_names=["Formula"])
+        assert [j.name for j in ja.jobs.values()] == [
+            "dummyjob",
+            "dummyjob.005",
+            "dummyjob.007",
+            "dummyjob.006",
+            "dummyjob.009",
+            "dummyjob.008",
+            "dummyjob.002",
+            "dummyjob.004",
+            "dummyjob.003",
+            "dummyjob.010",
+        ]
+
+        ja.sort_jobs(field_names=["OK", "Wait"], reverse=True)
+
+        assert [(j.name, j.wait) for j in ja.jobs.values()] == [
+            ("dummyjob.010", 0.09),
+            ("dummyjob.009", 0.08),
+            ("dummyjob.008", 0.07),
+            ("dummyjob.007", 0.06),
+            ("dummyjob.006", 0.05),
+            ("dummyjob.005", 0.04),
+            ("dummyjob.004", 0.03),
+            ("dummyjob.003", 0.02),
+            ("dummyjob.002", 0.01),
+            ("dummyjob", 0.0),
+        ]
+
+        ja.sort_jobs(key=lambda data: data["Wait"] * 100 % 5)
+
+        assert [(j.name, int(j.wait * 100 % 5)) for j in ja.jobs.values()] == [
+            ("dummyjob.006", 0.0),
+            ("dummyjob", 0.0),
+            ("dummyjob.007", 1.0),
+            ("dummyjob.002", 1.0),
+            ("dummyjob.003", 2.0),
+            ("dummyjob.008", 2.0),
+            ("dummyjob.009", 3.0),
+            ("dummyjob.004", 3.0),
+            ("dummyjob.010", 4.0),
+            ("dummyjob.005", 4.0),
+        ]
+
     def test_settings_fields(self, dummy_single_jobs):
         ja = JobAnalysis(jobs=dummy_single_jobs)
         ja.add_molecule_fields()
