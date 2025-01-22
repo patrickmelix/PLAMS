@@ -201,6 +201,7 @@ class PackMol:
         self.tolerance = tolerance
         self.structures = structures or []
         self.filetype = filetype
+        self.seed = -1
         self.executable = executable or os.path.join(os.path.expandvars("$AMSBIN"), "packmol.exe")
         if not os.path.exists(self.executable):
             raise RuntimeError("PackMol exectuable not found: " + self.executable)
@@ -282,6 +283,7 @@ class PackMol:
             input_fname = os.path.join(tmpdir, "input.inp")
             with open(input_fname, "w") as input_file:
                 input_file.write(f"tolerance {self.tolerance}\n")
+                input_file.write(f"seed {self.seed}\n")
                 input_file.write(f"filetype {self.filetype}\n")
                 input_file.write(f"output {output_fname}\n")
 
