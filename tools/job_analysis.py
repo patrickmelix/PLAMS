@@ -6,20 +6,22 @@ import numpy as np
 from numbers import Number
 
 from scm.plams.core.basejob import Job, SingleJob
+from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.core.errors import PlamsError
-from scm.plams.core.functions import requires_optional_package, load
+from scm.plams.core.functions import requires_optional_package, load, config
 from scm.plams.tools.table_formatter import format_in_table
 from scm.plams.interfaces.molecule.rdkit import to_smiles
 from scm.plams.mol.molecule import Molecule
+from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
 
 try:
     from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
     from scm.utils.conversions import chemsys_to_plams_molecule
 
-    _has_scm_chemsys = True
+    _has_scm_libbase = True
 except ImportError:
-    _has_scm_chemsys = False
+    _has_scm_libbase = False
 
 try:
     from pandas import DataFrame
@@ -27,6 +29,14 @@ try:
     _has_pandas = True
 except ImportError:
     _has_pandas = False
+
+try:
+    from scm.pisa.block import DriverBlock
+    from scm.pisa.input_def import DRIVER_BLOCK_FILES, ENGINE_BLOCK_FILES
+
+    _has_scm_pisa = True
+except ImportError:
+    _has_scm_pisa = False
 
 
 __all__ = ["JobAnalysis"]
@@ -104,7 +114,7 @@ class JobAnalysis:
             return ", ".join([f"{n}: {JobAnalysis._mol_formula_extractor(m)}" for n, m in mol.items()])
         elif isinstance(mol, Molecule):
             return mol.get_formula()
-        elif _has_scm_chemsys and isinstance(mol, ChemicalSystem):
+        elif _has_scm_libbase and isinstance(mol, ChemicalSystem):
             return mol.formula()
         return None
 
@@ -116,14 +126,20 @@ class JobAnalysis:
             return ", ".join([f"{n}: {JobAnalysis._mol_smiles_extractor(m)}" for n, m in mol.items()])
         elif isinstance(mol, Molecule):
             return to_smiles(mol)
-        elif _has_scm_chemsys and isinstance(mol, ChemicalSystem):
+        elif _has_scm_libbase and isinstance(mol, ChemicalSystem):
             return JobAnalysis._mol_smiles_extractor(chemsys_to_plams_molecule(mol))
+        else:
+            print(f"**** {mol}")
         return None
 
     def __init__(self, paths: Optional[Sequence[Union[str, os.PathLike]]] = None, jobs: Optional[Sequence[Job]] = None):
         self._jobs: Dict[str, Job] = {}
         self._fields: Dict[str, JobAnalysis._Field] = {}
         self.add_job_info_fields()
+
+        if _has_scm_pisa:
+            self._pisa_programs = {value: key for key, value in ENGINE_BLOCK_FILES.items()}
+            self._pisa_programs.update({value: key for key, value in DRIVER_BLOCK_FILES.items()})
 
         if jobs:
             for j in jobs:
@@ -180,10 +196,19 @@ class JobAnalysis:
             except Exception as e:
                 f"ERROR: {str(e)}"
 
-        return {
-            col_name: [safe_value(j, row_val.value_extractor) for j in self._jobs.values()]
-            for col_name, row_val in self._fields.items()
-        }
+        log_stdout = config.log.stdout
+        log_file = config.log.file
+        try:
+            # Disable logging while fetching results
+            config.log.stdout = 0
+            config.log.file = 0
+            return {
+                col_name: [safe_value(j, row_val.value_extractor) for j in self._jobs.values()]
+                for col_name, row_val in self._fields.items()
+            }
+        finally:
+            config.log.stdout = log_stdout
+            config.log.file = log_file
 
     @requires_optional_package("pandas")
     def to_dataframe(self) -> "DataFrame":
@@ -281,6 +306,19 @@ class JobAnalysis:
             raise PlamsError(f"Could not load job from path '{path}'")
 
         self.add_job(job)
+
+    def filter_jobs(self, predicate: Callable[[Dict[str, Any]], bool]) -> None:
+        """
+        Remove any jobs from the analysis where the given predicate for field values evaluates to ``True``.
+        In other words, this removes rows(s) from the analysis data where the filter function evaluates to ``True`` given a dictionary of the row data.
+
+        :param predicate: filter function which takes a dictionary of field names and their values and evaluates to ``True``/``False``
+        """
+        analysis = self.get_analysis()
+        for i, j in enumerate(self.jobs):
+            data = {k: v[i] for k, v in analysis.items()}
+            if predicate(data):
+                self.remove_job(j)
 
     def add_field(self, name: str, value_extractor: Callable[[Job], Any], group: Optional[str] = None) -> None:
         """
@@ -398,7 +436,10 @@ class JobAnalysis:
             if all([isinstance(v, Number) and not isinstance(v, bool) for v in vals]):
                 return np.ptp(vals) <= tol
 
-            return all(v == vals[0] for v in vals)
+            try:
+                return all([v == vals[0] for v in vals])
+            except ValueError:
+                return False
 
         self.filter_fields(lambda vals: is_uniform(vals))
 
@@ -527,7 +568,7 @@ class JobAnalysis:
         """
         self.add_field(
             ".".join([str(k).title() for k in key_tuple]),
-            lambda j, k=key_tuple: j.settings.get_nested(k),
+            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),
             group="settings",
         )
 
@@ -549,8 +590,9 @@ class JobAnalysis:
         all_blocks = set()
         all_keys = {}  # Use dict as a sorted set for keys
         for job in self._jobs.values():
-            blocks = set(job.settings.block_keys(flatten_list=flatten_list))
-            keys = {k: None for k in job.settings.nested_keys(flatten_list=flatten_list)}
+            settings = self._get_job_settings(job)
+            blocks = set(settings.block_keys(flatten_list=flatten_list))
+            keys = {k: None for k in settings.nested_keys(flatten_list=flatten_list)}
             all_blocks = all_blocks.union(blocks)
             all_keys.update(keys)
 
@@ -560,10 +602,30 @@ class JobAnalysis:
             # Take only final nested keys i.e. those which are not block keys and satisfy the predicate
             if key not in all_blocks and predicate(key):
                 name = ".".join([str(k).title() for k in key])
-                field = self._Field(name=name, value_extractor=lambda j, k=key: j.settings.get_nested(k), group=group)
+                field = self._Field(
+                    name=name, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), group=group
+                )
                 fields.append(field)
 
         self._add_preconfigured_fields(fields)
+
+    def _get_job_settings(self, job: Job) -> Settings:
+        """
+        Get job settings converting any PISA input block to a standard settings object.
+        """
+        # Convert any PISA settings blocks to standard
+        settings = Settings()
+        if job.settings is not None:
+            if isinstance(job.settings, Settings):
+                settings = job.settings.copy()
+            if _has_scm_pisa:
+                if hasattr(job.settings, "input") and isinstance(job.settings.input, DriverBlock):
+                    # Note use own input parser facade here to use caching
+                    program = self._pisa_programs[job.settings.input.name].name.split(".")[0]
+                    settings.input = InputParserFacade().to_settings(
+                        program=program, text_input=job.settings.input.get_input_string()
+                    )
+        return settings
 
     def add_settings_input_fields(self, include_system_block: bool = False, flatten_list: bool = True) -> None:
         """
@@ -574,10 +636,14 @@ class JobAnalysis:
         """
 
         def predicate(key_tuple: Tuple[Hashable, ...]):
+            if len(key_tuple) == 0 or str(key_tuple[0]).lower() != "input":
+                return False
+
             return (
-                len(key_tuple) >= 2
-                and str(key_tuple[0]).lower() == "input"
-                and (str(key_tuple[1]).lower() != "system" or include_system_block)
+                len(key_tuple) < 3
+                or str(key_tuple[1]).lower() != "ams"
+                or str(key_tuple[2]).lower() != "system"
+                or include_system_block
             )
 
         self.add_settings_fields(predicate, flatten_list, group="settings_input")
