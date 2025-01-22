@@ -93,29 +93,30 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None       | None       |"""
         )
 
-    def test_add_remove_filter_fields(self, dummy_single_jobs):
+    def test_add_remove_rename_filter_fields(self, dummy_single_jobs):
         ja = JobAnalysis(jobs=dummy_single_jobs)
         ja.add_molecule_fields()
         ja.add_timing_fields()
         ja.add_field("Wait", lambda j: j.wait)
         ja.add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
         ja.remove_field("Path")
+        ja.rename_field("ErrorMsg", "Err")
 
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | CPUTime | SysTime | ElapsedTime | Wait | Output |
-|--------------|------|-------|----------|---------|--------|---------|---------|-------------|------|--------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | None    | None    | None        | 0.0  | Dummy  |
-| dummyjob.002 | True | True  | None     | CH4     | C      | None    | None    | None        | 0.01 | Dummy  |
-| dummyjob.003 | True | True  | None     | H2O     | O      | None    | None    | None        | 0.02 | Dummy  |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | None    | None    | None        | 0.03 | Dummy  |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | None    | None    | None        | 0.04 | Dummy  |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None    | None    | None        | 0.05 | Dummy  |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None    | None    | None        | 0.06 | Dummy  |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None    | None    | None        | 0.07 | Dummy  |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None    | None    | None        | 0.08 | Dummy  |
-| dummyjob.010 | True | True  | None     | None    | None   | None    | None    | None        | 0.09 | Dummy  |"""
+| Name         | OK   | Check | Err  | Formula | Smiles | CPUTime | SysTime | ElapsedTime | Wait | Output |
+|--------------|------|-------|------|---------|--------|---------|---------|-------------|------|--------|
+| dummyjob     | True | True  | None | C2H6    | CC     | None    | None    | None        | 0.0  | Dummy  |
+| dummyjob.002 | True | True  | None | CH4     | C      | None    | None    | None        | 0.01 | Dummy  |
+| dummyjob.003 | True | True  | None | H2O     | O      | None    | None    | None        | 0.02 | Dummy  |
+| dummyjob.004 | True | True  | None | CH4O    | CO     | None    | None    | None        | 0.03 | Dummy  |
+| dummyjob.005 | True | True  | None | C3H8    | CCC    | None    | None    | None        | 0.04 | Dummy  |
+| dummyjob.006 | True | True  | None | C4H10   | CCCC   | None    | None    | None        | 0.05 | Dummy  |
+| dummyjob.007 | True | True  | None | C3H8O   | CCCO   | None    | None    | None        | 0.06 | Dummy  |
+| dummyjob.008 | True | True  | None | C6H14   | CCCCCC | None    | None    | None        | 0.07 | Dummy  |
+| dummyjob.009 | True | True  | None | C4H10O  | CCCOC  | None    | None    | None        | 0.08 | Dummy  |
+| dummyjob.010 | True | True  | None | None    | None   | None    | None    | None        | 0.09 | Dummy  |"""
         )
 
         ja.remove_empty_fields()
@@ -439,12 +440,11 @@ dummyjob.010,,,False
 
         df = ja.to_dataframe()
 
-        assert df.shape == (10, 5)
+        assert df.shape == (10, 4)
         assert df.columns.to_list() == [
             "Name",
             "Formula",
             "Smiles",
-            "InputTask",
             "InputAmsPropertiesNormalmodes",
         ]
         assert df.Formula.to_list() == [

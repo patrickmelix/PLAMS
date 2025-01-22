@@ -374,8 +374,12 @@ class JobAnalysis:
         if name not in self._fields:
             raise KeyError(f"Field with name '{name}' is not part of the analysis.")
 
+        # Maintain field ordering
+        field_names = self.field_names
+        field_names[field_names.index(name)] = new_name
         field = self._fields.pop(name)
         self.add_field(new_name, field.value_extractor, field.group)
+        self.reorder_fields(field_names)
 
     def reorder_fields(self, order: Sequence[str]) -> None:
         """
