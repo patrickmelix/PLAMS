@@ -906,13 +906,8 @@ def packmol_around(
         the density will be lower than what you request.
 
     """
-    from scm.libbase import (
-        UnifiedChemicalSystem as ChemicalSystem,
-        UnifiedLattice as Lattice,
-    )
+    from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
     from scm.utils.conversions import plams_molecule_to_chemsys, chemsys_to_plams_molecule
-
-    loglevel = 7
 
     if isinstance(current, Molecule):
         original_ucs = plams_molecule_to_chemsys(current)
