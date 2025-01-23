@@ -531,7 +531,7 @@ class AMSResults(Results):
         # Convert to SI units and compute temperatures
         m = masses * 1.0e-3 / Units.constants["NA"]
         vels = velocities * Units.conversion_ratio("Bohr", "Angstrom") * 1.0e5
-        temperatures = (m.reshape((nats, 1)) * vels ** 2).sum(axis=1)
+        temperatures = (m.reshape((nats, 1)) * vels**2).sum(axis=1)
         temperatures /= 3 * Units.constants["k_B"]
         return temperatures
 
@@ -1677,7 +1677,7 @@ class AMSResults(Results):
 
         au2Pa = Units.convert(1.0, "hartree/bohr^3", "Pa")
 
-        viscosity = (volume * 1e-30) / (k_B * temperature) * integrated_acf * au2Pa ** 2 * 1e-15 * 1e3
+        viscosity = (volume * 1e-30) / (k_B * temperature) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
 
         return integrated_times, viscosity
 
@@ -1756,7 +1756,7 @@ class AMSResults(Results):
 
         au2Pa = Units.convert(1.0, "hartree/bohr^3", "Pa")
 
-        viscosity = (V * 1e-30) / (k_B * mean_T) * integrated_acf * au2Pa ** 2 * 1e-15 * 1e3
+        viscosity = (V * 1e-30) / (k_B * mean_T) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
 
         return integrated_times, viscosity
 
