@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Union, Dict, List, Callable, Any, NamedTuple, Tuple, Hashable
+from typing import Optional, Sequence, Union, Dict, List, Callable, Any, NamedTuple, Tuple, Hashable, Set
 import os
 import csv
 from pathlib import Path
@@ -51,7 +51,7 @@ class JobAnalysis:
 
     class _Field(NamedTuple):
         name: str
-        group: str
+        group: Optional[str]
         value_extractor: Callable[[Job], Any]
 
     _job_info_fields = [
@@ -181,13 +181,13 @@ class JobAnalysis:
         return [k for k in self._fields]
 
     @property
-    def field_groups(self) -> Dict[str, List[str]]:
+    def field_groups(self) -> Dict[Optional[str], List[str]]:
         """
         Groups of current fields.
 
         :return: dictionary with group names as keys and field names as values
         """
-        groups = {}
+        groups: Dict[Optional[str], List[str]] = {}
         for field in self._fields.values():
             if field.group in groups:
                 groups[field.group].append(field.name)
@@ -278,7 +278,7 @@ class JobAnalysis:
         keys = list(data.keys())
         num_rows = len(data[keys[0]]) if len(keys) > 0 else 0
 
-        with open(path, mode="w", encoding="utf-8") as f:
+        with open(path, mode="w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(keys)
             for i in range(num_rows):
@@ -308,7 +308,7 @@ class JobAnalysis:
 
         self._jobs.pop(path)
 
-    def load_job(self, path: Union[str, os.PathLike], loaders: Sequence[Callable[[str], Job]] = None) -> None:
+    def load_job(self, path: Union[str, os.PathLike], loaders: Optional[Sequence[Callable[[str], Job]]] = None) -> None:
         """
         Add job to the analysis by loading from a given path to the job folder.
         If no dill file is present in that location, the loaders will be used to load the given job from the folder.
@@ -378,11 +378,11 @@ class JobAnalysis:
         """
         analysis = self.get_analysis()
         key = key if key else lambda data: tuple([str(v) for v in data.values()])
-        field_names = set(field_names) if field_names else set(self.field_names)
+        name_set = set(field_names) if field_names else set(self.field_names)
 
         def sort_key(ik):
             i, _ = ik
-            return key({k: v[i] for k, v in analysis.items() if k in field_names})
+            return key({k: v[i] for k, v in analysis.items() if k in name_set})
 
         sorted_keys = sorted(enumerate(self._jobs.keys()), key=sort_key, reverse=reverse)
         self._jobs = {k: self._jobs[k] for _, k in sorted_keys}
@@ -640,7 +640,7 @@ class JobAnalysis:
         """
         self.add_field(
             "".join([str(k).title() for k in key_tuple]),
-            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),
+            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),  # type: ignore
             group="settings",
         )
 
@@ -659,8 +659,8 @@ class JobAnalysis:
         :param group: an optional group that this set of settings fields belongs to
         """
 
-        all_blocks = set()
-        all_keys = {}  # Use dict as a sorted set for keys
+        all_blocks: Set[Tuple[Hashable, ...]] = set()
+        all_keys: Dict[Tuple[Hashable, ...], None] = {}  # Use dict as a sorted set for keys
         for job in self._jobs.values():
             settings = self._get_job_settings(job)
             blocks = set(settings.block_keys(flatten_list=flatten_list))
@@ -675,7 +675,7 @@ class JobAnalysis:
             if key not in all_blocks and predicate(key):
                 name = "".join([str(k).title() for k in key])
                 field = self._Field(
-                    name=name, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), group=group
+                    name=name, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), group=group  # type: ignore
                 )
                 fields.append(field)
 
@@ -725,7 +725,7 @@ class JobAnalysis:
         Remove all fields which contain ``settings`` in the field group name from the analysis.
         """
         for group in self.field_groups.keys():
-            if "settings" in group.lower():
+            if group and "settings" in group.lower():
                 self.remove_field_group(group)
 
     def __str__(self) -> str:
@@ -748,7 +748,7 @@ class JobAnalysis:
         :param value: callable to extract the value for the field from a job
         """
         if not callable(value):
-            raise TypeError(f"To set a field, the value must be a callable which accepts a Job.")
+            raise TypeError("To set a field, the value must be a callable which accepts a Job.")
 
         if name in self._fields:
             self.remove_field(name)
