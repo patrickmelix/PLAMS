@@ -43,7 +43,6 @@ try:
     _has_watchdog = True
 
     class AMSJobLogTailHandler(PatternMatchingEventHandler):
-
         def __init__(self, job, jobmanager):
             super().__init__(
                 patterns=[os.path.join(jobmanager.workdir, f"{job.name}*", "ams.log")],
@@ -532,7 +531,7 @@ class AMSResults(Results):
         # Convert to SI units and compute temperatures
         m = masses * 1.0e-3 / Units.constants["NA"]
         vels = velocities * Units.conversion_ratio("Bohr", "Angstrom") * 1.0e5
-        temperatures = (m.reshape((nats, 1)) * vels**2).sum(axis=1)
+        temperatures = (m.reshape((nats, 1)) * vels ** 2).sum(axis=1)
         temperatures /= 3 * Units.constants["k_B"]
         return temperatures
 
@@ -632,6 +631,22 @@ class AMSResults(Results):
 
         fermi_energy = self.readrkf("BandStructure", "FermiEnergy", file="engine")
         fermi_energy = Units.convert(fermi_energy, "hartree", unit)
+
+        try:
+            path_source = self.readrkf("band_curves", "path_source", file="engine")
+        except KeyError:
+            path_source = "kpath"
+
+        if path_source == "seekpath":
+            for i, label in enumerate(labels):
+                if label:
+                    label = (
+                        label.replace("GAMMA", "\\Gamma")
+                        .replace("DELTA", "\\Delta")
+                        .replace("LAMBDA", "\\Lambda")
+                        .replace("SIGMA", "\\Sigma")
+                    )
+                    labels[i] = f"${label}$"
 
         return x, complete_spinup_data, complete_spindown_data, labels, fermi_energy  # type: ignore
 
@@ -1662,7 +1677,7 @@ class AMSResults(Results):
 
         au2Pa = Units.convert(1.0, "hartree/bohr^3", "Pa")
 
-        viscosity = (volume * 1e-30) / (k_B * temperature) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
+        viscosity = (volume * 1e-30) / (k_B * temperature) * integrated_acf * au2Pa ** 2 * 1e-15 * 1e3
 
         return integrated_times, viscosity
 
@@ -1741,7 +1756,7 @@ class AMSResults(Results):
 
         au2Pa = Units.convert(1.0, "hartree/bohr^3", "Pa")
 
-        viscosity = (V * 1e-30) / (k_B * mean_T) * integrated_acf * au2Pa**2 * 1e-15 * 1e3
+        viscosity = (V * 1e-30) / (k_B * mean_T) * integrated_acf * au2Pa ** 2 * 1e-15 * 1e3
 
         return integrated_times, viscosity
 
@@ -1994,7 +2009,6 @@ class AMSResults(Results):
         return self.job.name
 
     class EnergyLandscape:
-
         class State:
             def __init__(
                 self,
@@ -2782,7 +2796,6 @@ class AMSJob(SingleJob):
 
     @staticmethod
     def _serialize_single_molecule(name: str, mol: Union[Molecule, "ChemicalSystem"]) -> Settings:
-
         def serialize_unichemsys_to_settings(mol: "ChemicalSystem") -> Settings:
             from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
 
@@ -3230,7 +3243,6 @@ class AMSJob(SingleJob):
 
     @staticmethod
     def _atom_suffix_to_settings(suffix) -> Settings:
-
         def is_int(s):
             if "." in s:
                 return False
