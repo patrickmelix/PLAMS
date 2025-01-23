@@ -151,6 +151,17 @@ class JobAnalysis:
             for p in paths:
                 self.load_job(p)
 
+    def copy(self) -> "JobAnalysis":
+        """
+        Produce a copy of this analysis with the same jobs and fields.
+
+        :return: copy of the analysis
+        """
+        cpy = JobAnalysis()
+        cpy._jobs = self.jobs
+        cpy._fields = {k: v for k, v in self._fields.items()}
+        return cpy
+
     @property
     def jobs(self) -> Dict[str, Job]:
         """
