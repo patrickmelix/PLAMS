@@ -83,14 +83,20 @@ class PackMolStructure:
             assert density is None
             self.n_molecules = 1
             if molecule.lattice and len(molecule.lattice) == 3:
-                self.box_bounds = [
-                    0.0,
-                    0.0,
-                    0.0,
-                    molecule.lattice[0][0],
-                    molecule.lattice[1][1],
-                    molecule.lattice[2][2],
-                ]
+                vecs = np.array(molecule.lattice)
+                positive_mask = vecs >= 0
+                negative_mask = vecs <= 0
+                minxyz = np.sum(vecs * negative_mask, axis=0)
+                maxxyz = np.sum(vecs * positive_mask, axis=0)
+                self.box_bounds = minxyz.tolist() + maxxyz.tolist()
+                # self.box_bounds = [
+                #     0.0,
+                #     0.0,
+                #     0.0,
+                #     molecule.lattice[0][0],
+                #     molecule.lattice[1][1],
+                #     molecule.lattice[2][2],
+                # ]
             else:
                 self.box_bounds = None
             self.fixed = True
@@ -653,10 +659,13 @@ def packmol(
     try:
         volume = out.unit_cell_volume(unit="angstrom")
         density = out.get_density() * 1e-3  # g / cm^3
-    except ValueError:  # not periodic, presumably when sphere=True
+    except (ValueError, ZeroDivisionError):  # not periodic, presumably when sphere=True
         volume = pm._get_complete_volume()
-        mass = out.get_mass(unit="g")
-        density = mass / (volume * 1e-24)  # g / cm^3
+        if volume == 0:
+            density = 0
+        else:
+            mass = out.get_mass(unit="g")
+            density = mass / (volume * 1e-24)  # g / cm^3
     details = {
         "n_molecules": coeffs.tolist(),
         "mole_fractions": (coeffs / np.sum(coeffs)).tolist() if np.sum(coeffs) > 0 else [0.0] * len(coeffs),
