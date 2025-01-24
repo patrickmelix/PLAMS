@@ -3272,7 +3272,7 @@ class Molecule:
         atom_symbols = kf.read("COSMO", "Atom Type").split()
         atom_coords = np.array(kf.read("COSMO", "Atom Coordinates"))
         atom_coords = np.reshape(atom_coords, (natom, 3))
-        mol_charge = -np.round(np.sum(kf.read('COSMO','Segment Charge')),1)
+        mol_charge = -np.round(np.sum(kf.read("COSMO", "Segment Charge")), 1)
         self.properties.charge = mol_charge
 
         for s, (x, y, z) in zip(atom_symbols, atom_coords):

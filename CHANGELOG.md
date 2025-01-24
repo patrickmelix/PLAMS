@@ -30,6 +30,7 @@ This changelog is effective from the 2025 releases.
 * Added an interface to the Serenity program through methods such as `SerenityJob`, `SerenityResults` and `SerenitySettings`
 * Methods `Settings.nested_keys`, `Settings.block_keys` for accessing nested keys and `Settings.contains_nested` and `Settings.pop_nested` for checking if nested keys exist in a settings object and popping them
 * Method `Settings.compare` added to compare and contrast items in two settings objects
+* Method `readcoskf` added to `Molecule` class, enabling the reading of COSKF file
 
 ### Changed
 * Functions for optional packages (e.g. RDKit, ASE) are available even when these packages are not installed, but will raise an `MissingOptionalPackageError` when called
