@@ -3266,7 +3266,7 @@ class Molecule:
         for bo in self.bonds:
             bo.mol = self
 
-    def readcoskf(self, filename: str, **other):
+    def readcoskf(self, filename: str_type, **other):
         kf = KFFile(filename)
         natom = kf.read("COSMO", "Number of Atoms")
         atom_symbols = kf.read("COSMO", "Atom Type").split()
