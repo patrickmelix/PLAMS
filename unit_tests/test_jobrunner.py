@@ -203,7 +203,7 @@ class TestJobRunner:
 
         max_parallel_jobs = 0
         current_jobs = 0
-        for time, change in events:
+        for _, change in events:
             current_jobs += change
             max_parallel_jobs = max(max_parallel_jobs, current_jobs)
 
