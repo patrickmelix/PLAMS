@@ -92,7 +92,7 @@ class JobRunner(metaclass=_MetaRunner):
     A |JobRunner| instance can be passed to |run| with a keyword argument ``jobrunner``. If this argument is omitted, the instance stored in ``config.default_jobrunner`` is used.
     """
 
-    def __init__(self, parallel:bool=False, maxjobs:int=0, maxthreads:int=256):
+    def __init__(self, parallel: bool = False, maxjobs: int = 0, maxthreads: int = 256):
         # Initialize protected attributes
         self._parallel = False
         self._maxjobs = 0
@@ -170,7 +170,9 @@ class JobRunner(metaclass=_MetaRunner):
         if value < 0:
             raise ValueError(f"Value of 'maxthreads' must be 0 or greater than 1, but was {value}.")
         if value == 1:
-            raise ValueError("Value of 'maxthreads' must be 0 or greater than 1. To run in serial, set 'parallel=False'.")
+            raise ValueError(
+                "Value of 'maxthreads' must be 0 or greater than 1. To run in serial, set 'parallel=False'."
+            )
 
         # Wait for any threads using the semaphore to finish up before changing the instance
         if self._maxthreads and self._jobthread_limit:
@@ -179,7 +181,6 @@ class JobRunner(metaclass=_MetaRunner):
 
         self._maxthreads = value
         self._jobthread_limit = threading.BoundedSemaphore(value) if value else None
-
 
     def call(self, runscript, workdir, out, err, runflags):
         """call(runscript, workdir, out, err, runflags)
