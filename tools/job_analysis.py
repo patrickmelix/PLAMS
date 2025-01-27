@@ -1,4 +1,18 @@
-from typing import Optional, Sequence, Union, Dict, List, Callable, Any, NamedTuple, Tuple, Hashable, Set
+from typing import (
+    Optional,
+    Sequence,
+    Union,
+    Dict,
+    List,
+    Callable,
+    Any,
+    NamedTuple,
+    Tuple,
+    Hashable,
+    Set,
+    Literal,
+    TYPE_CHECKING,
+)
 import os
 import csv
 from pathlib import Path
@@ -38,6 +52,8 @@ try:
 except ImportError:
     _has_scm_pisa = False
 
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
 
 __all__ = ["JobAnalysis"]
 
@@ -202,23 +218,7 @@ class JobAnalysis:
 
         :return: analysis data as a dictionary of field names/lists of job values
         """
-
-        def safe_value(job: Job, value_extractor: Callable[[Job], Any]):
-            try:
-                return value_extractor(job)
-            except Exception as e:
-                return f"ERROR: {str(e)}"
-
-        log_stdout = config.log.stdout
-        log_file = config.log.file
-        try:
-            # Disable logging while fetching results
-            config.log.stdout = 0
-            config.log.file = 0
-            return {col_name: self._get_field_analysis(col_name) for col_name in self._fields}
-        finally:
-            config.log.stdout = log_stdout
-            config.log.file = log_file
+        return {col_name: self._get_field_analysis(col_name) for col_name in self._fields}
 
     def _get_field_analysis(self, name) -> List:
         """
@@ -258,15 +258,44 @@ class JobAnalysis:
         """
         return DataFrame(self.get_analysis())
 
-    def to_table(self, max_col_width: int = -1, max_rows: int = 30) -> str:
+    def to_table(
+        self,
+        max_col_width: int = -1,
+        max_rows: int = 30,
+        fmt: Literal["markdown", "html"] = "markdown",
+    ) -> str:
         """
         Converts analysis data to a pretty-printed table.
 
         :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
         :param max_rows: can be integer positive value or -1, defaults to 30
+        :param fmt: format of the table, either markdown (default) or html
         :return: string representation of the table
         """
-        return format_in_table(self.get_analysis(), max_col_width=max_col_width, max_rows=max_rows)
+        return format_in_table(self.get_analysis(), max_col_width=max_col_width, max_rows=max_rows, fmt=fmt)
+
+    @requires_optional_package("ipython")
+    def display_table(
+        self,
+        max_col_width: int = -1,
+        max_rows: int = 30,
+        fmt: Literal["markdown", "html"] = "markdown",
+    ) -> None:
+        """
+        Converts analysis data to a pretty-printed table which is then displayed using IPython
+
+        :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
+        :param max_rows: can be integer positive value or -1, defaults to 30
+        :param fmt: format of the table, either markdown (default) or html
+        """
+        from IPython.display import display, Markdown, HTML
+
+        table = self.to_table(max_col_width=max_col_width, max_rows=max_rows, fmt=fmt)
+
+        if fmt == "markdown":
+            display(Markdown(table))
+        elif fmt == "html":
+            display(HTML(table))
 
     def to_csv_file(self, path: Union[str, os.PathLike]) -> None:
         """
@@ -515,12 +544,12 @@ class JobAnalysis:
 
         self.filter_fields(lambda vals: is_uniform(vals))
 
-    def _add_preconfigured_fields(self, fields):
+    def _add_standard_fields(self, fields):
         for field in fields:
             if field.name not in self._fields:
                 self._fields[field.name] = field
 
-    def _remove_preconfigured_fields(self, fields):
+    def _remove_standard_fields(self, fields):
         for field in fields:
             if field.name in self._fields:
                 self._fields.pop(field.name)
@@ -537,7 +566,7 @@ class JobAnalysis:
         * Check: :meth:`~scm.plams.core.basejob.Job.check`
         * ErrorMsg: :meth:`~scm.plams.core.basejob.Job.get_erromsg`
         """
-        self._add_preconfigured_fields(self._job_info_fields)
+        self._add_standard_fields(self._job_info_fields)
 
     def remove_job_info_fields(self) -> None:
         """
@@ -551,7 +580,7 @@ class JobAnalysis:
         * Check: :meth:`~scm.plams.core.basejob.Job.check`
         * ErrorMsg: :meth:`~scm.plams.core.basejob.Job.get_erromsg`
         """
-        self._remove_preconfigured_fields(self._job_info_fields)
+        self._remove_standard_fields(self._job_info_fields)
 
     def add_job_parent_fields(self) -> None:
         """
@@ -562,7 +591,7 @@ class JobAnalysis:
         * ParentPath: :attr:`~scm.plams.core.basejob.Job.path` of :attr:`~scm.plams.core.basejob.Job.parent`
         * ParentName: :attr:`~scm.plams.core.basejob.Job.name` of :attr:`~scm.plams.core.basejob.Job.parent`
         """
-        self._add_preconfigured_fields(self._job_parent_fields)
+        self._add_standard_fields(self._job_parent_fields)
 
     def remove_job_parent_fields(self) -> None:
         """
@@ -573,7 +602,7 @@ class JobAnalysis:
         * ParentPath: :attr:`~scm.plams.core.basejob.Job.path` of :attr:`~scm.plams.core.basejob.Job.parent`
         * ParentName: :attr:`~scm.plams.core.basejob.Job.name` of :attr:`~scm.plams.core.basejob.Job.parent`
         """
-        self._add_preconfigured_fields(self._job_parent_fields)
+        self._add_standard_fields(self._job_parent_fields)
 
     def add_molecule_fields(self) -> None:
         """
@@ -587,7 +616,7 @@ class JobAnalysis:
         Jobs without a molecule will not have these fields populated.
         Where jobs have multiple molecules, these will be returned as comma-separated values.
         """
-        self._add_preconfigured_fields(self._molecule_fields)
+        self._add_standard_fields(self._molecule_fields)
 
     def remove_molecule_fields(self) -> None:
         """
@@ -601,7 +630,7 @@ class JobAnalysis:
         Jobs without a molecule will not have these fields populated.
         Where jobs have multiple molecules, these will be returned as comma-separated values.
         """
-        self._remove_preconfigured_fields(self._molecule_fields)
+        self._remove_standard_fields(self._molecule_fields)
 
     def add_timing_fields(self) -> None:
         """
@@ -615,7 +644,7 @@ class JobAnalysis:
 
         Jobs which do not derive from |AMSJob| or have no results will not have these fields populated.
         """
-        self._add_preconfigured_fields(self._timing_fields)
+        self._add_standard_fields(self._timing_fields)
 
     def remove_timing_fields(self) -> None:
         """
@@ -629,7 +658,7 @@ class JobAnalysis:
 
         Jobs which do not derive from |AMSJob| or have no results will not have these fields populated.
         """
-        self._remove_preconfigured_fields(self._timing_fields)
+        self._remove_standard_fields(self._timing_fields)
 
     def add_settings_field(self, key_tuple: Tuple[Hashable, ...]) -> None:
         """
@@ -679,7 +708,7 @@ class JobAnalysis:
                 )
                 fields.append(field)
 
-        self._add_preconfigured_fields(fields)
+        self._add_standard_fields(fields)
 
     def _get_job_settings(self, job: Job) -> Settings:
         """
@@ -729,7 +758,13 @@ class JobAnalysis:
                 self.remove_field_group(group)
 
     def __str__(self) -> str:
-        return format_in_table(self.get_analysis(), max_col_width=12, max_rows=5)
+        return self.to_table(max_col_width=12, max_rows=5)
+
+    def __repr__(self) -> str:
+        return self.to_table()
+
+    def _repr_html_(self) -> str:
+        return self.to_table(fmt="html")
 
     def __getitem__(self, name: str) -> List[Any]:
         """
