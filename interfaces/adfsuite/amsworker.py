@@ -907,6 +907,10 @@ class AMSWorker:
                 if convstressenergyperatom is not None:
                     args["convStressEnergyPerAtom"] = float(convstressenergyperatom)
                 results = self._call("Optimize", args)
+                # For now, add the optimization results to the results object
+                # This way they are separated on the AMS side, but not yet on the Python side
+                if len(results) > 1:
+                    results[0]["results"].update(results[1]["OptimizationResults"])
             else:
                 results = self._call("Solve", args)
 
@@ -1166,6 +1170,20 @@ class AMSWorker:
         args = {"title": str(name)}
 
         self._call("DeleteMDState", args)
+
+    def SetConstraints (self, constraintSettings, molecule):
+        """
+        Pass Constraints to pipe application. Should be called before geometry optimization.
+
+        * ``constraintSettings`` -- A settings object describing the constraints (s.ams.input.Constraints)
+        * ``molecule`` -- PLAMS Molecule object. Needs to be set, before constraints can be defined
+
+        Note: Does not yet work for MolecularDynamics call.
+        """
+        self._prepare_system(molecule)
+        text = AMSJob(settings=constraintSettings).get_input()
+        args = {"textInput": text}
+        self._call("SetConstraints", args)
 
     def ParseInput(self, program_name, text_input, string_leafs):
         """Parse the text input and return a Python dictionary representing the JSONified input.
