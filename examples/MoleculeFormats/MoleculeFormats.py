@@ -188,7 +188,7 @@ mol: Molecule = from_rdmol(rdkit_mol)
 
 print(f"{type(rdkit_mol)=}")
 print(f"{type(mol)=}")
-plot_molecule(mol);
+plot_molecule(mol)
 
 
 # #### Convert problematic PLAMS Molecule to RDKit Mol
@@ -203,7 +203,7 @@ plot_molecule(mol)
 try:
     rdkit_mol = to_rdmol(mol)
 except ValueError as exc:
-    print ("Failed to convert")
+    print("Failed to convert")
 
 
 # The problem can be fixed by passing the argument `presanitize` to the `to_rdmol` function.

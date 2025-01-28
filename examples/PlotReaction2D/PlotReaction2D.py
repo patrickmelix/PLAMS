@@ -38,4 +38,3 @@ reactants = [aspirin, from_smiles("O")]
 products = [acetic_acid, salicylic_acid]
 text = get_reaction_image(reactants, products, filename="reaction.svg")
 SVG(text)
-

@@ -1799,7 +1799,6 @@ def _alter_aromatic_bonds(emol, iat, depth=0, double_first=False):
     are_aromatic = [str(b.GetBondType()) == "AROMATIC" for b in bonds]
     int_orders = sum([b.GetBondTypeAsDouble() for i, b in enumerate(bonds) if not are_aromatic[i]])
     numbonds = len([b for i, b in enumerate(bonds) if are_aromatic[i]])
-    t = (bonds[0].GetBeginAtomIdx(), bonds[0].GetEndAtomIdx())
     valence -= int(int_orders)
     # Here I place the double bond first.
     # I could also start with a single bond instead.

@@ -1,6 +1,5 @@
 import pytest
 
-from scm.plams.tools.periodic_table import PT
 from scm.plams.mol.molecule import Molecule
 
 
