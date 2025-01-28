@@ -45,6 +45,7 @@ This changelog is effective from the 2025 releases.
 * Make `Job` class inherit from `ABC` and mark abstract methods 
 * Exceptions raised in `prerun` and `postrun` will always be caught and populate error message
 * `Settings.get_nested` takes a default argument which is returned if the nested key is not present in the settings instance
+* `JobManager.workdir` converted to a readonly property
 
 ### Fixed
 * `Molecule.properties.charge` is a numeric instead of string type when loading molecule from a file
