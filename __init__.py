@@ -26,6 +26,7 @@ from scm.plams.core.functions import (
 )
 from scm.plams.core.jobmanager import JobManager
 from scm.plams.core.jobrunner import GridRunner, JobRunner
+from scm.plams.core.logging import get_logger
 from scm.plams.core.results import Results
 from scm.plams.core.settings import (
     ConfigSettings,
@@ -37,18 +38,35 @@ from scm.plams.core.settings import (
     Settings,
 )
 from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
-from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults, convert_to_unicode
-from scm.plams.interfaces.adfsuite.amsworker import AMSWorker, AMSWorkerError, AMSWorkerPool, AMSWorkerResults
+from scm.plams.interfaces.adfsuite.amsanalysis import (
+    AMSAnalysisJob,
+    AMSAnalysisResults,
+    convert_to_unicode,
+)
+from scm.plams.interfaces.adfsuite.amsworker import (
+    AMSWorker,
+    AMSWorkerError,
+    AMSWorkerPool,
+    AMSWorkerResults,
+)
 from scm.plams.interfaces.adfsuite.crs import CRSJob, CRSResults
 from scm.plams.interfaces.adfsuite.densf import DensfJob, DensfResults
 from scm.plams.interfaces.adfsuite.fcf import FCFJob, FCFResults
-from scm.plams.interfaces.adfsuite.forcefieldparams import ForceFieldPatch, forcefield_params_from_kf
-from scm.plams.interfaces.adfsuite.quickjobs import preoptimize, refine_density, refine_lattice
+from scm.plams.interfaces.adfsuite.forcefieldparams import (
+    ForceFieldPatch,
+    forcefield_params_from_kf,
+)
+from scm.plams.interfaces.adfsuite.quickjobs import (
+    preoptimize,
+    refine_density,
+    refine_lattice,
+)
 from scm.plams.interfaces.adfsuite.unifac import UnifacJob, UnifacResults
 from scm.plams.interfaces.molecule.ase import fromASE, toASE
 from scm.plams.interfaces.molecule.packmol import (
     PackMolError,
     packmol,
+    packmol_around,
     packmol_in_void,
     packmol_microsolvation,
     packmol_on_slab,
@@ -98,7 +116,11 @@ from scm.plams.recipes.md.trajectoryanalysis import AMSMSDJob, AMSRDFJob, AMSVAC
 from scm.plams.recipes.numgrad import NumGradJob
 from scm.plams.recipes.numhess import NumHessJob
 from scm.plams.recipes.pestools.optimizer import Optimizer
-from scm.plams.recipes.redox import AMSRedoxDirectJob, AMSRedoxScreeningJob, AMSRedoxThermodynamicCycleJob
+from scm.plams.recipes.redox import (
+    AMSRedoxDirectJob,
+    AMSRedoxScreeningJob,
+    AMSRedoxThermodynamicCycleJob,
+)
 from scm.plams.recipes.reorganization_energy import ReorganizationEnergyJob
 from scm.plams.tools.converters import (
     file_to_traj,
@@ -120,20 +142,35 @@ from scm.plams.tools.geometry import (
 )
 from scm.plams.tools.kftools import KFFile, KFHistory, KFReader
 from scm.plams.tools.periodic_table import PT, PeriodicTable
+from scm.plams.tools.table_formatter import format_in_table
 from scm.plams.tools.plot import (
     get_correlation_xy,
     plot_band_structure,
     plot_correlation,
+    plot_grid_molecules,
     plot_molecule,
     plot_msd,
     plot_work_function,
 )
 from scm.plams.tools.reaction import ReactionEquation
-from scm.plams.tools.reaction_energies import balance_equation, balance_equation_new, get_stoichiometry, reaction_energy
+from scm.plams.tools.reaction_energies import (
+    balance_equation,
+    balance_equation_new,
+    get_stoichiometry,
+    reaction_energy,
+)
 from scm.plams.tools.units import Units
 from scm.plams.trajectories.dcdfile import DCDTrajectoryFile
-from scm.plams.trajectories.rkffile import RKFTrajectoryFile, write_general_section, write_molecule_section
-from scm.plams.trajectories.rkfhistoryfile import RKFHistoryFile, molecules_to_rkf, rkf_filter_regions
+from scm.plams.trajectories.rkffile import (
+    RKFTrajectoryFile,
+    write_general_section,
+    write_molecule_section,
+)
+from scm.plams.trajectories.rkfhistoryfile import (
+    RKFHistoryFile,
+    molecules_to_rkf,
+    rkf_filter_regions,
+)
 from scm.plams.trajectories.sdffile import SDFTrajectoryFile, create_sdf_string
 from scm.plams.trajectories.sdfhistoryfile import SDFHistoryFile
 from scm.plams.trajectories.trajectory import Trajectory
@@ -165,6 +202,7 @@ __all__ = [
     "JobSettings",
     "JobManagerSettings",
     "ConfigSettings",
+    "get_logger",
     "SingleJob",
     "MultiJob",
     "JobStatus",
@@ -224,6 +262,7 @@ __all__ = [
     "toASE",
     "fromASE",
     "packmol",
+    "packmol_around",
     "packmol_on_slab",
     "packmol_microsolvation",
     "packmol_in_void",
@@ -270,8 +309,10 @@ __all__ = [
     "reaction_energy",
     "PeriodicTable",
     "PT",
+    "format_in_table",
     "plot_band_structure",
     "plot_molecule",
+    "plot_grid_molecules",
     "get_correlation_xy",
     "plot_correlation",
     "plot_msd",
