@@ -11,6 +11,7 @@ def format_in_table(
     max_col_width: int = -1,
     max_rows: int = 30,
     fmt: Union[Literal["markdown", "html"]] = "markdown",
+    monospace=False,
 ) -> str:
     """
     Create a table from a dictionary of data, with the keys as column headers and the values as rows.
@@ -31,6 +32,7 @@ def format_in_table(
     :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
     :param max_rows: can be integer positive value or -1, defaults to 30
     :param fmt: format of the table, either markdown (default) or html
+    :param monospace: whether to use monospace text, defaults to False
     :return: formatted string table
     """
     elip = "..."
@@ -59,7 +61,8 @@ def format_in_table(
     rows_at_end = 0 if write_all_rows else max_rows - rows_at_start
     width_values = [v for i, v in enumerate(values) if i < rows_at_start or i >= (num_rows - rows_at_end)]
     col_widths = [
-        max(len(truncated_header[i]), max(len(str(row[i])) for row in width_values)) for i in range(len(keys))
+        max(len(truncated_header[i]), max([len(str(row[i])) for row in width_values], default=0))
+        for i in range(len(keys))
     ]
 
     # Prepare the table
@@ -71,7 +74,8 @@ def format_in_table(
 
         table_rows = [
             '<div style="max-width: 100%; overflow-x: auto;">',
-            '<table border="1" style="border-collapse: collapse; width: auto;">',
+            f'<table border="1" style="border-collapse: collapse; width: auto; {("font-family: monospace; " if monospace else "")}">',
+            # "<style>table {border-collapse: collapse; width: auto; font-family: monospace;} th, td {border: 1px solid black;}</style>"
         ]
         header_row = f"<thead><tr>{''.join(f'<th>{truncated_header[i].ljust(col_widths[i])}' for i in range(len(keys)))}</th></tr></thead>"
 
@@ -82,6 +86,9 @@ def format_in_table(
 
         def make_md_row(row=None, skip=False):
             return f"| {' | '.join(f'{(str(row[i]) if not skip else elip[:col_widths[i]]).ljust(col_widths[i])}' for i in range(len(keys)))} |"
+
+        if monospace:
+            table_rows.append("<pre>")
 
         separator = f"|-{'-|-'.join('-' * width for width in col_widths)}-|"
         header_row = make_md_row(truncated_header)
@@ -111,9 +118,11 @@ def format_in_table(
             table_rows.append(row_text)
 
     if fmt == "html":
-        table_rows.append("</tbody></table></div>")
-        table = "".join(table_rows)
+        table_rows.append("</tbody>\n</table>\n</div>")
+        table = "\n".join(table_rows)
     else:
+        if monospace:
+            table_rows.append("</pre>")
         table = "\n".join(table_rows)
 
     return table
