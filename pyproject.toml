@@ -74,8 +74,8 @@ examples = [
 dev = [
     "pytest>=7.4.0",
     "coverage>=7.5.3",
-    "black>=24",
-    "black[jupyter]>=24",
+    "black==24.8.0",
+    "black[jupyter]==24.8.0",
     "flake8==5.0.4",
     "mypy==1.12.0"
 ]
