@@ -1860,7 +1860,7 @@ def _alter_bonds_along_chain(emol, indices):
     for i, iat in enumerate(indices[:-1]):
         bond = emol.GetBondBetweenAtoms(iat, indices[i + 1])
         bond.SetBondType(Chem.BondType(new_order))
-        bond.SetIsAromatic(Fasle)  # This is necessary with the newer RDKit versions
+        bond.SetIsAromatic(False)  # This is necessary with the newer RDKit versions
         altered_bonds[iat, indices[i + 1]] = new_order
         new_order = ((new_order) % 2) + 1
     return altered_bonds
