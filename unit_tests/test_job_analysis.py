@@ -1,8 +1,10 @@
 import pytest
 import shutil
+from datetime import datetime, timedelta
 
 from scm.plams.interfaces.molecule.rdkit import from_smiles
 from scm.plams.core.jobmanager import JobManager
+from scm.plams.core.enums import JobStatus
 from scm.plams.unit_tests.test_basejob import DummySingleJob
 from scm.plams.unit_tests.test_helpers import temp_file_path, skip_if_no_scm_pisa, skip_if_no_scm_libbase
 from scm.plams.tools.job_analysis import JobAnalysis
@@ -51,10 +53,15 @@ class TestJobAnalysis:
         assert len(ja.jobs) == 10
 
     def test_default_fields(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.remove_field("Path")
-        ja.add_molecule_fields()
-        ja.add_timing_fields()
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .remove_field("Path")
+            .add_formula_field()
+            .add_smiles_field()
+            .add_cpu_time_field()
+            .add_sys_time_field()
+            .add_elapsed_time_field()
+        )
 
         assert (
             ja.to_table()
@@ -73,8 +80,13 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None    | None    | None        |"""
         )
 
-        ja.remove_timing_fields()
-        ja.add_job_parent_fields()
+        (
+            ja.remove_cpu_time_field()
+            .remove_sys_time_field()
+            .remove_elapsed_time_field()
+            .add_parent_path_field()
+            .add_parent_name_field()
+        )
 
         assert (
             ja.to_table()
@@ -93,14 +105,46 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None       | None       |"""
         )
 
+        (
+            ja.remove_parent_path_field()
+            .remove_parent_name_field()
+            .remove_smiles_field()
+            .remove_formula_field()
+            .remove_error_msg_field()
+            .remove_check_field()
+            .remove_ok_field()
+        )
+
+        assert (
+            ja.to_table()
+            == """\
+| Name         |
+|--------------|
+| dummyjob     |
+| dummyjob.002 |
+| dummyjob.003 |
+| dummyjob.004 |
+| dummyjob.005 |
+| dummyjob.006 |
+| dummyjob.007 |
+| dummyjob.008 |
+| dummyjob.009 |
+| dummyjob.010 |"""
+        )
+
     def test_add_remove_rename_filter_fields(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.add_timing_fields()
-        ja.add_field("Wait", lambda j: j.wait)
-        ja.add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
-        ja.remove_field("Path")
-        ja.rename_field("ErrorMsg", "Err")
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .add_cpu_time_field()
+            .add_sys_time_field()
+            .add_elapsed_time_field()
+            .add_field("Wait", lambda j: j.wait)
+            .add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
+            .remove_field("Path")
+            .rename_field("ErrorMsg", "Err")
+        )
 
         assert (
             ja.to_table()
@@ -157,8 +201,9 @@ class TestJobAnalysis:
 | dummyjob.010 | None    | None   | 0.09 |"""
         )
 
-        ja.remove_uniform_fields(tol=0.1, ignore_empty=True)
-        ja.filter_fields(lambda vals: all([not v or "H" not in v for v in vals]))
+        ja.remove_uniform_fields(tol=0.1, ignore_empty=True).filter_fields(
+            lambda vals: all([not v or "H" not in v for v in vals])
+        )
 
         assert (
             ja.to_table()
@@ -178,32 +223,38 @@ class TestJobAnalysis:
         )
 
     def test_filter_jobs(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.add_timing_fields()
-        ja.add_field("Wait", lambda j: j.wait)
-        ja.add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
-        ja.remove_field("Path")
-
-        ja.filter_jobs(lambda d: d["Formula"] is None or "O" in d["Smiles"])
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .add_field("Wait", lambda j: j.wait)
+            .add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
+            .remove_field("Path")
+            .filter_jobs(lambda d: d["Formula"] is None or "O" in d["Smiles"])
+        )
 
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | CPUTime | SysTime | ElapsedTime | Wait | Output |
-|--------------|------|-------|----------|---------|--------|---------|---------|-------------|------|--------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | None    | None    | None        | 0.0  | Dummy  |
-| dummyjob.002 | True | True  | None     | CH4     | C      | None    | None    | None        | 0.01 | Dummy  |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | None    | None    | None        | 0.04 | Dummy  |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None    | None    | None        | 0.05 | Dummy  |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None    | None    | None        | 0.07 | Dummy  |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Wait | Output |
+|--------------|------|-------|----------|---------|--------|------|--------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | 0.0  | Dummy  |
+| dummyjob.002 | True | True  | None     | CH4     | C      | 0.01 | Dummy  |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | 0.04 | Dummy  |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | 0.05 | Dummy  |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | 0.07 | Dummy  |"""
         )
 
     def test_field_groups(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.add_timing_fields()
-        ja.add_field("Wait", lambda j: j.wait, group="w")
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .add_cpu_time_field()
+            .add_sys_time_field()
+            .add_elapsed_time_field()
+            .add_field("Wait", lambda j: j.wait, group="w")
+        )
 
         assert ja.field_groups == {
             "job_info": ["Path", "Name", "OK", "Check", "ErrorMsg"],
@@ -212,8 +263,7 @@ class TestJobAnalysis:
             "w": ["Wait"],
         }
 
-        ja.remove_field_group("mol")
-        ja.remove_field_group("w")
+        ja.remove_field_group("mol").remove_field_group("w")
 
         assert ja.field_groups == {
             "job_info": ["Path", "Name", "OK", "Check", "ErrorMsg"],
@@ -221,10 +271,15 @@ class TestJobAnalysis:
         }
 
     def test_reorder_fields(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.add_timing_fields()
-        ja.add_field("Wait", lambda j: j.wait, group="w")
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .add_cpu_time_field()
+            .add_sys_time_field()
+            .add_elapsed_time_field()
+            .add_field("Wait", lambda j: j.wait, group="w")
+        )
 
         assert ja.field_names == [
             "Path",
@@ -289,12 +344,13 @@ class TestJobAnalysis:
         ]
 
     def test_sort_jobs(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.add_timing_fields()
-        ja.add_field("Wait", lambda j: j.wait, group="w")
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_field("Wait", lambda j: j.wait, group="w")
+            .sort_jobs(field_names=["Formula"])
+        )
 
-        ja.sort_jobs(field_names=["Formula"])
         assert [j.name for j in ja.jobs.values()] == [
             "dummyjob",
             "dummyjob.005",
@@ -339,11 +395,14 @@ class TestJobAnalysis:
         ]
 
     def test_settings_fields(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.add_settings_input_fields()
-        ja.add_settings_field(("runscript", "shebang"))
-        ja.remove_field("Path")
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .add_settings_input_fields()
+            .add_settings_field(("runscript", "shebang"))
+            .remove_field("Path")
+        )
 
         assert (
             ja.to_table()
@@ -362,8 +421,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | #!/bin/sh        |"""
         )
 
-        ja.remove_settings_fields()
-        ja.add_settings_input_fields(include_system_block=True)
+        ja.remove_settings_fields().add_settings_input_fields(include_system_block=True)
 
         assert (
             ja.to_table()
@@ -383,8 +441,7 @@ class TestJobAnalysis:
         )
 
     def test_get_set_del_item(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
+        ja = JobAnalysis(jobs=dummy_single_jobs).add_formula_field().add_smiles_field()
         del ja["Path"]
         del ja["Check"]
         ja["OK"] = lambda j: "Yes" if j.ok() else "No"
@@ -411,8 +468,7 @@ class TestJobAnalysis:
             del ja["Bar"]
 
     def test_get_set_del_attributes(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
+        ja = JobAnalysis(jobs=dummy_single_jobs).add_formula_field().add_smiles_field()
         del ja.Path
         del ja.Check
 
@@ -440,12 +496,15 @@ class TestJobAnalysis:
             del ja.Bar
 
     def test_to_table(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.remove_field("Path")
-        ja.add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
-        ja.remove_empty_fields()
-        ja.remove_uniform_fields()
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .remove_field("Path")
+            .add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
+            .remove_empty_fields()
+            .remove_uniform_fields()
+        )
 
         assert (
             ja.to_table(max_col_width=10, max_rows=6)
@@ -462,12 +521,15 @@ class TestJobAnalysis:
         )
 
     def test_to_csv(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.remove_field("Path")
-        ja.add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
-        ja.remove_empty_fields()
-        ja.remove_uniform_fields()
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .remove_field("Path")
+            .add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
+            .remove_empty_fields()
+            .remove_uniform_fields()
+        )
 
         with temp_file_path(".csv") as tfp:
             ja.to_csv_file(tfp)
@@ -497,14 +559,16 @@ dummyjob.010,,,False
         except ImportError:
             pytest.skip("Skipping test as cannot find pandas package.")
 
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.remove_field("Path")
-        ja.add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
-        ja.remove_empty_fields()
-        ja.remove_uniform_fields()
-
-        df = ja.to_dataframe()
+        df = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .remove_field("Path")
+            .add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
+            .remove_empty_fields()
+            .remove_uniform_fields()
+            .to_dataframe()
+        )
 
         assert df.shape == (10, 4)
         assert df.columns.to_list() == [
@@ -574,11 +638,14 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
         shutil.rmtree(jm.workdir)
 
     def test_settings_fields(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs)
-        ja.add_molecule_fields()
-        ja.add_settings_input_fields()
-        ja.add_settings_field(("runscript", "shebang"))
-        ja.remove_field("Path")
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .add_settings_input_fields()
+            .add_settings_field(("runscript", "shebang"))
+            .remove_field("Path")
+        )
 
         assert (
             ja.to_table()
@@ -597,8 +664,7 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
 | dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | #!/bin/sh        |"""
         )
 
-        ja.remove_settings_fields()
-        ja.add_settings_input_fields(include_system_block=True)
+        ja.remove_settings_fields().add_settings_input_fields(include_system_block=True)
 
         # N.B. small discrepancy in system block atoms column name
         assert (
