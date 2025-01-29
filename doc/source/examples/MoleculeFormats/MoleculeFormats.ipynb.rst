@@ -1,8 +1,5 @@
-Worked Example
---------------
-
 Complete guide to storing and converting PLAMS Molecules between Python libraries and file formats
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------------------------------------------------------------------
 
 .. code:: ipython3
 
@@ -16,6 +13,7 @@ Complete guide to storing and converting PLAMS Molecules between Python librarie
     AMSHOME = os.environ["AMSHOME"]
     cif_file = f"{AMSHOME}/atomicdata/Molecules/IZA-Zeolites/ABW.cif"
     xyz_file = f"{AMSHOME}/scripting/scm/params/examples/benchmark/ISOL6/e_13.xyz"
+    badxyz_file = f"{AMSHOME}/scripting/scm/plams/unit_tests/xyz/reactant2.xyz"
     
     assert Path(cif_file).exists(), f"{cif_file} does not exist."
     assert Path(xyz_file).exists(), f"{xyz_file} does not exist."
@@ -138,12 +136,6 @@ library, for example ASE or pymatgen.
 .. parsed-literal::
 
     type(mol)=<class 'scm.plams.mol.molecule.Molecule'>
-
-
-.. parsed-literal::
-
-    /home/user/adfhome/bin/python3.8/lib/python3.8/site-packages/ase/io/cif.py:401: UserWarning: crystal system 'orthorhombic' is not interpreted for space group Spacegroup(74, setting=1). This may result in wrong setting!
-      warnings.warn(
 
 
 
@@ -379,6 +371,78 @@ Convert RDKit Mol to PLAMS Molecule
 
 
 .. image:: MoleculeFormats_files/MoleculeFormats_36_1.png
+
+
+Convert problematic PLAMS Molecule to RDKit Mol
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: ipython3
+
+    mol = Molecule(badxyz_file)
+    mol.guess_bonds()
+    plot_molecule(mol)
+
+
+
+
+.. parsed-literal::
+
+    <AxesSubplot: >
+
+
+
+
+.. image:: MoleculeFormats_files/MoleculeFormats_38_1.png
+
+
+This molecule will fail to convert to an RDKit Mol object, because RDKit
+does not like the AMS assignment of double bonds.
+
+.. code:: ipython3
+
+    try:
+        rdkit_mol = to_rdmol(mol)
+    except ValueError as exc:
+        print ("Failed to convert")
+
+
+.. parsed-literal::
+
+    [13.12|17:47:23] RDKit Sanitization Error.
+    [13.12|17:47:23] Most likely this is a problem with the assigned bond orders: Use chemical insight to adjust them.
+    [13.12|17:47:23] Note that the atom indices below start at zero, while the AMS-GUI indices start at 1.
+    Failed to convert
+
+
+.. parsed-literal::
+
+    RDKit ERROR: [17:47:23] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
+    [17:47:23] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
+    
+    RDKit ERROR: 
+
+
+The problem can be fixed by passing the argument ``presanitize`` to the
+``to_rdmol`` function.
+
+.. code:: ipython3
+
+    rdkit_mol = to_rdmol(mol, presanitize=True)
+    rdkit_mol
+
+
+.. parsed-literal::
+
+    RDKit ERROR: [17:47:06] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
+    [17:47:06] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
+    
+    RDKit ERROR: 
+
+
+
+
+.. image:: MoleculeFormats_files/MoleculeFormats_42_1.svg
+
 
 
 SCM libbase UnifiedChemicalSystem Python class
