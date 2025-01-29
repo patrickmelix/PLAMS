@@ -910,7 +910,7 @@ class AMSWorker:
                 # For now, add the optimization results to the results object
                 # This way they are separated on the AMS side, but not yet on the Python side
                 if len(results) > 1:
-                    results[0]["results"].update(results[1]["OptimizationResults"])
+                    results[0]["results"].update(results[1]["optimizationResults"])
             else:
                 results = self._call("Solve", args)
 
