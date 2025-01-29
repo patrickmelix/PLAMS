@@ -1685,10 +1685,10 @@ def _presanitize(mol, rdmol):
             text = repr(exc)
         # Fix the problem
         rdmol, bonds, charges = _kekulize(mol, rdmol, text)
-        #print ("REB bonds charges: ",bonds, charges)
-        #print (rdmol.Debug())
-        #rdmol = to_rdmol(mol, sanitize=False)
-        #print (rdmol.Debug())
+        # print ("REB bonds charges: ",bonds, charges)
+        # print (rdmol.Debug())
+        # rdmol = to_rdmol(mol, sanitize=False)
+        # print (rdmol.Debug())
 
     if stored_exc is not None:
         raise stored_exc
@@ -1741,7 +1741,7 @@ def _kekulize(mol, rdmol, text, use_dfs=True):
         ndangling = dangling_bonds[iat]
         altered_charge = _guess_atomic_charge(iat, ndangling, rdmol, mol)
         rdmol.GetAtomWithIdx(iat).SetFormalCharge(altered_charge[iat])
-        for k,v in altered_charge.items():
+        for k, v in altered_charge.items():
             mol.atoms[k].properties.rdkit.charge = v
 
     return rdmol, altered_bonds, altered_charge
@@ -1821,7 +1821,7 @@ def _alter_aromatic_bonds(emol, iat, depth=0, double_first=False):
             pair = tuple(sorted([iat, jat]))
             order = orders.pop(0)
             bond.SetBondType(Chem.BondType(order))
-            bond.SetIsAromatic(False) # This is necessary with the newer RDKit
+            bond.SetIsAromatic(False)  # This is necessary with the newer RDKit
             bonds_changed[pair] = order
             d = _alter_aromatic_bonds(emol, jat, depth + 1)
             bonds_changed.update(d)
@@ -1860,7 +1860,7 @@ def _alter_bonds_along_chain(emol, indices):
     for i, iat in enumerate(indices[:-1]):
         bond = emol.GetBondBetweenAtoms(iat, indices[i + 1])
         bond.SetBondType(Chem.BondType(new_order))
-        bond.SetIsAromatic(Fasle) # This is necessary with the newer RDKit versions
+        bond.SetIsAromatic(Fasle)  # This is necessary with the newer RDKit versions
         altered_bonds[iat, indices[i + 1]] = new_order
         new_order = ((new_order) % 2) + 1
     return altered_bonds
