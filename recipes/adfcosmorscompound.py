@@ -515,8 +515,8 @@ class ADFCOSMORSCompoundJob(MultiJob):
         t41 = densf_job.results.kfpath()
 
         with KFFile(coskf) as rkf, KFFile(t41) as densf:
-            HBC_xyz, HBC_atom, HBC_angle = parse_mesp(densf, rkf)
-            write_HBC_to_COSKF(rkf, HBC_xyz, HBC_atom, HBC_angle)
+            HBC_xyz, HBC_atom, HBC_angle, HBC_info = parse_mesp(densf, rkf)
+            write_HBC_to_COSKF(rkf, HBC_xyz, HBC_atom, HBC_angle, HBC_info)
 
         if visulization:
             view_HBC(coskf)
