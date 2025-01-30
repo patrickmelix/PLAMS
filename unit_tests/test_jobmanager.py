@@ -20,13 +20,13 @@ class TestJobManager:
 
         # When access workdir for the first time
         # Then workdir is created
-        assert os.path.exists(job_manager.workdir)
+        workdir = job_manager.workdir
+        assert os.path.exists(workdir)
         assert os.path.exists(job_manager._workdir)
 
-        # When access subsequent times
-        # Then workdir is not re-created
-        assert os.path.exists(job_manager._workdir)
-        assert os.path.exists(job_manager._workdir)
+        # When access subsequent time
+        # Then same workdir is returned
+        assert job_manager.workdir == workdir
 
         os.rmdir(job_manager.workdir)
 
