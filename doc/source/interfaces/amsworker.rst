@@ -50,6 +50,20 @@ However, other types of exceptions derived from |AMSPipeError| may also occur in
 These correspond to other errors defined by the pipe protocol and will propagate normally, because they represent programming and logic errors, protocol incompatibilities, or unsupported features.
 In any case, |AMSWorker| will be ready to handle another call to :meth:`SinglePoint<AMSWorker.SinglePoint>` after an error.
 
+When performing geometry optimizations with the |AMSWorker|, there is the option to use constraints. In this case, the constraints need to be set before each call to :meth:`GeometryOptimization`. The constraints will no longer apply to the next geometry optimization.
+
+.. code-block:: python
+
+      with AMSWorker(sett) as worker:
+          for i, mol in enumerate(molecules):
+              # Fix the coordinates of the first two atoms
+              s = Settings()
+              s.input.ams.Constraints.Atom = [1, 2]
+
+              worker.SetConstraints(s, mol)
+              results = worker.GeometryOptimization("constrained%i"%(i), mol)
+
+
 PLAMS also provides the |AMSWorkerPool| class, which represents a pool of running |AMSWorker| instances, which dynamically pick tasks from a queue of calculations to be performed. This is useful for workflows that require the execution of many trivially parallel simple tasks. Using the |AMSWorkerPool| we could write the above example as:
 
 .. code-block:: python

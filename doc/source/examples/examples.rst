@@ -120,6 +120,7 @@ Other AMS calculations
    BasicMDPostanalysis
    UseLowestEnergy
    M3GNet
+   ConstrainedGOAMSWorker/ConstrainedGOAMSWorker
 
 Pymatgen
 ----------------
