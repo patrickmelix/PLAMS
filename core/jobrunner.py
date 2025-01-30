@@ -9,6 +9,7 @@ from scm.plams.core.errors import PlamsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.private import saferun
 from scm.plams.core.settings import Settings
+from scm.plams.core.threading_utils import LimitedSemaphore
 
 __all__ = ["JobRunner", "GridRunner"]
 
@@ -94,14 +95,11 @@ class JobRunner(metaclass=_MetaRunner):
 
     def __init__(self, parallel: bool = False, maxjobs: int = 0, maxthreads: int = 256):
         # Initialize protected attributes
-        self._parallel = False
-        self._maxjobs = 0
+        self._parallel = parallel
         self._job_limit = None
-        self._maxthreads = 0
         self._jobthread_limit = None
 
         # Set properties
-        self.parallel = parallel
         self.maxjobs = maxjobs
         self.maxthreads = maxthreads
 
@@ -130,7 +128,7 @@ class JobRunner(metaclass=_MetaRunner):
 
         When jobs are running using this, updating this value will block until its usage is complete.
         """
-        return self._maxjobs
+        return self._job_limit.max_value if self._job_limit else 0
 
     @maxjobs.setter
     def maxjobs(self, value: int) -> None:
@@ -139,13 +137,13 @@ class JobRunner(metaclass=_MetaRunner):
         if value == 1:
             raise ValueError("Value of 'maxjobs' must be 0 or greater than 1. To run in serial, set 'parallel=False'.")
 
-        # Wait for any threads using the semaphore to finish up before changing the instance
-        if self._maxjobs and self._job_limit:
-            for _ in range(self._maxjobs):
-                self._job_limit.acquire()
-
-        self._maxjobs = value
-        self._job_limit = threading.BoundedSemaphore(value) if value else None
+        if self._job_limit:
+            # safely update maximum value (this will block on decrease)
+            self._job_limit.max_value = value
+            if value == 0:
+                self._job_limit = None
+        else:
+            self._job_limit = LimitedSemaphore(value) if value else None
 
     @property
     def maxthreads(self) -> int:
@@ -163,7 +161,7 @@ class JobRunner(metaclass=_MetaRunner):
 
         When jobs are running using this, updating this value will block until its usage is complete.
         """
-        return self._maxthreads
+        return self._jobthread_limit.max_value if self._jobthread_limit else 0
 
     @maxthreads.setter
     def maxthreads(self, value: int) -> None:
@@ -174,13 +172,13 @@ class JobRunner(metaclass=_MetaRunner):
                 "Value of 'maxthreads' must be 0 or greater than 1. To run in serial, set 'parallel=False'."
             )
 
-        # Wait for any threads using the semaphore to finish up before changing the instance
-        if self._maxthreads and self._jobthread_limit:
-            for _ in range(self._maxthreads):
-                self._jobthread_limit.acquire()
-
-        self._maxthreads = value
-        self._jobthread_limit = threading.BoundedSemaphore(value) if value else None
+        if self._jobthread_limit:
+            # safely update maximum value (this will block on decrease)
+            self._jobthread_limit.max_value = value
+            if value == 0:
+                self._jobthread_limit = None
+        else:
+            self._jobthread_limit = LimitedSemaphore(value) if value else None
 
     def call(self, runscript, workdir, out, err, runflags):
         """call(runscript, workdir, out, err, runflags)

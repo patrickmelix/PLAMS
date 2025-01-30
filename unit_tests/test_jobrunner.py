@@ -1,5 +1,4 @@
 import pytest
-import time
 
 from scm.plams.core.jobrunner import JobRunner
 from scm.plams.unit_tests.test_basejob import DummySingleJob, log_call
@@ -100,30 +99,20 @@ class TestJobRunner:
         # When set maxjobs to 0
         # Then no semaphore
         jobrunner.maxjobs = 0
-        assert jobrunner._maxjobs == 0
+        assert jobrunner.maxjobs == 0
         assert jobrunner._job_limit is None
 
         # When set maxjobs to a new value
         # Then semaphore set
         jobrunner.maxjobs = 10
-        assert jobrunner._maxjobs == 10
+        assert jobrunner.maxjobs == 10
         assert jobrunner._job_limit is not None
-        assert jobrunner._job_limit._value == 10
-
-        # When job acquires semaphore
-        # Then block in updating maxjobs
-        job = DummySingleJob(wait=0.5)
-        start = time.perf_counter()
-        jobrunner._run_job(job, config.default_jobmanager)
-        time.sleep(0.2)  # need this to give time for the call method
-        jobrunner.maxjobs = 20
-        end = time.perf_counter()
-        assert end - start > 0.5
+        assert jobrunner._job_limit.max_value == 10
 
         # When set maxjobs to 0
         # Then no semaphore
         jobrunner.maxjobs = 0
-        assert jobrunner._maxjobs == 0
+        assert jobrunner.maxjobs == 0
         assert jobrunner._job_limit is None
 
         # When set maxthreads to <0 or 1
@@ -136,29 +125,20 @@ class TestJobRunner:
         # When set maxthreads to 0
         # Then no semaphore
         jobrunner.maxthreads = 0
-        assert jobrunner._maxthreads == 0
+        assert jobrunner.maxthreads == 0
         assert jobrunner._jobthread_limit is None
 
         # When set maxthreads to a new value
         # Then semaphore set
         jobrunner.maxthreads = 10
-        assert jobrunner._maxthreads == 10
+        assert jobrunner.maxthreads == 10
         assert jobrunner._jobthread_limit is not None
-        assert jobrunner._jobthread_limit._value == 10
-
-        # When job acquires semaphore
-        # Then block in updating maxthreads
-        job = DummySingleJob(wait=0.5)
-        start = time.perf_counter()
-        jobrunner._run_job(job, config.default_jobmanager)
-        jobrunner.maxthreads = 20
-        end = time.perf_counter()
-        assert end - start > 0.5
+        assert jobrunner._jobthread_limit.max_value == 10
 
         # When set maxthreads to 0
         # Then no semaphore
         jobrunner.maxthreads = 0
-        assert jobrunner._maxthreads == 0
+        assert jobrunner.maxthreads == 0
         assert jobrunner._job_limit is None
 
     def verify_serial(self, jobrunner, config):
