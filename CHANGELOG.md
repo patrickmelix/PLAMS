@@ -45,6 +45,7 @@ This changelog is effective from the 2025 releases.
 * Make `Job` class inherit from `ABC` and mark abstract methods 
 * Exceptions raised in `prerun` and `postrun` will always be caught and populate error message
 * `Settings.get_nested` takes a default argument which is returned if the nested key is not present in the settings instance
+* `JobRunner.parallel`, `JobRunner.maxjobs` and `JobRunner.maxthreads` are properties which can take values of `0` or `>1` and `JobRunner.semaphore` has been moved to a protected attribute `JobRunner._job_limit`
 
 ### Fixed
 * `Molecule.properties.charge` is a numeric instead of string type when loading molecule from a file
@@ -53,6 +54,7 @@ This changelog is effective from the 2025 releases.
 * `AMSJob.check` handles a `NoneType` status, returning `False`
 * `MultiJob.run` locking resolved when errors raised within `prerun` and `postrun` methods
 * `Molecule.add_hatoms` to use bonding information if available when adding new hydrogen atoms
+* Changes made to `JobRunner.maxjobs` after initialization are correctly applied
 
 ### Deprecated
 * `plams` launch script is deprecated in favor of simply running with `amspython`
