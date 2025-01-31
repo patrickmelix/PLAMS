@@ -4,7 +4,6 @@ import numpy as np
 from scm.plams.core.errors import MissingOptionalPackageError
 from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.interfaces.molecule.rdkit import to_rdmol
 from scm.plams.mol.molecule import Molecule
 
 if TYPE_CHECKING:
@@ -202,7 +201,6 @@ def get_correlation_xy(
     file: str = "ams",
     multiplier: float = 1.0,
 ) -> Tuple:
-
     def tolist(x):
         if isinstance(x, list):
             return x
