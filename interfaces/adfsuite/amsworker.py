@@ -1171,7 +1171,7 @@ class AMSWorker:
 
         self._call("DeleteMDState", args)
 
-    def SetConstraints (self, constraintSettings, molecule):
+    def SetConstraints(self, constraintSettings, molecule):
         """
         Pass Constraints to pipe application. Should be called before geometry optimization.
 
