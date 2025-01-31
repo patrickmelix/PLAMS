@@ -238,7 +238,7 @@ class JobManager:
             job.results._clean(job.settings.save)
 
         if self.settings.remove_empty_directories:
-            for root, dirs, files in os.walk(self.workdir, topdown=False):
+            for root, dirs, files in os.walk(self._workdir, topdown=False):
                 for dirname in dirs:
                     fullname = opj(root, dirname)
                     if not os.listdir(fullname):
