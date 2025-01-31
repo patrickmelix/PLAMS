@@ -35,6 +35,7 @@ structure demonstrates.
 .. code:: ipython3
 
     from scm.plams import plot_molecule
+    
     plot_molecule(molecules[2]);
 
 
@@ -56,7 +57,7 @@ as follows.
     
     stackmol = Molecule()
     for i, mol in enumerate(molecules):
-        results = worker.GeometryOptimization("go%i"%(i), mol)
+        results = worker.GeometryOptimization("go%i" % (i), mol)
         stackmol += results.get_main_molecule()
     
     plot_molecule(stackmol);
@@ -81,7 +82,7 @@ will apply to only a single geometry optimization.
         s.input.ams.Constraints.Atom = [1, 2, 3, 4, 5, 6]
         worker.SetConstraints(s, mol)
     
-        results = worker.GeometryOptimization("constrained%i"%(i), mol)
+        results = worker.GeometryOptimization("constrained%i" % (i), mol)
         stackmol += results.get_main_molecule()
     
     plot_molecule(stackmol);
