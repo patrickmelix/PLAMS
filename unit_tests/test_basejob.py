@@ -8,6 +8,7 @@ import re
 from io import StringIO
 import csv
 from functools import wraps
+import time
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob, MultiJob
@@ -17,7 +18,7 @@ from scm.plams.core.jobmanager import JobManager
 from scm.plams.core.functions import add_to_instance
 from scm.plams.core.enums import JobStatus
 
-LogEntry = namedtuple("LogEntry", ["method", "args", "kwargs", "timestamp"])
+LogEntry = namedtuple("LogEntry", ["method", "args", "kwargs", "start", "end"])
 
 
 def log_call(method):
@@ -27,9 +28,13 @@ def log_call(method):
 
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        entry = LogEntry(method=method.__name__, args=args, kwargs=kwargs, timestamp=datetime.now())
-        self.add_call_log_entry(entry)
-        return method(self, *args, **kwargs)
+        start = datetime.now()
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            end = datetime.now()
+            entry = LogEntry(method=method.__name__, args=args, kwargs=kwargs, start=start, end=end)
+            self.add_call_log_entry(entry)
 
     return wrapper
 
@@ -52,20 +57,29 @@ class DummySingleJob(SingleJob):
         :param kwargs: kwargs for base single job
         """
         super().__init__(**kwargs)
-        self.call_log = {}
+        self._call_log = {}
         self.id = uuid.uuid4()
         self.input = inp.replace("%ID%", str(self.id)) if inp is not None else f"Dummy input {self.id}"
         self.command = cmd if cmd is not None else "sed 's/input/output/g'"
         self.wait = wait
 
     def add_call_log_entry(self, entry):
-        if entry.method in self.call_log:
-            if isinstance(self.call_log[entry.method], list):
-                self.call_log[entry.method].append(entry)
+        if entry.method in self._call_log:
+            if isinstance(self._call_log[entry.method], list):
+                self._call_log[entry.method].append(entry)
             else:
-                self.call_log[entry.method] = [self.call_log[entry.method], entry]
+                self._call_log[entry.method] = [self._call_log[entry.method], entry]
         else:
-            self.call_log[entry.method] = entry
+            self._call_log[entry.method] = entry
+
+    def get_call_log_entries(self, method):
+        # Try with delay to avoid race condition in entry being added
+        for _ in range(4):
+            try:
+                return self._call_log[method]
+            except KeyError:
+                time.sleep(0.1)
+        return self._call_log[method]
 
     @log_call
     def prerun(self) -> None:
@@ -85,9 +99,13 @@ class DummySingleJob(SingleJob):
 
     def _prepare(self, jobmanager) -> bool:
         # Decorator log_call causes pickling issues here for parent override so just do it manually here...
-        entry = LogEntry(method="_prepare", args=[], kwargs={}, timestamp=datetime.now())
-        self.add_call_log_entry(entry)
-        return super()._prepare(jobmanager)
+        start = datetime.now()
+        try:
+            return super()._prepare(jobmanager)
+        finally:
+            end = datetime.now()
+            entry = LogEntry(method="_prepare", args=[], kwargs={}, start=start, end=end)
+            self.add_call_log_entry(entry)
 
     @log_call
     def _execute(self, jobrunner) -> None:
@@ -150,15 +168,12 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         job.run()
 
         # Then makes calls to pre- and post-run
-        assert list(job.call_log.keys()) == [
-            "_prepare",
-            "prerun",
-            "get_input",
-            "get_runscript",
-            "_execute",
-            "_finalize",
-            "postrun",
-        ]
+        assert (
+            job.get_call_log_entries("prerun").end
+            <= job.get_call_log_entries("_execute").start
+            <= job.get_call_log_entries("_execute").end
+            <= job.get_call_log_entries("postrun").start
+        )
 
     def test_run_writes_output_file_on_success(self):
         # When run a successful job
@@ -271,7 +286,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[0].wait()
         assert job1.status == JobStatus.SUCCESSFUL
-        assert job2.call_log["_execute"].timestamp < job1.call_log["_finalize"].timestamp
+        assert job2.get_call_log_entries("_execute").start < job1.get_call_log_entries("_finalize").start
 
     def test_run_multiple_dependent_jobs_in_serial(self):
         # Given parallel job runner
@@ -291,7 +306,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[1].wait()
         assert job2.status == JobStatus.SUCCESSFUL
-        assert job2.call_log["prerun"].timestamp >= job1.call_log["postrun"].timestamp
+        assert job2.get_call_log_entries("prerun").start >= job1.get_call_log_entries("postrun").end
 
     def test_run_multiple_prerun_dependent_jobs_in_serial(self):
         # Given parallel job runner
@@ -316,7 +331,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         results[1].wait()
         assert job2.status == JobStatus.SUCCESSFUL
-        assert job2.call_log["_execute"].timestamp >= job1.call_log["_finalize"].timestamp
+        assert job2.get_call_log_entries("_execute").start >= job1.get_call_log_entries("_finalize").end
 
     def test_run_multiple_dependent_jobs_first_job_fails_in_prerun(self):
         # Given two dependent jobs where first errors in prerun

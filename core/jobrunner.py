@@ -133,9 +133,7 @@ class JobRunner(metaclass=_MetaRunner):
     @maxjobs.setter
     def maxjobs(self, value: int) -> None:
         if value < 0:
-            raise ValueError(f"Value of 'maxjobs' must be 0 or greater than 1, but was {value}.")
-        if value == 1:
-            raise ValueError("Value of 'maxjobs' must be 0 or greater than 1. To run in serial, set 'parallel=False'.")
+            raise ValueError(f"Value of 'maxjobs' must be greater or equal to zero, but was {value}")
 
         if self._job_limit:
             # safely update maximum value (this will block on decrease)
@@ -166,11 +164,7 @@ class JobRunner(metaclass=_MetaRunner):
     @maxthreads.setter
     def maxthreads(self, value: int) -> None:
         if value < 0:
-            raise ValueError(f"Value of 'maxthreads' must be 0 or greater than 1, but was {value}.")
-        if value == 1:
-            raise ValueError(
-                "Value of 'maxthreads' must be 0 or greater than 1. To run in serial, set 'parallel=False'."
-            )
+            raise ValueError(f"Value of 'maxthreads' must be greater or equal to zero, but was {value}")
 
         if self._jobthread_limit:
             # safely update maximum value (this will block on decrease)
