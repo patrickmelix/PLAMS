@@ -45,6 +45,7 @@ This changelog is effective from the 2025 releases.
 * Make `Job` class inherit from `ABC` and mark abstract methods 
 * Exceptions raised in `prerun` and `postrun` will always be caught and populate error message
 * `Settings.get_nested` takes a default argument which is returned if the nested key is not present in the settings instance
+* `JobManager.workdir` converted to a readonly property, with the underlying workdir lazily created if it does not exist
 * `JobRunner.parallel`, `JobRunner.maxjobs` and `JobRunner.maxthreads` are properties which can take values of `0` or `>1` and `JobRunner.semaphore` has been moved to a protected attribute `JobRunner._job_limit`
 
 ### Fixed
