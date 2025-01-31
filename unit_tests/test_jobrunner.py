@@ -1,3 +1,4 @@
+import time
 import pytest
 
 from scm.plams.core.jobrunner import JobRunner
@@ -11,34 +12,50 @@ class LoggedJobRunner(JobRunner):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.call_log = {}
+        self._call_log = {}
 
     def add_call_log_entry(self, entry):
-        if entry.method in self.call_log:
-            if isinstance(self.call_log[entry.method], list):
-                self.call_log[entry.method].append(entry)
+        if entry.method in self._call_log:
+            if isinstance(self._call_log[entry.method], list):
+                self._call_log[entry.method].append(entry)
             else:
-                self.call_log[entry.method] = [self.call_log[entry.method], entry]
+                self._call_log[entry.method] = [self._call_log[entry.method], entry]
         else:
-            self.call_log[entry.method] = entry
+            self._call_log[entry.method] = entry
+
+    def get_call_log_entries(self, method):
+        # Try with delay to avoid race condition in entry being added
+        for _ in range(9):
+            try:
+                return self._call_log[method]
+            except KeyError:
+                time.sleep(0.1)
+        return self._call_log[method]
 
     @log_call
     def call(self, runscript, workdir, out, err, runflags):
-        return super().call(runscript, workdir, out, err, runflags)
+        return super().call.__wrapped__(self, runscript, workdir, out, err, runflags)
 
 
 class TestJobRunner:
 
-    def test_serial_execution(self, config):
+    # -------------------------------------------------------------------> fix this one
+    @pytest.mark.parametrize(
+        "parallel,maxjobs,maxthreads", [(False, 0, 0), (False, 10, 10), (True, 1, 0), (True, 0, 1)]
+    )
+    def test_serial_execution(self, parallel, maxjobs, maxthreads, config):
         # Given a job runner with parallel set to False in c'tor or via setter
-        jobrunner1 = LoggedJobRunner()
-        jobrunner2 = LoggedJobRunner(parallel=True)
-        jobrunner2.parallel = False
+        jobrunner1 = LoggedJobRunner(parallel=True)
+        jobrunner1.parallel = parallel
+        jobrunner1.maxjobs = maxjobs
+        jobrunner1.maxthreads = maxthreads
+        jobrunner2 = LoggedJobRunner(parallel=parallel, maxjobs=maxjobs, maxthreads=maxthreads)
 
         # When run jobs
         # Then verify run in serial
-        self.verify_serial(jobrunner1, config)
-        self.verify_serial(jobrunner2, config)
+        job_limited = parallel and maxjobs != 0
+        self.verify_serial(jobrunner1, config, job_limited)
+        self.verify_serial(jobrunner2, config, job_limited)
 
     @pytest.mark.parametrize(
         "maxjobs,maxthreads,use_setter",
@@ -75,7 +92,7 @@ class TestJobRunner:
 
         # When run jobs
         # Then runs in serial
-        self.verify_serial(jobrunner, config)
+        self.verify_serial(jobrunner, config, False)
 
         # When set to parallel and maxjobs increased
         jobrunner.parallel = True
@@ -89,12 +106,10 @@ class TestJobRunner:
         # Given jobrunner
         jobrunner = LoggedJobRunner(parallel=True)
 
-        # When set maxjobs to <0 or 1
+        # When set maxjobs to <0
         # Then get error
         with pytest.raises(ValueError):
             jobrunner.maxjobs = -1
-        with pytest.raises(ValueError):
-            jobrunner.maxjobs = 1
 
         # When set maxjobs to 0
         # Then no semaphore
@@ -115,12 +130,10 @@ class TestJobRunner:
         assert jobrunner.maxjobs == 0
         assert jobrunner._job_limit is None
 
-        # When set maxthreads to <0 or 1
+        # When set maxthreads to <0
         # Then get error
         with pytest.raises(ValueError):
             jobrunner.maxthreads = -1
-        with pytest.raises(ValueError):
-            jobrunner.maxthreads = 1
 
         # When set maxthreads to 0
         # Then no semaphore
@@ -141,7 +154,7 @@ class TestJobRunner:
         assert jobrunner.maxthreads == 0
         assert jobrunner._job_limit is None
 
-    def verify_serial(self, jobrunner, config):
+    def verify_serial(self, jobrunner, config, job_limited):
         # When run 5 jobs
         jobs = []
         for i in range(5):
@@ -149,17 +162,28 @@ class TestJobRunner:
             jobs.append(job)
             jobrunner._run_job(job, config.default_jobmanager)
 
-        # Then check either that successive jobs are only executed after the previous has finished
         for i, j in enumerate(jobs):
             j.results.wait()
             if i > 0:
-                # Then successive jobs are only executed after the previous has finished
-                assert jobs[i].call_log["_execute"].timestamp >= jobs[i - 1].call_log["_finalize"].timestamp
+                if not job_limited:
+                    # Then successive jobs are only executed after the previous has finished
+                    assert (
+                        jobs[i].get_call_log_entries("_execute").start
+                        >= jobs[i - 1].get_call_log_entries("_finalize").end
+                    )
+
+        if job_limited:
+            entries = jobrunner.get_call_log_entries("call")
+            for i, entry in enumerate(entries):
+                # Then successive jobs are only called after the previous has finished
+                if i > 0:
+                    assert entry.start >= entries[i - 1].end
 
     def verify_parallel_limit(self, jobrunner, config, maxjobs, maxthreads):
         jobs = []
         thread_limited = maxthreads < maxjobs or maxjobs == 0
         limit = maxthreads if thread_limited else maxjobs
+        limit = min(limit, 5)
 
         # When run 5 jobs in parallel with limit
         for i in range(5):
@@ -171,12 +195,14 @@ class TestJobRunner:
         for i, j in enumerate(jobs):
             j.results.wait()
             if thread_limited:
-                start = jobs[i].call_log["_prepare"].timestamp
-                end = jobs[i].call_log["_finalize"].timestamp
-            else:
-                start = jobrunner.call_log["call"][i].timestamp
-                end = jobs[i].call_log["_finalize"].timestamp
-            times.append((start, end))
+                start = jobs[i].get_call_log_entries("_prepare").start
+                end = jobs[i].get_call_log_entries("_finalize").end
+                times.append((start, end))
+
+        if not thread_limited:
+            entries = jobrunner.get_call_log_entries("call")
+            for i, entry in enumerate(entries):
+                times.append((entry.start, entry.end))
 
         events = [e for s, e in times for e in [(s, 1), (e, -1)]]
         events.sort(key=lambda x: (x[0], x[1]))
@@ -188,4 +214,4 @@ class TestJobRunner:
             max_parallel_jobs = max(max_parallel_jobs, current_jobs)
 
         # Then number of jobs running in parallel is within limit
-        assert max_parallel_jobs <= limit
+        assert max_parallel_jobs == limit
