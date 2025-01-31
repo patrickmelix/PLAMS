@@ -36,6 +36,7 @@ Molecule analysis
    PlotCorrelation/PlotCorrelation
    MapMoleculesAndConvertToDCD
    HydrogenBondsFromMD
+   PlotReaction2D/PlotReaction2D
 
 MD trajectory analysis
 ----------------------
