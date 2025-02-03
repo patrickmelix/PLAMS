@@ -2729,9 +2729,7 @@ class AMSJob(SingleJob):
                 system_blocks: Dict[str, str] = {}
                 for name, system in systems.items():
                     if _has_scm_chemsys and isinstance(system, ChemicalSystem):
-                        system_input = str(system)
-                        if name:
-                            system_input = system_input.replace("System", f"System {name}", 1)
+                        system_input = system.__format__(f'in:name="{name}"' if name else "in")
                     else:
                         system_settings = AMSJob._serialize_single_molecule(name, system)
                         system_input = serialize("System", system_settings, 0)
