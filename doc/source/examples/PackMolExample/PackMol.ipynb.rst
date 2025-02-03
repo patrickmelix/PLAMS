@@ -7,10 +7,17 @@ Initial imports
 .. code:: ipython3
 
     from scm.plams import plot_molecule, from_smiles, Molecule
-    from scm.plams.interfaces.molecule.packmol import packmol, packmol_around
+    from scm.plams.interfaces.molecule.packmol import packmol
     from ase.visualize.plot import plot_atoms
     from ase.build import fcc111, bulk
     import matplotlib.pyplot as plt
+    
+    try:
+        from scm.plams import packmol_around
+    
+        has_packmol_around = True
+    except ImportError:
+        has_packmol_around = False
 
 Helper functions
 ~~~~~~~~~~~~~~~~
@@ -124,14 +131,15 @@ First, create the gasphase molecule:
 .. code:: ipython3
 
     print("water-5.xyz: pure liquid in non-orthorhombic box (requires AMS2025 or later)")
-    # Non-orthorhombic boxes use UFF MD simulations behind the scenes
+    print("NOTE: Non-orthorhombic boxes may yield inaccurate results, always carefully check the output")
     # You can pack inside any lattice using the packmol_around function
     
-    box = Molecule()
-    box.lattice = [[10.0, 2.0, -1.0], [-5.0, 8.0, 0.0], [0.0, -2.0, 11.0]]
-    out = packmol_around(box, molecules=[water], n_molecules=[32])
-    out.write("water-5.xyz")
-    plot_molecule(out);
+    if has_packmol_around:
+        box = Molecule()
+        box.lattice = [[10.0, 2.0, -1.0], [-5.0, 8.0, 0.0], [0.0, -2.0, 11.0]]
+        out = packmol_around(box, molecules=[water], n_molecules=[32])
+        out.write("water-5.xyz")
+        plot_molecule(out);
 
 
 .. parsed-literal::
@@ -500,10 +508,11 @@ First, create a slab using the ASE ``fcc111`` function
 .. code:: ipython3
 
     print("water surrounding an Al slab, from an approximate density")
-    out = packmol_around(slab, water, density=1.0)
-    printsummary(out)
-    out.write("al-water-pure.xyz")
-    plot_molecule(out, figsize=figsize, rotation=rotation);
+    if has_packmol_around:
+        out = packmol_around(slab, water, density=1.0)
+        printsummary(out)
+        out.write("al-water-pure.xyz")
+        plot_molecule(out, figsize=figsize, rotation=rotation);
 
 
 .. parsed-literal::
@@ -519,10 +528,11 @@ First, create a slab using the ASE ``fcc111`` function
 .. code:: ipython3
 
     print("2-1 water-acetonitrile mixture surrounding an Al slab, from mole fractions and an approximate density")
-    out = packmol_around(slab, [water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], density=density)
-    printsummary(out)
-    out.write("al-water-acetonitrile.xyz")
-    plot_molecule(out, figsize=figsize, rotation=rotation);
+    if has_packmol_around:
+        out = packmol_around(slab, [water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], density=density)
+        printsummary(out)
+        out.write("al-water-acetonitrile.xyz")
+        plot_molecule(out, figsize=figsize, rotation=rotation);
 
 
 .. parsed-literal::
@@ -539,15 +549,16 @@ First, create a slab using the ASE ``fcc111`` function
 
     from ase.build import surface
     
-    print("water surrounding non-orthorhombic Au(211) slab, from an approximate number of molecules")
-    print("NOTE: non-orthorhombic cell, results are approximate")
-    slab = surface("Au", (2, 1, 1), 6)
-    slab.center(vacuum=11.0, axis=2)
-    slab.set_pbc(True)
-    out = packmol_around(fromASE(slab), [water], n_molecules=[32], tolerance=1.8)
-    out.write("Au211-water.xyz")
-    plot_molecule(out, figsize=figsize, rotation=rotation)
-    print(f"{out.lattice=}")
+    if has_packmol_around:
+        print("water surrounding non-orthorhombic Au(211) slab, from an approximate number of molecules")
+        print("NOTE: non-orthorhombic cell, results are approximate, requires AMS2025")
+        slab = surface("Au", (2, 1, 1), 6)
+        slab.center(vacuum=11.0, axis=2)
+        slab.set_pbc(True)
+        out = packmol_around(fromASE(slab), [water], n_molecules=[32], tolerance=1.8)
+        out.write("Au211-water.xyz")
+        plot_molecule(out, figsize=figsize, rotation=rotation)
+        print(f"{out.lattice=}")
 
 
 .. parsed-literal::
@@ -584,15 +595,16 @@ you need to pack very tightly. The default value for ``tolerance`` is
 
 .. code:: ipython3
 
-    out = packmol_around(
-        current=bulk_Al,
-        molecules=[from_smiles("[H]"), from_smiles("[He]")],
-        n_molecules=[50, 20],
-        tolerance=1.5,
-    )
-    plot_molecule(out, rotation=rotation, radii=0.4)
-    printsummary(out)
-    out.write("al-bulk-with-h-he.xyz")
+    if has_packmol_around:
+        out = packmol_around(
+            current=bulk_Al,
+            molecules=[from_smiles("[H]"), from_smiles("[He]")],
+            n_molecules=[50, 20],
+            tolerance=1.5,
+        )
+        plot_molecule(out, rotation=rotation, radii=0.4)
+        printsummary(out)
+        out.write("al-bulk-with-h-he.xyz")
 
 
 .. parsed-literal::
