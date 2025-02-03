@@ -211,7 +211,10 @@ class PackMol:
         self.tolerance = tolerance
         self.structures = structures or []
         self.filetype = filetype
-        self.seed = seed
+        if seed == -1 and "SCM_PACKMOL_SEED" in os.environ:
+            self.seed = int(os.environ["SCM_PACKMOL_SEED"])
+        else:
+            self.seed = seed
         self.executable = executable or os.path.join(os.path.expandvars("$AMSBIN"), "packmol.exe")
         if not os.path.exists(self.executable):
             raise RuntimeError("PackMol exectuable not found: " + self.executable)
