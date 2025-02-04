@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 from numbers import Number
 from dataclasses import dataclass, replace
+from itertools import chain, islice
 
 from scm.plams.core.basejob import Job, SingleJob
 from scm.plams.core.settings import Settings
@@ -70,6 +71,7 @@ class JobAnalysis:
         display_name: Optional[str] = None
         fmt: Optional[str] = None
         from_settings: bool = False
+        expand: bool = False
 
         def __post_init__(self):
             self.display_name = self.key if self.display_name is None else self.display_name
@@ -217,7 +219,30 @@ class JobAnalysis:
 
         :return: analysis data as a dictionary of field keys/lists of job values
         """
-        return {col_name: self._get_field_analysis(col_name) for col_name in self._fields}
+        analysis = {col_name: self._get_field_analysis(col_name) for col_name in self._fields}
+
+        # Handle field expansion, converting single job rows to multiple rows
+        expand_fields = {k for k, f in self._fields.items() if f.expand}
+        if expand_fields and analysis.keys() and self._jobs:
+            expanded_analysis = {col_name: [] for col_name in analysis.keys()}
+            for i in range(len(self._jobs)):
+                job_data = {col_name: data[i] for col_name, data in analysis.items()}
+                valid_expand_fields = {
+                    f for f in expand_fields if isinstance(job_data[f], Sequence) and not isinstance(job_data[f], str)
+                }
+                # Number of rows is the maximum expanded field
+                num_expanded_rows = max([len(job_data[f]) for f in valid_expand_fields], default=1)
+
+                # Convert multiple values to multiple rows of single values
+                for col_name in analysis:
+                    expanded_analysis[col_name] += (
+                        list(islice(chain(job_data[col_name], [None] * num_expanded_rows), num_expanded_rows))
+                        if col_name in valid_expand_fields
+                        else [job_data[col_name]] * num_expanded_rows
+                    )
+            return expanded_analysis
+        else:
+            return analysis
 
     def _get_field_analysis(self, key) -> List:
         """
@@ -654,20 +679,24 @@ class JobAnalysis:
         value_extractor: Callable[[Job], Any],
         display_name: Optional[str] = None,
         fmt: Optional[str] = None,
+        expand: bool = False,
     ) -> "JobAnalysis":
         """
         Add a field to the analysis. This adds a column to the analysis data.
 
-        :param key: unqiue identifier for the field
+        :param key: unique identifier for the field
         :param value_extractor: callable to extract the value for the field from a job
         :param display_name: name which will appear for the field when displayed in table
         :param fmt: string format for how field values are displayed in table
+        :param expand: whether to expand field of multiple values into multiple rows
         :return: updated instance of |JobAnalysis|
         """
         if key in self._fields:
             raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
 
-        self._fields[key] = self._Field(key=key, value_extractor=value_extractor, display_name=display_name, fmt=fmt)
+        self._fields[key] = self._Field(
+            key=key, value_extractor=value_extractor, display_name=display_name, fmt=fmt, expand=expand
+        )
         return self
 
     def format_field(self, key: str, fmt: Optional[str] = None) -> "JobAnalysis":
@@ -696,6 +725,32 @@ class JobAnalysis:
             raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
         self._fields[key] = replace(self._fields[key], display_name=display_name)
+        return self
+
+    def expand_field(self, key: str) -> "JobAnalysis":
+        """
+        Expand field of multiple values into multiple rows for each job.
+
+        :param key: unique identifier of field to expand
+        :return: updated instance of |JobAnalysis|
+        """
+        if key not in self._fields:
+            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
+
+        self._fields[key].expand = True
+        return self
+
+    def collapse_field(self, key: str) -> "JobAnalysis":
+        """
+        Collapse field of multiple rows into single row of multiple values for each job.
+
+        :param key: unique identifier of field to collapse
+        :return: updated instance of |JobAnalysis|
+        """
+        if key not in self._fields:
+            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
+
+        self._fields[key].expand = False
         return self
 
     def reorder_fields(self, order: Sequence[str]) -> "JobAnalysis":
