@@ -52,6 +52,10 @@ class TestJobAnalysis:
         ja = JobAnalysis(paths=[j.path for j in dummy_single_jobs])
         assert len(ja.jobs) == 10
 
+    def test_init_with_std_fields(self, dummy_single_jobs):
+        ja = JobAnalysis(std_fields=("Name", "Smiles"))
+        assert len(ja.field_keys) == 2
+
     def test_default_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
@@ -222,6 +226,36 @@ class TestJobAnalysis:
 | None    |"""
         )
 
+    def test_format_field(self, dummy_single_jobs):
+        ja = (
+            JobAnalysis(jobs=dummy_single_jobs)
+            .add_formula_field()
+            .add_smiles_field()
+            .add_field("WaitS", lambda j: j.wait, fmt="e")
+            .add_field("WaitMs", lambda j: j.wait * 1000)
+            .format_field("WaitMs", "04.0f")
+            .add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
+            .remove_field("Path")
+            .rename_field("ErrorMsg", "Err")
+        )
+
+        assert (
+            ja.to_table()
+            == """\
+| Name         | OK   | Check | Err  | Formula | Smiles | WaitS        | WaitMs | Output |
+|--------------|------|-------|------|---------|--------|--------------|--------|--------|
+| dummyjob     | True | True  | None | C2H6    | CC     | 0.000000e+00 | 0000   | Dummy  |
+| dummyjob.002 | True | True  | None | CH4     | C      | 1.000000e-02 | 0010   | Dummy  |
+| dummyjob.003 | True | True  | None | H2O     | O      | 2.000000e-02 | 0020   | Dummy  |
+| dummyjob.004 | True | True  | None | CH4O    | CO     | 3.000000e-02 | 0030   | Dummy  |
+| dummyjob.005 | True | True  | None | C3H8    | CCC    | 4.000000e-02 | 0040   | Dummy  |
+| dummyjob.006 | True | True  | None | C4H10   | CCCC   | 5.000000e-02 | 0050   | Dummy  |
+| dummyjob.007 | True | True  | None | C3H8O   | CCCO   | 6.000000e-02 | 0060   | Dummy  |
+| dummyjob.008 | True | True  | None | C6H14   | CCCCCC | 7.000000e-02 | 0070   | Dummy  |
+| dummyjob.009 | True | True  | None | C4H10O  | CCCOC  | 8.000000e-02 | 0080   | Dummy  |
+| dummyjob.010 | True | True  | None | None    | None   | 9.000000e-02 | 0090   | Dummy  |"""
+        )
+
     def test_filter_jobs(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
@@ -245,31 +279,6 @@ class TestJobAnalysis:
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | 0.07 | Dummy  |"""
         )
 
-    def test_field_groups(self, dummy_single_jobs):
-        ja = (
-            JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
-            .add_cpu_time_field()
-            .add_sys_time_field()
-            .add_elapsed_time_field()
-            .add_field("Wait", lambda j: j.wait, group="w")
-        )
-
-        assert ja.field_groups == {
-            "job_info": ["Path", "Name", "OK", "Check", "ErrorMsg"],
-            "mol": ["Formula", "Smiles"],
-            "timing": ["CPUTime", "SysTime", "ElapsedTime"],
-            "w": ["Wait"],
-        }
-
-        ja.remove_field_group("mol").remove_field_group("w")
-
-        assert ja.field_groups == {
-            "job_info": ["Path", "Name", "OK", "Check", "ErrorMsg"],
-            "timing": ["CPUTime", "SysTime", "ElapsedTime"],
-        }
-
     def test_reorder_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
@@ -278,10 +287,10 @@ class TestJobAnalysis:
             .add_cpu_time_field()
             .add_sys_time_field()
             .add_elapsed_time_field()
-            .add_field("Wait", lambda j: j.wait, group="w")
+            .add_field("Wait", lambda j: j.wait)
         )
 
-        assert ja.field_names == [
+        assert ja.field_keys == [
             "Path",
             "Name",
             "OK",
@@ -297,7 +306,7 @@ class TestJobAnalysis:
 
         ja.reorder_fields(["Name", "Wait"])
 
-        assert ja.field_names == [
+        assert ja.field_keys == [
             "Name",
             "Wait",
             "Path",
@@ -313,7 +322,7 @@ class TestJobAnalysis:
 
         ja.sort_fields(lambda k: str(k))
 
-        assert ja.field_names == [
+        assert ja.field_keys == [
             "CPUTime",
             "Check",
             "ElapsedTime",
@@ -329,7 +338,7 @@ class TestJobAnalysis:
 
         ja.sort_fields(lambda k: len(k), reverse=True)
 
-        assert ja.field_names == [
+        assert ja.field_keys == [
             "ElapsedTime",
             "ErrorMsg",
             "CPUTime",
@@ -347,8 +356,8 @@ class TestJobAnalysis:
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
             .add_formula_field()
-            .add_field("Wait", lambda j: j.wait, group="w")
-            .sort_jobs(field_names=["Formula"])
+            .add_field("Wait", lambda j: j.wait)
+            .sort_jobs(field_keys=["Formula"])
         )
 
         assert [j.name for j in ja.jobs.values()] == [
@@ -364,7 +373,7 @@ class TestJobAnalysis:
             "dummyjob.010",
         ]
 
-        ja.sort_jobs(field_names=["OK", "Wait"], reverse=True)
+        ja.sort_jobs(field_keys=["OK", "Wait"], reverse=True)
 
         assert [(j.name, j.wait) for j in ja.jobs.values()] == [
             ("dummyjob.010", 0.09),
@@ -379,7 +388,7 @@ class TestJobAnalysis:
             ("dummyjob", 0.0),
         ]
 
-        ja.sort_jobs(key=lambda data: data["Wait"] * 100 % 5)
+        ja.sort_jobs(sort_key=lambda data: data["Wait"] * 100 % 5)
 
         assert [(j.name, int(j.wait * 100 % 5)) for j in ja.jobs.values()] == [
             ("dummyjob.006", 0.0),
@@ -589,6 +598,204 @@ dummyjob.010,,,False
             "C4H10O",
             None,
         ]
+
+    def test_get_timeline(self):
+        jm = JobManager(JobManagerSettings())
+
+        # Function to create dummy job with given statuses and timeline
+        start = datetime.strptime("2025-01-01 12:00:00", "%Y-%m-%d %H:%M:%S")
+
+        def get_job_with_statuses(name, final_status, start_time, wait_time, run_time):
+            job = DummySingleJob(name=name)
+            job.run(jobmanager=jm)
+            statuses = [
+                JobStatus.CREATED,
+                JobStatus.STARTED,
+                JobStatus.REGISTERED,
+                JobStatus.RUNNING,
+                JobStatus.FINISHED,
+                final_status,
+            ]
+            times = [
+                start_time,
+                start_time + wait_time,
+                start_time + wait_time + timedelta(seconds=0.05),
+                start_time + wait_time + timedelta(seconds=0.1),
+                start_time + wait_time + run_time,
+                start_time + wait_time + run_time + timedelta(seconds=0.05),
+            ]
+            job._status_log = [(t, s) for t, s in zip(times, statuses)]
+            job.results.wait()
+            return job
+
+        # Given job analyser with no jobs
+        ja = JobAnalysis()
+
+        # When get timeline
+        # Then empty table produced
+        timeline = ja.get_timeline()
+        assert (
+            timeline
+            == """\
+<pre>
+| JobName | WaitDuration | RunDuration | TotalDuration |
+|---------|--------------|-------------|---------------|
+</pre>"""
+        )
+
+        # Add single job that takes seconds to run
+        job_s = get_job_with_statuses("tls", JobStatus.SUCCESSFUL, start, timedelta(seconds=0.1), timedelta(seconds=3))
+        ja.add_job(job_s)
+        timeline = ja.get_timeline()
+        assert (
+            timeline
+            == """\
+<pre>
+| JobName | ↓2025-01-01 12:00:00 | ↓2025-01-01 12:00:01 | ↓2025-01-01 12:00:02 | ↓2025-01-01 12:00:03 | WaitDuration | RunDuration | TotalDuration |
+|---------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+| tls     | .-+================= | ==================== | ===================* | >                    | 0s           | 3s          | 3s            |
+</pre>"""
+        )
+
+        # Add single job that takes minutes to run
+        job_m = get_job_with_statuses("tlm", JobStatus.FAILED, start, timedelta(seconds=2), timedelta(minutes=2))
+        ja.add_job(job_m)
+        timeline = ja.get_timeline()
+        assert (
+            timeline
+            == """\
+<pre>
+| JobName | ↓2025-01-01 12:00:00 | ↓2025-01-01 12:00:30 | ↓2025-01-01 12:01:01 | ↓2025-01-01 12:01:31 | ↓2025-01-01 12:02:02 | WaitDuration | RunDuration | TotalDuration |
+|---------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+| tls     | ==>                  |                      |                      |                      |                      | 0s           | 3s          | 3s            |
+| tlm     | .=================== | ==================== | ==================== | ===================* | X                    | 2s           | 2m0s        | 2m2s          |
+</pre>"""
+        )
+
+        # Add single job that takes hours to run
+        job_m = get_job_with_statuses("tlh", JobStatus.CRASHED, start, timedelta(seconds=10), timedelta(hours=2))
+        ja.add_job(job_m)
+        timeline = ja.get_timeline()
+        assert (
+            timeline
+            == """\
+<pre>
+| JobName | ↓2025-01-01 12:00:00 | ↓2025-01-01 12:30:02 | ↓2025-01-01 13:00:05 | ↓2025-01-01 13:30:07 | ↓2025-01-01 14:00:10 | WaitDuration | RunDuration | TotalDuration |
+|---------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+| tls     | >                    |                      |                      |                      |                      | 0s           | 3s          | 3s            |
+| tlm     | =X                   |                      |                      |                      |                      | 2s           | 2m0s        | 2m2s          |
+| tlh     | ==================== | ==================== | ==================== | ===================* | x                    | 10s          | 2h0m0s      | 2h0m10s       |
+</pre>"""
+        )
+
+        # Add more single jobs with delayed start
+        job_ds = get_job_with_statuses(
+            "tlds", JobStatus.SUCCESSFUL, start + timedelta(hours=1), timedelta(seconds=1), timedelta(seconds=30)
+        )
+        job_dm = get_job_with_statuses(
+            "tldm", JobStatus.SUCCESSFUL, start + timedelta(hours=1), timedelta(minutes=2), timedelta(minutes=10)
+        )
+
+        ja.add_job(job_ds)
+        ja.add_job(job_dm)
+        timeline = ja.get_timeline(max_intervals=5)
+        assert (
+            timeline
+            == """\
+<pre>
+| JobName | ↓2025-01-01 12:00:00 | ↓2025-01-01 12:30:02 | ↓2025-01-01 13:00:05 | ↓2025-01-01 13:30:07 | ↓2025-01-01 14:00:10 | WaitDuration | RunDuration | TotalDuration |
+|---------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+| tls     | >                    |                      |                      |                      |                      | 0s           | 3s          | 3s            |
+| tlm     | =X                   |                      |                      |                      |                      | 2s           | 2m0s        | 2m2s          |
+| tlh     | ==================== | ==================== | ==================== | ===================* | x                    | 10s          | 2h0m0s      | 2h0m10s       |
+| tlds    |                      |                    = | >                    |                      |                      | 1s           | 30s         | 31s           |
+| tldm    |                      |                    . | .======>             |                      |                      | 2m0s         | 10m0s       | 12m0s         |
+</pre>"""
+        )
+
+        # Add more single jobs with dependencies
+        job_dps = get_job_with_statuses(
+            "tldps", JobStatus.SUCCESSFUL, start + timedelta(hours=1), timedelta(minutes=12), timedelta(seconds=10)
+        )
+        job_dpm = get_job_with_statuses(
+            "tldpm", JobStatus.SUCCESSFUL, start + timedelta(hours=1), timedelta(minutes=12), timedelta(minutes=10)
+        )
+
+        ja.add_job(job_dps)
+        ja.add_job(job_dpm)
+        timeline = ja.get_timeline(max_intervals=10)
+        assert (
+            timeline
+            == """\
+<pre>
+| JobName | ↓2025-01-01 12:00:00 | ↓2025-01-01 12:13:21 | ↓2025-01-01 12:26:42 | ↓2025-01-01 12:40:03 | ↓2025-01-01 12:53:24 | ↓2025-01-01 13:06:45 | ↓2025-01-01 13:20:06 | ↓2025-01-01 13:33:27 | ↓2025-01-01 13:46:48 | ↓2025-01-01 14:00:10 | WaitDuration | RunDuration | TotalDuration |
+|---------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+| tls     | >                    |                      |                      |                      |                      |                      |                      |                      |                      |                      | 0s           | 3s          | 3s            |
+| tlm     | ===X                 |                      |                      |                      |                      |                      |                      |                      |                      |                      | 2s           | 2m0s        | 2m2s          |
+| tlh     | ==================== | ==================== | ==================== | ==================== | ==================== | ==================== | ==================== | ==================== | ===================* | x                    | 10s          | 2h0m0s      | 2h0m10s       |
+| tlds    |                      |                      |                      |                      |          =>          |                      |                      |                      |                      |                      | 1s           | 30s         | 31s           |
+| tldm    |                      |                      |                      |                      |          ...======== | =======>             |                      |                      |                      |                      | 2m0s         | 10m0s       | 12m0s         |
+| tldps   |                      |                      |                      |                      |          ........... | .......=>            |                      |                      |                      |                      | 12m0s        | 10s         | 12m10s        |
+| tldpm   |                      |                      |                      |                      |          ........... | .......============= | ==>                  |                      |                      |                      | 12m0s        | 10m0s       | 22m0s         |
+</pre>"""
+        )
+
+        # Add more single jobs with dependencies
+        job_n = DummySingleJob(name="tln")
+        job_n.run(jobmanager=jm)
+        job_n.results.wait()
+        job_n._status_log = None
+
+        job_e = DummySingleJob(name="tle")
+        job_e.run(jobmanager=jm)
+        job_e.results.wait()
+        job_e._status_log = []
+
+        ja.add_job(job_n)
+        ja.add_job(job_e)
+        timeline = ja.get_timeline()
+        assert (
+            timeline
+            == """\
+<pre>
+| JobName | ↓2025-01-01 12:00:00 | ↓2025-01-01 12:30:02 | ↓2025-01-01 13:00:05 | ↓2025-01-01 13:30:07 | ↓2025-01-01 14:00:10 | WaitDuration | RunDuration | TotalDuration |
+|---------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+| tls     | >                    |                      |                      |                      |                      | 0s           | 3s          | 3s            |
+| tlm     | =X                   |                      |                      |                      |                      | 2s           | 2m0s        | 2m2s          |
+| tlh     | ==================== | ==================== | ==================== | ===================* | x                    | 10s          | 2h0m0s      | 2h0m10s       |
+| tlds    |                      |                    = | >                    |                      |                      | 1s           | 30s         | 31s           |
+| tldm    |                      |                    . | .======>             |                      |                      | 2m0s         | 10m0s       | 12m0s         |
+| tldps   |                      |                    . | .......=>            |                      |                      | 12m0s        | 10s         | 12m10s        |
+| tldpm   |                      |                    . | .......=======>      |                      |                      | 12m0s        | 10m0s       | 22m0s         |
+| tln     |                      |                      |                      |                      |                      | Unknown      | Unknown     | Unknown       |
+| tle     |                      |                      |                      |                      |                      | Unknown      | Unknown     | Unknown       |
+</pre>"""
+        )
+
+        timeline = ja.get_timeline(fmt="html")
+        assert (
+            timeline
+            == """\
+<div style="max-width: 100%; overflow-x: auto;">
+<table border="1" style="border-collapse: collapse; width: auto; font-family: monospace; ">
+<thead><tr><th style="border-left: 1px solid black; border-right: 1px solid black;">JobName<th style="border-left: 1px solid black; border-right: 1px solid black;">↓2025-01-01 12:00:00                                                                                                    <th style="border-left: 1px solid black; border-right: 1px solid black;">↓2025-01-01 12:30:02                                                                                                    <th style="border-left: 1px solid black; border-right: 1px solid black;">↓2025-01-01 13:00:05                                                                                                    <th style="border-left: 1px solid black; border-right: 1px solid black;">↓2025-01-01 13:30:07                                                                                                    <th style="border-left: 1px solid black; border-right: 1px solid black;">↓2025-01-01 14:00:10                                                                                                    <th style="border-left: 1px solid black; border-right: 1px solid black;">WaitDuration<th style="border-left: 1px solid black; border-right: 1px solid black;">RunDuration<th style="border-left: 1px solid black; border-right: 1px solid black;">TotalDuration</th></tr></thead>
+<tbody>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tls    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">0s          </td><td style="border-left: 1px solid black; border-right: 1px solid black;">3s         </td><td style="border-left: 1px solid black; border-right: 1px solid black;">3s           </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tlm    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">=X&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;          </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">2s          </td><td style="border-left: 1px solid black; border-right: 1px solid black;">2m0s       </td><td style="border-left: 1px solid black; border-right: 1px solid black;">2m2s         </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tlh    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">====================                                                                                                    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">====================                                                                                                    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">====================                                                                                                    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">===================*                                                                                                    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">x&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">10s         </td><td style="border-left: 1px solid black; border-right: 1px solid black;">2h0m0s     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">2h0m10s      </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tlds   </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">1s          </td><td style="border-left: 1px solid black; border-right: 1px solid black;">30s        </td><td style="border-left: 1px solid black; border-right: 1px solid black;">31s          </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tldm   </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">.======>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                        </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">2m0s        </td><td style="border-left: 1px solid black; border-right: 1px solid black;">10m0s      </td><td style="border-left: 1px solid black; border-right: 1px solid black;">12m0s        </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tldps  </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">.......=>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                             </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">12m0s       </td><td style="border-left: 1px solid black; border-right: 1px solid black;">10s        </td><td style="border-left: 1px solid black; border-right: 1px solid black;">12m10s       </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tldpm  </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">.......=======>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;                                                                           </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">12m0s       </td><td style="border-left: 1px solid black; border-right: 1px solid black;">10m0s      </td><td style="border-left: 1px solid black; border-right: 1px solid black;">22m0s        </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tln    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">Unknown     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">Unknown    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">Unknown      </td></tr>
+<tr><td style="border-left: 1px solid black; border-right: 1px solid black;">tle    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td><td style="border-left: 1px solid black; border-right: 1px solid black;">Unknown     </td><td style="border-left: 1px solid black; border-right: 1px solid black;">Unknown    </td><td style="border-left: 1px solid black; border-right: 1px solid black;">Unknown      </td></tr>
+</tbody>
+</table>
+</div>"""
+        )
+
+        jm._clean()
+        shutil.rmtree(jm.workdir)
 
 
 class TestJobAnalysisWithPisa(TestJobAnalysis):

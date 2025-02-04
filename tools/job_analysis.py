@@ -7,18 +7,17 @@ from typing import (
     List,
     Callable,
     Any,
-    NamedTuple,
     Tuple,
     Hashable,
     Set,
     Literal,
-    TYPE_CHECKING,
 )
 import os
 import csv
 from pathlib import Path
 import numpy as np
 from numbers import Number
+from dataclasses import dataclass, replace
 
 from scm.plams.core.basejob import Job, SingleJob
 from scm.plams.core.settings import Settings
@@ -53,8 +52,6 @@ try:
 except ImportError:
     _has_scm_pisa = False
 
-if TYPE_CHECKING:
-    import matplotlib.pyplot as plt
 
 __all__ = ["JobAnalysis"]
 
@@ -66,58 +63,70 @@ class JobAnalysis:
     The jobs and fields which are included in the analysis are customizable, to allow for flexible comparison.
     """
 
-    class _Field(NamedTuple):
-        name: str
-        group: Optional[str]
+    @dataclass
+    class _Field:
+        key: str
         value_extractor: Callable[[Job], Any]
+        display_name: Optional[str] = None
+        fmt: Optional[str] = None
+        from_settings: bool = False
 
-    _path_field = _Field(name="Path", group="job_info", value_extractor=lambda j: j.path)
-    _name_field = _Field(name="Name", group="job_info", value_extractor=lambda j: j.name)
-    _ok_field = _Field(name="OK", group="job_info", value_extractor=lambda j: j.ok())
-    _check_field = _Field(name="Check", group="job_info", value_extractor=lambda j: j.check())
-    _error_msg_field = _Field(name="ErrorMsg", group="job_info", value_extractor=lambda j: j.get_errormsg())
+        def __post_init__(self):
+            self.display_name = self.key if self.display_name is None else self.display_name
 
-    _parent_path_field = _Field(
-        name="ParentPath", group="job_parent", value_extractor=lambda j: j.parent.path if j.parent else None
-    )
-    _parent_name_field = _Field(
-        name="ParentName", group="job_parent", value_extractor=lambda j: j.parent.name if j.parent else None
-    )
+    _path_field = _Field(key="Path", value_extractor=lambda j: j.path)
+    _name_field = _Field(key="Name", value_extractor=lambda j: j.name)
+    _ok_field = _Field(key="OK", value_extractor=lambda j: j.ok())
+    _check_field = _Field(key="Check", value_extractor=lambda j: j.check())
+    _error_msg_field = _Field(key="ErrorMsg", value_extractor=lambda j: j.get_errormsg())
+
+    _parent_path_field = _Field(key="ParentPath", value_extractor=lambda j: j.parent.path if j.parent else None)
+    _parent_name_field = _Field(key="ParentName", value_extractor=lambda j: j.parent.name if j.parent else None)
 
     _formula_field = _Field(
-        name="Formula",
-        group="mol",
+        key="Formula",
         value_extractor=lambda j: (
             JobAnalysis._mol_formula_extractor(j.molecule) if isinstance(j, SingleJob) else None
         ),
     )
     _smiles_field = _Field(
-        name="Smiles",
-        group="mol",
+        key="Smiles",
         value_extractor=lambda j: (JobAnalysis._mol_smiles_extractor(j.molecule) if isinstance(j, SingleJob) else None),
     )
 
     _cpu_time_field = _Field(
-        name="CPUTime",
-        group="timing",
+        key="CPUTime",
         value_extractor=lambda j: (
             j.results.readrkf("General", "CPUTime") if isinstance(j, AMSJob) and j.results is not None else None
         ),
     )
     _sys_time_field = _Field(
-        name="SysTime",
-        group="timing",
+        key="SysTime",
         value_extractor=lambda j: (
             j.results.readrkf("General", "SysTime") if isinstance(j, AMSJob) and j.results is not None else None
         ),
     )
     _elapsed_time_field = _Field(
-        name="ElapsedTime",
-        group="timing",
+        key="ElapsedTime",
         value_extractor=lambda j: (
             j.results.readrkf("General", "ElapsedTime") if isinstance(j, AMSJob) and j.results is not None else None
         ),
     )
+
+    _standard_fields = [
+        _path_field,
+        _name_field,
+        _ok_field,
+        _check_field,
+        _error_msg_field,
+        _parent_path_field,
+        _parent_name_field,
+        _formula_field,
+        _smiles_field,
+        _cpu_time_field,
+        _sys_time_field,
+        _elapsed_time_field,
+    ]
 
     @staticmethod
     def _mol_formula_extractor(
@@ -143,21 +152,17 @@ class JobAnalysis:
             return JobAnalysis._mol_smiles_extractor(chemsys_to_plams_molecule(mol))
         return None
 
-    _reserved_names = ["_jobs", "_fields", "_pisa_programs"]
+    _reserved_names = ["_jobs", "_fields", "_standard_fields", "_pisa_programs"]
 
     def __init__(
         self,
         paths: Optional[Sequence[Union[str, os.PathLike]]] = None,
         jobs: Optional[Sequence[Job]] = None,
         loaders: Optional[Sequence[Callable[[str], Job]]] = None,
+        std_fields: Optional[Sequence[str]] = ("Path", "Name", "OK", "Check", "ErrorMsg"),
     ):
         self._jobs: Dict[str, Job] = {}
         self._fields: Dict[str, JobAnalysis._Field] = {}
-        self.add_path_field()
-        self.add_name_field()
-        self.add_ok_field()
-        self.add_check_field()
-        self.add_error_msg_field()
 
         if _has_scm_pisa:
             self._pisa_programs = {value: key for key, value in ENGINE_BLOCK_FILES.items()}
@@ -171,6 +176,11 @@ class JobAnalysis:
             for p in paths:
                 self.load_job(p, loaders)
 
+        if std_fields:
+            for f in self._standard_fields:
+                if f.key in std_fields:
+                    self._add_standard_field(f)
+
     def copy(self) -> "JobAnalysis":
         """
         Produce a copy of this analysis with the same jobs and fields.
@@ -179,7 +189,7 @@ class JobAnalysis:
         """
         cpy = JobAnalysis()
         cpy._jobs = self.jobs
-        cpy._fields = {k: v for k, v in self._fields.items()}
+        cpy._fields = {k: replace(v) for k, v in self._fields.items()}
         return cpy
 
     @property
@@ -192,49 +202,34 @@ class JobAnalysis:
         return {k: v for k, v in self._jobs.items()}
 
     @property
-    def field_names(self) -> List[str]:
+    def field_keys(self) -> List[str]:
         """
-        Names of current fields, as they appear in the analysis.
+        Keys of current fields, as they appear in the analysis.
 
-        :return: list of field names
+        :return: list of field keys
         """
         return [k for k in self._fields]
-
-    @property
-    def field_groups(self) -> Dict[Optional[str], List[str]]:
-        """
-        Groups of current fields.
-
-        :return: dictionary with group names as keys and field names as values
-        """
-        groups: Dict[Optional[str], List[str]] = {}
-        for field in self._fields.values():
-            if field.group in groups:
-                groups[field.group].append(field.name)
-            else:
-                groups[field.group] = [field.name]
-        return groups
 
     def get_analysis(self) -> Dict[str, List]:
         """
         Gets analysis data. This is effectively a table in the form of a dictionary,
-        where the keys are the field names and the values are a list of data for each job.
+        where the keys are the field keys and the values are a list of data for each job.
 
-        :return: analysis data as a dictionary of field names/lists of job values
+        :return: analysis data as a dictionary of field keys/lists of job values
         """
         return {col_name: self._get_field_analysis(col_name) for col_name in self._fields}
 
-    def _get_field_analysis(self, name) -> List:
+    def _get_field_analysis(self, key) -> List:
         """
-        Gets analysis data for field with a given name. This gives a list of data for the given field, with a  value for each job.
+        Gets analysis data for field with a given key. This gives a list of data for the given field, with a  value for each job.
 
-        :param: name of the field
+        :param: key of the field
         :return: analysis data as list of job values
         """
-        if name not in self._fields:
-            raise KeyError(f"Field with name '{name}' is not part of the analysis.")
+        if key not in self._fields:
+            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        value_extractor = self._fields[name].value_extractor
+        value_extractor = self._fields[key].value_extractor
 
         def safe_value(job: Job):
             try:
@@ -256,7 +251,7 @@ class JobAnalysis:
     @requires_optional_package("pandas")
     def to_dataframe(self) -> "DataFrame":
         """
-        Converts analysis data to a dataframe. The column names are the field names and the column values are the values for each job.
+        Converts analysis data to a dataframe. The column names are the field keys and the column values are the values for each job.
 
         :return: analysis data as a dataframe
         """
@@ -276,21 +271,33 @@ class JobAnalysis:
         :param fmt: format of the table, either markdown (default) or html
         :return: string representation of the table
         """
-        return format_in_table(self.get_analysis(), max_col_width=max_col_width, max_rows=max_rows, fmt=fmt)
 
-    @requires_optional_package("ipython")
+        def safe_format_value(v, vfmt):
+            try:
+                return format(v, vfmt)
+            except (TypeError, ValueError, AttributeError):
+                return str(v)
+
+        def safe_format_values(f, vs):
+            vfmt = self._fields[f].fmt
+            return [safe_format_value(v, vfmt) for v in vs]
+
+        data = {self._fields[f].display_name: safe_format_values(f, v) for f, v in self.get_analysis().items()}
+        return format_in_table(data, max_col_width=max_col_width, max_rows=max_rows, fmt=fmt)
+
+    @requires_optional_package("IPython")
     def display_table(
         self,
         max_col_width: int = -1,
         max_rows: int = 30,
-        fmt: Literal["markdown", "html"] = "markdown",
+        fmt: Literal["markdown", "html"] = "html",
     ) -> None:
         """
         Converts analysis data to a pretty-printed table which is then displayed using IPython
 
         :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
         :param max_rows: can be integer positive value or -1, defaults to 30
-        :param fmt: format of the table, either markdown (default) or html
+        :param fmt: format of the table, either markdown or html (default)
         """
         from IPython.display import display, Markdown, HTML
 
@@ -318,7 +325,210 @@ class JobAnalysis:
                 row = [data[k][i] for k in keys]
                 writer.writerow(row)
 
-    def add_job(self, job: Job) -> None:
+    def get_timeline(self, max_intervals: int = 5, fmt: Literal["markdown", "html"] = "markdown") -> str:
+        """
+        Get depiction of timeline of jobs as they were run.
+        Each job is represented as a horizontal bar of symbols, where each symbol indicates a different job status.
+
+        These are as follows:
+
+        * created": ``.``
+        * started": ``-``
+        * registered": ``+``
+        * running": ``=``
+        * finished": ``*``
+        * crashed": ``x``
+        * failed": ``X``
+        * successful": ``>``
+        * copied": ``#``
+        * preview": ``~``
+        * deleted": ``!``
+
+        e.g.
+
+        .. code:: python
+
+            | JobName    | ↓2025-02-03 15:16:52 | ↓2025-02-03 15:17:10 | ↓2025-02-03 15:17:28 | ↓2025-02-03 15:17:46 | ↓2025-02-03 15:18:03 | WaitDuration | RunDuration | TotalDuration |
+            |------------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+            | generate   | ==================== | ==================== | ==================== | ==========>          |                      | 0s           | 1m2s        | 1m2s          |
+            | reoptimize |                      |                      |                      |           ====>      |                      | 0s           | 3s          | 3s            |
+            | score      |                      |                      |                      |                ===>  |                      | 0s           | 2s          | 2s            |
+            | filter     |                      |                      |                      |                   =* | >                    | 0s           | 1s          | 1s            |
+
+        If multiple status changes occur within the same resolution period, the latest will be displayed.
+
+        :param max_intervals: maximum number of datetime intervals to display i.e. the width and resolution of the timeline
+        :param fmt: format of the table, either markdown (default) or html
+        :return: string representation of timeline as a markdown (default) or html table
+        """
+        # Symbols for various job statuses
+        status_symbols = {
+            "created": ".",
+            "started": "-",
+            "registered": "+",
+            "running": "=",
+            "finished": "*",
+            "crashed": "x",
+            "failed": "X",
+            "successful": ">",
+            "copied": "#",
+            "preview": "~",
+            "deleted": "!",
+        }
+
+        # Order jobs by the start time
+        job_statuses = [(j, j.status_log) for j in self._jobs.values()]
+        ordered_job_statuses = sorted(job_statuses, key=lambda x: x[1][0] if x[1] else (datetime.datetime.max, None))
+
+        # Calculate known start and end time and job durations
+        def duration(start, end):
+            if not start or not end:
+                return "Unknown"
+            dur = end - start
+            d = dur.days
+            h, r = divmod(dur.seconds, 3600)
+            m, s = divmod(r, 60)
+            dur_fmt = ""
+            if d > 0:
+                dur_fmt += f"{d}d"
+            if h > 0 or d > 0:
+                dur_fmt += f"{h}h"
+            if m > 0 or h > 0 or d > 0:
+                dur_fmt += f"{m}m"
+            dur_fmt += f"{s}s"
+            return dur_fmt
+
+        # Calculate different durations
+        start_time = min([s[0][0] for _, s in ordered_job_statuses if s], default=None)
+        end_time = max([s[-1][0] for _, s in ordered_job_statuses if s], default=None)
+        durations = {"WaitDuration": [], "RunDuration": [], "TotalDuration": []}
+        for _, s in ordered_job_statuses:
+            wait_duration = "Unknown"
+            run_duration = "Unknown"
+            total_duration = "Unknown"
+            if s and len(s) > 1:
+                statuses = [x[1] for x in s]
+                if "created" in statuses:
+                    created_idx = statuses.index("created")
+                    if created_idx < len(statuses) - 1:
+                        wait_duration = duration(s[created_idx][0], s[created_idx + 1][0])
+                if "started" in statuses and "running" in statuses:
+                    started_idx = statuses.index("started")
+                    running_idx = statuses.index("running")
+                    if started_idx < running_idx < len(statuses) - 1:
+                        run_duration = duration(s[started_idx][0], s[running_idx + 1][0])
+                total_duration = duration(s[0][0], s[-1][0])
+            durations["WaitDuration"].append(wait_duration)
+            durations["RunDuration"].append(run_duration)
+            durations["TotalDuration"].append(total_duration)
+
+        # Table data
+        data = {}
+        data["JobName"] = [j.name for j, _ in ordered_job_statuses]
+
+        if start_time and end_time:
+            # Calculate the column interval widths
+            for num_intervals in range(max_intervals, 1, -1):
+                interval = (end_time - start_time) / (num_intervals - 1)
+                intervals = [start_time + i * interval for i in range(num_intervals)]
+                str_intervals = [intv.strftime("↓%Y-%m-%d %H:%M:%S") for intv in intervals]
+                if len(set(str_intervals)) == len(str_intervals):
+                    break
+
+            num_positions = 20
+            symbol_interval = interval / num_positions
+
+            def get_col_and_position(status_time):
+                col = int((status_time - start_time) // interval)
+                pos = int((status_time - intervals[col]) // symbol_interval)
+                if pos == num_positions:
+                    col = col + 1
+                    pos = 0
+                return col, pos
+
+            job_timelines = []
+            use_html = fmt == "html"
+            for job, statuses in ordered_job_statuses:
+                job_timeline = [
+                    ["&nbsp;" if use_html else " " for _ in range(num_positions)] for _ in range(num_intervals)
+                ]
+                if statuses:
+                    for i, status in enumerate(statuses):
+                        symbol = status_symbols.get(status[1], "?")
+                        if i == (len(statuses) - 1):
+                            col, pos = get_col_and_position(status[0])
+                            job_timeline[col][pos] = symbol
+                        else:
+                            next_status = statuses[i + 1]
+                            col_start, pos_start = get_col_and_position(status[0])
+                            col_end, pos_end = get_col_and_position(next_status[0])
+                            for col in range(col_start, col_end + 1):
+                                for pos in range(
+                                    pos_start if col == col_start else 0, pos_end if col == col_end else num_positions
+                                ):
+                                    job_timeline[col][pos] = symbol
+
+                job_timelines.append(job_timeline)
+
+            for i in range(num_intervals):
+                data[str_intervals[i]] = ["".join(jt[i]) for jt in job_timelines]
+
+        # Add durations
+        data["WaitDuration"] = durations["WaitDuration"]
+        data["RunDuration"] = durations["RunDuration"]
+        data["TotalDuration"] = durations["TotalDuration"]
+
+        return (
+            format_in_table(data, max_rows=-1, fmt=fmt, monospace=True)
+            .replace("<th>", '<th style="border-left: 1px solid black; border-right: 1px solid black;">')
+            .replace("<td>", '<td style="border-left: 1px solid black; border-right: 1px solid black;">')
+        )
+
+    @requires_optional_package("IPython")
+    def display_timeline(self, max_intervals: int = 5, fmt: Literal["markdown", "html"] = "markdown") -> None:
+        """
+        Get depiction of timeline of jobs as they were run and display using IPython.
+        Each job is represented as a horizontal bar of symbols, where each symbol indicates a different job status.
+
+        These are as follows:
+
+        * created": ``.``
+        * started": ``-``
+        * registered": ``+``
+        * running": ``=``
+        * finished": ``*``
+        * crashed": ``x``
+        * failed": ``X``
+        * successful": ``>``
+        * copied": ``#``
+        * preview": ``~``
+        * deleted": ``!``
+
+        e.g.
+
+        .. code:: python
+
+            | JobName    | ↓2025-02-03 15:16:52 | ↓2025-02-03 15:17:10 | ↓2025-02-03 15:17:28 | ↓2025-02-03 15:17:46 | ↓2025-02-03 15:18:03 | WaitDuration | RunDuration | TotalDuration |
+            |------------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
+            | generate   | ==================== | ==================== | ==================== | ==========>          |                      | 0s           | 1m2s        | 1m2s          |
+            | reoptimize |                      |                      |                      |           ====>      |                      | 0s           | 3s          | 3s            |
+            | score      |                      |                      |                      |                ===>  |                      | 0s           | 2s          | 2s            |
+            | filter     |                      |                      |                      |                   =* | >                    | 0s           | 1s          | 1s            |
+
+        If multiple status changes occur within the same resolution period, the latest will be displayed.
+        :param max_intervals: maximum number of datetime intervals to display i.e. the width and resolution of the timeline
+        :param fmt: format of the table, either markdown or html (default)
+        """
+        from IPython.display import display, Markdown, HTML
+
+        table = self.get_timeline(max_intervals=max_intervals, fmt=fmt)
+
+        if fmt == "markdown":
+            display(Markdown(table))
+        elif fmt == "html":
+            display(HTML(table))
+
+    def add_job(self, job: Job) -> "JobAnalysis":
         """
         Add a job to the analysis. This adds a row to the analysis data.
 
@@ -361,7 +571,7 @@ class JobAnalysis:
         if not path.exists():
             raise FileNotFoundError(f"Cannot find job file in location '{path}'")
 
-        dill_file = (path / path.name).with_suffix(".dill")
+        dill_file = path / f"{path.name}.dill"
 
         job = None
         loaders = (
@@ -373,7 +583,7 @@ class JobAnalysis:
             ]
         )
 
-        use_loaders = dill_file.exists()
+        use_loaders = not dill_file.exists()
         if not use_loaders:
             try:
                 job = load(dill_file)
@@ -398,7 +608,7 @@ class JobAnalysis:
         Remove any jobs from the analysis where the given predicate for field values evaluates to ``True``.
         In other words, this removes rows(s) from the analysis data where the filter function evaluates to ``True`` given a dictionary of the row data.
 
-        :param predicate: filter function which takes a dictionary of field names and their values and evaluates to ``True``/``False``
+        :param predicate: filter function which takes a dictionary of field keys and their values and evaluates to ``True``/``False``
         :return: updated instance of |JobAnalysis|
         """
         analysis = self.get_analysis()
@@ -410,70 +620,87 @@ class JobAnalysis:
 
     def sort_jobs(
         self,
-        field_names: Optional[Sequence[str]] = None,
-        key: Optional[Callable[[Dict[str, Any]], Any]] = None,
+        field_keys: Optional[Sequence[str]] = None,
+        sort_key: Optional[Callable[[Dict[str, Any]], Any]] = None,
         reverse: bool = False,
     ) -> "JobAnalysis":
         """
         Sort jobs according to a single or multiple fields. This is the order the rows will appear in the analysis data.
 
-        Either one of ``field_names`` or ``key`` must be provided.
-        If ``field_names`` is provided, the values from these field(s) will be used to sort, in the order they are specified.
-        If ``key`` is provided, the sorting function will be applied to all fields.
+        Either one of ``field_keys`` or ``key`` must be provided.
+        If ``field_keys`` is provided, the values from these field(s) will be used to sort, in the order they are specified.
+        If ``sort_key`` is provided, the sorting function will be applied to all fields.
 
-        :param field_names: field names to sort by,
-        :param key: sorting function which takes a dictionary of field names and their values
+        :param field_keys: field keys to sort by,
+        :param sort_key: sorting function which takes a dictionary of field keys and their values
         :param reverse: reverse sort order, defaults to ``False``
         :return: updated instance of |JobAnalysis|
         """
         analysis = self.get_analysis()
-        key = key if key else lambda data: tuple([str(v) for v in data.values()])
-        name_set = set(field_names) if field_names else set(self.field_names)
+        sort_key = sort_key if sort_key else lambda data: tuple([str(v) for v in data.values()])
+        key_set = set(field_keys) if field_keys else set(self.field_keys)
 
-        def sort_key(ik):
+        def key(ik):
             i, _ = ik
-            return key({k: v[i] for k, v in analysis.items() if k in name_set})
+            return sort_key({k: v[i] for k, v in analysis.items() if k in key_set})
 
-        sorted_keys = sorted(enumerate(self._jobs.keys()), key=sort_key, reverse=reverse)
+        sorted_keys = sorted(enumerate(self._jobs.keys()), key=key, reverse=reverse)
         self._jobs = {k: self._jobs[k] for _, k in sorted_keys}
         return self
 
-    def add_field(self, name: str, value_extractor: Callable[[Job], Any], group: Optional[str] = None) -> "JobAnalysis":
+    def add_field(
+        self,
+        key: str,
+        value_extractor: Callable[[Job], Any],
+        display_name: Optional[str] = None,
+        fmt: Optional[str] = None,
+    ) -> "JobAnalysis":
         """
         Add a field to the analysis. This adds a column to the analysis data.
 
-        :param name: name of the field
+        :param key: unqiue identifier for the field
         :param value_extractor: callable to extract the value for the field from a job
-        :param group: an optional group that this field belongs to
+        :param display_name: name which will appear for the field when displayed in table
+        :param fmt: string format for how field values are displayed in table
         :return: updated instance of |JobAnalysis|
         """
-        if name in self._fields:
-            raise KeyError(f"Field with name '{name}' has already been added to the analysis.")
+        if key in self._fields:
+            raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
 
-        self._fields[name] = self._Field(name=name, group=group, value_extractor=value_extractor)
+        self._fields[key] = self._Field(key=key, value_extractor=value_extractor, display_name=display_name, fmt=fmt)
         return self
 
-    def rename_field(self, name: str, new_name: str) -> "JobAnalysis":
+    def format_field(self, key: str, fmt: Optional[str] = None) -> "JobAnalysis":
         """
-        Rename a field in the analysis. This is the header of the column in the analysis data.
+        Apply a string formatting to a given field. This will apply when ``to_table`` is called.
 
-        :param name: current name of the field
-        :param new_name: new name of the field
+        :param key: unique identifier of the field
+        :param fmt: string format of the field e.g. ``.2f``
+        """
+        if key not in self._fields:
+            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
+
+        self._fields[key] = replace(self._fields[key], fmt=fmt)
+        return self
+
+    def rename_field(self, key: str, display_name: str) -> "JobAnalysis":
+        """
+        Give a display name to a field in the analysis. This is the header of the column in the analysis data.
+
+        :param key: unique identifier for the field
+        :param display_name: name of the field
         :return: updated instance of |JobAnalysis|
         """
 
-        if name not in self._fields:
-            raise KeyError(f"Field with name '{name}' is not part of the analysis.")
+        if key not in self._fields:
+            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        # Maintain field ordering
-        field_names = self.field_names
-        field_names[field_names.index(name)] = new_name
-        field = self._fields.pop(name)
-        return self.add_field(new_name, field.value_extractor, field.group).reorder_fields(field_names)
+        self._fields[key] = replace(self._fields[key], display_name=display_name)
+        return self
 
     def reorder_fields(self, order: Sequence[str]) -> "JobAnalysis":
         """
-        Reorder fields based upon the given sequence of field names. This is the order the columns will appear in the analysis data.
+        Reorder fields based upon the given sequence of field keys. This is the order the columns will appear in the analysis data.
 
         Any specified fields will be placed first, with remaining fields placed after with their order unchanged.
 
@@ -481,53 +708,37 @@ class JobAnalysis:
         :return: updated instance of |JobAnalysis|
         """
 
-        def key(field_name):
+        def key(field_key):
             try:
-                return order.index(field_name)
+                return order.index(field_key)
             except ValueError:
                 return len(order)
 
-        return self.sort_fields(key=key)
+        return self.sort_fields(sort_key=key)
 
-    def sort_fields(self, key: Callable[[str], Any], reverse: bool = False) -> "JobAnalysis":
+    def sort_fields(self, sort_key: Callable[[str], Any], reverse: bool = False) -> "JobAnalysis":
         """
         Sort fields according to a sort key. This is the order the columns will appear in the analysis data.
 
-        :param key: sorting function which accepts the field name
+        :param sort_key: sorting function which accepts the field key
         :param reverse: reverse sort order, defaults to ``False``
         :return: updated instance of |JobAnalysis|
         """
-        sorted_keys = sorted(self._fields.keys(), key=key, reverse=reverse)
+        sorted_keys = sorted(self._fields.keys(), key=sort_key, reverse=reverse)
         self._fields = {k: self._fields[k] for k in sorted_keys}
         return self
 
-    def remove_field(self, name: str) -> "JobAnalysis":
+    def remove_field(self, key: str) -> "JobAnalysis":
         """
         Remove a field from the analysis. This removes a column from the analysis data.
 
-        :param name: name of the field
+        :param key: unique identifier of the field
         :return: updated instance of |JobAnalysis|
         """
-        if name not in self._fields:
-            raise KeyError(f"Field with name '{name}' is not part of the analysis.")
+        if key not in self._fields:
+            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        self._fields.pop(name)
-        return self
-
-    def remove_field_group(self, group: str) -> "JobAnalysis":
-        """
-        Remove a field group from the analysis. This removes column(s) from the analysis data.
-
-        :param group: name of the group to remove
-        :return: updated instance of |JobAnalysis|
-        """
-        names = []
-        for field in self._fields.values():
-            if field.group == group:
-                names.append(field.name)
-
-        for name in names:
-            self.remove_field(name)
+        self._fields.pop(key)
         return self
 
     def filter_fields(self, predicate: Callable[[List[Any]], bool]) -> "JobAnalysis":
@@ -581,13 +792,13 @@ class JobAnalysis:
         return self.filter_fields(lambda vals: is_uniform(vals))
 
     def _add_standard_field(self, field) -> "JobAnalysis":
-        if field.name not in self._fields:
-            self._fields[field.name] = field
+        if field.key not in self._fields:
+            self._fields[field.key] = replace(field)
         return self
 
     def _remove_standard_field(self, field) -> "JobAnalysis":
-        if field.name in self._fields:
-            self._fields.pop(field.name)
+        if field.key in self._fields:
+            self._fields.pop(field.key)
         return self
 
     def add_path_field(self) -> "JobAnalysis":
@@ -778,33 +989,31 @@ class JobAnalysis:
         """
         return self._remove_standard_field(self._elapsed_time_field)
 
-    def add_settings_field(self, key_tuple: Tuple[Hashable, ...]) -> "JobAnalysis":
+    def add_settings_field(self, key_tuple: Tuple[Hashable, ...], display_name: Optional[str] = None) -> "JobAnalysis":
         """
         Add a field for a nested key from the job settings to the analysis.
-        The name of the field will be a period-delimited string of the key path e.g. ("input", "ams", "task") will appear as field ``Input.Ams.Task``.
+        The key of the field will be a Pascal-case string of the settings nested key path e.g. ("input", "ams", "task") will appear as field ``InputAmsTask``.
 
         :param key_tuple: nested tuple of keys in the settings object
+        :param display_name: name which will appear for the field when displayed in table
         :return: updated instance of |JobAnalysis|
         """
-        return self.add_field(
-            "".join([str(k).title() for k in key_tuple]),
-            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),  # type: ignore
-            group="settings",
-        )
+        key = "".join([str(k).title() for k in key_tuple])
+        self.add_field(key, lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k), display_name=display_name)
+        self._fields[key].from_settings = True
+        return self
 
     def add_settings_fields(
         self,
         predicate: Optional[Callable[[Tuple[Hashable, ...]], bool]] = None,
         flatten_list: bool = True,
-        group: Optional[str] = "settings",
     ) -> "JobAnalysis":
         """
         Add a field for all nested keys which satisfy the predicate from the job settings to the analysis.
-        The name of the fields will be a period-delimited string of the key path e.g. ("input", "ams", "task") will appear as field ``Input.Ams.Task``.
+        The key of the fields will be a Pascal-case string of the settings nested key path e.g. ("input", "ams", "task") will appear as field ``InputAmsTask``.
 
         :param predicate: optional predicate which evaluates to ``True`` or ``False`` given a nested key, by default will be ``True`` for every key
         :param flatten_list: whether to flatten lists in settings objects
-        :param group: an optional group that this set of settings fields belongs to
         :return: updated instance of |JobAnalysis|
         """
 
@@ -821,9 +1030,9 @@ class JobAnalysis:
         for key in all_keys:
             # Take only final nested keys i.e. those which are not block keys and satisfy the predicate
             if key not in all_blocks and predicate(key):
-                name = "".join([str(k).title() for k in key])
+                field_key = "".join([str(k).title() for k in key])
                 field = self._Field(
-                    name=name, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), group=group  # type: ignore
+                    key=field_key, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), from_settings=True  # type: ignore
                 )
                 self._add_standard_field(field)
         return self
@@ -866,17 +1075,17 @@ class JobAnalysis:
                 or include_system_block
             )
 
-        return self.add_settings_fields(predicate, flatten_list, group="settings_input")
+        return self.add_settings_fields(predicate, flatten_list)
 
     def remove_settings_fields(self) -> "JobAnalysis":
         """
-        Remove all fields which contain ``settings`` in the field group name from the analysis.
+        Remove all fields which were added as settings fields.
 
         :return: updated instance of |JobAnalysis|
         """
-        for group in self.field_groups.keys():
-            if group and "settings" in group.lower():
-                self.remove_field_group(group)
+        keys = [k for k, f in self._fields.items() if f.from_settings]
+        for k in keys:
+            self.remove_field(k)
         return self
 
     def __str__(self) -> str:
@@ -888,82 +1097,83 @@ class JobAnalysis:
     def _repr_html_(self) -> str:
         return self.to_table(fmt="html")
 
-    def __getitem__(self, name: str) -> List[Any]:
+    def __getitem__(self, key: str) -> List[Any]:
         """
         Get analysis data for a given field.
 
-        :param name: name of the field
+        :param key: unique identifier for the field
         :return: list of values for each job
         """
-        return self._get_field_analysis(name)
+        return self._get_field_analysis(key)
 
-    def __setitem__(self, name: str, value: Callable[[Job], Any]) -> None:
+    def __setitem__(self, key: str, value: Callable[[Job], Any]) -> None:
         """
         Set analysis for given field.
 
-        :param name: name of the field
+        :param key: unique identifier for the field
         :param value: callable to extract the value for the field from a job
         """
         if not callable(value):
             raise TypeError("To set a field, the value must be a callable which accepts a Job.")
 
-        if name in self._fields:
-            self.remove_field(name)
-        self.add_field(name, value_extractor=value)
+        if key in self._fields:
+            self._fields[key] = replace(self._fields[key], value_extractor=value)
+        else:
+            self.add_field(key=key, value_extractor=value)
 
-    def __delitem__(self, name: str) -> None:
+    def __delitem__(self, key: str) -> None:
         """
         Delete analysis for given field.
 
-        :param name: name of the field
+        :param key: unique identifier for the field
         """
-        self.remove_field(name)
+        self.remove_field(key)
 
-    def __getattr__(self, name: str) -> List[Any]:
+    def __getattr__(self, key: str) -> List[Any]:
         """
         Fallback to get analysis for given field when an attribute is not present.
 
-        :param name: name of the field
+        :param key: unique identifier for the field
         :return: list of values for each job
         """
         try:
-            return self[name]
+            return self[key]
         except KeyError:
             raise AttributeError(
-                f"'{self.__class__.__name__}' object has no attribute or analysis field with name '{name}'"
+                f"'{self.__class__.__name__}' object has no attribute or analysis field with key '{key}'"
             )
 
-    def __setattr__(self, name, value) -> None:
+    def __setattr__(self, key, value) -> None:
         """
         Fallback to set analysis for given field.
 
-        :param name: name of the field
+        :param key: unique identifier for the field
         :param value: callable to extract the value for the field from a job
         """
-        if name in self._reserved_names or hasattr(self.__class__, name):
-            super().__setattr__(name, value)
+        if key in self._reserved_names or hasattr(self.__class__, key):
+            super().__setattr__(key, value)
         else:
-            self[name] = value
+            self[key] = value
 
-    def __delattr__(self, name) -> None:
+    def __delattr__(self, key) -> None:
         """
         Fallback to set analysis for given field.
 
-        :param name: name of the field
+        :param key: unique identifier for the field
         """
-        if name in self._reserved_names or hasattr(self.__class__, name):
-            super().__delattr__(name)
+        if key in self._reserved_names or hasattr(self.__class__, key):
+            super().__delattr__(key)
         else:
             try:
-                del self[name]
+                del self[key]
             except KeyError:
                 raise AttributeError(
-                    f"'{self.__class__.__name__}' object has no attribute or analysis field with name '{name}'"
+                    f"'{self.__class__.__name__}' object has no attribute or analysis field with key '{key}'"
                 )
 
     def __dir__(self):
         """
-        Return standard attributes, plus dynamically added field names which can be accessed via dot notation.
+        Return standard attributes, plus dynamically added field keys which can be accessed via dot notation.
         """
         return [x for x in super().__dir__()] + [
             k for k in self._fields.keys() if isinstance(k, str) and k.isidentifier()

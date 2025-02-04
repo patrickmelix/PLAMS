@@ -386,6 +386,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         # Given successful previously run job
         job1 = DummySingleJob()
         job1.run()
+        job1.results.wait()
 
         # When call load
         job2 = DummySingleJob.load(job1.path)
