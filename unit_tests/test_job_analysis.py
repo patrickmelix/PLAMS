@@ -206,7 +206,7 @@ class TestJobAnalysis:
         )
 
         ja.remove_uniform_fields(tol=0.1, ignore_empty=True).filter_fields(
-            lambda vals: all([not v or "H" not in v for v in vals])
+            lambda vals: all([not v or "H" in v for v in vals])
         )
 
         assert (
@@ -531,7 +531,7 @@ class TestJobAnalysis:
             .add_field("Wait", lambda j: j.wait)
             .add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
             .remove_field("Path")
-            .filter_jobs(lambda d: d["Formula"] is None or "O" in d["Smiles"])
+            .filter_jobs(lambda d: d["Formula"] is not None and "O" not in d["Smiles"])
         )
 
         assert (
@@ -892,7 +892,6 @@ dummyjob.010,,,False
                 start_time + wait_time + run_time + timedelta(seconds=0.05),
             ]
             job._status_log = [(t, s) for t, s in zip(times, statuses)]
-            job.results.wait()
             return job
 
         # Given job analyser with no jobs

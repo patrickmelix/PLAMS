@@ -1,17 +1,5 @@
 import datetime
-from typing import (
-    Optional,
-    Sequence,
-    Union,
-    Dict,
-    List,
-    Callable,
-    Any,
-    Tuple,
-    Hashable,
-    Set,
-    Literal,
-)
+from typing import Optional, Sequence, Union, Dict, List, Callable, Any, Tuple, Hashable, Set, Literal
 import os
 import csv
 from pathlib import Path
@@ -162,6 +150,7 @@ class JobAnalysis:
         jobs: Optional[Sequence[Job]] = None,
         loaders: Optional[Sequence[Callable[[str], Job]]] = None,
         std_fields: Optional[Sequence[str]] = ("Path", "Name", "OK", "Check", "ErrorMsg"),
+        await_results: bool = True,
     ):
         self._jobs: Dict[str, Job] = {}
         self._fields: Dict[str, JobAnalysis._Field] = {}
@@ -173,6 +162,8 @@ class JobAnalysis:
         if jobs:
             for j in jobs:
                 self.add_job(j)
+                if await_results:
+                    j.results.wait()
 
         if paths:
             for p in paths:
@@ -630,7 +621,7 @@ class JobAnalysis:
 
     def filter_jobs(self, predicate: Callable[[Dict[str, Any]], bool]) -> "JobAnalysis":
         """
-        Remove any jobs from the analysis where the given predicate for field values evaluates to ``True``.
+        Remove any jobs from the analysis where the given predicate for field values evaluates to ``False``.
         In other words, this removes rows(s) from the analysis data where the filter function evaluates to ``True`` given a dictionary of the row data.
 
         :param predicate: filter function which takes a dictionary of field keys and their values and evaluates to ``True``/``False``
@@ -639,7 +630,7 @@ class JobAnalysis:
         analysis = self.get_analysis()
         for i, j in enumerate(self.jobs):
             data = {k: v[i] for k, v in analysis.items()}
-            if predicate(data):
+            if not predicate(data):
                 self.remove_job(j)
         return self
 
@@ -798,7 +789,7 @@ class JobAnalysis:
 
     def filter_fields(self, predicate: Callable[[List[Any]], bool]) -> "JobAnalysis":
         """
-        Remove any fields from the analysis where the given predicate evaluates to ``True`` for all values.
+        Remove any fields from the analysis where the given predicate evaluates to ``False`` for all values.
         In other words, this removes column(s) from the analysis data where the filter function evaluates to ``True``
         given all the row values.
 
@@ -806,7 +797,7 @@ class JobAnalysis:
         :return: updated instance of |JobAnalysis|
         """
         for n, vals in self.get_analysis().items():
-            if predicate(vals):
+            if not predicate(vals):
                 self.remove_field(n)
         return self
 
@@ -817,7 +808,7 @@ class JobAnalysis:
 
         :return: updated instance of |JobAnalysis|
         """
-        return self.filter_fields(lambda vals: all([v is None for v in vals]))
+        return self.filter_fields(lambda vals: any([v is not None for v in vals]))
 
     def remove_uniform_fields(self, tol: float = 1e-08, ignore_empty: bool = False) -> "JobAnalysis":
         """
@@ -844,7 +835,7 @@ class JobAnalysis:
             except ValueError:
                 return False
 
-        return self.filter_fields(lambda vals: is_uniform(vals))
+        return self.filter_fields(lambda vals: not is_uniform(vals))
 
     def _add_standard_field(self, field) -> "JobAnalysis":
         if field.key not in self._fields:
