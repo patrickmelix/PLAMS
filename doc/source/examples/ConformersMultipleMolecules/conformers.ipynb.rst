@@ -13,11 +13,14 @@ Initial imports
 .. code:: ipython3
 
     import scm.plams as plams
+    import sys
     from scm.conformers import ConformersJob
     from scm.conformers.plams.plot import plot_conformers
     import numpy as np
     import matplotlib.pyplot as plt
     import os
+    
+    plams.init();  # this line is not required in AMS2025+
 
 Single alanine molecule
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,8 +80,8 @@ the initial dimer.
 
 .. parsed-literal::
 
-    Largest distance between atoms: 9.882 ang.
-    Radius: 6.572 ang.
+    Largest distance between atoms: 8.397 ang.
+    Radius: 5.584 ang.
 
 
 Now we can set up the Crest conformer generation job, with the
@@ -109,17 +112,17 @@ Now we can run the conformer generation job.
 
 .. parsed-literal::
 
-    [11.03|15:40:06] JOB conformers STARTED
-    [11.03|15:40:06] JOB conformers RUNNING
-    [11.03|15:48:41] JOB conformers FINISHED
-    [11.03|15:48:41] JOB conformers SUCCESSFUL
+    [04.02|15:45:58] JOB conformers STARTED
+    [04.02|15:45:58] JOB conformers RUNNING
+    [04.02|15:57:08] JOB conformers FINISHED
+    [04.02|15:57:08] JOB conformers SUCCESSFUL
 
 
 
 
 .. parsed-literal::
 
-    <scm.conformers.plams.interface.ConformersResults at 0x7f97c3b278e0>
+    <scm.conformers.plams.interface.ConformersResults at 0x16786fb20>
 
 
 
@@ -131,7 +134,7 @@ Now we can run the conformer generation job.
 
 .. parsed-literal::
 
-    Conformers stored in /home/hellstrom/temp/confmul-Xni-2024-Mar-11/plams_workdir.005/conformers/conformers.rkf
+    Conformers stored in /path/plams/examples/ConformersMultipleMolecules/plams_workdir/conformers/conformers.rkf
 
 
 This job will run for approximately 15 minutes.
@@ -156,3 +159,71 @@ You can also open the conformers in AMSmovie to browse all conformers
 .. code:: ipython3
 
     !amsmovie {rkf}
+
+Finally in AMS2025, you can also inspect the conformer data using the
+JobAnalysis tool.
+
+.. code:: ipython3
+
+    try:
+        from scm.plams import JobAnalysis
+    
+        ja = (
+            JobAnalysis(std_fields=None)
+            .add_job(job)
+            .add_field(
+                "Id",
+                lambda j: list(range(1, len(j.results.get_conformers()) + 1)),
+                display_name="Conformer Id",
+                expand=True,
+            )
+            .add_field(
+                "Energies", lambda j: j.results.get_relative_energies("kcal/mol"), display_name="E", expand=True, fmt=".2f"
+            )
+            .add_field(
+                "Populations", lambda j: j.results.get_boltzmann_distribution(298), display_name="P", expand=True, fmt=".3f"
+            )
+        )
+    
+        # Pretty-print if running in a notebook
+        if "ipykernel" in sys.modules:
+            ja.display_table(max_rows=20)
+        else:
+            print(ja.to_table())
+    
+    except ImportError:
+        pass
+
+
+
+.. raw:: html
+
+    <div style="max-width: 100%; overflow-x: auto;">
+    <table border="1" style="border-collapse: collapse; width: auto; ">
+    <thead><tr><th>Conformer Id<th>E     <th>P    </th></tr></thead>
+    <tbody>
+    <tr><td>1           </td><td>0.00  </td><td>0.036</td></tr>
+    <tr><td>2           </td><td>0.01  </td><td>0.035</td></tr>
+    <tr><td>3           </td><td>0.03  </td><td>0.034</td></tr>
+    <tr><td>4           </td><td>0.03  </td><td>0.034</td></tr>
+    <tr><td>5           </td><td>0.08  </td><td>0.031</td></tr>
+    <tr><td>6           </td><td>0.13  </td><td>0.029</td></tr>
+    <tr><td>7           </td><td>0.15  </td><td>0.028</td></tr>
+    <tr><td>8           </td><td>0.18  </td><td>0.026</td></tr>
+    <tr><td>9           </td><td>0.22  </td><td>0.024</td></tr>
+    <tr><td>10          </td><td>0.23  </td><td>0.024</td></tr>
+    <tr><td>...         </td><td>...   </td><td>...  </td></tr>
+    <tr><td>1807        </td><td>135.93</td><td>0.000</td></tr>
+    <tr><td>1808        </td><td>137.12</td><td>0.000</td></tr>
+    <tr><td>1809        </td><td>138.93</td><td>0.000</td></tr>
+    <tr><td>1810        </td><td>139.38</td><td>0.000</td></tr>
+    <tr><td>1811        </td><td>140.51</td><td>0.000</td></tr>
+    <tr><td>1812        </td><td>143.04</td><td>0.000</td></tr>
+    <tr><td>1813        </td><td>148.33</td><td>0.000</td></tr>
+    <tr><td>1814        </td><td>152.45</td><td>0.000</td></tr>
+    <tr><td>1815        </td><td>164.99</td><td>0.000</td></tr>
+    <tr><td>1816        </td><td>201.42</td><td>0.000</td></tr>
+    </tbody>
+    </table>
+    </div>
+

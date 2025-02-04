@@ -7,12 +7,15 @@ Initial imports
 .. code:: ipython3
 
     import os
+    import sys
     
     import matplotlib.pyplot as plt
     import numpy as np
     
     from scm.conformers import ConformersJob
     from scm.plams import *
+    
+    init();  # this line is not required in AMS2025+
 
 Initial structure
 ~~~~~~~~~~~~~~~~~
@@ -67,6 +70,7 @@ Conformer generation input file
     
     Task Generate
     
+    
     Engine ForceField
       Type UFF
     EndEngine
@@ -80,15 +84,15 @@ Run conformer generation
 .. code:: ipython3
 
     generate_job = ConformersJob(name="generate", molecule=molecule, settings=s)
-    generate_job.run()
+    generate_job.run();
 
 
 .. parsed-literal::
 
-    [05.03|08:59:21] JOB generate STARTED
-    [05.03|08:59:21] JOB generate RUNNING
-    [05.03|08:59:28] JOB generate FINISHED
-    [05.03|08:59:28] JOB generate SUCCESSFUL
+    [04.02|15:07:47] JOB generate STARTED
+    [04.02|15:07:47] JOB generate RUNNING
+    [04.02|15:08:56] JOB generate FINISHED
+    [04.02|15:08:56] JOB generate SUCCESSFUL
 
 
 Conformer generation results
@@ -99,23 +103,30 @@ Some helper functions
 
 .. code:: ipython3
 
-    def print_results(job: ConformersJob, temperature=298, unit="kcal/mol"):
-        energies = job.results.get_relative_energies(unit)
-        populations = job.results.get_boltzmann_distribution(temperature)
+    def get_energies(job: ConformersJob, temperature=298, unit="kcal/mol"):
+        return job.results.get_relative_energies(unit)
     
-        print(f"Total # conformers in set: {len(energies)}")
-        dE_header = f"ΔE [{unit}]"
-        pop_header = f"Pop. (T = {temperature} K)"
-        print(f'{"#":>4s} {dE_header:>14s} {pop_header:>18s}')
     
-        for i, (E, pop) in enumerate(zip(energies, populations)):
-            print(f"{i+1:4d} {E:14.2f} {pop:18.3f}")
+    def get_populations(job: ConformersJob, temperature=298, unit="kcal/mol"):
+        return job.results.get_boltzmann_distribution(temperature)
+    
+    
+    def get_energy_header(unit="kcal/mol"):
+        return f"ΔE [{unit}]"
+    
+    
+    def get_population_header(temperature=298):
+        return f"Pop. (T = {temperature} K)"
+    
+    
+    def get_conformers(job: ConformersJob):
+        return job.results.get_conformers()
     
     
     def plot_conformers(job: ConformersJob, indices=None, temperature=298, unit="kcal/mol", lowest=True):
-        molecules = job.results.get_conformers()
-        energies = job.results.get_relative_energies(unit)
-        populations = job.results.get_boltzmann_distribution(temperature)
+        molecules = get_conformers(job)
+        energies = get_energies(job, unit)
+        populations = get_populations(job, temperature)
     
         if isinstance(indices, int):
             N_plot = min(indices, len(energies))
@@ -138,6 +149,43 @@ Some helper functions
             plot_molecule(mol, ax=ax)
             ax.set_title(f"#{i+1}\nΔE = {E:.2f} kcal/mol\nPop.: {population:.3f} (T = {temperature} K)")
 
+.. code:: ipython3
+
+    try:
+        # For AMS2025+ can use JobAnalysis class to perform results analysis
+        from scm.plams import JobAnalysis
+    
+        def print_results(job: ConformersJob, temperature=298, unit="kcal/mol"):
+            ja = (
+                JobAnalysis(std_fields=None)
+                .add_job(job)
+                .add_field(
+                    "Id", lambda j: list(range(1, len(get_conformers(j)) + 1)), display_name="Conformer Id", expand=True
+                )
+                .add_field("Energies", get_energies, display_name=get_energy_header(), expand=True, fmt=".2f")
+                .add_field("Populations", get_populations, display_name=get_population_header(), expand=True, fmt=".3f")
+            )
+    
+            # Pretty-print if running in a notebook
+            if "ipykernel" in sys.modules:
+                ja.display_table()
+            else:
+                print(ja.to_table())
+    
+    except ImportError:
+    
+        def print_results(job: ConformersJob, temperature=298, unit="kcal/mol"):
+            energies = get_energies(job, temperature, unit)
+            populations = get_populations(job, temperature, unit)
+    
+            print(f"Total # conformers in set: {len(energies)}")
+            dE_header = get_energy_header(unit)
+            pop_header = get_population_header(temperature)
+            print(f'{"#":>4s} {dE_header:>14s} {pop_header:>18s}')
+    
+            for i, (E, pop) in enumerate(zip(energies, populations)):
+                print(f"{i+1:4d} {E:14.2f} {pop:18.3f}")
+
 Actual results
 ~~~~~~~~~~~~~~
 
@@ -156,34 +204,44 @@ specified temperature. The populations are calculated from the
 
 .. code:: ipython3
 
-    print_results(generate_job, temperature=temperature, unit=unit)
-    plot_conformers(generate_job, 4, temperature=temperature, unit=unit, lowest=True)  # plot 4 lowest conformers
-    # plot_conformers(generate_job, 4, temperature=temperature, unit=unit, lowest=False)  # plot 4 conformers from lowest to highest
-    # plot_conformers(generate_job, [0, 2], temperature=temperature, unit=unit) # plot first and third conformers
-
-
-.. parsed-literal::
-
-    Total # conformers in set: 14
-       #  ΔE [kcal/mol]   Pop. (T = 298 K)
-       1           0.00              0.415
-       2           0.30              0.249
-       3           0.57              0.160
-       4           0.82              0.104
-       5           1.50              0.033
-       6           1.79              0.020
-       7           2.25              0.009
-       8           2.30              0.009
-       9           3.72              0.001
-      10           3.76              0.001
-      11          13.99              0.000
-      12          15.25              0.000
-      13          17.96              0.000
-      14          18.20              0.000
+    print_results(generate_job, temperature, unit)
 
 
 
-.. image:: conformers_files/conformers_16_1.png
+.. raw:: html
+
+    <div style="max-width: 100%; overflow-x: auto;">
+    <table border="1" style="border-collapse: collapse; width: auto; ">
+    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
+    <tbody>
+    <tr><td>1           </td><td>0.00         </td><td>0.557           </td></tr>
+    <tr><td>2           </td><td>0.57         </td><td>0.214           </td></tr>
+    <tr><td>3           </td><td>1.00         </td><td>0.102           </td></tr>
+    <tr><td>4           </td><td>1.18         </td><td>0.076           </td></tr>
+    <tr><td>5           </td><td>2.12         </td><td>0.015           </td></tr>
+    <tr><td>6           </td><td>2.22         </td><td>0.013           </td></tr>
+    <tr><td>7           </td><td>2.40         </td><td>0.010           </td></tr>
+    <tr><td>8           </td><td>2.50         </td><td>0.008           </td></tr>
+    <tr><td>9           </td><td>3.44         </td><td>0.002           </td></tr>
+    <tr><td>10          </td><td>3.53         </td><td>0.001           </td></tr>
+    <tr><td>11          </td><td>3.76         </td><td>0.001           </td></tr>
+    <tr><td>12          </td><td>5.50         </td><td>0.000           </td></tr>
+    <tr><td>13          </td><td>6.78         </td><td>0.000           </td></tr>
+    <tr><td>14          </td><td>12.85        </td><td>0.000           </td></tr>
+    <tr><td>15          </td><td>15.70        </td><td>0.000           </td></tr>
+    <tr><td>16          </td><td>18.79        </td><td>0.000           </td></tr>
+    </tbody>
+    </table>
+    </div>
+
+
+.. code:: ipython3
+
+    plot_conformers(generate_job, 4, temperature=temperature, unit=unit, lowest=True)
+
+
+
+.. image:: conformers_files/conformers_18_0.png
 
 
 Re-optimize conformers with GFNFF
@@ -196,9 +254,9 @@ of theory.
 The **Optimize** task performs **GeometryOptimization** jobs on each
 conformer in a set.
 
-Below, the 10 most stable conformers (within 8 kcal/mol of the most
-stable conformer) at the UFF level of theory are re-optimized with
-GFNFF, which gives more accurate geometries.
+Below, the most stable conformers (within 8 kcal/mol of the most stable
+conformer) at the UFF level of theory are re-optimized with GFNFF, which
+gives more accurate geometries.
 
 .. code:: ipython3
 
@@ -214,11 +272,12 @@ GFNFF, which gives more accurate geometries.
 
 .. parsed-literal::
 
-    InputConformersSet /path/plams/plams_workdir/generate/conformers.rkf
+    InputConformersSet /path/plams/examples/ConformersGeneration/plams_workdir.006/generate/conformers.rkf
     
     InputMaxEnergy 8.0
     
     Task Optimize
+    
     
     Engine GFNFF
     EndEngine
@@ -228,41 +287,52 @@ GFNFF, which gives more accurate geometries.
 
 .. code:: ipython3
 
-    reoptimize_job.run()
+    reoptimize_job.run();
 
 
 .. parsed-literal::
 
-    [05.03|08:59:28] JOB reoptimize STARTED
-    [05.03|08:59:28] JOB reoptimize RUNNING
-    [05.03|08:59:32] JOB reoptimize FINISHED
-    [05.03|08:59:32] JOB reoptimize SUCCESSFUL
+    [04.02|15:08:56] JOB reoptimize STARTED
+    [04.02|15:08:56] JOB reoptimize RUNNING
+    [04.02|15:09:01] JOB reoptimize FINISHED
+    [04.02|15:09:01] JOB reoptimize SUCCESSFUL
 
 
 .. code:: ipython3
 
     print_results(reoptimize_job, temperature=temperature, unit=unit)
+
+
+
+.. raw:: html
+
+    <div style="max-width: 100%; overflow-x: auto;">
+    <table border="1" style="border-collapse: collapse; width: auto; ">
+    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
+    <tbody>
+    <tr><td>1           </td><td>0.00         </td><td>0.270           </td></tr>
+    <tr><td>2           </td><td>0.11         </td><td>0.225           </td></tr>
+    <tr><td>3           </td><td>0.41         </td><td>0.134           </td></tr>
+    <tr><td>4           </td><td>0.63         </td><td>0.093           </td></tr>
+    <tr><td>5           </td><td>0.91         </td><td>0.058           </td></tr>
+    <tr><td>6           </td><td>0.97         </td><td>0.052           </td></tr>
+    <tr><td>7           </td><td>1.02         </td><td>0.048           </td></tr>
+    <tr><td>8           </td><td>1.14         </td><td>0.039           </td></tr>
+    <tr><td>9           </td><td>1.19         </td><td>0.036           </td></tr>
+    <tr><td>10          </td><td>1.41         </td><td>0.025           </td></tr>
+    <tr><td>11          </td><td>1.57         </td><td>0.019           </td></tr>
+    </tbody>
+    </table>
+    </div>
+
+
+.. code:: ipython3
+
     plot_conformers(reoptimize_job, 4, temperature=temperature, unit=unit, lowest=True)
 
 
-.. parsed-literal::
 
-    Total # conformers in set: 10
-       #  ΔE [kcal/mol]   Pop. (T = 298 K)
-       1           0.00              0.339
-       2           0.22              0.234
-       3           0.26              0.217
-       4           1.03              0.059
-       5           1.07              0.055
-       6           1.24              0.042
-       7           1.38              0.033
-       8           1.78              0.017
-       9           2.72              0.003
-      10           4.75              0.000
-
-
-
-.. image:: conformers_files/conformers_20_1.png
+.. image:: conformers_files/conformers_23_0.png
 
 
 Score conformers with DFTB
@@ -287,15 +357,15 @@ choose DFTB, although normally you may choose some DFT method.
     # s.input.adf.XC.DISPERSION = 'GRIMME3 BJDAMP'     # to use ADF PBE with Grimme D3(BJ) dispersion
     
     score_job = ConformersJob(settings=s, name="score")
-    score_job.run()
+    score_job.run();
 
 
 .. parsed-literal::
 
-    [05.03|08:59:32] JOB score STARTED
-    [05.03|08:59:32] JOB score RUNNING
-    [05.03|08:59:34] JOB score FINISHED
-    [05.03|08:59:34] JOB score SUCCESSFUL
+    [04.02|15:09:02] JOB score STARTED
+    [04.02|15:09:02] JOB score RUNNING
+    [04.02|15:09:05] JOB score FINISHED
+    [04.02|15:09:05] JOB score SUCCESSFUL
 
 
 .. code:: ipython3
@@ -304,23 +374,31 @@ choose DFTB, although normally you may choose some DFT method.
     plot_conformers(score_job, 4, temperature=temperature, unit=unit, lowest=True)
 
 
-.. parsed-literal::
 
-    Total # conformers in set: 9
-       #  ΔE [kcal/mol]   Pop. (T = 298 K)
-       1           0.00              0.230
-       2           0.05              0.210
-       3           0.07              0.205
-       4           0.24              0.153
-       5           0.66              0.075
-       6           1.00              0.043
-       7           1.04              0.040
-       8           1.08              0.037
-       9           2.01              0.008
+.. raw:: html
+
+    <div style="max-width: 100%; overflow-x: auto;">
+    <table border="1" style="border-collapse: collapse; width: auto; ">
+    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
+    <tbody>
+    <tr><td>1           </td><td>0.00         </td><td>0.373           </td></tr>
+    <tr><td>2           </td><td>0.34         </td><td>0.209           </td></tr>
+    <tr><td>3           </td><td>0.40         </td><td>0.188           </td></tr>
+    <tr><td>4           </td><td>0.70         </td><td>0.114           </td></tr>
+    <tr><td>5           </td><td>1.06         </td><td>0.063           </td></tr>
+    <tr><td>6           </td><td>1.85         </td><td>0.016           </td></tr>
+    <tr><td>7           </td><td>1.89         </td><td>0.015           </td></tr>
+    <tr><td>8           </td><td>2.41         </td><td>0.006           </td></tr>
+    <tr><td>9           </td><td>2.48         </td><td>0.006           </td></tr>
+    <tr><td>10          </td><td>2.59         </td><td>0.005           </td></tr>
+    <tr><td>11          </td><td>2.73         </td><td>0.004           </td></tr>
+    </tbody>
+    </table>
+    </div>
 
 
 
-.. image:: conformers_files/conformers_23_1.png
+.. image:: conformers_files/conformers_26_1.png
 
 
 Here, you see that from the conformers in the set, **DFTB predicts a
@@ -349,29 +427,45 @@ kcal/mol of the minimum.
     s.input.ams.InputMaxEnergy = 1.0
     
     filter_job = ConformersJob(settings=s, name="filter")
-    filter_job.run()
-    print_results(filter_job, temperature=temperature, unit=unit)
-    plot_conformers(filter_job, 4, temperature=temperature, unit=unit, lowest=True)
+    filter_job.run();
 
 
 .. parsed-literal::
 
-    [05.03|09:20:16] JOB filter STARTED
-    [05.03|09:20:16] JOB filter RUNNING
-    [05.03|09:20:17] JOB filter FINISHED
-    [05.03|09:20:17] JOB filter SUCCESSFUL
-    Total # conformers in set: 6
-       #  ΔE [kcal/mol]   Pop. (T = 298 K)
-       1           0.00              0.251
-       2           0.05              0.229
-       3           0.07              0.223
-       4           0.24              0.167
-       5           0.66              0.082
-       6           1.00              0.047
+    [04.02|15:09:05] JOB filter STARTED
+    [04.02|15:09:05] JOB filter RUNNING
+    [04.02|15:09:06] JOB filter FINISHED
+    [04.02|15:09:06] JOB filter SUCCESSFUL
+
+
+.. code:: ipython3
+
+    print_results(filter_job, temperature=temperature, unit=unit)
 
 
 
-.. image:: conformers_files/conformers_26_1.png
+.. raw:: html
+
+    <div style="max-width: 100%; overflow-x: auto;">
+    <table border="1" style="border-collapse: collapse; width: auto; ">
+    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
+    <tbody>
+    <tr><td>1           </td><td>0.00         </td><td>0.421           </td></tr>
+    <tr><td>2           </td><td>0.34         </td><td>0.236           </td></tr>
+    <tr><td>3           </td><td>0.40         </td><td>0.213           </td></tr>
+    <tr><td>4           </td><td>0.70         </td><td>0.129           </td></tr>
+    </tbody>
+    </table>
+    </div>
+
+
+.. code:: ipython3
+
+    plot_conformers(filter_job, 4, temperature=temperature, unit=unit, lowest=True)
+
+
+
+.. image:: conformers_files/conformers_31_0.png
 
 
 The structures and energies are identical to before. However, the
