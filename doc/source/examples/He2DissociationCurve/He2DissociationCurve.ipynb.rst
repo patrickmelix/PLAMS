@@ -26,6 +26,7 @@ Initial Imports
     
     init();  # this line is not required in AMS2025+
 
+<<<<<<< HEAD
 
 .. parsed-literal::
 
@@ -33,6 +34,15 @@ Initial Imports
 
 >>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
 
+||||||| parent of c769e54 (Update example notebooks SO107)
+
+.. parsed-literal::
+
+    PLAMS working folder: /path/plams/examples/He2DissociationCurve/plams_workdir.003
+
+
+=======
+>>>>>>> c769e54 (Update example notebooks SO107)
 Setup Dimer
 ~~~~~~~~~~~
 
@@ -53,6 +63,7 @@ Create Helium atoms and an array of interatomic distances at which to run calcul
 
 .. code:: ipython3
 
+<<<<<<< HEAD
    # create a list with interatomic distances
    distances = np.arange(dmin, dmax, step)
    print(distances)
@@ -60,11 +71,25 @@ Create Helium atoms and an array of interatomic distances at which to run calcul
 ::
 
    [2.2 2.4 2.6 2.8 3.  3.2 3.4 3.6 3.8 4. ]
+||||||| parent of c769e54 (Update example notebooks SO107)
+    # create a list with interatomic distances
+    distances = np.arange(dmin, dmax, step)
+    print(distances)
+
+
+.. parsed-literal::
+
+    [2.2 2.4 2.6 2.8 3.  3.2 3.4 3.6 3.8 4. ]
+
+=======
+    # create a list with interatomic distances
+    distances = np.arange(dmin, dmax, step)
+>>>>>>> c769e54 (Update example notebooks SO107)
 
 Calculation Settings
 ~~~~~~~~~~~~~~~~~~~~
 
-The calculation settins are stored in a ``Settings`` object.
+The calculation settings are stored in a ``Settings`` object.
 
 .. code:: ipython3
 
@@ -172,46 +197,46 @@ For each interatomic distance, create a Helium dimer molecule with the required 
 =======
 .. parsed-literal::
 
-    [04.02|17:48:15] JOB dist_2.20 STARTED
-    [04.02|17:48:15] JOB dist_2.20 RUNNING
-    [04.02|17:48:19] JOB dist_2.20 FINISHED
-    [04.02|17:48:19] JOB dist_2.20 SUCCESSFUL
-    [04.02|17:48:19] JOB dist_2.40 STARTED
-    [04.02|17:48:19] JOB dist_2.40 RUNNING
-    [04.02|17:48:22] JOB dist_2.40 FINISHED
-    [04.02|17:48:22] JOB dist_2.40 SUCCESSFUL
-    [04.02|17:48:22] JOB dist_2.60 STARTED
-    [04.02|17:48:22] JOB dist_2.60 RUNNING
-    [04.02|17:48:25] JOB dist_2.60 FINISHED
-    [04.02|17:48:25] JOB dist_2.60 SUCCESSFUL
-    [04.02|17:48:25] JOB dist_2.80 STARTED
-    [04.02|17:48:25] JOB dist_2.80 RUNNING
-    [04.02|17:48:29] JOB dist_2.80 FINISHED
-    [04.02|17:48:29] JOB dist_2.80 SUCCESSFUL
-    [04.02|17:48:29] JOB dist_3.00 STARTED
-    [04.02|17:48:29] JOB dist_3.00 RUNNING
-    [04.02|17:48:31] JOB dist_3.00 FINISHED
-    [04.02|17:48:32] JOB dist_3.00 SUCCESSFUL
-    [04.02|17:48:32] JOB dist_3.20 STARTED
-    [04.02|17:48:32] JOB dist_3.20 RUNNING
-    [04.02|17:48:34] JOB dist_3.20 FINISHED
-    [04.02|17:48:34] JOB dist_3.20 SUCCESSFUL
-    [04.02|17:48:34] JOB dist_3.40 STARTED
-    [04.02|17:48:34] JOB dist_3.40 RUNNING
-    [04.02|17:48:37] JOB dist_3.40 FINISHED
-    [04.02|17:48:37] JOB dist_3.40 SUCCESSFUL
-    [04.02|17:48:37] JOB dist_3.60 STARTED
-    [04.02|17:48:37] JOB dist_3.60 RUNNING
-    [04.02|17:48:40] JOB dist_3.60 FINISHED
-    [04.02|17:48:40] JOB dist_3.60 SUCCESSFUL
-    [04.02|17:48:40] JOB dist_3.80 STARTED
-    [04.02|17:48:40] JOB dist_3.80 RUNNING
-    [04.02|17:48:43] JOB dist_3.80 FINISHED
-    [04.02|17:48:43] JOB dist_3.80 SUCCESSFUL
-    [04.02|17:48:43] JOB dist_4.00 STARTED
-    [04.02|17:48:43] JOB dist_4.00 RUNNING
-    [04.02|17:48:47] JOB dist_4.00 FINISHED
-    [04.02|17:48:47] JOB dist_4.00 SUCCESSFUL
+    [05.02|09:29:58] JOB dist_2.20 STARTED
+    [05.02|09:29:58] JOB dist_2.20 RUNNING
+    [05.02|09:30:01] JOB dist_2.20 FINISHED
+    [05.02|09:30:01] JOB dist_2.20 SUCCESSFUL
+    [05.02|09:30:01] JOB dist_2.40 STARTED
+    [05.02|09:30:01] JOB dist_2.40 RUNNING
+    [05.02|09:30:04] JOB dist_2.40 FINISHED
+    [05.02|09:30:04] JOB dist_2.40 SUCCESSFUL
+    [05.02|09:30:04] JOB dist_2.60 STARTED
+    [05.02|09:30:04] JOB dist_2.60 RUNNING
+    [05.02|09:30:08] JOB dist_2.60 FINISHED
+    [05.02|09:30:08] JOB dist_2.60 SUCCESSFUL
+    [05.02|09:30:08] JOB dist_2.80 STARTED
+    [05.02|09:30:08] JOB dist_2.80 RUNNING
+    [05.02|09:30:11] JOB dist_2.80 FINISHED
+    [05.02|09:30:11] JOB dist_2.80 SUCCESSFUL
+    [05.02|09:30:11] JOB dist_3.00 STARTED
+    [05.02|09:30:11] JOB dist_3.00 RUNNING
+    [05.02|09:30:15] JOB dist_3.00 FINISHED
+    [05.02|09:30:15] JOB dist_3.00 SUCCESSFUL
+    [05.02|09:30:15] JOB dist_3.20 STARTED
+    [05.02|09:30:15] JOB dist_3.20 RUNNING
+    [05.02|09:30:18] JOB dist_3.20 FINISHED
+    [05.02|09:30:18] JOB dist_3.20 SUCCESSFUL
+    [05.02|09:30:18] JOB dist_3.40 STARTED
+    [05.02|09:30:18] JOB dist_3.40 RUNNING
+    [05.02|09:30:22] JOB dist_3.40 FINISHED
+    [05.02|09:30:22] JOB dist_3.40 SUCCESSFUL
+    [05.02|09:30:22] JOB dist_3.60 STARTED
+    [05.02|09:30:22] JOB dist_3.60 RUNNING
+    [05.02|09:30:25] JOB dist_3.60 FINISHED
+    [05.02|09:30:25] JOB dist_3.60 SUCCESSFUL
+    [05.02|09:30:25] JOB dist_3.80 STARTED
+    [05.02|09:30:25] JOB dist_3.80 RUNNING
+    [05.02|09:30:28] JOB dist_3.80 FINISHED
+    [05.02|09:30:28] JOB dist_3.80 SUCCESSFUL
+    [05.02|09:30:28] JOB dist_4.00 STARTED
+    [05.02|09:30:28] JOB dist_4.00 RUNNING
+    [05.02|09:30:31] JOB dist_4.00 FINISHED
+    [05.02|09:30:31] JOB dist_4.00 SUCCESSFUL
 
 >>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
 
@@ -299,25 +324,20 @@ Print table of results of the distance against the calculated energy.
 
 
 
-.. raw:: html
-
-    <div style="max-width: 100%; overflow-x: auto;">
-    <table border="1" style="border-collapse: collapse; width: auto; ">
-    <thead><tr><th>d[A]<th>E[kcal/mol]</th></tr></thead>
-    <tbody>
-    <tr><td>2.20</td><td>0.230      </td></tr>
-    <tr><td>2.40</td><td>-0.054     </td></tr>
-    <tr><td>2.60</td><td>-0.127     </td></tr>
-    <tr><td>2.80</td><td>-0.122     </td></tr>
-    <tr><td>3.00</td><td>-0.094     </td></tr>
-    <tr><td>3.20</td><td>-0.066     </td></tr>
-    <tr><td>3.40</td><td>-0.045     </td></tr>
-    <tr><td>3.60</td><td>-0.030     </td></tr>
-    <tr><td>3.80</td><td>-0.020     </td></tr>
-    <tr><td>4.00</td><td>-0.013     </td></tr>
-    </tbody>
-    </table>
-    </div>
+==== ===========
+d[A] E[kcal/mol]
+==== ===========
+2.20 0.230
+2.40 -0.054
+2.60 -0.127
+2.80 -0.122
+3.00 -0.094
+3.20 -0.066
+3.40 -0.045
+3.60 -0.030
+3.80 -0.020
+4.00 -0.013
+==== ===========
 
 >>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
 

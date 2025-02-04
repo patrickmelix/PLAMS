@@ -306,14 +306,14 @@ class JobAnalysis:
         self,
         max_col_width: int = -1,
         max_rows: int = 30,
-        fmt: Literal["markdown", "html"] = "html",
+        fmt: Literal["markdown", "html"] = "markdown",
     ) -> None:
         """
         Converts analysis data to a pretty-printed table which is then displayed using IPython
 
         :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
         :param max_rows: can be integer positive value or -1, defaults to 30
-        :param fmt: format of the table, either markdown or html (default)
+        :param fmt: format of the table, either markdown (default) or html
         """
         from IPython.display import display, Markdown, HTML
 
@@ -533,7 +533,7 @@ class JobAnalysis:
 
         If multiple status changes occur within the same resolution period, the latest will be displayed.
         :param max_intervals: maximum number of datetime intervals to display i.e. the width and resolution of the timeline
-        :param fmt: format of the table, either markdown or html (default)
+        :param fmt: format of the table, either markdown (default) or html
         """
         from IPython.display import display, Markdown, HTML
 

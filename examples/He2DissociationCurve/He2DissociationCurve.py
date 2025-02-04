@@ -36,12 +36,11 @@ step = 0.2
 
 # create a list with interatomic distances
 distances = np.arange(dmin, dmax, step)
-print(distances)
 
 
 # ## Calculation Settings
 #
-# The calculation settins are stored in a `Settings` object.
+# The calculation settings are stored in a `Settings` object.
 
 # calculation parameters (single point, TZP/PBE+GrimmeD3)
 sett = Settings()

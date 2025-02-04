@@ -208,31 +208,26 @@ specified temperature. The populations are calculated from the
 
 
 
-.. raw:: html
-
-    <div style="max-width: 100%; overflow-x: auto;">
-    <table border="1" style="border-collapse: collapse; width: auto; ">
-    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
-    <tbody>
-    <tr><td>1           </td><td>0.00         </td><td>0.557           </td></tr>
-    <tr><td>2           </td><td>0.57         </td><td>0.214           </td></tr>
-    <tr><td>3           </td><td>1.00         </td><td>0.102           </td></tr>
-    <tr><td>4           </td><td>1.18         </td><td>0.076           </td></tr>
-    <tr><td>5           </td><td>2.12         </td><td>0.015           </td></tr>
-    <tr><td>6           </td><td>2.22         </td><td>0.013           </td></tr>
-    <tr><td>7           </td><td>2.40         </td><td>0.010           </td></tr>
-    <tr><td>8           </td><td>2.50         </td><td>0.008           </td></tr>
-    <tr><td>9           </td><td>3.44         </td><td>0.002           </td></tr>
-    <tr><td>10          </td><td>3.53         </td><td>0.001           </td></tr>
-    <tr><td>11          </td><td>3.76         </td><td>0.001           </td></tr>
-    <tr><td>12          </td><td>5.50         </td><td>0.000           </td></tr>
-    <tr><td>13          </td><td>6.78         </td><td>0.000           </td></tr>
-    <tr><td>14          </td><td>12.85        </td><td>0.000           </td></tr>
-    <tr><td>15          </td><td>15.70        </td><td>0.000           </td></tr>
-    <tr><td>16          </td><td>18.79        </td><td>0.000           </td></tr>
-    </tbody>
-    </table>
-    </div>
+============ ============= ================
+Conformer Id ΔE [kcal/mol] Pop. (T = 298 K)
+============ ============= ================
+1            0.00          0.557
+2            0.57          0.214
+3            1.00          0.102
+4            1.18          0.076
+5            2.12          0.015
+6            2.22          0.013
+7            2.40          0.010
+8            2.50          0.008
+9            3.44          0.002
+10           3.53          0.001
+11           3.76          0.001
+12           5.50          0.000
+13           6.78          0.000
+14           12.85         0.000
+15           15.70         0.000
+16           18.79         0.000
+============ ============= ================
 
 
 .. code:: ipython3
@@ -304,26 +299,21 @@ gives more accurate geometries.
 
 
 
-.. raw:: html
-
-    <div style="max-width: 100%; overflow-x: auto;">
-    <table border="1" style="border-collapse: collapse; width: auto; ">
-    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
-    <tbody>
-    <tr><td>1           </td><td>0.00         </td><td>0.270           </td></tr>
-    <tr><td>2           </td><td>0.11         </td><td>0.225           </td></tr>
-    <tr><td>3           </td><td>0.41         </td><td>0.134           </td></tr>
-    <tr><td>4           </td><td>0.63         </td><td>0.093           </td></tr>
-    <tr><td>5           </td><td>0.91         </td><td>0.058           </td></tr>
-    <tr><td>6           </td><td>0.97         </td><td>0.052           </td></tr>
-    <tr><td>7           </td><td>1.02         </td><td>0.048           </td></tr>
-    <tr><td>8           </td><td>1.14         </td><td>0.039           </td></tr>
-    <tr><td>9           </td><td>1.19         </td><td>0.036           </td></tr>
-    <tr><td>10          </td><td>1.41         </td><td>0.025           </td></tr>
-    <tr><td>11          </td><td>1.57         </td><td>0.019           </td></tr>
-    </tbody>
-    </table>
-    </div>
+============ ============= ================
+Conformer Id ΔE [kcal/mol] Pop. (T = 298 K)
+============ ============= ================
+1            0.00          0.270
+2            0.11          0.225
+3            0.41          0.134
+4            0.63          0.093
+5            0.91          0.058
+6            0.97          0.052
+7            1.02          0.048
+8            1.14          0.039
+9            1.19          0.036
+10           1.41          0.025
+11           1.57          0.019
+============ ============= ================
 
 
 .. code:: ipython3
@@ -371,34 +361,33 @@ choose DFTB, although normally you may choose some DFT method.
 .. code:: ipython3
 
     print_results(score_job, temperature=temperature, unit=unit)
+
+
+
+============ ============= ================
+Conformer Id ΔE [kcal/mol] Pop. (T = 298 K)
+============ ============= ================
+1            0.00          0.373
+2            0.34          0.209
+3            0.40          0.188
+4            0.70          0.114
+5            1.06          0.063
+6            1.85          0.016
+7            1.89          0.015
+8            2.41          0.006
+9            2.48          0.006
+10           2.59          0.005
+11           2.73          0.004
+============ ============= ================
+
+
+.. code:: ipython3
+
     plot_conformers(score_job, 4, temperature=temperature, unit=unit, lowest=True)
 
 
 
-.. raw:: html
-
-    <div style="max-width: 100%; overflow-x: auto;">
-    <table border="1" style="border-collapse: collapse; width: auto; ">
-    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
-    <tbody>
-    <tr><td>1           </td><td>0.00         </td><td>0.373           </td></tr>
-    <tr><td>2           </td><td>0.34         </td><td>0.209           </td></tr>
-    <tr><td>3           </td><td>0.40         </td><td>0.188           </td></tr>
-    <tr><td>4           </td><td>0.70         </td><td>0.114           </td></tr>
-    <tr><td>5           </td><td>1.06         </td><td>0.063           </td></tr>
-    <tr><td>6           </td><td>1.85         </td><td>0.016           </td></tr>
-    <tr><td>7           </td><td>1.89         </td><td>0.015           </td></tr>
-    <tr><td>8           </td><td>2.41         </td><td>0.006           </td></tr>
-    <tr><td>9           </td><td>2.48         </td><td>0.006           </td></tr>
-    <tr><td>10          </td><td>2.59         </td><td>0.005           </td></tr>
-    <tr><td>11          </td><td>2.73         </td><td>0.004           </td></tr>
-    </tbody>
-    </table>
-    </div>
-
-
-
-.. image:: conformers_files/conformers_26_1.png
+.. image:: conformers_files/conformers_27_0.png
 
 
 Here, you see that from the conformers in the set, **DFTB predicts a
@@ -444,19 +433,14 @@ kcal/mol of the minimum.
 
 
 
-.. raw:: html
-
-    <div style="max-width: 100%; overflow-x: auto;">
-    <table border="1" style="border-collapse: collapse; width: auto; ">
-    <thead><tr><th>Conformer Id<th>ΔE [kcal/mol]<th>Pop. (T = 298 K)</th></tr></thead>
-    <tbody>
-    <tr><td>1           </td><td>0.00         </td><td>0.421           </td></tr>
-    <tr><td>2           </td><td>0.34         </td><td>0.236           </td></tr>
-    <tr><td>3           </td><td>0.40         </td><td>0.213           </td></tr>
-    <tr><td>4           </td><td>0.70         </td><td>0.129           </td></tr>
-    </tbody>
-    </table>
-    </div>
+============ ============= ================
+Conformer Id ΔE [kcal/mol] Pop. (T = 298 K)
+============ ============= ================
+1            0.00          0.421
+2            0.34          0.236
+3            0.40          0.213
+4            0.70          0.129
+============ ============= ================
 
 
 .. code:: ipython3
@@ -465,7 +449,7 @@ kcal/mol of the minimum.
 
 
 
-.. image:: conformers_files/conformers_31_0.png
+.. image:: conformers_files/conformers_32_0.png
 
 
 The structures and energies are identical to before. However, the

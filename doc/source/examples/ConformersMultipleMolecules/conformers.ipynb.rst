@@ -196,34 +196,30 @@ JobAnalysis tool.
 
 
 
-.. raw:: html
+============ ====== =====
+Conformer Id E      P
+============ ====== =====
+1            0.00   0.036
+2            0.01   0.035
+3            0.03   0.034
+4            0.03   0.034
+5            0.08   0.031
+6            0.13   0.029
+7            0.15   0.028
+8            0.18   0.026
+9            0.22   0.024
+10           0.23   0.024
+…            …      …
+1807         135.93 0.000
+1808         137.12 0.000
+1809         138.93 0.000
+1810         139.38 0.000
+1811         140.51 0.000
+1812         143.04 0.000
+1813         148.33 0.000
+1814         152.45 0.000
+1815         164.99 0.000
+1816         201.42 0.000
+============ ====== =====
 
-    <div style="max-width: 100%; overflow-x: auto;">
-    <table border="1" style="border-collapse: collapse; width: auto; ">
-    <thead><tr><th>Conformer Id<th>E     <th>P    </th></tr></thead>
-    <tbody>
-    <tr><td>1           </td><td>0.00  </td><td>0.036</td></tr>
-    <tr><td>2           </td><td>0.01  </td><td>0.035</td></tr>
-    <tr><td>3           </td><td>0.03  </td><td>0.034</td></tr>
-    <tr><td>4           </td><td>0.03  </td><td>0.034</td></tr>
-    <tr><td>5           </td><td>0.08  </td><td>0.031</td></tr>
-    <tr><td>6           </td><td>0.13  </td><td>0.029</td></tr>
-    <tr><td>7           </td><td>0.15  </td><td>0.028</td></tr>
-    <tr><td>8           </td><td>0.18  </td><td>0.026</td></tr>
-    <tr><td>9           </td><td>0.22  </td><td>0.024</td></tr>
-    <tr><td>10          </td><td>0.23  </td><td>0.024</td></tr>
-    <tr><td>...         </td><td>...   </td><td>...  </td></tr>
-    <tr><td>1807        </td><td>135.93</td><td>0.000</td></tr>
-    <tr><td>1808        </td><td>137.12</td><td>0.000</td></tr>
-    <tr><td>1809        </td><td>138.93</td><td>0.000</td></tr>
-    <tr><td>1810        </td><td>139.38</td><td>0.000</td></tr>
-    <tr><td>1811        </td><td>140.51</td><td>0.000</td></tr>
-    <tr><td>1812        </td><td>143.04</td><td>0.000</td></tr>
-    <tr><td>1813        </td><td>148.33</td><td>0.000</td></tr>
-    <tr><td>1814        </td><td>152.45</td><td>0.000</td></tr>
-    <tr><td>1815        </td><td>164.99</td><td>0.000</td></tr>
-    <tr><td>1816        </td><td>201.42</td><td>0.000</td></tr>
-    </tbody>
-    </table>
-    </div>
 
