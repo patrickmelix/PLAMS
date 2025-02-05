@@ -1,21 +1,20 @@
 import os, shutil
 from collections import OrderedDict
-from typing import List, Optional, Union, Dict, Mapping, Literal
+from typing import List, Optional, Union, Dict, Literal
 
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.crs import CRSJob
 from scm.plams.interfaces.adfsuite.densf import DensfJob
 
-# from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.periodic_table import PeriodicTable
 from scm.plams.mol.molecule import Molecule
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
-from scm.plams.core.functions import add_to_instance
+from scm.plams.core.functions import add_to_instance, requires_optional_package
 from scm.plams.interfaces.adfsuite.quickjobs import model_to_settings
-from scm.libbase import KFFile
-from standalone.densf_mesp2HBC.HBC_utils import parse_mesp, write_HBC_to_COSKF, view_HBC
+
+from scm.plams.tools.hbc_utilities import parse_mesp, write_HBC_to_COSKF, view_HBC
 import numpy as np
 
 __all__ = ["ADFCOSMORSCompoundJob", "ADFCOSMORSCompoundResults"]
@@ -63,10 +62,10 @@ class ADFCOSMORSCompoundJob(MultiJob):
         coskf_dir  : The directory in which to place the generated .coskf file.  If nothing is specified, the file will be put in the plams directory corresponding to the job.
         preoptimization  : If None, do not preoptimize with a fast engine (then initial optimization is done with ADF). Otherwise, can be one of 'UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x'. Note that you need valid licenses for ForceField or DFTB or MLPotential to use these preoptimizers.
         singlepoint (bool) :  Run a singlepoint in gasphase and with solvation to generate the .coskf file on the given Molecule. (no geometry optimization). Cannot be combined with ``preoptimization``.
+        densf2hbc (bool) : Defaults to True. Performs DENSF analysis to determine the hydrogen bond center (HBC) used in COSMOSAC-DHB-MESP.
         settings (Settings) : A |Settings| object.  settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
-        name : an optional name for the calculation directory
         mol_info (dict) : an optional dictionary containing information will be written to the Compound Data section within the COSKF file.
-        Densf2HBC (bool) : Defaults to True. Performs DENSF analysis to determine the hydrogen bond center (HBC) used in COSMOSAC-DHB-MESP.
+        name : an optional name for the calculation directory
 
     Example:
 
@@ -95,9 +94,9 @@ class ADFCOSMORSCompoundJob(MultiJob):
         coskf_dir: Optional[str] = None,
         preoptimization: Optional[str] = None,
         singlepoint: bool = False,
+        densf2hbc: bool = True,
         settings: Optional[Settings] = None,
-        mol_info: Optional[Mapping[str, Union[float, int, str]]] = None,
-        Densf2HBC: bool = True,
+        mol_info: Optional[Dict[str, Union[float, int, str]]] = None,
         **kwargs,
     ):
         """
@@ -144,6 +143,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         self.coskf_name = coskf_name
         self.coskf_dir = coskf_dir
+        self.densf2hbc = densf2hbc
 
         if self.coskf_dir is not None and not os.path.exists(self.coskf_dir):
             os.mkdir(self.coskf_dir)
@@ -154,7 +154,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
             self.coskf_name += ".coskf"
 
         gas_s = Settings()
-        gas_s += self.adf_settings(solvation=False, settings=self.settings)
+        gas_s += ADFCOSMORSCompoundJob.adf_settings(solvation=False, settings=self.settings)
         gas_job = AMSJob(settings=gas_s, name="gas")
 
         if not singlepoint:
@@ -186,8 +186,8 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         self.children["gas"] = gas_job
 
-        if Densf2HBC:
-            densf_job = DensfJob("../gas/adf.rkf", settings=self.densf_settings(), name="densf")
+        if self.densf2hbc:
+            densf_job = DensfJob("../gas/adf.rkf", settings=ADFCOSMORSCompoundJob.densf_settings(), name="densf")
             self.children["densf"] = densf_job
 
             @add_to_instance(densf_job)
@@ -206,7 +206,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
             molecule_charge = gas_job.results.get_main_molecule().properties.get("charge", 0)
             self.settings.input.ams.LoadSystem._1 = f"# {self.parent.name}"
             self.settings.input.ams.LoadSystem._2 = f"# charge {molecule_charge}"
-            self.settings += self.parent.adf_settings(
+            self.settings += ADFCOSMORSCompoundJob.adf_settings(
                 solvation=True,
                 settings=self.parent.settings,
                 elements=list(set(at.symbol for at in self.parent.input_molecule)),
@@ -215,18 +215,18 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         @add_to_instance(solv_job)
         def postrun(self):
-            if Densf2HBC:
+            if self.parent.densf2hbc:
                 densf_job.results.wait()
-                densf_t41 = densf_job.results.kfpath()
+                densf_path = densf_job.results.kfpath()
             else:
-                densf_t41 = None
-            self.parent.convert_to_coskf(
-                self.results.rkfpath(file="adf"),
-                self.parent.coskf_name,
-                self.parent.path,
-                self.parent.coskf_dir,
-                self.parent.mol_info,
-                densf_t41,
+                densf_path = None
+            ADFCOSMORSCompoundJob.convert_to_coskf(
+                rkf_path=self.results.rkfpath(file="adf"),
+                coskf_name=self.parent.coskf_name,
+                plams_dir=self.parent.path,
+                coskf_dir=self.parent.coskf_dir,
+                mol_info=self.parent.mol_info,
+                densf_path=densf_path,
             )
 
         self.children["solv"] = solv_job
@@ -443,58 +443,52 @@ class ADFCOSMORSCompoundJob(MultiJob):
         return s
 
     @staticmethod
+    @requires_optional_package("scm.libbase")
     def convert_to_coskf(
-        rkf: str,
+        rkf_path: str,
         coskf_name: str,
         plams_dir: str,
         coskf_dir: Optional[str] = None,
-        mol_info: Optional[Mapping[str, Union[float, int, str]]] = None,
-        densf_t41: Optional[str] = None,
-    ):
+        mol_info: Optional[Dict[str, Union[float, int, str]]] = None,
+        densf_path: Optional[str] = None,
+    ) -> None:
         """
-        rkf: str
-            absolute path to adf.rkf
+        Convert an adf.rkf file into a .coskf file
 
-        coskf_name: str
-            the name of the .coskf file
-
-        plams_dir: str
-            plamsjob path to write out the .coskf file
-
-        coskf_dir: Optional[str]
-            additional path to store the .coskf file
-
-        mol_info: dict[str, float | int | str], optional
-            Optional information to write out in the "Compound Data" section of the .coskf file
-
-        densf_t41: Optional[str]
-            path to the densf output *.t41 file
-
+        Args:
+            rkf_path (str) : absolute path to adf.rkf
+            coskf_name (str) : the name of the .coskf file
+            plams_dir (str) : plamsjob path to write out the .coskf file
+            coskf_dir (Optional[str]) :additional path to store the .coskf file
+            mol_info (Optional[Dict[str, Union[float, int, str]]]) : Optional information to write out in the "Compound Data" section of the .coskf file
+            densf_path (Optional[str]) : path to the densf output .t41 file
         """
-        with KFFile(rkf) as kf:
-            cosmo = kf.read_section("COSMO")
+        from scm.libbase import KFFile
 
-        with KFFile(os.path.join(plams_dir, coskf_name), autosave=False) as kf:
+        with KFFile(rkf_path) as rkf:
+            cosmo = rkf.read_section("COSMO")
+
+        coskf_path = os.path.join(plams_dir, coskf_name)
+
+        with KFFile(coskf_path, autosave=False) as rkf:
             for key, value in cosmo.items():
-                kf.write("COSMO", key, float(value) if isinstance(value, np.float64) else value)
+                rkf.write("COSMO", key, float(value) if isinstance(value, np.float64) else value)
             for key, value in mol_info.items():
-                kf.write("Compound Data", key, float(value) if isinstance(value, np.float64) else value)
+                rkf.write("Compound Data", key, float(value) if isinstance(value, np.float64) else value)
 
-            if densf_t41 is not None:
-                with KFFile(densf_t41, autosave=False) as densf:
-                    HBC_xyz, HBC_atom, HBC_angle = parse_mesp(densf, kf)
-                    write_HBC_to_COSKF(kf, HBC_xyz, HBC_atom, HBC_angle)
-            kf.save()
+        if densf_path is not None:
+            HBC_xyz, HBC_atom, HBC_angle, HBC_info = parse_mesp(densf_path, coskf_path)
+            write_HBC_to_COSKF(coskf_path, HBC_xyz, HBC_atom, HBC_angle, HBC_info)
 
         if coskf_dir is not None:
-            shutil.copy2(os.path.join(plams_dir, coskf_name), os.path.join(coskf_dir, coskf_name))
+            shutil.copy2(coskf_path, os.path.join(coskf_dir, coskf_name))
 
     @staticmethod
-    def Update_HBC_to_COSKF(coskf, visulization=False):
+    def Update_HBC_to_COSKF(coskf: str, visulization: bool = False) -> None:
         """
         Determine the hydrogen bond center for existing COSKF file
 
-        Parameters:
+        Args:
             coskf (str) : Existing COSKF file
             visulization (bool) : Visulization of hydrogen bond center
         """
@@ -514,9 +508,8 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         t41 = densf_job.results.kfpath()
 
-        with KFFile(coskf) as rkf, KFFile(t41) as densf:
-            HBC_xyz, HBC_atom, HBC_angle, HBC_info = parse_mesp(densf, rkf)
-            write_HBC_to_COSKF(rkf, HBC_xyz, HBC_atom, HBC_angle, HBC_info)
+        HBC_xyz, HBC_atom, HBC_angle, HBC_info = parse_mesp(t41, coskf)
+        write_HBC_to_COSKF(coskf, HBC_xyz, HBC_atom, HBC_angle, HBC_info)
 
         if visulization:
             view_HBC(coskf)
