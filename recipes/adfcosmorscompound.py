@@ -188,7 +188,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
             self.children["densf"] = densf_job
 
             @add_to_instance(densf_job)
-            def prerun(self): # noqa: F811
+            def prerun(self):  # noqa: F811
                 gas_job.results.wait()
                 self.inputjob = f"../gas/adf.rkf #{self.parent.name}"
 
