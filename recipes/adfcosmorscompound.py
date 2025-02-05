@@ -94,9 +94,9 @@ class ADFCOSMORSCompoundJob(MultiJob):
         coskf_dir: Optional[str] = None,
         preoptimization: Optional[str] = None,
         singlepoint: bool = False,
-        densf2hbc: bool = True,
         settings: Optional[Settings] = None,
         mol_info: Optional[Dict[str, Union[float, int, str]]] = None,
+        densf2hbc: bool = True,
         **kwargs,
     ):
         """
@@ -482,7 +482,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
             shutil.copy2(coskf_path, os.path.join(coskf_dir, coskf_name))
 
     @staticmethod
-    def Update_HBC_to_COSKF(coskf: str, visulization: bool = False) -> None:
+    def update_hbc_to_coskf(coskf: str, visulization: bool = False) -> None:
         """
         Determine the hydrogen bond center for existing COSKF file
 

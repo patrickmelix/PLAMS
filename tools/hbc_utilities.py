@@ -123,8 +123,9 @@ def parse_mesp(
         f" *Excluding the following atoms: {', '.join(skip_mesp_atoms)}.\n"
         f" *The HBC of hydrogen bonded to {', '.join(allowd_HB_atoms)} is determined using the bond vector."
     )
-
-    HBC_xyz, HBC_atom, HBC_angle = [], [], []
+    HBC_xyz: List[np.ndarray] = []
+    HBC_atom: List[int] = []
+    HBC_angle: List[float] = []
     BOHR = Units.convert("bohr", "angstrom", 1.0)
 
     atom_COSMO_radius = None
@@ -157,9 +158,6 @@ def parse_mesp(
     atom_symbol = rkf.read_string("COSMO", "Atom Type").split()
     atom_coord = np.reshape(rkf.read_reals_np("COSMO", "Atom Coordinates"), (natom, 3))
 
-    HBC_xyz = []
-    HBC_atom = []
-
     # Determine HBC through the projection of the MESP onto COSMO Cavity
     for i in range(n_MESP):
         Eigenvalues = densf.read_reals_np("Coulpot minima", f"Eigenvalues {i+1}")
@@ -182,7 +180,7 @@ def parse_mesp(
             HB_center = atom_coord[MESP_atom_id] + PV * COSMO_radius_default[atom_symbol[MESP_atom_id]]
 
         HBC_xyz.append(HB_center)
-        HBC_atom.append(MESP_atom_id + 1)
+        HBC_atom.append(int(MESP_atom_id + 1))
 
         dot_product = np.dot(PV, EV)
         cos_theta = np.clip(dot_product, -1.0, 1.0)
