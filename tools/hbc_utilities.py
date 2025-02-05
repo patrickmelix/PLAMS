@@ -1,6 +1,6 @@
 from scm.plams.core.functions import requires_optional_package
 from scm.plams.version import __version__
-from typing import Optional, List, Tuple, Union, Dict, Any
+from typing import Optional, List, Tuple, Dict, Any
 from pathlib import Path
 import numpy as np
 import os
