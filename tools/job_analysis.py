@@ -277,14 +277,14 @@ class JobAnalysis:
         self,
         max_col_width: int = -1,
         max_rows: int = 30,
-        fmt: Literal["markdown", "html"] = "markdown",
+        fmt: Literal["markdown", "html", "rst"] = "markdown",
     ) -> str:
         """
         Converts analysis data to a pretty-printed table.
 
         :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
         :param max_rows: can be integer positive value or -1, defaults to 30
-        :param fmt: format of the table, either markdown (default) or html
+        :param fmt: format of the table, either markdown (default), html or rst
         :return: string representation of the table
         """
 
@@ -306,14 +306,14 @@ class JobAnalysis:
         self,
         max_col_width: int = -1,
         max_rows: int = 30,
-        fmt: Literal["markdown", "html"] = "markdown",
+        fmt: Literal["markdown", "html", "rst"] = "markdown",
     ) -> None:
         """
         Converts analysis data to a pretty-printed table which is then displayed using IPython
 
         :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
         :param max_rows: can be integer positive value or -1, defaults to 30
-        :param fmt: format of the table, either markdown (default) or html
+        :param fmt: format of the table, either markdown (default), html or rst
         """
         from IPython.display import display, Markdown, HTML
 
@@ -323,6 +323,9 @@ class JobAnalysis:
             display(Markdown(table))
         elif fmt == "html":
             display(HTML(table))
+        elif fmt == "rst":
+            table = "\n".join([f"    {row}" for row in table.split("\n")])
+            display(Markdown(table))
 
     def to_csv_file(self, path: Union[str, os.PathLike]) -> None:
         """
@@ -341,7 +344,7 @@ class JobAnalysis:
                 row = [data[k][i] for k in keys]
                 writer.writerow(row)
 
-    def get_timeline(self, max_intervals: int = 5, fmt: Literal["markdown", "html"] = "markdown") -> str:
+    def get_timeline(self, max_intervals: int = 5, fmt: Literal["markdown", "html", "rst"] = "markdown") -> str:
         """
         Get depiction of timeline of jobs as they were run.
         Each job is represented as a horizontal bar of symbols, where each symbol indicates a different job status.
@@ -375,7 +378,7 @@ class JobAnalysis:
 
         :param max_intervals: maximum number of datetime intervals to display i.e. the width and resolution of the timeline
         :param fmt: format of the table, either markdown (default) or html
-        :return: string representation of timeline as a markdown (default) or html table
+        :return: string representation of timeline as a markdown (default), html or rst table
         """
         # Symbols for various job statuses
         status_symbols = {
@@ -501,7 +504,7 @@ class JobAnalysis:
         )
 
     @requires_optional_package("IPython")
-    def display_timeline(self, max_intervals: int = 5, fmt: Literal["markdown", "html"] = "markdown") -> None:
+    def display_timeline(self, max_intervals: int = 5, fmt: Literal["markdown", "html", "rst"] = "markdown") -> None:
         """
         Get depiction of timeline of jobs as they were run and display using IPython.
         Each job is represented as a horizontal bar of symbols, where each symbol indicates a different job status.
@@ -533,7 +536,7 @@ class JobAnalysis:
 
         If multiple status changes occur within the same resolution period, the latest will be displayed.
         :param max_intervals: maximum number of datetime intervals to display i.e. the width and resolution of the timeline
-        :param fmt: format of the table, either markdown (default) or html
+        :param fmt: format of the table, either markdown (default), html or rst
         """
         from IPython.display import display, Markdown, HTML
 
@@ -543,6 +546,9 @@ class JobAnalysis:
             display(Markdown(table))
         elif fmt == "html":
             display(HTML(table))
+        elif fmt == "rst":
+            table = "\n".join([f"    {row}" for row in table.split("\n")])
+            display(Markdown(table))
 
     def add_job(self, job: Job) -> "JobAnalysis":
         """
