@@ -179,20 +179,18 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         elif singlepoint:
             gas_job.settings.input.ams.Task = "SinglePoint"
-
-            @add_to_instance(gas_job)
-            def prerun(self):  # noqa: F811
-                self.molecule = self.parent.input_molecule
+            gas_job.molecule = self.input_molecule
 
         self.children["gas"] = gas_job
 
         if self.densf2hbc:
-            densf_job = DensfJob("../gas/adf.rkf", settings=ADFCOSMORSCompoundJob.densf_settings(), name="densf")
+            densf_job = DensfJob(settings=ADFCOSMORSCompoundJob.densf_settings(), name="densf")
             self.children["densf"] = densf_job
 
             @add_to_instance(densf_job)
             def prerun(self):
                 gas_job.results.wait()
+                self.inputjob = f"../gas/adf.rkf #{self.parent.name}"
 
         solv_s = Settings()
         solv_s.input.ams.Task = "SinglePoint"
