@@ -89,18 +89,21 @@ class JobAnalysis:
         value_extractor=lambda j: (
             j.results.readrkf("General", "CPUTime") if isinstance(j, AMSJob) and j.results is not None else None
         ),
+        fmt=".6f",
     )
     _sys_time_field = _Field(
         key="SysTime",
         value_extractor=lambda j: (
             j.results.readrkf("General", "SysTime") if isinstance(j, AMSJob) and j.results is not None else None
         ),
+        fmt=".6f",
     )
     _elapsed_time_field = _Field(
         key="ElapsedTime",
         value_extractor=lambda j: (
             j.results.readrkf("General", "ElapsedTime") if isinstance(j, AMSJob) and j.results is not None else None
         ),
+        fmt=".6f",
     )
 
     _standard_fields = [
@@ -152,6 +155,25 @@ class JobAnalysis:
         std_fields: Optional[Sequence[str]] = ("Path", "Name", "OK", "Check", "ErrorMsg"),
         await_results: bool = True,
     ):
+        """
+        Initialize new instance of |JobAnalysis| with a set of jobs.
+
+        .. code:: python
+
+            >>> ja = JobAnalysis(jobs=[job1, job2], std_fields=["Name", "OK"])
+            >>> print(ja)
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+
+        :param paths: one or more paths to folders from which to load jobs to add to the analysis
+        :param jobs: one or more jobs to add to the analysis
+        :param loaders: custom loading functions to generate jobs from a job folder
+        :param std_fields: keys of standard fields to include in analysis, defaults to ``("Path", "Name", "OK", "Check", "ErrorMsg")``
+        :param await_results: whether to wait for the results of any passed jobs to finish, defaults to ``True``
+        """
         self._jobs: Dict[str, Job] = {}
         self._fields: Dict[str, JobAnalysis._Field] = {}
 
@@ -178,6 +200,15 @@ class JobAnalysis:
         """
         Produce a copy of this analysis with the same jobs and fields.
 
+        .. code:: python
+
+            >>> print(ja.copy())
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+
         :return: copy of the analysis
         """
         cpy = JobAnalysis()
@@ -190,6 +221,15 @@ class JobAnalysis:
         """
         Jobs currently included in analysis.
 
+        .. code:: python
+
+            >>> print(ja.jobs)
+
+            {
+                '/path/job1': <scm.plams.interfaces.adfsuite.ams.AMSJob object at 0x1085a13d0>,
+                '/path/job2': <scm.plams.interfaces.adfsuite.ams.AMSJob object at 0x15e389970>
+            }
+
         :return: Dictionary of the job path and the |Job|
         """
         return {k: v for k, v in self._jobs.items()}
@@ -199,6 +239,12 @@ class JobAnalysis:
         """
         Keys of current fields, as they appear in the analysis.
 
+        .. code:: python
+
+            >>> print(ja.field_keys)
+
+            ['Name', 'OK']
+
         :return: list of field keys
         """
         return [k for k in self._fields]
@@ -207,6 +253,15 @@ class JobAnalysis:
         """
         Gets analysis data. This is effectively a table in the form of a dictionary,
         where the keys are the field keys and the values are a list of data for each job.
+
+        .. code:: python
+
+            >>> print(ja.field_keys)
+
+            {
+                'Name': ['job1', 'job2'],
+                'OK': [True, True]
+            }
 
         :return: analysis data as a dictionary of field keys/lists of job values
         """
@@ -268,6 +323,15 @@ class JobAnalysis:
     def to_dataframe(self) -> "DataFrame":
         """
         Converts analysis data to a dataframe. The column names are the field keys and the column values are the values for each job.
+        This method requires the `pandas <https://pandas.pydata.org/docs/index.html>`__ package.
+
+        .. code:: python
+
+            >>> print(ja.to_dataframe())
+
+               Name    OK
+            0  job1  True
+            1  job2  True
 
         :return: analysis data as a dataframe
         """
@@ -281,6 +345,15 @@ class JobAnalysis:
     ) -> str:
         """
         Converts analysis data to a pretty-printed table.
+
+        .. code:: python
+
+            >>> print(ja.to_table())
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
 
         :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
         :param max_rows: can be integer positive value or -1, defaults to 30
@@ -309,7 +382,16 @@ class JobAnalysis:
         fmt: Literal["markdown", "html", "rst"] = "markdown",
     ) -> None:
         """
-        Converts analysis data to a pretty-printed table which is then displayed using IPython
+        Converts analysis data to a pretty-printed table which is then displayed using IPython.
+
+        .. code:: python
+
+            >>> ja.display_table()
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
 
         :param max_col_width: can be integer positive value or -1, defaults to -1 (no maximum width)
         :param max_rows: can be integer positive value or -1, defaults to 30
@@ -331,6 +413,16 @@ class JobAnalysis:
         """
         Write the analysis to a csv file with the specified path.
 
+        .. code:: python
+
+            >>> ja.to_csv_file("./a.csv")
+            >>> with open("./a.csv") as csv:
+            >>>     print(csv.read())
+
+            Name,OK
+            job1,True
+            job2,True
+
         :param path: path to save the csv file
         """
         data = self.get_analysis()
@@ -351,21 +443,23 @@ class JobAnalysis:
 
         These are as follows:
 
-        * created": ``.``
-        * started": ``-``
-        * registered": ``+``
-        * running": ``=``
-        * finished": ``*``
-        * crashed": ``x``
-        * failed": ``X``
-        * successful": ``>``
-        * copied": ``#``
-        * preview": ``~``
-        * deleted": ``!``
+        * ``created``: ``.``
+        * ``started``: ``-``
+        * ``registered``: ``+``
+        * ``running``: ``=``
+        * ``finished``: ``*``
+        * ``crashed``: ``x``
+        * ``failed``: ``X``
+        * ``successful``: ``>``
+        * ``copied``: ``#``
+        * ``preview``: ``~``
+        * ``deleted``: ``!``
 
         e.g.
 
         .. code:: python
+
+            >>> print(ja.get_timeline())
 
             | JobName    | ↓2025-02-03 15:16:52 | ↓2025-02-03 15:17:10 | ↓2025-02-03 15:17:28 | ↓2025-02-03 15:17:46 | ↓2025-02-03 15:18:03 | WaitDuration | RunDuration | TotalDuration |
             |------------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
@@ -511,21 +605,23 @@ class JobAnalysis:
 
         These are as follows:
 
-        * created": ``.``
-        * started": ``-``
-        * registered": ``+``
-        * running": ``=``
-        * finished": ``*``
-        * crashed": ``x``
-        * failed": ``X``
-        * successful": ``>``
-        * copied": ``#``
-        * preview": ``~``
-        * deleted": ``!``
+        * ``created``: ``.``
+        * ``started``: ``-``
+        * ``registered``: ``+``
+        * ``running``: ``=``
+        * ``finished``: ``*``
+        * ``crashed``: ``x``
+        * ``failed``: ``X``
+        * ``successful``: ``>``
+        * ``copied``: ``#``
+        * ``preview``: ``~``
+        * ``deleted``: ``!``
 
         e.g.
 
         .. code:: python
+
+            >>> ja.display_timeline()
 
             | JobName    | ↓2025-02-03 15:16:52 | ↓2025-02-03 15:17:10 | ↓2025-02-03 15:17:28 | ↓2025-02-03 15:17:46 | ↓2025-02-03 15:18:03 | WaitDuration | RunDuration | TotalDuration |
             |------------|----------------------|----------------------|----------------------|----------------------|----------------------|--------------|-------------|---------------|
@@ -554,6 +650,16 @@ class JobAnalysis:
         """
         Add a job to the analysis. This adds a row to the analysis data.
 
+        .. code:: python
+
+            >>> print(ja.add_job(job3))
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+            | job_3 | True |
+
         :param job: |Job| to add to the analysis
         :return: updated instance of |JobAnalysis|
         """
@@ -566,6 +672,14 @@ class JobAnalysis:
     def remove_job(self, job: Union[str, os.PathLike, Job]) -> "JobAnalysis":
         """
         Remove a job from the analysis. This removes a row from the analysis data.
+
+        .. code:: python
+
+            >>> print(ja.remove_job(job2))
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
 
         :param job: |Job| or path to a job to remove from the analysis
         :return: updated instance of |JobAnalysis|
@@ -583,6 +697,16 @@ class JobAnalysis:
         """
         Add job to the analysis by loading from a given path to the job folder.
         If no dill file is present in that location, or the dill unpickling fails, the loaders will be used to load the given job from the folder.
+
+        .. code:: python
+
+            >>> print(ja.load_job("path/job3"))
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+            | job_3 | True |
 
         :param path: path to folder from which to load the job
         :param loaders: functions to try and load jobs, defaults to :meth:`~scm.plams.interfaces.adfsuite.ams.AMSJob.load_external` followed by |load_external|
@@ -630,6 +754,22 @@ class JobAnalysis:
         Remove any jobs from the analysis where the given predicate for field values evaluates to ``False``.
         In other words, this removes rows(s) from the analysis data where the filter function evaluates to ``True`` given a dictionary of the row data.
 
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | OK    |
+            |-------|-------|
+            | job_1 | True  |
+            | job_2 | True  |
+            | job_3 | False |
+
+            >>> print(ja.filter_jobs(lambda data: not data["OK"]))
+
+            | Name  | OK    |
+            |-------|-------|
+            | job_3 | False |
+
         :param predicate: filter function which takes a dictionary of field keys and their values and evaluates to ``True``/``False``
         :return: updated instance of |JobAnalysis|
         """
@@ -652,6 +792,15 @@ class JobAnalysis:
         Either one of ``field_keys`` or ``key`` must be provided.
         If ``field_keys`` is provided, the values from these field(s) will be used to sort, in the order they are specified.
         If ``sort_key`` is provided, the sorting function will be applied to all fields.
+
+        .. code:: python
+
+            >>> print(ja.sort_jobs(field_keys=["Name"], reverse=True))
+
+            | Name  | OK    |
+            |-------|-------|
+            | job_2 | True  |
+            | job_1 | True  |
 
         :param field_keys: field keys to sort by,
         :param sort_key: sorting function which takes a dictionary of field keys and their values
@@ -679,7 +828,16 @@ class JobAnalysis:
         expand: bool = False,
     ) -> "JobAnalysis":
         """
-        Add a field to the analysis. This adds a column to the analysis data.
+        Add a new field to the analysis. This adds a column to the analysis data.
+
+        .. code:: python
+
+            >>> print(ja.add_field("N", lambda j: len(j.molecule), display_name="Num Atoms"))
+
+            | Name  | OK    | Num Atoms |
+            |-------|-------|-----------|
+            | job_1 | True  | 4         |
+            | job_2 | True  | 6         |
 
         :param key: unique identifier for the field
         :param value_extractor: callable to extract the value for the field from a job
@@ -691,6 +849,37 @@ class JobAnalysis:
         if key in self._fields:
             raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
 
+        return self.set_field(
+            key=key, value_extractor=value_extractor, display_name=display_name, fmt=fmt, expand=expand
+        )
+
+    def set_field(
+        self,
+        key: str,
+        value_extractor: Callable[[Job], Any],
+        display_name: Optional[str] = None,
+        fmt: Optional[str] = None,
+        expand: bool = False,
+    ) -> "JobAnalysis":
+        """
+        Set a field in the analysis. This adds or modifies a column to the analysis data.
+
+        .. code:: python
+
+            >>> print(ja.set_field("N", lambda j: len(j.molecule), display_name="Num Atoms"))
+
+            | Name  | OK    | Num Atoms |
+            |-------|-------|-----------|
+            | job_1 | True  | 4         |
+            | job_2 | True  | 6         |
+
+        :param key: unique identifier for the field
+        :param value_extractor: callable to extract the value for the field from a job
+        :param display_name: name which will appear for the field when displayed in table
+        :param fmt: string format for how field values are displayed in table
+        :param expand: whether to expand field of multiple values into multiple rows
+        :return: updated instance of |JobAnalysis|
+        """
         self._fields[key] = self._Field(
             key=key, value_extractor=value_extractor, display_name=display_name, fmt=fmt, expand=expand
         )
@@ -699,6 +888,15 @@ class JobAnalysis:
     def format_field(self, key: str, fmt: Optional[str] = None) -> "JobAnalysis":
         """
         Apply a string formatting to a given field. This will apply when ``to_table`` is called.
+
+        .. code:: python
+
+            >>> print(ja.format_field("N", "03.0f"))
+
+            | Name  | OK    | Num Atoms |
+            |-------|-------|-----------|
+            | job_1 | True  | 004       |
+            | job_2 | True  | 006       |
 
         :param key: unique identifier of the field
         :param fmt: string format of the field e.g. ``.2f``
@@ -712,6 +910,15 @@ class JobAnalysis:
     def rename_field(self, key: str, display_name: str) -> "JobAnalysis":
         """
         Give a display name to a field in the analysis. This is the header of the column in the analysis data.
+
+        .. code:: python
+
+            >>> print(ja.rename_field("N", "N Atoms"))
+
+            | Name  | OK    | N Atoms |
+            |-------|-------|---------|
+            | job_1 | True  | 004     |
+            | job_2 | True  | 006     |
 
         :param key: unique identifier for the field
         :param display_name: name of the field
@@ -728,6 +935,29 @@ class JobAnalysis:
         """
         Expand field of multiple values into multiple rows for each job.
 
+        .. code:: python
+
+            >>> print(ja
+            >>>       .add_field("Step", lambda j: get_steps(j))
+            >>>       .add_field("Energy", lambda j: get_energies(j)))
+
+            | Name  | OK    | Step      | Energy             |
+            |-------|-------|-----------|--------------------|
+            | job_1 | True  | [1, 2, 3] | [42.1, 43.2, 42.5] |
+            | job_2 | True  | [1, 2]    | [84.5, 112.2]      |
+
+            >>> print(ja
+            >>>       .expand_field("Step")
+            >>>       .expand_field("Energy"))
+
+            | Name  | OK    | Step | Energy |
+            |-------|-------|------|--------|
+            | job_1 | True  | 1    | 42.1   |
+            | job_1 | True  | 2    | 43.2   |
+            | job_1 | True  | 3    | 42.5   |
+            | job_2 | True  | 1    | 84.5   |
+            | job_2 | True  | 1    | 112.2  |
+
         :param key: unique identifier of field to expand
         :return: updated instance of |JobAnalysis|
         """
@@ -740,6 +970,27 @@ class JobAnalysis:
     def collapse_field(self, key: str) -> "JobAnalysis":
         """
         Collapse field of multiple rows into single row of multiple values for each job.
+
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | OK    | Step | Energy |
+            |-------|-------|------|--------|
+            | job_1 | True  | 1    | 42.1   |
+            | job_1 | True  | 2    | 43.2   |
+            | job_1 | True  | 3    | 42.5   |
+            | job_2 | True  | 1    | 84.5   |
+            | job_2 | True  | 1    | 112.2  |
+
+            >>> print(ja
+            >>>       .collapse_field("Step")
+            >>>       .collapse_field("Energy"))
+
+            | Name  | OK    | Step      | Energy             |
+            |-------|-------|-----------|--------------------|
+            | job_1 | True  | [1, 2, 3] | [42.1, 43.2, 42.5] |
+            | job_2 | True  | [1, 2]    | [84.5, 112.2]      |
 
         :param key: unique identifier of field to collapse
         :return: updated instance of |JobAnalysis|
@@ -755,6 +1006,18 @@ class JobAnalysis:
         Reorder fields based upon the given sequence of field keys. This is the order the columns will appear in the analysis data.
 
         Any specified fields will be placed first, with remaining fields placed after with their order unchanged.
+
+        .. code:: python
+
+            >>> print(ja.reorder_fields(["Name", "Step"]))
+
+            | Name  | Step | OK    | Energy |
+            |-------|------|-------|--------|
+            | job_1 | 1    | True  | 42.1   |
+            | job_1 | 2    | True  | 43.2   |
+            | job_1 | 3    | True  | 42.5   |
+            | job_2 | 1    | True  | 84.5   |
+            | job_2 | 1    | True  | 112.2  |
 
         :param order: sequence of fields to be placed at the start of the field ordering
         :return: updated instance of |JobAnalysis|
@@ -772,6 +1035,18 @@ class JobAnalysis:
         """
         Sort fields according to a sort key. This is the order the columns will appear in the analysis data.
 
+        .. code:: python
+
+            >>> print(ja.sort_fields(lambda k: len(k)))
+
+            | OK    | Name  | Step | Energy |
+            |-------|-------|------|--------|
+            | True  | job_1 | 1    | 42.1   |
+            | True  | job_1 | 2    | 43.2   |
+            | True  | job_1 | 3    | 42.5   |
+            | True  | job_2 | 1    | 84.5   |
+            | True  | job_2 | 1    | 112.2  |
+
         :param sort_key: sorting function which accepts the field key
         :param reverse: reverse sort order, defaults to ``False``
         :return: updated instance of |JobAnalysis|
@@ -784,6 +1059,17 @@ class JobAnalysis:
         """
         Remove a field from the analysis. This removes a column from the analysis data.
 
+        .. code:: python
+
+            >>> print(ja
+            >>>       .remove_field("OK")
+            >>>       .remove_field("N"))
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
         :param key: unique identifier of the field
         :return: updated instance of |JobAnalysis|
         """
@@ -795,9 +1081,34 @@ class JobAnalysis:
 
     def filter_fields(self, predicate: Callable[[List[Any]], bool]) -> "JobAnalysis":
         """
-        Remove any fields from the analysis where the given predicate evaluates to ``False`` for all values.
-        In other words, this removes column(s) from the analysis data where the filter function evaluates to ``True``
+        Remove any fields from the analysis where the given predicate evaluates to ``False`` given the field values.
+        In other words, this removes column(s) from the analysis data where the filter function evaluates to ``False``
         given all the row values.
+
+        .. code:: python
+
+            >>> print(ja)
+
+            | OK    | Name  | Step | Energy |
+            |-------|-------|------|--------|
+            | True  | job_1 | 1    | 42.1   |
+            | True  | job_1 | 2    | 43.2   |
+            | True  | job_1 | 3    | 42.5   |
+            | True  | job_2 | 1    | 84.5   |
+            | True  | job_2 | 1    | 112.2  |
+
+            >>> print(ja.filter_fields(lambda vals: all([not isinstance(v, int) or v > 50 for v in vals])))
+
+            | Name  | Energy |
+            |-------|--------|
+            | job_1 | 42.1   |
+            | job_1 | 43.2   |
+            | job_1 | 42.5   |
+            | job_2 | 84.5   |
+            | job_2 | 112.2  |
+
+        :param key: unique identifier of the field
+        :return: updated instance of |JobAnalysis|
 
         :param predicate: filter function which takes values and evaluates to ``True``/``False``
         :return: updated instance of |JobAnalysis|
@@ -812,6 +1123,22 @@ class JobAnalysis:
         Remove field(s) from the analysis which have ``None`` for all values. This removes column(s) from the analysis data,
         where all rows have empty values.
 
+        .. code:: python
+
+            >>> print(ja.add_parent_name_field())
+
+            | Name  | OK    | ParentName |
+            |-------|-------|------------|
+            | job_1 | True  | None       |
+            | job_2 | True  | None       |
+
+            >>> print(ja.remove_empty_fields())
+
+            | Name  | OK    |
+            |-------|-------|
+            | job_1 | True  |
+            | job_2 | True  |
+
         :return: updated instance of |JobAnalysis|
         """
         return self.filter_fields(lambda vals: any([v is not None for v in vals]))
@@ -820,6 +1147,32 @@ class JobAnalysis:
         """
         Remove field(s) from the analysis which evaluate the same for all values. This removes column(s) from the analysis data,
         where all rows have the same value.
+
+        .. code:: python
+
+            >>> print(ja.add_parent_name_field())
+
+            | Name  | OK    | ParentName |
+            |-------|-------|------------|
+            | job_1 | True  | None       |
+            | job_2 | True  | None       |
+            | job_3 | True  | p_job_4    |
+
+            >>> print(ja.remove_uniform_fields())
+
+            | Name  | ParentName |
+            |-------|------------|
+            | job_1 | None       |
+            | job_2 | None       |
+            | job_3 | p_job_4    |
+
+            >>> print(ja.remove_uniform_fields(ignore_empty=True))
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+            | job_3 |
 
         :param tol: absolute tolerance for numeric value comparison, all values must fall within this range
         :param ignore_empty: when ``True`` ignore ``None`` values in comparison, defaults to ``False``
@@ -855,14 +1208,40 @@ class JobAnalysis:
 
     def add_path_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :attr:`~scm.plams.core.basejob.Job.path`
+        Adds analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
+
+        .. code:: python
+
+            >>> print(ja.add_path_field())
+
+            | Name  | Path        |
+            |-------|-------------|
+            | job_1 | /path/job_1 |
+            | job_2 | /path/job_2 |
+
         :return: updated instance of |JobAnalysis|
         """
         return self._add_standard_field(self._path_field)
 
     def remove_path_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :attr:`~scm.plams.core.basejob.Job.path`
+        Removes analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
+
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | Path        |
+            |-------|-------------|
+            | job_1 | /path/job_1 |
+            | job_2 | /path/job_2 |
+
+            >>> print(ja.remove_path_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -870,14 +1249,40 @@ class JobAnalysis:
 
     def add_name_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :attr:`~scm.plams.core.basejob.Job.name`
+        Adds analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
+
+        .. code:: python
+
+            >>> print(ja.add_name_field())
+
+            | Path        | Name  |
+            |-------------|-------|
+            | /path/job_1 | job_1 |
+            | /path/job_2 | job_2 |
+
         :return: updated instance of |JobAnalysis|
         """
         return self._add_standard_field(self._name_field)
 
     def remove_name_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :attr:`~scm.plams.core.basejob.Job.name`
+        Removes analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
+
+        .. code:: python
+
+            >>> print(ja)
+
+            | Path        | Name  |
+            |-------------|-------|
+            | /path/job_1 | job_1 |
+            | /path/job_2 | job_2 |
+
+            >>> print(ja.remove_name_field())
+
+            | Path        |
+            |-------------|
+            | /path/job_1 |
+            | /path/job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -886,6 +1291,16 @@ class JobAnalysis:
     def add_ok_field(self) -> "JobAnalysis":
         """
         Adds analysis field for :meth:`~scm.plams.core.basejob.Job.ok`
+
+        .. code:: python
+
+            >>> print(ja.add_ok_field())
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+
         :return: updated instance of |JobAnalysis|
         """
         return self._add_standard_field(self._ok_field)
@@ -894,6 +1309,22 @@ class JobAnalysis:
         """
         Removes analysis field for :meth:`~scm.plams.core.basejob.Job.ok`
 
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+
+            >>> print(ja.remove_ok_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
         :return: updated instance of |JobAnalysis|
         """
         return self._remove_standard_field(self._ok_field)
@@ -901,6 +1332,16 @@ class JobAnalysis:
     def add_check_field(self) -> "JobAnalysis":
         """
         Adds analysis field for :meth:`~scm.plams.core.basejob.Job.check`
+
+        .. code:: python
+
+            >>> print(ja.add_check_field())
+
+            | Name  | Check |
+            |-------|-------|
+            | job_1 | True  |
+            | job_2 | True  |
+
         :return: updated instance of |JobAnalysis|
         """
         return self._add_standard_field(self._check_field)
@@ -909,13 +1350,38 @@ class JobAnalysis:
         """
         Removes analysis field for :meth:`~scm.plams.core.basejob.Job.check`
 
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | Check |
+            |-------|-------|
+            | job_1 | True  |
+            | job_2 | True  |
+
+            >>> print(ja.remove_check_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
         :return: updated instance of |JobAnalysis|
         """
         return self._remove_standard_field(self._check_field)
 
     def add_error_msg_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :meth:`~scm.plams.core.basejob.Job.get_erromsg`
+        Adds analysis field for :meth:`~scm.plams.core.basejob.Job.get_errormsg`
+
+        .. code:: python
+
+            >>> print(ja.add_error_msg_field())
+
+            | Name  | ErrorMsg |
+            |-------|----------|
+            | job_1 | None     |
+            | job_2 | None     |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -923,7 +1389,23 @@ class JobAnalysis:
 
     def remove_error_msg_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :meth:`~scm.plams.core.basejob.Job.get_erromsg`
+        Removes analysis field for :meth:`~scm.plams.core.basejob.Job.get_errormsg`
+
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | ErrorMsg |
+            |-------|----------|
+            | job_1 | None     |
+            | job_2 | None     |
+
+            >>> print(ja.remove_error_msg_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -931,7 +1413,16 @@ class JobAnalysis:
 
     def add_parent_name_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :attr:`~scm.plams.core.basejob.Job.name` of :attr:`~scm.plams.core.basejob.Job.parent`
+        Adds analysis field for attribute :attr:`~scm.plams.core.basejob.Job.name` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+
+        .. code:: python
+
+             >>> print(ja.add_parent_name_field())
+
+             | Name  | ParentName |
+             |-------|------------|
+             | job_1 | None       |
+             | job_2 | None       |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -939,7 +1430,23 @@ class JobAnalysis:
 
     def remove_parent_name_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :attr:`~scm.plams.core.basejob.Job.name` of :attr:`~scm.plams.core.basejob.Job.parent`
+        Removes analysis field for attribute :attr:`~scm.plams.core.basejob.Job.name` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | ParentName |
+            |-------|------------|
+            | job_1 | None       |
+            | job_2 | None       |
+
+            >>> print(ja.remove_parent_name_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -947,7 +1454,16 @@ class JobAnalysis:
 
     def add_parent_path_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :attr:`~scm.plams.core.basejob.Job.path` of :attr:`~scm.plams.core.basejob.Job.parent`
+        Adds analysis field for attribute :attr:`~scm.plams.core.basejob.Job.path` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+
+        .. code:: python
+
+             >>> print(ja.add_parent_path_field())
+
+             | Name  | ParentPath |
+             |-------|------------|
+             | job_1 | None       |
+             | job_2 | None       |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -955,7 +1471,23 @@ class JobAnalysis:
 
     def remove_parent_path_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :attr:`~scm.plams.core.basejob.Job.path` of :attr:`~scm.plams.core.basejob.Job.parent`
+        Removes analysis field for attribute :attr:`~scm.plams.core.basejob.Job.path` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+
+        .. code:: python
+
+            >>> print(ja)
+
+            | Name  | ParentPath |
+            |-------|------------|
+            | job_1 | None       |
+            | job_2 | None       |
+
+            >>> print(ja.remove_parent_path_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -963,7 +1495,16 @@ class JobAnalysis:
 
     def add_formula_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :method:`~scm.plams.mol.molecule.Molecule.get_formula` of :attr:`~scm.plams.core.basejob.SingleJob.molecule` and derived classes
+        Adds analysis field for :meth:`~scm.plams.mol.molecule.Molecule.get_formula` of |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+
+        .. code:: python
+
+             >>> print(ja.add_formula_field())
+
+             | Name  | Formula |
+             |-------|---------|
+             | job_1 | H3N     |
+             | job_2 | C2H4    |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -971,7 +1512,23 @@ class JobAnalysis:
 
     def remove_formula_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :method:`~scm.plams.mol.molecule.Molecule.get_formula` of :attr:`~scm.plams.core.basejob.SingleJob.molecule` and derived classes
+        Removes analysis field for :meth:`~scm.plams.mol.molecule.Molecule.get_formula` of |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+
+        .. code:: python
+
+            >>> print(ja)
+
+             | Name  | Formula |
+             |-------|---------|
+             | job_1 | H3N     |
+             | job_2 | C2H4    |
+
+            >>> print(ja.remove_formula_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -979,7 +1536,16 @@ class JobAnalysis:
 
     def add_smiles_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` with :attr:`~scm.plams.core.basejob.SingleJob.molecule` and derived classes
+        Adds analysis field for :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+
+        .. code:: python
+
+             >>> print(ja.add_smiles_field())
+
+             | Name  | Smiles |
+             |-------|--------|
+             | job_1 | N      |
+             | job_2 | C=C    |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -987,7 +1553,23 @@ class JobAnalysis:
 
     def remove_smiles_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` with :attr:`~scm.plams.core.basejob.SingleJob.molecule` and derived classes
+        Removes analysis field for :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+
+        .. code:: python
+
+            >>> print(ja)
+
+             | Name  | Smiles |
+             |-------|--------|
+             | job_1 | N      |
+             | job_2 | C=C    |
+
+            >>> print(ja.remove_smiles_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -995,7 +1577,16 @@ class JobAnalysis:
 
     def add_cpu_time_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_readrkf` with ``General/CPUTime`` for :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results` and derived classes
+        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/CPUTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+
+        .. code:: python
+
+             >>> print(ja.add_cpu_time_field())
+
+             | Name  | CPUTime  |
+             |-------|----------|
+             | job_1 | 2.195242 |
+             | job_2 | 1.909444 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -1003,7 +1594,23 @@ class JobAnalysis:
 
     def remove_cpu_time_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_readrkf` with ``General/CPUTime`` for :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results` and derived classes
+        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/CPUTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+
+        .. code:: python
+
+            >>> print(ja)
+
+             | Name  | CPUTime  |
+             |-------|----------|
+             | job_1 | 2.195242 |
+             | job_2 | 1.909444 |
+
+            >>> print(ja.remove_cpu_time_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -1011,7 +1618,16 @@ class JobAnalysis:
 
     def add_sys_time_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_readrkf` with ``General/SysTime`` for :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results` and derived classes
+        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/SysTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+
+        .. code:: python
+
+             >>> print(ja.add_sys_time_field())
+
+             | Name  | SysTime  |
+             |-------|----------|
+             | job_1 | 0.137470 |
+             | job_2 | 0.121350 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -1019,7 +1635,23 @@ class JobAnalysis:
 
     def remove_sys_time_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_readrkf` with ``General/SysTime`` for :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results` and derived classes
+        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/SysTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+
+        .. code:: python
+
+            >>> print(ja)
+
+             | Name  | SysTime  |
+             |-------|----------|
+             | job_1 | 0.137470 |
+             | job_2 | 0.121350 |
+
+            >>> print(ja.remove_sys_time_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -1027,7 +1659,16 @@ class JobAnalysis:
 
     def add_elapsed_time_field(self) -> "JobAnalysis":
         """
-        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_readrkf` with ``General/ElapsedTime`` for :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results` and derived classes
+        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/ElapsedTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+
+        .. code:: python
+
+             >>> print(ja.add_elapsed_time_field())
+
+             | Name  | ElapsedTime |
+             |-------|-------------|
+             | job_1 | 3.563726    |
+             | job_2 | 2.849558    |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -1035,7 +1676,23 @@ class JobAnalysis:
 
     def remove_elapsed_time_field(self) -> "JobAnalysis":
         """
-        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_readrkf` with ``General/ElapsedTime`` for :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results` and derived classes
+        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/ElapsedTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+
+        .. code:: python
+
+            >>> print(ja)
+
+             | Name  | ElapsedTime |
+             |-------|-------------|
+             | job_1 | 3.563726    |
+             | job_2 | 2.849558    |
+
+            >>> print(ja.remove_elapsed_time_field())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :return: updated instance of |JobAnalysis|
         """
@@ -1044,7 +1701,16 @@ class JobAnalysis:
     def add_settings_field(self, key_tuple: Tuple[Hashable, ...], display_name: Optional[str] = None) -> "JobAnalysis":
         """
         Add a field for a nested key from the job settings to the analysis.
-        The key of the field will be a Pascal-case string of the settings nested key path e.g. ("input", "ams", "task") will appear as field ``InputAmsTask``.
+        The key of the field will be a Pascal-case string of the settings nested key path e.g. ``("input", "ams", "task")`` will appear as field ``InputAmsTask``.
+
+        .. code:: python
+
+            >>> print(ja.add_settings_field(("input", "ams", "task"), display_name="Task"))
+
+            | Name  | Task        |
+            |-------|-------------|
+            | job_1 | SinglePoint |
+            | job_2 | SinglePoint |
 
         :param key_tuple: nested tuple of keys in the settings object
         :param display_name: name which will appear for the field when displayed in table
@@ -1063,6 +1729,15 @@ class JobAnalysis:
         """
         Add a field for all nested keys which satisfy the predicate from the job settings to the analysis.
         The key of the fields will be a Pascal-case string of the settings nested key path e.g. ("input", "ams", "task") will appear as field ``InputAmsTask``.
+
+        .. code:: python
+
+            >>> print(ja.add_settings_fields(lambda k: len(k) >= 3 and k[2].lower() == "xc"))
+
+            | Name  | InputAdfXcDi... | InputAdfXcGg... |
+            |-------|-----------------|-----------------|
+            | job_1 | Grimme3         | PBE             |
+            | job_2 | Grimme3         | PBE             |
 
         :param predicate: optional predicate which evaluates to ``True`` or ``False`` given a nested key, by default will be ``True`` for every key
         :param flatten_list: whether to flatten lists in settings objects
@@ -1111,6 +1786,15 @@ class JobAnalysis:
         """
         Add a field for each input key in the :attr:`~scm.plams.core.basejob.Job.settings` object across all currently added jobs.
 
+        .. code:: python
+
+            >>> print(ja.add_settings_input_fields())
+
+            | Name  | InputAdfBasi... | InputAdfXcDi... | InputAdfXcGg... | InputAmsTask |
+            |-------|-----------------|-----------------|-----------------|--------------|
+            | job_1 | TZP             | Grimme3         | PBE             | SinglePoint  |
+            | job_2 | TZP             | Grimme3         | PBE             | SinglePoint  |
+
         :param include_system_block: whether to include keys for the system block, defaults to ``False``
         :param flatten_list: whether to flatten lists in settings objects
         :return: updated instance of |JobAnalysis|
@@ -1133,6 +1817,15 @@ class JobAnalysis:
         """
         Remove all fields which were added as settings fields.
 
+        .. code:: python
+
+            >>> print(ja.add_settings_input_fields().remove_settings_fields())
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
         :return: updated instance of |JobAnalysis|
         """
         keys = [k for k, f in self._fields.items() if f.from_settings]
@@ -1141,9 +1834,37 @@ class JobAnalysis:
         return self
 
     def __str__(self) -> str:
+        """
+        Get string representation of analysis as Markdown table with a maximum of 5 rows and column width of 12.
+
+        .. code:: python
+
+            >>> print(str(ja))
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+
+        :return: markdown table of analysis
+        """
         return self.to_table(max_col_width=12, max_rows=5)
 
     def __repr__(self) -> str:
+        """
+        Get string representation of analysis as Markdown table with a maximum of 5 rows and column width of 12.
+
+        .. code:: python
+
+            >>> ja
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+
+        :return: markdown table of analysis
+        """
         return self.to_table()
 
     def _repr_html_(self) -> str:
@@ -1153,6 +1874,12 @@ class JobAnalysis:
         """
         Get analysis data for a given field.
 
+        .. code:: python
+
+            >>> print(ja["Name"])
+
+            ['job_1', 'job_2']
+
         :param key: unique identifier for the field
         :return: list of values for each job
         """
@@ -1161,6 +1888,13 @@ class JobAnalysis:
     def __setitem__(self, key: str, value: Callable[[Job], Any]) -> None:
         """
         Set analysis for given field.
+
+        .. code:: python
+
+            >>> ja["N"] = lambda j: len(j.molecule)
+            >>> print(ja["N"])
+
+            [4, 6]
 
         :param key: unique identifier for the field
         :param value: callable to extract the value for the field from a job
@@ -1177,6 +1911,16 @@ class JobAnalysis:
         """
         Delete analysis for given field.
 
+        .. code:: python
+
+            >>> del ja["OK"]
+            >>> print(ja)
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
         :param key: unique identifier for the field
         """
         self.remove_field(key)
@@ -1184,6 +1928,12 @@ class JobAnalysis:
     def __getattr__(self, key: str) -> List[Any]:
         """
         Fallback to get analysis for given field when an attribute is not present.
+
+        .. code:: python
+
+            >>> print(ja.Name)
+
+            ['job_1', 'job_2']
 
         :param key: unique identifier for the field
         :return: list of values for each job
@@ -1199,6 +1949,13 @@ class JobAnalysis:
         """
         Fallback to set analysis for given field.
 
+        .. code:: python
+
+            >>> ja.N = lambda j: len(j.molecule)
+            >>> print(ja.N)
+
+            [4, 6]
+
         :param key: unique identifier for the field
         :param value: callable to extract the value for the field from a job
         """
@@ -1210,6 +1967,16 @@ class JobAnalysis:
     def __delattr__(self, key) -> None:
         """
         Fallback to set analysis for given field.
+
+        .. code:: python
+
+            >>> del ja.OK
+            >>> print(ja)
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
 
         :param key: unique identifier for the field
         """

@@ -136,7 +136,7 @@ class TestJobAnalysis:
 | dummyjob.010 |"""
         )
 
-    def test_add_remove_rename_filter_fields(self, dummy_single_jobs):
+    def test_add_set_remove_rename_filter_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
             .add_formula_field()
@@ -145,7 +145,8 @@ class TestJobAnalysis:
             .add_sys_time_field()
             .add_elapsed_time_field()
             .add_field("Wait", lambda j: j.wait)
-            .add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
+            .set_field("Output", lambda _: None, display_name="foo")
+            .set_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
             .remove_field("Path")
             .rename_field("ErrorMsg", "Err")
         )
