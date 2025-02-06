@@ -161,7 +161,7 @@ class JobAnalysis:
         .. code:: python
 
             >>> ja = JobAnalysis(jobs=[job1, job2], std_fields=["Name", "OK"])
-            >>> print(ja)
+            >>> ja
 
             | Name  | OK   |
             |-------|------|
@@ -202,7 +202,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.copy())
+            >>> ja.copy()
 
             | Name  | OK   |
             |-------|------|
@@ -223,7 +223,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.jobs)
+            >>> ja.jobs
 
             {
                 '/path/job1': <scm.plams.interfaces.adfsuite.ams.AMSJob object at 0x1085a13d0>,
@@ -241,7 +241,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.field_keys)
+            >>> ja.field_keys
 
             ['Name', 'OK']
 
@@ -256,7 +256,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.field_keys)
+            >>> ja.field_keys
 
             {
                 'Name': ['job1', 'job2'],
@@ -652,7 +652,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_job(job3))
+            >>> ja.add_job(job3)
 
             | Name  | OK   |
             |-------|------|
@@ -675,7 +675,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.remove_job(job2))
+            >>> ja.remove_job(job2)
 
             | Name  | OK   |
             |-------|------|
@@ -700,7 +700,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.load_job("path/job3"))
+            >>> ja.load_job("path/job3")
 
             | Name  | OK   |
             |-------|------|
@@ -724,8 +724,8 @@ class JobAnalysis:
             loaders
             if loaders
             else [
-                lambda p: AMSJob.load_external(p),
-                lambda p: SingleJob.load_external(p),
+                AMSJob.load_external,
+                SingleJob.load_external,
             ]
         )
 
@@ -756,7 +756,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | OK    |
             |-------|-------|
@@ -764,7 +764,7 @@ class JobAnalysis:
             | job_2 | True  |
             | job_3 | False |
 
-            >>> print(ja.filter_jobs(lambda data: not data["OK"]))
+            >>> ja.filter_jobs(lambda data: not data["OK"])
 
             | Name  | OK    |
             |-------|-------|
@@ -795,7 +795,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.sort_jobs(field_keys=["Name"], reverse=True))
+            >>> ja.sort_jobs(field_keys=["Name"], reverse=True)
 
             | Name  | OK    |
             |-------|-------|
@@ -832,7 +832,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_field("N", lambda j: len(j.molecule), display_name="Num Atoms"))
+            >>> ja.add_field("N", lambda j: len(j.molecule), display_name="Num Atoms")
 
             | Name  | OK    | Num Atoms |
             |-------|-------|-----------|
@@ -866,7 +866,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.set_field("N", lambda j: len(j.molecule), display_name="Num Atoms"))
+            >>> ja.set_field("N", lambda j: len(j.molecule), display_name="Num Atoms")
 
             | Name  | OK    | Num Atoms |
             |-------|-------|-----------|
@@ -891,7 +891,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.format_field("N", "03.0f"))
+            >>> ja.format_field("N", "03.0f")
 
             | Name  | OK    | Num Atoms |
             |-------|-------|-----------|
@@ -913,7 +913,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.rename_field("N", "N Atoms"))
+            >>> ja.rename_field("N", "N Atoms")
 
             | Name  | OK    | N Atoms |
             |-------|-------|---------|
@@ -937,18 +937,18 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja
-            >>>       .add_field("Step", lambda j: get_steps(j))
-            >>>       .add_field("Energy", lambda j: get_energies(j)))
+            >>> (ja
+            >>>  .add_field("Step", lambda j: get_steps(j))
+            >>>  .add_field("Energy", lambda j: get_energies(j)))
 
             | Name  | OK    | Step      | Energy             |
             |-------|-------|-----------|--------------------|
             | job_1 | True  | [1, 2, 3] | [42.1, 43.2, 42.5] |
             | job_2 | True  | [1, 2]    | [84.5, 112.2]      |
 
-            >>> print(ja
-            >>>       .expand_field("Step")
-            >>>       .expand_field("Energy"))
+            >>> (ja
+            >>>  .expand_field("Step")
+            >>>  .expand_field("Energy"))
 
             | Name  | OK    | Step | Energy |
             |-------|-------|------|--------|
@@ -973,7 +973,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | OK    | Step | Energy |
             |-------|-------|------|--------|
@@ -983,9 +983,9 @@ class JobAnalysis:
             | job_2 | True  | 1    | 84.5   |
             | job_2 | True  | 1    | 112.2  |
 
-            >>> print(ja
-            >>>       .collapse_field("Step")
-            >>>       .collapse_field("Energy"))
+            >>> (ja
+            >>>  .collapse_field("Step")
+            >>>  .collapse_field("Energy"))
 
             | Name  | OK    | Step      | Energy             |
             |-------|-------|-----------|--------------------|
@@ -1009,7 +1009,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.reorder_fields(["Name", "Step"]))
+            >>> ja.reorder_fields(["Name", "Step"])
 
             | Name  | Step | OK    | Energy |
             |-------|------|-------|--------|
@@ -1037,7 +1037,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.sort_fields(lambda k: len(k)))
+            >>> ja.sort_fields(lambda k: len(k))
 
             | OK    | Name  | Step | Energy |
             |-------|-------|------|--------|
@@ -1061,9 +1061,9 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja
-            >>>       .remove_field("OK")
-            >>>       .remove_field("N"))
+            >>> (ja
+            >>>  .remove_field("OK")
+            >>>  .remove_field("N"))
 
             | Name  |
             |-------|
@@ -1087,7 +1087,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | OK    | Name  | Step | Energy |
             |-------|-------|------|--------|
@@ -1097,7 +1097,7 @@ class JobAnalysis:
             | True  | job_2 | 1    | 84.5   |
             | True  | job_2 | 1    | 112.2  |
 
-            >>> print(ja.filter_fields(lambda vals: all([not isinstance(v, int) or v > 50 for v in vals])))
+            >>> ja.filter_fields(lambda vals: all([not isinstance(v, int) or v > 50 for v in vals]))
 
             | Name  | Energy |
             |-------|--------|
@@ -1125,14 +1125,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_parent_name_field())
+            >>> ja.add_parent_name_field()
 
             | Name  | OK    | ParentName |
             |-------|-------|------------|
             | job_1 | True  | None       |
             | job_2 | True  | None       |
 
-            >>> print(ja.remove_empty_fields())
+            >>> ja.remove_empty_fields()
 
             | Name  | OK    |
             |-------|-------|
@@ -1150,7 +1150,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_parent_name_field())
+            >>> ja.add_parent_name_field()
 
             | Name  | OK    | ParentName |
             |-------|-------|------------|
@@ -1158,7 +1158,7 @@ class JobAnalysis:
             | job_2 | True  | None       |
             | job_3 | True  | p_job_4    |
 
-            >>> print(ja.remove_uniform_fields())
+            >>> ja.remove_uniform_fields()
 
             | Name  | ParentName |
             |-------|------------|
@@ -1166,7 +1166,7 @@ class JobAnalysis:
             | job_2 | None       |
             | job_3 | p_job_4    |
 
-            >>> print(ja.remove_uniform_fields(ignore_empty=True))
+            >>> ja.remove_uniform_fields(ignore_empty=True)
 
             | Name  |
             |-------|
@@ -1212,7 +1212,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_path_field())
+            >>> ja.add_path_field()
 
             | Name  | Path        |
             |-------|-------------|
@@ -1229,14 +1229,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | Path        |
             |-------|-------------|
             | job_1 | /path/job_1 |
             | job_2 | /path/job_2 |
 
-            >>> print(ja.remove_path_field())
+            >>> ja.remove_path_field()
 
             | Name  |
             |-------|
@@ -1253,7 +1253,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_name_field())
+            >>> ja.add_name_field()
 
             | Path        | Name  |
             |-------------|-------|
@@ -1270,14 +1270,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Path        | Name  |
             |-------------|-------|
             | /path/job_1 | job_1 |
             | /path/job_2 | job_2 |
 
-            >>> print(ja.remove_name_field())
+            >>> ja.remove_name_field()
 
             | Path        |
             |-------------|
@@ -1294,7 +1294,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_ok_field())
+            >>> ja.add_ok_field()
 
             | Name  | OK   |
             |-------|------|
@@ -1311,14 +1311,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | OK   |
             |-------|------|
             | job_1 | True |
             | job_2 | True |
 
-            >>> print(ja.remove_ok_field())
+            >>> ja.remove_ok_field()
 
             | Name  |
             |-------|
@@ -1335,7 +1335,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_check_field())
+            >>> ja.add_check_field()
 
             | Name  | Check |
             |-------|-------|
@@ -1352,14 +1352,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | Check |
             |-------|-------|
             | job_1 | True  |
             | job_2 | True  |
 
-            >>> print(ja.remove_check_field())
+            >>> ja.remove_check_field()
 
             | Name  |
             |-------|
@@ -1376,7 +1376,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_error_msg_field())
+            >>> ja.add_error_msg_field()
 
             | Name  | ErrorMsg |
             |-------|----------|
@@ -1393,14 +1393,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | ErrorMsg |
             |-------|----------|
             | job_1 | None     |
             | job_2 | None     |
 
-            >>> print(ja.remove_error_msg_field())
+            >>> ja.remove_error_msg_field()
 
             | Name  |
             |-------|
@@ -1417,7 +1417,7 @@ class JobAnalysis:
 
         .. code:: python
 
-             >>> print(ja.add_parent_name_field())
+             >>> ja.add_parent_name_field()
 
              | Name  | ParentName |
              |-------|------------|
@@ -1434,14 +1434,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | ParentName |
             |-------|------------|
             | job_1 | None       |
             | job_2 | None       |
 
-            >>> print(ja.remove_parent_name_field())
+            >>> ja.remove_parent_name_field()
 
             | Name  |
             |-------|
@@ -1458,7 +1458,7 @@ class JobAnalysis:
 
         .. code:: python
 
-             >>> print(ja.add_parent_path_field())
+             >>> ja.add_parent_path_field()
 
              | Name  | ParentPath |
              |-------|------------|
@@ -1475,14 +1475,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
             | Name  | ParentPath |
             |-------|------------|
             | job_1 | None       |
             | job_2 | None       |
 
-            >>> print(ja.remove_parent_path_field())
+            >>> ja.remove_parent_path_field()
 
             | Name  |
             |-------|
@@ -1499,7 +1499,7 @@ class JobAnalysis:
 
         .. code:: python
 
-             >>> print(ja.add_formula_field())
+             >>> ja.add_formula_field()
 
              | Name  | Formula |
              |-------|---------|
@@ -1516,14 +1516,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
              | Name  | Formula |
              |-------|---------|
              | job_1 | H3N     |
              | job_2 | C2H4    |
 
-            >>> print(ja.remove_formula_field())
+            >>> ja.remove_formula_field()
 
             | Name  |
             |-------|
@@ -1540,7 +1540,7 @@ class JobAnalysis:
 
         .. code:: python
 
-             >>> print(ja.add_smiles_field())
+             >>> ja.add_smiles_field()
 
              | Name  | Smiles |
              |-------|--------|
@@ -1557,14 +1557,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
              | Name  | Smiles |
              |-------|--------|
              | job_1 | N      |
              | job_2 | C=C    |
 
-            >>> print(ja.remove_smiles_field())
+            >>> ja.remove_smiles_field()
 
             | Name  |
             |-------|
@@ -1581,7 +1581,7 @@ class JobAnalysis:
 
         .. code:: python
 
-             >>> print(ja.add_cpu_time_field())
+             >>> ja.add_cpu_time_field()
 
              | Name  | CPUTime  |
              |-------|----------|
@@ -1598,14 +1598,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
              | Name  | CPUTime  |
              |-------|----------|
              | job_1 | 2.195242 |
              | job_2 | 1.909444 |
 
-            >>> print(ja.remove_cpu_time_field())
+            >>> ja.remove_cpu_time_field()
 
             | Name  |
             |-------|
@@ -1622,7 +1622,7 @@ class JobAnalysis:
 
         .. code:: python
 
-             >>> print(ja.add_sys_time_field())
+             >>> ja.add_sys_time_field()
 
              | Name  | SysTime  |
              |-------|----------|
@@ -1639,14 +1639,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
              | Name  | SysTime  |
              |-------|----------|
              | job_1 | 0.137470 |
              | job_2 | 0.121350 |
 
-            >>> print(ja.remove_sys_time_field())
+            >>> ja.remove_sys_time_field()
 
             | Name  |
             |-------|
@@ -1663,7 +1663,7 @@ class JobAnalysis:
 
         .. code:: python
 
-             >>> print(ja.add_elapsed_time_field())
+             >>> ja.add_elapsed_time_field()
 
              | Name  | ElapsedTime |
              |-------|-------------|
@@ -1680,14 +1680,14 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja)
+            >>> ja
 
              | Name  | ElapsedTime |
              |-------|-------------|
              | job_1 | 3.563726    |
              | job_2 | 2.849558    |
 
-            >>> print(ja.remove_elapsed_time_field())
+            >>> ja.remove_elapsed_time_field()
 
             | Name  |
             |-------|
@@ -1705,7 +1705,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_settings_field(("input", "ams", "task"), display_name="Task"))
+            >>> ja.add_settings_field(("input", "ams", "task"), display_name="Task")
 
             | Name  | Task        |
             |-------|-------------|
@@ -1732,12 +1732,12 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_settings_fields(lambda k: len(k) >= 3 and k[2].lower() == "xc"))
+            >>> ja.add_settings_fields(lambda k: len(k) >= 3 and k[2].lower() == "xc")
 
-            | Name  | InputAdfXcDi... | InputAdfXcGg... |
-            |-------|-----------------|-----------------|
-            | job_1 | Grimme3         | PBE             |
-            | job_2 | Grimme3         | PBE             |
+            | Name  | InputAdfXcDispersion | InputAdfXcGga |
+            |-------|----------------------|---------------|
+            | job_1 | Grimme3              | PBE           |
+            | job_2 | Grimme3              | PBE           |
 
         :param predicate: optional predicate which evaluates to ``True`` or ``False`` given a nested key, by default will be ``True`` for every key
         :param flatten_list: whether to flatten lists in settings objects
@@ -1788,12 +1788,12 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_settings_input_fields())
+            >>> ja.add_settings_input_fields()
 
-            | Name  | InputAdfBasi... | InputAdfXcDi... | InputAdfXcGg... | InputAmsTask |
-            |-------|-----------------|-----------------|-----------------|--------------|
-            | job_1 | TZP             | Grimme3         | PBE             | SinglePoint  |
-            | job_2 | TZP             | Grimme3         | PBE             | SinglePoint  |
+            | Name  | InputAdfBasisType | InputAdfXcDispersion | InputAdfXcGga | InputAmsTask |
+            |-------|-------------------|----------------------|---------------|--------------|
+            | job_1 | TZP               | Grimme3              | PBE           | SinglePoint  |
+            | job_2 | TZP               | Grimme3              | PBE           | SinglePoint  |
 
         :param include_system_block: whether to include keys for the system block, defaults to ``False``
         :param flatten_list: whether to flatten lists in settings objects
@@ -1819,7 +1819,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.add_settings_input_fields().remove_settings_fields())
+            >>> ja.add_settings_input_fields().remove_settings_fields()
 
             | Name  |
             |-------|
@@ -1839,7 +1839,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(str(ja))
+            >>> str(ja)
 
             | Name  | OK   |
             |-------|------|
@@ -1876,7 +1876,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja["Name"])
+            >>> ja["Name"]
 
             ['job_1', 'job_2']
 
@@ -1892,7 +1892,7 @@ class JobAnalysis:
         .. code:: python
 
             >>> ja["N"] = lambda j: len(j.molecule)
-            >>> print(ja["N"])
+            >>> ja["N"]
 
             [4, 6]
 
@@ -1914,7 +1914,7 @@ class JobAnalysis:
         .. code:: python
 
             >>> del ja["OK"]
-            >>> print(ja)
+            >>> ja
 
             | Name  |
             |-------|
@@ -1931,7 +1931,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> print(ja.Name)
+            >>> ja.Name
 
             ['job_1', 'job_2']
 
@@ -1952,7 +1952,7 @@ class JobAnalysis:
         .. code:: python
 
             >>> ja.N = lambda j: len(j.molecule)
-            >>> print(ja.N)
+            >>> ja.N
 
             [4, 6]
 
@@ -1971,7 +1971,7 @@ class JobAnalysis:
         .. code:: python
 
             >>> del ja.OK
-            >>> print(ja)
+            >>> ja
 
             | Name  |
             |-------|

@@ -1,6 +1,9 @@
+import os
+
 import pytest
 import shutil
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from scm.plams.interfaces.molecule.rdkit import from_smiles
 from scm.plams.core.jobmanager import JobManager
@@ -523,6 +526,36 @@ class TestJobAnalysis:
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | ['C', 'C', 'C', 'O', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                          | ['w0', 'w1', 'w2', 'w3'] |
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable                                                             | ['w0', 'w1', 'w2', 'w3'] |"""
         )
+
+    def test_add_job(self, dummy_single_jobs):
+        ja = JobAnalysis()
+        for j in dummy_single_jobs:
+            ja.add_job(j)
+        assert len(ja.jobs) == 10
+
+    @pytest.mark.parametrize("use_custom_loader", [False, True])
+    def test_load_job(self, use_custom_loader, dummy_single_jobs):
+        ja = JobAnalysis(paths=[j.path for j in dummy_single_jobs])
+
+        job = DummySingleJob(molecule=from_smiles("N"), name="dummyloadjob")
+        job.run().wait()
+        path = Path(job.path)
+        dill_file = path / f"{path.name}.dill"
+        os.remove(dill_file)
+
+        if use_custom_loader:
+            calls = []
+
+            def loader(p):
+                calls.append(p)
+                return job
+
+            ja.load_job(job.path, loaders=[loader])
+            assert calls == [job.path]
+        else:
+            ja.load_job(job.path)
+
+        assert len(ja.jobs) == 11
 
     def test_filter_jobs(self, dummy_single_jobs):
         ja = (
