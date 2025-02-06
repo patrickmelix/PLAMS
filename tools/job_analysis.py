@@ -544,7 +544,7 @@ class JobAnalysis:
             for num_intervals in range(max_intervals, 1, -1):
                 interval = (end_time - start_time) / (num_intervals - 1)
                 intervals = [start_time + i * interval for i in range(num_intervals)]
-                str_intervals = [intv.strftime("↓%Y-%m-%d %H:%M:%S") for intv in intervals]
+                str_intervals = [f"↓{intv.strftime('%Y-%m-%d %H:%M:%S')}" for intv in intervals]
                 if len(set(str_intervals)) == len(str_intervals):
                     break
 
