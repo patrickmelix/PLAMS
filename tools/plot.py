@@ -4,7 +4,6 @@ import numpy as np
 from scm.plams.core.errors import MissingOptionalPackageError
 from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.interfaces.molecule.rdkit import to_rdmol
 from scm.plams.mol.molecule import Molecule
 
 if TYPE_CHECKING:
@@ -147,10 +146,13 @@ def plot_grid_molecules(
     """
     from rdkit.Chem import Draw, rdchem
     from rdkit.Chem.Draw import IPythonConsole
+    from scm.plams.interfaces.molecule.rdkit import _rdmol_for_image
 
     # guess bonds, the bonds will be included in the RDKit molecule
-    [m.guess_bonds() for m in molecules]
-    molecules = [to_rdmol(m) for m in molecules]
+    for m in molecules:
+        if len(m.bonds) == 0:
+            m.guess_bonds()
+    molecules = [_rdmol_for_image(m, remove_hydrogens=False) for m in molecules]
 
     if ax is not None or save_svg_path is not None:
         if hasattr(rdchem.Mol, "_repr_svg_"):
@@ -199,7 +201,6 @@ def get_correlation_xy(
     file: str = "ams",
     multiplier: float = 1.0,
 ) -> Tuple:
-
     def tolist(x):
         if isinstance(x, list):
             return x

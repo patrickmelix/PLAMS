@@ -380,15 +380,7 @@ Convert problematic PLAMS Molecule to RDKit Mol
 
     mol = Molecule(badxyz_file)
     mol.guess_bonds()
-    plot_molecule(mol)
-
-
-
-
-.. parsed-literal::
-
-    <AxesSubplot: >
-
+    plot_molecule(mol);
 
 
 
