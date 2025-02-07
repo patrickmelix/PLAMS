@@ -76,13 +76,11 @@ will apply to only a single geometry optimization.
 .. code:: ipython3
 
     stackmol = Molecule()
+    s = Settings()
+    s.input.ams.Constraints.Atom = [1, 2, 3, 4, 5, 6]
     for i, mol in enumerate(molecules):
-        # Set the constraints each time
-        s = Settings()
-        s.input.ams.Constraints.Atom = [1, 2, 3, 4, 5, 6]
-        worker.SetConstraints(s, mol)
-    
-        results = worker.GeometryOptimization("constrained%i" % (i), mol)
+        # Pass the constraints to the optimizer
+        results = worker.GeometryOptimization("constrained%i" % (i), mol, constraints=s)
         stackmol += results.get_main_molecule()
     
     plot_molecule(stackmol);
@@ -92,8 +90,9 @@ will apply to only a single geometry optimization.
 .. image:: ConstrainedGOAMSWorker_files/ConstrainedGOAMSWorker_7_0.png
 
 
-If we set contraints on one molecule, and then run a geometry
-optimization on another molecule, this will result in an error.
+If we use contraints designed for one molecule in a geometry
+optimization for a different molecule, this may result in an error. We
+can look at the error message to check.
 
 .. code:: ipython3
 
@@ -101,32 +100,13 @@ optimization on another molecule, this will result in an error.
     from scm.plams import from_smiles
     from scm.amspipe import AMSPipeError
     
-    s = Settings()
-    s.input.ams.Constraints.Atom = [1, 2, 3, 4, 5, 6]
-    worker.SetConstraints(s, mol)
-    
-    try:
-        results = worker.GeometryOptimization("water", from_smiles("O"))
-    except (JobError, AMSPipeError) as exc:
-        print(str(exc))
+    results = worker.GeometryOptimization("water", from_smiles("O"), constraints=s)
+    print(results.get_errormsg())
 
 
 .. parsed-literal::
 
-    Optimize: Chemical system does not match constraints
-
-
-If we then run the geometry optimization again, the constraints will no
-longer apply.
-
-.. code:: ipython3
-
-    results = worker.GeometryOptimization("water", from_smiles("O"))
-    plot_molecule(results.get_main_molecule());
-
-
-
-.. image:: ConstrainedGOAMSWorker_files/ConstrainedGOAMSWorker_11_0.png
+    Atom index 4 read from Constraints%Atom[4] is out of range.
 
 
 .. code:: ipython3

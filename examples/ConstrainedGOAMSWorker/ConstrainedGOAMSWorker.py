@@ -46,38 +46,24 @@ plot_molecule(stackmol)
 # We may prefer to perform the optimization while constraining the positions of the benzene carbon atoms, so that the benzene rings can be stacked directly on top of one another. The constraints need to be set by a call to the `SetConstraints()` method of the `AMSWorker`, and will apply to only a single geometry optimization.
 
 stackmol = Molecule()
+s = Settings()
+s.input.ams.Constraints.Atom = [1, 2, 3, 4, 5, 6]
 for i, mol in enumerate(molecules):
-    # Set the constraints each time
-    s = Settings()
-    s.input.ams.Constraints.Atom = [1, 2, 3, 4, 5, 6]
-    worker.SetConstraints(s, mol)
-
-    results = worker.GeometryOptimization("constrained%i" % (i), mol)
+    # Pass the constraints to the optimizer
+    results = worker.GeometryOptimization("constrained%i" % (i), mol, constraints=s)
     stackmol += results.get_main_molecule()
 
 plot_molecule(stackmol)
 
 
-# If we set contraints on one molecule, and then run a geometry optimization on another molecule, this will result in an error.
+# If we use contraints designed for one molecule in a geometry optimization for a different molecule, this may result in an error. We can look at the error message to check.
 
 from scm.plams import JobError
 from scm.plams import from_smiles
 from scm.amspipe import AMSPipeError
 
-s = Settings()
-s.input.ams.Constraints.Atom = [1, 2, 3, 4, 5, 6]
-worker.SetConstraints(s, mol)
-
-try:
-    results = worker.GeometryOptimization("water", from_smiles("O"))
-except (JobError, AMSPipeError) as exc:
-    print(str(exc))
-
-
-# If we then run the geometry optimization again, the constraints will no longer apply.
-
-results = worker.GeometryOptimization("water", from_smiles("O"))
-plot_molecule(results.get_main_molecule())
+results = worker.GeometryOptimization("water", from_smiles("O"), constraints=s)
+print(results.get_errormsg())
 
 
 worker.stop()

@@ -392,6 +392,8 @@ _arg2setting["task"] = ("input", "ams", "task")
 _arg2setting["usesymmetry"] = ("input", "ams", "usesymmetry")
 _arg2setting["method"] = ("input", "ams", "geometryoptimization", "method")
 
+_arg2setting["constraints"] = ("constraints",)
+
 _setting2arg = {s: a for a, s in _arg2setting.items()}
 
 
@@ -848,6 +850,7 @@ class AMSWorker:
         convgradients=None,
         convstep=None,
         convstressenergyperatom=None,
+        constraints=None,
     ):
         from scm.amspipe import AMSPipeRuntimeError
 
@@ -882,6 +885,12 @@ class AMSWorker:
                 args["prevTitle"] = prev_results.name
 
             if task.lower() == "geometryoptimization":
+                if constraints is not None:
+                    self._call("SetConstraints", {"textInput": constraints})
+                    # Note: If this fails, the PipeApplication will have called StopIt.
+                    #       This will be noticed no sooner than during the Optimize call.
+                    #       I could check for it here, with a Hello call, but this will not
+                    #       improve the error message.
                 if method is not None:
                     args["method"] = str(method)
                 if coordinatetype is not None:
@@ -1034,6 +1043,7 @@ class AMSWorker:
         convgradients=None,
         convstep=None,
         convstressenergyperatom=None,
+        constraints=None,
     ):
         """Performs a geometry optimization on the |Molecule| instance *molecule* and returns an instance of |AMSWorkerResults| containing the results from the optimized geometry.
 
@@ -1059,6 +1069,9 @@ class AMSWorker:
         del args["self"]
         del args["name"]
         del args["molecule"]
+        if constraints is not None:
+            text = AMSJob(settings=constraints).get_input()
+            args["constraints"] = text
         s = self._args_to_settings(**args)
         s.input.ams.task = "geometryoptimization"
         return self._solve_from_settings(name, molecule, s)
@@ -1170,20 +1183,6 @@ class AMSWorker:
         args = {"title": str(name)}
 
         self._call("DeleteMDState", args)
-
-    def SetConstraints(self, constraintSettings, molecule):
-        """
-        Pass Constraints to pipe application. Should be called before geometry optimization.
-
-        * ``constraintSettings`` -- A settings object describing the constraints (s.ams.input.Constraints)
-        * ``molecule`` -- PLAMS Molecule object. Needs to be set, before constraints can be defined
-
-        Note: Does not yet work for MolecularDynamics call.
-        """
-        self._prepare_system(molecule)
-        text = AMSJob(settings=constraintSettings).get_input()
-        args = {"textInput": text}
-        self._call("SetConstraints", args)
 
     def ParseInput(self, program_name, text_input, string_leafs):
         """Parse the text input and return a Python dictionary representing the JSONified input.
