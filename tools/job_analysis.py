@@ -345,6 +345,7 @@ class JobAnalysis:
         :return: analysis data as a dataframe
         """
         from pandas import DataFrame
+
         return DataFrame(self.get_analysis())
 
     def to_table(

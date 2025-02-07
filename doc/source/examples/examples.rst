@@ -21,6 +21,7 @@ Getting Started
    He2DissociationCurve/He2DissociationCurve
    ManyJobsInParallel/ManyJobsInParallel
    Logging/Logging
+   JobAnalysis/JobAnalysis
 
 Molecule analysis
 ---------------------

@@ -108,10 +108,15 @@ try:
             JobAnalysis(std_fields=None)
             .add_job(job)
             .add_field(
-                "Id", lambda j: list(range(1, len(get_conformers(j)) + 1)), display_name="Conformer Id", expand=True
+                "Id",
+                lambda j: list(range(1, len(get_conformers(j)) + 1)),
+                display_name="Conformer Id",
+                expansion_depth=1,
             )
-            .add_field("Energies", get_energies, display_name=get_energy_header(), expand=True, fmt=".2f")
-            .add_field("Populations", get_populations, display_name=get_population_header(), expand=True, fmt=".3f")
+            .add_field("Energies", get_energies, display_name=get_energy_header(), expansion_depth=1, fmt=".2f")
+            .add_field(
+                "Populations", get_populations, display_name=get_population_header(), expansion_depth=1, fmt=".3f"
+            )
         )
 
         # Pretty-print if running in a notebook

@@ -102,13 +102,21 @@ try:
             "Id",
             lambda j: list(range(1, len(j.results.get_conformers()) + 1)),
             display_name="Conformer Id",
-            expand=True,
+            expansion_depth=1,
         )
         .add_field(
-            "Energies", lambda j: j.results.get_relative_energies("kcal/mol"), display_name="E", expand=True, fmt=".2f"
+            "Energies",
+            lambda j: j.results.get_relative_energies("kcal/mol"),
+            display_name="E",
+            expansion_depth=1,
+            fmt=".2f",
         )
         .add_field(
-            "Populations", lambda j: j.results.get_boltzmann_distribution(298), display_name="P", expand=True, fmt=".3f"
+            "Populations",
+            lambda j: j.results.get_boltzmann_distribution(298),
+            display_name="P",
+            expansion_depth=1,
+            fmt=".3f",
         )
     )
 
