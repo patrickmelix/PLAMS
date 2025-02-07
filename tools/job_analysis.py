@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, Sequence, Union, Dict, List, Callable, Any, Tuple, Hashable, Set, Literal
+from typing import Optional, Sequence, Union, Dict, List, Callable, Any, Tuple, Hashable, Set, Literal, TYPE_CHECKING
 import os
 import csv
 from pathlib import Path
@@ -27,19 +27,15 @@ except ImportError:
     _has_scm_libbase = False
 
 try:
-    from pandas import DataFrame
-
-    _has_pandas = True
-except ImportError:
-    _has_pandas = False
-
-try:
     from scm.pisa.block import DriverBlock
     from scm.pisa.input_def import DRIVER_BLOCK_FILES, ENGINE_BLOCK_FILES
 
     _has_scm_pisa = True
 except ImportError:
     _has_scm_pisa = False
+
+if TYPE_CHECKING:
+    from pandas import DataFrame
 
 
 __all__ = ["JobAnalysis"]
@@ -277,7 +273,11 @@ class JobAnalysis:
                     valid_expand_fields = {
                         f
                         for f in expand_fields
-                        if isinstance(job_data[f], (Sequence, np.ndarray)) and not isinstance(job_data[f], str)
+                        if (
+                            isinstance(job_data[f], Sequence)
+                            or (isinstance(job_data[f], np.ndarray) and job_data[f].shape != ())
+                        )
+                        and not isinstance(job_data[f], str)
                     }
                     # Number of rows is the maximum expanded field
                     num_expanded_rows = max([len(job_data[f]) for f in valid_expand_fields], default=1)
@@ -332,7 +332,7 @@ class JobAnalysis:
     def to_dataframe(self) -> "DataFrame":
         """
         Converts analysis data to a dataframe. The column names are the field keys and the column values are the values for each job.
-        This method requires the `pandas <https://pandas.pydata.org/docs/index.html>`__ package.
+        This method requires the `pandas <https://pandas.pydata.org/docs/index.html>`_ package.
 
         .. code:: python
 
@@ -344,6 +344,7 @@ class JobAnalysis:
 
         :return: analysis data as a dataframe
         """
+        from pandas import DataFrame
         return DataFrame(self.get_analysis())
 
     def to_table(
@@ -760,8 +761,8 @@ class JobAnalysis:
 
     def filter_jobs(self, predicate: Callable[[Dict[str, Any]], bool]) -> "JobAnalysis":
         """
-        Remove any jobs from the analysis where the given predicate for field values evaluates to ``False``.
-        In other words, this removes rows(s) from the analysis data where the filter function evaluates to ``True`` given a dictionary of the row data.
+        Retain jobs from the analysis where the given predicate for field values evaluates to ``True``.
+        In other words, this removes rows(s) from the analysis data where the filter function evaluates to ``False`` given a dictionary of the row data.
 
         .. code:: python
 
@@ -948,7 +949,7 @@ class JobAnalysis:
         self._fields[key] = replace(self._fields[key], display_name=display_name)
         return self
 
-    def expand_field(self, key: str, expansion_depth: int = 1) -> "JobAnalysis":
+    def expand_field(self, key: str, depth: int = 1) -> "JobAnalysis":
         """
         Expand field of multiple values into multiple rows for each job.
         For nested values, the depth can be provided to determine the level of recursive expansion.
@@ -977,13 +978,13 @@ class JobAnalysis:
             | job_2 | True  | 1    | 112.2  |
 
         :param key: unique identifier of field to expand
-        :param expansion_depth: depth of recursive expansion, defaults to 1
+        :param depth: depth of recursive expansion, defaults to 1
         :return: updated instance of |JobAnalysis|
         """
         if key not in self._fields:
             raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        self._fields[key].expansion_depth = expansion_depth
+        self._fields[key].expansion_depth = depth
         return self
 
     def collapse_field(self, key: str) -> "JobAnalysis":
@@ -1100,7 +1101,7 @@ class JobAnalysis:
 
     def filter_fields(self, predicate: Callable[[List[Any]], bool]) -> "JobAnalysis":
         """
-        Remove any fields from the analysis where the given predicate evaluates to ``False`` given the field values.
+        Retain fields from the analysis where the given predicate evaluates to ``True`` given the field values.
         In other words, this removes column(s) from the analysis data where the filter function evaluates to ``False``
         given all the row values.
 
@@ -1160,7 +1161,22 @@ class JobAnalysis:
 
         :return: updated instance of |JobAnalysis|
         """
-        return self.filter_fields(lambda vals: any([v is not None for v in vals]))
+        return self.filter_fields(lambda vals: any([not self._is_empty_value(v) for v in vals]))
+
+    @staticmethod
+    def _is_empty_value(val) -> bool:
+        """
+        Check if a value is considered empty i.e. is ``None`` or has no value.
+        """
+        if val is None:
+            return True
+
+        if isinstance(val, np.ndarray):
+            return val.shape == () and val.item() is None
+        elif isinstance(val, (Sequence, Dict)):
+            return len(val) == 0
+
+        return False
 
     def remove_uniform_fields(self, tol: float = 1e-08, ignore_empty: bool = False) -> "JobAnalysis":
         """
@@ -1194,13 +1210,16 @@ class JobAnalysis:
             | job_3 |
 
         :param tol: absolute tolerance for numeric value comparison, all values must fall within this range
-        :param ignore_empty: when ``True`` ignore ``None`` values in comparison, defaults to ``False``
+        :param ignore_empty: when ``True`` ignore ``None`` values and empty containers in comparison, defaults to ``False``
         :return: updated instance of |JobAnalysis|
         """
 
         def is_uniform(vals: List[Any]):
+            """
+            Check if a list of values is considered uniform
+            """
             # Skip over None values if set to be ignored
-            vals = [v for v in vals if v is not None or not ignore_empty]
+            vals = [v for v in vals if not self._is_empty_value(v) or not ignore_empty]
             # Empty list is uniform
             if not vals:
                 return True
@@ -1209,7 +1228,15 @@ class JobAnalysis:
                 return np.ptp(vals) <= tol
 
             # Check if all iterable values, and if so evaluate elements individually
-            if all([isinstance(v, (list, tuple, np.ndarray)) for v in vals]):
+            if all(
+                [
+                    (
+                        (isinstance(v, Sequence) and not isinstance(v, str))
+                        or (isinstance(v, np.ndarray) and v.shape != ())
+                    )
+                    for v in vals
+                ]
+            ):
                 l = len(vals[0])
                 if any(len(v) != l for v in vals):
                     return False
@@ -1734,7 +1761,13 @@ class JobAnalysis:
         """
         return self._remove_standard_field(self._elapsed_time_field)
 
-    def add_settings_field(self, key_tuple: Tuple[Hashable, ...], display_name: Optional[str] = None) -> "JobAnalysis":
+    def add_settings_field(
+        self,
+        key_tuple: Tuple[Hashable, ...],
+        display_name: Optional[str] = None,
+        fmt: Optional[str] = None,
+        expansion_depth: int = 0,
+    ) -> "JobAnalysis":
         """
         Add a field for a nested key from the job settings to the analysis.
         The key of the field will be a Pascal-case string of the settings nested key path e.g. ``("input", "ams", "task")`` will appear as field ``InputAmsTask``.
@@ -1750,10 +1783,18 @@ class JobAnalysis:
 
         :param key_tuple: nested tuple of keys in the settings object
         :param display_name: name which will appear for the field when displayed in table
+        :param fmt: string format for how field values are displayed in table
+        :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
         :return: updated instance of |JobAnalysis|
         """
         key = "".join([str(k).title() for k in key_tuple])
-        self.add_field(key, lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k), display_name=display_name)
+        self.add_field(
+            key,
+            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),
+            display_name=display_name,
+            fmt=fmt,
+            expansion_depth=expansion_depth,
+        )
         self._fields[key].from_settings = True
         return self
 

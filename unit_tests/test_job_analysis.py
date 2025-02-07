@@ -150,6 +150,12 @@ class TestJobAnalysis:
             .add_field("Wait", lambda j: j.wait)
             .set_field("Output", lambda _: None, display_name="foo")
             .set_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
+            .add_field(
+                "Empty",
+                lambda j: (
+                    [] if j.wait == 0.01 else () if j.wait == 0.02 else np.array(None) if j.wait == 0.03 else None
+                ),
+            )
             .remove_field("Path")
             .rename_field("ErrorMsg", "Err")
         )
@@ -157,18 +163,18 @@ class TestJobAnalysis:
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | Err  | Formula | Smiles | CPUTime | SysTime | ElapsedTime | Wait | Output |
-|--------------|------|-------|------|---------|--------|---------|---------|-------------|------|--------|
-| dummyjob     | True | True  | None | C2H6    | CC     | None    | None    | None        | 0.0  | Dummy  |
-| dummyjob.002 | True | True  | None | CH4     | C      | None    | None    | None        | 0.01 | Dummy  |
-| dummyjob.003 | True | True  | None | H2O     | O      | None    | None    | None        | 0.02 | Dummy  |
-| dummyjob.004 | True | True  | None | CH4O    | CO     | None    | None    | None        | 0.03 | Dummy  |
-| dummyjob.005 | True | True  | None | C3H8    | CCC    | None    | None    | None        | 0.04 | Dummy  |
-| dummyjob.006 | True | True  | None | C4H10   | CCCC   | None    | None    | None        | 0.05 | Dummy  |
-| dummyjob.007 | True | True  | None | C3H8O   | CCCO   | None    | None    | None        | 0.06 | Dummy  |
-| dummyjob.008 | True | True  | None | C6H14   | CCCCCC | None    | None    | None        | 0.07 | Dummy  |
-| dummyjob.009 | True | True  | None | C4H10O  | CCCOC  | None    | None    | None        | 0.08 | Dummy  |
-| dummyjob.010 | True | True  | None | None    | None   | None    | None    | None        | 0.09 | Dummy  |"""
+| Name         | OK   | Check | Err  | Formula | Smiles | CPUTime | SysTime | ElapsedTime | Wait | Output | Empty |
+|--------------|------|-------|------|---------|--------|---------|---------|-------------|------|--------|-------|
+| dummyjob     | True | True  | None | C2H6    | CC     | None    | None    | None        | 0.0  | Dummy  | None  |
+| dummyjob.002 | True | True  | None | CH4     | C      | None    | None    | None        | 0.01 | Dummy  | []    |
+| dummyjob.003 | True | True  | None | H2O     | O      | None    | None    | None        | 0.02 | Dummy  | ()    |
+| dummyjob.004 | True | True  | None | CH4O    | CO     | None    | None    | None        | 0.03 | Dummy  | None  |
+| dummyjob.005 | True | True  | None | C3H8    | CCC    | None    | None    | None        | 0.04 | Dummy  | None  |
+| dummyjob.006 | True | True  | None | C4H10   | CCCC   | None    | None    | None        | 0.05 | Dummy  | None  |
+| dummyjob.007 | True | True  | None | C3H8O   | CCCO   | None    | None    | None        | 0.06 | Dummy  | None  |
+| dummyjob.008 | True | True  | None | C6H14   | CCCCCC | None    | None    | None        | 0.07 | Dummy  | None  |
+| dummyjob.009 | True | True  | None | C4H10O  | CCCOC  | None    | None    | None        | 0.08 | Dummy  | None  |
+| dummyjob.010 | True | True  | None | None    | None   | None    | None    | None        | 0.09 | Dummy  | None  |"""
         )
 
         ja.remove_empty_fields()
@@ -507,7 +513,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | [['w0', 'w1', 'w2', 'w3']] |"""
         )
 
-        ja.expand_field("MultiValue", expansion_depth=2)
+        ja.expand_field("MultiValue", depth=2)
 
         assert (
             ja.to_table(max_rows=1000)
@@ -611,7 +617,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | ['w0', 'w1', 'w2', 'w3'] |"""
         )
 
-        ja.expand_field("MultiValue", expansion_depth=100)
+        ja.expand_field("MultiValue", depth=100)
 
         assert (
             ja.to_table(max_rows=1000)
