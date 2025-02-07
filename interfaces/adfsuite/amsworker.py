@@ -1061,6 +1061,8 @@ class AMSWorker:
         - *convgradients*: Convergence criterion for the gradients (in Hartree/Bohr).
         - *convstep*: Convergence criterion for displacements (in Bohr).
         - *convstressenergyperatom*: Convergence criterion for the stress energy per atom (in Hartree).
+        - *constraints*: A PLAMS Settings object defining the constraints, as they would be passed to a PLAMS job
+                         (e.g. s.input.ams.Constraints.Atoms = [1, 2, 3, 4], where s is a Settings object).
         """
         gradients = True
         if optimizelattice:
@@ -1468,6 +1470,14 @@ class AMSWorkerPool:
 
         The *items* argument is expected to be an iterable of 2-tuples ``(name, molecule)`` and/or 3-tuples ``(name, molecule, kwargs)``, which are passed on to the :meth:`GeometryOptimization <AMSWorker.GeometryOptimization>` method of the pool's |AMSWorker| instances. (Here ``kwargs`` is a dictionary containing the optional keyword arguments and their values for this method.)
         """
+        # Convert the constraints from settings to text
+        for item in items:
+            if len(item) == 3:
+                name, mol, kwargs = item
+                if "constraints" in kwargs:
+                    if kwargs["constraints"] is not None:
+                        text = AMSJob(settings=kwargs["constraints"]).get_input()
+                        kwargs["constraints"] = text
         solve_items = self._prep_solve_from_settings("GeometryOptimization", items)
         return self._solve_from_settings(solve_items, watch, watch_interval)
 
