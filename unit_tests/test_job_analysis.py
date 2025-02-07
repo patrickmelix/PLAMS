@@ -1,5 +1,5 @@
 import os
-
+import numpy as np
 import pytest
 import shutil
 from datetime import datetime, timedelta
@@ -230,6 +230,37 @@ class TestJobAnalysis:
 | None    |"""
         )
 
+        ja.add_field(
+            "MultiValue",
+            lambda _: [[np.array([i if i != 1 else None for i in range(3)]) for _ in range(4)] for _ in range(5)],
+        )
+        ja.add_field(
+            "Dict",
+            lambda j: (
+                {"a": (1, 2), "b": None, "c": {"d": [1, 2, 3], "e": None}}
+                if j.wait < 0.05
+                else {"b": "f", "c": {"e": "g", "d": [1, 2, 3]}, "a": (1, 2)}
+            ),
+        )
+        ja.remove_uniform_fields(ignore_empty=True)
+
+        assert (
+            ja.to_table()
+            == """\
+| Formula |
+|---------|
+| C2H6    |
+| CH4     |
+| H2O     |
+| CH4O    |
+| C3H8    |
+| C4H10   |
+| C3H8O   |
+| C6H14   |
+| C4H10O  |
+| None    |"""
+        )
+
     def test_format_field(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
@@ -266,110 +297,110 @@ class TestJobAnalysis:
             .remove_path_field()
             .add_formula_field()
             .add_smiles_field()
-            .add_field("Atoms", lambda j: [at.symbol for at in j.molecule], expand=True)
-            .add_field("MultiValue", lambda j: [f"w{i}" for i in range(int(j.wait * 100) // 2)])
+            .add_field("Atoms", lambda j: [at.symbol for at in j.molecule], expansion_depth=1)
+            .add_field("MultiValue", lambda j: [[[f"w{i}" for i in range(int(j.wait * 100) // 2)]]])
         )
 
         assert (
             ja.to_table(max_rows=1000)
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Atoms                                    | MultiValue               |
-|--------------|------|-------|----------|---------|--------|------------------------------------------|--------------------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | []                       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | []                       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | []                       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | []                       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | []                       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | []                       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | []                       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | []                       |
-| dummyjob.002 | True | True  | None     | CH4     | C      | C                                        | []                       |
-| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | []                       |
-| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | []                       |
-| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | []                       |
-| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | []                       |
-| dummyjob.003 | True | True  | None     | H2O     | O      | O                                        | ['w0']                   |
-| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | ['w0']                   |
-| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | ['w0']                   |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | C                                        | ['w0']                   |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | O                                        | ['w0']                   |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | ['w0']                   |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | ['w0']                   |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | ['w0']                   |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | ['w0']                   |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | ['w0', 'w1']             |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | O                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | ['w0', 'w1', 'w2']       |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | O                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | ['w0', 'w1', 'w2', 'w3'] |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Atoms                                    | MultiValue                   |
+|--------------|------|-------|----------|---------|--------|------------------------------------------|------------------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | [[[]]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | [[[]]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | [[[]]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | [[[]]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | [[[]]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | [[[]]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | [[[]]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | [[[]]]                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | C                                        | [[[]]]                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | [[[]]]                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | [[[]]]                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | [[[]]]                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | [[[]]]                       |
+| dummyjob.003 | True | True  | None     | H2O     | O      | O                                        | [[['w0']]]                   |
+| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | [[['w0']]]                   |
+| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | [[['w0']]]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | C                                        | [[['w0']]]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | O                                        | [[['w0']]]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | [[['w0']]]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | [[['w0']]]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | [[['w0']]]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | [[['w0']]]                   |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | [[['w0', 'w1']]]             |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | O                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | O                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | [[['w0', 'w1', 'w2', 'w3']]] |"""
         )
 
         ja.expand_field("MultiValue")
@@ -377,17 +408,223 @@ class TestJobAnalysis:
         assert (
             ja.to_table(max_rows=1000)
             == """\
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Atoms                                    | MultiValue                 |
+|--------------|------|-------|----------|---------|--------|------------------------------------------|----------------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | [[]]                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | None                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | C                                        | [[]]                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                       |
+| dummyjob.003 | True | True  | None     | H2O     | O      | O                                        | [['w0']]                   |
+| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | None                       |
+| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | None                       |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | C                                        | [['w0']]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | O                                        | None                       |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                       |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                       |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                       |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | [['w0', 'w1']]             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | [['w0', 'w1']]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | [['w0', 'w1', 'w2']]       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | O                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | [['w0', 'w1', 'w2']]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | [['w0', 'w1', 'w2', 'w3']] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | O                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                       |
+| dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | [['w0', 'w1', 'w2', 'w3']] |"""
+        )
+
+        ja.expand_field("MultiValue", expansion_depth=2)
+
+        assert (
+            ja.to_table(max_rows=1000)
+            == """\
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Atoms                                    | MultiValue               |
+|--------------|------|-------|----------|---------|--------|------------------------------------------|--------------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | []                       |
+| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | None                     |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                     |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                     |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                     |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                     |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                     |
+| dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None                     |
+| dummyjob.002 | True | True  | None     | CH4     | C      | C                                        | []                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                     |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                     |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                     |
+| dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None                     |
+| dummyjob.003 | True | True  | None     | H2O     | O      | O                                        | ['w0']                   |
+| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | None                     |
+| dummyjob.003 | True | True  | None     | H2O     | O      | H                                        | None                     |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | C                                        | ['w0']                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | O                                        | None                     |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                     |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                     |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                     |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | ['w0', 'w1']             |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | ['w0', 'w1']             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | ['w0', 'w1', 'w2']       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | O                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | ['w0', 'w1', 'w2']       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | ['w0', 'w1', 'w2', 'w3'] |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | O                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None                     |
+| dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | ['w0', 'w1', 'w2', 'w3'] |"""
+        )
+
+        ja.expand_field("MultiValue", expansion_depth=100)
+
+        assert (
+            ja.to_table(max_rows=1000)
+            == """\
 | Name         | OK   | Check | ErrorMsg | Formula | Smiles | Atoms                                    | MultiValue |
 |--------------|------|-------|----------|---------|--------|------------------------------------------|------------|
 | dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | None       |
-| dummyjob     | True | True  | None     | C2H6    | CC     | C                                        | None       |
 | dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None       |
 | dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None       |
 | dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None       |
 | dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None       |
 | dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None       |
 | dummyjob     | True | True  | None     | C2H6    | CC     | H                                        | None       |
-| dummyjob.002 | True | True  | None     | CH4     | C      | C                                        | None       |
 | dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None       |
 | dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None       |
 | dummyjob.002 | True | True  | None     | CH4     | C      | H                                        | None       |
@@ -404,6 +641,7 @@ class TestJobAnalysis:
 | dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | w0         |
 | dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | w1         |
 | dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | None       |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | C                                        | None       |
 | dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None       |
 | dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None       |
 | dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None       |
@@ -414,6 +652,7 @@ class TestJobAnalysis:
 | dummyjob.005 | True | True  | None     | C3H8    | CCC    | H                                        | None       |
 | dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | w0         |
 | dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | w1         |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None       |
 | dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None       |
 | dummyjob.006 | True | True  | None     | C4H10   | CCCC   | C                                        | None       |
 | dummyjob.006 | True | True  | None     | C4H10   | CCCC   | H                                        | None       |
@@ -429,6 +668,8 @@ class TestJobAnalysis:
 | dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | w0         |
 | dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | w1         |
 | dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | w2         |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | None       |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | C                                        | None       |
 | dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | O                                        | None       |
 | dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None       |
 | dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | H                                        | None       |
@@ -441,6 +682,8 @@ class TestJobAnalysis:
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | w0         |
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | w1         |
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | w2         |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None       |
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None       |
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None       |
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | C                                        | None       |
@@ -461,7 +704,10 @@ class TestJobAnalysis:
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | w0         |
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | w1         |
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | w2         |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | O                                        | w3         |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | w3         |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | O                                        | None       |
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | C                                        | None       |
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None       |
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | H                                        | None       |
@@ -513,18 +759,18 @@ class TestJobAnalysis:
         assert (
             ja.to_table(max_rows=1000)
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Atoms                                                                                                | MultiValue               |
-|--------------|------|-------|----------|---------|--------|------------------------------------------------------------------------------------------------------|--------------------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | ['C', 'C', 'H', 'H', 'H', 'H', 'H', 'H']                                                             | []                       |
-| dummyjob.002 | True | True  | None     | CH4     | C      | ['C', 'H', 'H', 'H', 'H']                                                                            | []                       |
-| dummyjob.003 | True | True  | None     | H2O     | O      | ['O', 'H', 'H']                                                                                      | ['w0']                   |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | ['C', 'O', 'H', 'H', 'H', 'H']                                                                       | ['w0']                   |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | ['C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                                              | ['w0', 'w1']             |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | ['C', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                               | ['w0', 'w1']             |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | ['C', 'C', 'C', 'O', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                                         | ['w0', 'w1', 'w2']       |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | ['C', 'C', 'C', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H'] | ['w0', 'w1', 'w2']       |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | ['C', 'C', 'C', 'O', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                          | ['w0', 'w1', 'w2', 'w3'] |
-| dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable                                                             | ['w0', 'w1', 'w2', 'w3'] |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | Atoms                                                                                                | MultiValue                   |
+|--------------|------|-------|----------|---------|--------|------------------------------------------------------------------------------------------------------|------------------------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | ['C', 'C', 'H', 'H', 'H', 'H', 'H', 'H']                                                             | [[[]]]                       |
+| dummyjob.002 | True | True  | None     | CH4     | C      | ['C', 'H', 'H', 'H', 'H']                                                                            | [[[]]]                       |
+| dummyjob.003 | True | True  | None     | H2O     | O      | ['O', 'H', 'H']                                                                                      | [[['w0']]]                   |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | ['C', 'O', 'H', 'H', 'H', 'H']                                                                       | [[['w0']]]                   |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | ['C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                                              | [[['w0', 'w1']]]             |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | ['C', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                               | [[['w0', 'w1']]]             |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | ['C', 'C', 'C', 'O', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                                         | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | ['C', 'C', 'C', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H'] | [[['w0', 'w1', 'w2']]]       |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | ['C', 'C', 'C', 'O', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H']                          | [[['w0', 'w1', 'w2', 'w3']]] |
+| dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable                                                             | [[['w0', 'w1', 'w2', 'w3']]] |"""
         )
 
     def test_add_job(self, dummy_single_jobs):
