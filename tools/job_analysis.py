@@ -267,7 +267,7 @@ class JobAnalysis:
         if analysis.keys() and self._jobs:
 
             def expand(data):
-                expanded_data = {col_name: [] for col_name in data.keys()}
+                expanded_data: Dict[str, list] = {col_name: [] for col_name in data.keys()}
                 for i in range(len(data[list(data.keys())[0]])):
                     job_data = {col_name: data[i] for col_name, data in data.items()}
                     valid_expand_fields = {
@@ -525,7 +525,7 @@ class JobAnalysis:
         # Calculate different durations
         start_time = min([s[0][0] for _, s in ordered_job_statuses if s], default=None)
         end_time = max([s[-1][0] for _, s in ordered_job_statuses if s], default=None)
-        durations = {"WaitDuration": [], "RunDuration": [], "TotalDuration": []}
+        durations: Dict[str, List[str]] = {"WaitDuration": [], "RunDuration": [], "TotalDuration": []}
         for _, s in ordered_job_statuses:
             wait_duration = "Unknown"
             run_duration = "Unknown"
@@ -1791,7 +1791,7 @@ class JobAnalysis:
         key = "".join([str(k).title() for k in key_tuple])
         self.add_field(
             key,
-            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),
+            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),  # type: ignore
             display_name=display_name,
             fmt=fmt,
             expansion_depth=expansion_depth,
