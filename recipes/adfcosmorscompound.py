@@ -1,6 +1,6 @@
 import os, shutil
 from collections import OrderedDict
-from typing import List, Optional, Union, Dict, Literal
+from typing import List, Optional, Union, Dict, Literal, Tuple
 
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.crs import CRSJob
@@ -60,11 +60,11 @@ class ADFCOSMORSCompoundJob(MultiJob):
     Keyword Args:
         coskf_name  : A name for the generated .coskf file.  If nothing is specified, the name of the job will be used.
         coskf_dir  : The directory in which to place the generated .coskf file.  If nothing is specified, the file will be put in the plams directory corresponding to the job.
-        preoptimization  : If None, do not preoptimize with a fast engine (then initial optimization is done with ADF). Otherwise, can be one of 'UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x'. Note that you need valid licenses for ForceField or DFTB or MLPotential to use these preoptimizers.
+        preoptimization  : If None, do not preoptimize with a fast engine priori to the optimization with ADF. Otherwise, it can be one of 'UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x', 'M3GNet-UP-2022'. Note that you need valid licenses for ForceField or DFTB or MLPotential to use these preoptimizers.
         singlepoint (bool) :  Run a singlepoint in gasphase and with solvation to generate the .coskf file on the given Molecule. (no geometry optimization). Cannot be combined with ``preoptimization``.
-        densf2hbc (bool) : Defaults to True. Performs DENSF analysis to determine the hydrogen bond center (HBC) used in COSMOSAC-DHB-MESP.
         settings (Settings) : A |Settings| object.  settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
         mol_info (dict) : an optional dictionary containing information will be written to the Compound Data section within the COSKF file.
+        densf2hbc (bool) : Defaults to Fasle. Performs DENSF analysis to determine the hydrogen bond center (HBC) used in COSMOSAC-DHB-MESP.
         name : an optional name for the calculation directory
 
     Example:
@@ -96,7 +96,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
         singlepoint: bool = False,
         settings: Optional[Settings] = None,
         mol_info: Optional[Dict[str, Union[float, int, str]]] = None,
-        densf2hbc: bool = True,
+        densf2hbc: bool = False,
         **kwargs,
     ):
         """
@@ -107,9 +107,9 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         Initialize two or three jobs:
 
-        (optional): Preoptimization with force field or semi-empirical method
-        1. Gasphase optimization (BP86, DZP)
-        2. Gasphase optimization (BP86, TZP, BeckeGrid Quality Good)
+        1. (Optional): Preoptimization with force field or semi-empirical method ('UFF', 'GAFF', 'GFNFF', 'GFN1-xTB', 'ANI-2x' or 'M3GNet-UP-2022')
+        Note: A valid license for ForceField or DFTB or MLPotential is required.
+        2. Gasphase optimization or single-point calculation (BP86, TZP, BeckeGrid Quality Good)
         3. Take optimized structure and run singlepoint with implicit solvation
 
         Access the result .coskf file with ``job.results.coskfpath()``.
@@ -126,18 +126,6 @@ class ADFCOSMORSCompoundJob(MultiJob):
         self.mol_info = dict()
         if mol_info is not None:
             self.mol_info.update(mol_info)
-        self.atomic_ion = False  # should be set when molecule is set if using a custom prerun() method
-        if molecule is not None:
-            self.mol_info["Molar Mass"] = molecule.get_mass()
-            self.mol_info["Formula"] = molecule.get_formula()
-            self.atomic_ion = len(molecule.atoms) == 1
-            try:
-                rings = molecule.locate_rings()
-                flatten_atoms = [atom for subring in rings for atom in subring]
-                nring = len(set(flatten_atoms))
-                self.mol_info["Nring"] = int(nring)
-            except:
-                pass
 
         self.settings = settings or Settings()
 
@@ -170,16 +158,18 @@ class ADFCOSMORSCompoundJob(MultiJob):
                 )
                 self.children["preoptimization"] = preoptimization_job
 
-                @add_to_instance(gas_job)
-                def prerun(self):  # noqa: F811
-                    self.molecule = self.parent.children["preoptimization"].results.get_main_molecule()
-
-            else:
-                gas_job.molecule = self.input_molecule
-
         elif singlepoint:
             gas_job.settings.input.ams.Task = "SinglePoint"
-            gas_job.molecule = self.input_molecule
+
+        @add_to_instance(gas_job)
+        def prerun(self):  # noqa: F811
+            if not singlepoint and preoptimization:
+                self.molecule = self.parent.children["preoptimization"].results.get_main_molecule()
+            else:
+                self.molecule = self.parent.input_molecule
+            self.parent.mol_info, self.parent.atomic_ion = ADFCOSMORSCompoundJob.get_compound_properties(
+                self.molecule, self.parent.mol_info
+            )
 
         self.children["gas"] = gas_job
 
@@ -242,6 +232,27 @@ class ADFCOSMORSCompoundJob(MultiJob):
             self.settings.input.compound[0]._h = os.path.join(self.parent.path, self.parent.coskf_name)
 
         self.children["crs"] = crsjob
+
+    @staticmethod
+    def get_compound_properties(
+        mol: Molecule, mol_info: Optional[Dict[str, Union[float, int, str]]] = None
+    ) -> Tuple[Dict[str, Union[float, int, str]], bool]:
+
+        if mol_info is None:
+            mol_info = dict()
+        mol_info["Molar Mass"] = mol.get_mass()
+        mol_info["Formula"] = mol.get_formula()
+        try:
+            rings = mol.locate_rings()
+            flatten_atoms = [atom for subring in rings for atom in subring]
+            nring = len(set(flatten_atoms))
+            mol_info["Nring"] = int(nring)
+        except:
+            pass
+
+        atomic_ion = len(mol.atoms) == 1
+
+        return mol_info, atomic_ion
 
     @staticmethod
     def _get_radii() -> Dict[str, float]:
