@@ -1303,6 +1303,7 @@ class JobAnalysis:
         Adds multiple standard fields to the analysis.
 
         These are:
+
         * ``Path``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
         * ``Name``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
         * ``OK``: for |Job| method :meth:`~scm.plams.core.basejob.Job.ok`
@@ -1345,6 +1346,7 @@ class JobAnalysis:
         Adds a standard field to the analysis.
 
         These are:
+
         * ``Path``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
         * ``Name``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
         * ``OK``: for |Job| method :meth:`~scm.plams.core.basejob.Job.ok`

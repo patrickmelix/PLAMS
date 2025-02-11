@@ -124,4 +124,4 @@ API
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: JobAnalysis
-    :exclude-members: __weakref__, _Field, _get_field_analysis, _add_standard_field, _remove_standard_field, _is_empty_value, _get_job_settings, _repr_html_, __dir__
+    :exclude-members: __weakref__, _Field, _get_field_analysis, _is_empty_value, _get_job_settings, _repr_html_, __dir__
