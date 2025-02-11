@@ -16,7 +16,7 @@ Initial Imports
 
 ::
 
-   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir
+   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir.003
 
 Set Up Job Runner
 ~~~~~~~~~~~~~~~~~
@@ -133,16 +133,16 @@ Run Calculations
 
 ::
 
-   [11.02|16:56:34] JOB Methane_QZ4P STARTED
-   [11.02|16:56:34] JOB Ethane_QZ4P STARTED
-   [11.02|16:56:34] JOB Ethylene_QZ4P STARTED
-   [11.02|16:56:34] JOB Acetylene_QZ4P STARTED
-   [11.02|16:56:34] JOB Methane_TZ2P STARTED
-   [11.02|16:56:34] JOB Methane_QZ4P RUNNING
-   [11.02|16:56:34] JOB Ethane_TZ2P STARTED
-   [11.02|16:56:34] JOB Ethylene_TZ2P STARTED
-   [11.02|16:56:34] JOB Acetylene_TZ2P STARTED
-   [11.02|16:56:34] JOB Acetylene_QZ4P RUNNING
+   [11.02|17:38:25] JOB Methane_QZ4P STARTED
+   [11.02|17:38:25] JOB Ethane_QZ4P STARTED
+   [11.02|17:38:25] JOB Ethylene_QZ4P STARTED
+   [11.02|17:38:25] JOB Methane_QZ4P RUNNING
+   [11.02|17:38:25] JOB Ethane_QZ4P RUNNING
+   [11.02|17:38:25] JOB Acetylene_QZ4P STARTED
+   [11.02|17:38:25] JOB Ethylene_QZ4P RUNNING
+   [11.02|17:38:25] JOB Methane_TZ2P STARTED
+   [11.02|17:38:25] JOB Acetylene_QZ4P RUNNING
+   [11.02|17:38:25] JOB Ethane_TZ2P STARTED
    ... (PLAMS log lines truncated) ...
 
 Results
@@ -158,8 +158,7 @@ Extract the energy from each calculation. Calculate the average absolute error i
 
        ja = (
            JobAnalysis(jobs=jobs, standard_fields=None)
-           .add_standard_field("Formula")
-           .add_standard_field("Smiles")
+           .add_standard_fields(["Formula", "Smiles"])
            .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
            .add_field("NAtoms", lambda j: len(j.molecule))
            .add_field(
@@ -197,6 +196,24 @@ Extract the energy from each calculation. Calculate the average absolute error i
                    errors.append(abs(energy - reference_energy) / len(molecule))
                    print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
                average_errors[bas] = sum(errors) / len(errors)
+
+::
+
+   [11.02|17:38:26] Waiting for job Methane_QZ4P to finish
+   [11.02|17:38:26] JOB Ethylene_SZ RUNNING
+   [11.02|17:38:26] JOB Acetylene_DZ RUNNING
+   [11.02|17:38:26] JOB Acetylene_SZ RUNNING
+   [11.02|17:38:26] JOB Ethane_SZ RUNNING
+   [11.02|17:38:26] JOB Methane_SZ RUNNING
+   [11.02|17:38:30] JOB Methane_TZ2P FINISHED
+   [11.02|17:38:30] JOB Methane_TZ2P SUCCESSFUL
+   [11.02|17:38:30] JOB Methane_TZP FINISHED
+   [11.02|17:38:30] JOB Methane_TZP SUCCESSFUL
+   [11.02|17:38:30] JOB Methane_QZ4P FINISHED
+   ... (PLAMS log lines truncated) ...
+   [11.02|17:38:30] Waiting for job Ethane_QZ4P to finish
+   [11.02|17:38:34] Waiting for job Ethane_DZP to finish
+   [11.02|17:38:34] Waiting for job Methane_DZ to finish
 
 ======= ====== ===== ====== ================= ========================
 Formula Smiles Basis NAtoms Energy [kcal/mol] Average Error [kcal/mol]
