@@ -156,9 +156,9 @@ Jobs can also be added or removed after initialization.
 
    ja.add_job(jobs[-2]).load_job(jobs[-1].path).display_table()
 
-============================================================================================================== ======== ===== ===== =================================
-Path                                                                                                           Name     OK    Check ErrorMsg
-============================================================================================================== ======== ===== ===== =================================
+======================================================= ======== ===== ===== =================================
+Path                                                    Name     OK    Check ErrorMsg
+======================================================= ======== ===== ===== =================================
 /path/plams/examples/JobAnalysis/plams_workdir/dftb     dftb     True  True  None
 /path/plams/examples/JobAnalysis/plams_workdir/adf      adf      True  True  None
 /path/plams/examples/JobAnalysis/plams_workdir/adf.002  adf.002  True  True  None
@@ -185,7 +185,7 @@ Path                                                                            
 /path/plams/examples/JobAnalysis/plams_workdir/adf.016  adf.016  True  True  None
 /path/plams/examples/JobAnalysis/plams_workdir/neb      neb      False False NEB optimization did NOT converge
 /path/plams/examples/JobAnalysis/plams_workdir/neb.002  neb.002  True  True  None
-============================================================================================================== ======== ===== ===== =================================
+======================================================= ======== ===== ===== =================================
 
 Adding and Removing Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
