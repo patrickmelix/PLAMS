@@ -539,7 +539,7 @@ class AMSResults(Results):
         self, bands=None, unit: str = "hartree", only_high_symmetry_points: bool = False
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], float]:
         """
-        Extracts the electronic band structure from DFTB or BAND calculations. The returned data can be plotted with ``plot_band_structure``.
+        Extracts the electronic band structure from DFTB, BAND or QuantumEspresso calculations. The returned data can be plotted with ``plot_band_structure``.
 
         Note: for unrestricted calculations bands 0, 2, 4, ... are spin-up and bands 1, 3, 5, ... are spin-down.
 
@@ -633,6 +633,80 @@ class AMSResults(Results):
         fermi_energy = Units.convert(fermi_energy, "hartree", unit)
 
         return x, complete_spinup_data, complete_spindown_data, labels, fermi_energy  # type: ignore
+
+    def get_phonons_band_structure(
+        self, bands=None, unit: str = "hartree", only_high_symmetry_points: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], float]:
+        """
+        Extracts the electronic band structure from DFTB, BAND or QuantumEspresso calculations. The returned data can be plotted with ``plot_phonons_band_structure``.
+
+        Returns: ``x``, ``y``, ``labels``
+
+        ``x``: 1D array of float
+
+        ``y``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``
+
+        ``labels``: 1D list of str of length len(x). If a point is not a high-symmetry point then the label is an empty string.
+
+        Arguments below.
+
+        bands: list of int or None
+            If None, all bands are returned. Note: the band indices start with 0.
+
+        unit: str
+            Unit of the returned band energies
+
+        only_high_symmetry_points: bool
+            Return only the first point of each edge.
+
+        """
+
+        read_labels = True
+
+        nBands = self.readrkf("phonon_curves", "nBands", file="engine")
+        nEdges = self.readrkf("phonon_curves", "nEdges", file="engine")
+
+        if bands is None:
+            bands = np.arange(nBands)
+
+        x = []
+        y = []
+        labels = []
+
+        prevmaxx = 0
+        for i in range(nEdges):
+            my_x = self.readrkf("phonon_curves", f"Edge_{i+1}_xFor1DPlotting", file="engine")
+            my_x = np.array(my_x) + prevmaxx
+            prevmaxx = np.max(my_x)
+
+            if read_labels:
+                my_labels = self.readrkf("phonon_curves", f"Edge_{i+1}_labels", file="engine").split()
+                if len(my_labels) == 2:
+                    if only_high_symmetry_points:
+                        labels += [my_labels[0]]  # only the first point of the curve
+                    else:
+                        labels += [my_labels[0]] + [""] * (len(my_x) - 2) + [my_labels[1]]
+
+            if only_high_symmetry_points:
+                x.append(my_x[0:1])
+            else:
+                x.append(my_x)
+
+            A = self.readrkf("phonon_curves", f"Edge_{i+1}_bands", file="engine")
+            A = np.array(A).reshape(-1, nBands)
+            spinup_data = A[:, bands]
+
+            if only_high_symmetry_points:
+                spinup_data = np.reshape(spinup_data[0, :], (-1, len(bands)))
+
+            y.append(spinup_data)
+
+        y = np.concatenate(y)
+        y = Units.convert(y, "hartree", unit)
+
+        x = np.concatenate(x).ravel()
+
+        return x, y, labels  # type: ignore
 
     def get_engine_results(self, engine: Optional[str] = None) -> Dict:
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
