@@ -181,7 +181,9 @@ def test_plot_band_structure(run_calculations, rkf_tools_plot):
 # ----------------------------------------------------------
 # Testing plot_phonons_band_structure
 # ----------------------------------------------------------
-@image_comparison(baseline_images=["plot_phonons_band_structure"], remove_text=True, extensions=["png"], style="mpl20", tol=3)
+@image_comparison(
+    baseline_images=["plot_phonons_band_structure"], remove_text=True, extensions=["png"], style="mpl20", tol=3
+)
 def test_plot_phonons_band_structure(run_calculations, rkf_tools_plot):
     plt.close("all")
 
@@ -189,7 +191,7 @@ def test_plot_phonons_band_structure(run_calculations, rkf_tools_plot):
     mol = Molecule()
     mol.add_atom(Atom(symbol="C", coords=(d, d, d)))
     mol.add_atom(Atom(symbol="C", coords=(-d, -d, -d)))
-    mol.lattice = [[0.0, 4*d, 4*d], [4*d, 0.0, 4*d], [4*d, 4*d, 0.0]]
+    mol.lattice = [[0.0, 4 * d, 4 * d], [4 * d, 0.0, 4 * d], [4 * d, 4 * d, 0.0]]
 
     s = Settings()
     s.input.ams.task = "SinglePoint"
