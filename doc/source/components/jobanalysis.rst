@@ -40,7 +40,8 @@ Adding Analysis Fields
 
 Analysis fields can be added to a |JobAnalysis| in a number of ways.
 Firstly, there are a small number of predefined "standard" analysis fields which are common across jobs e.g. ``Name``, ``Path`` etc.
-These can be added or removed from the analysis through dedicated methods, such as :meth:`~scm.plams.tools.job_analysis.JobAnalysis.add_name_field` / :meth:`~scm.plams.tools.job_analysis.JobAnalysis.remove_name_field`.
+These can be added to the analysis via the methods, such as :meth:`~scm.plams.tools.job_analysis.JobAnalysis.add_standard_field` / :meth:`~scm.plams.tools.job_analysis.JobAnalysis.add_standard_fields`.
+To add these standard fields, the key(s) of the relevant fields must be supplied. A full list of these is available in the tool-tip.
 
 Secondly, custom analysis fields can be added using the methods :meth:`~scm.plams.tools.job_analysis.JobAnalysis.add_field` or :meth:`~scm.plams.tools.job_analysis.JobAnalysis.set_field`.
 When doing this, a unique identifier for the field (the key) must be provided, along with a function defining how to extract a value for the field from a job.
@@ -56,7 +57,7 @@ For example, the following snippet will add the ``Formula`` field to the |JobAna
 .. code-block:: python
 
     (ja
-     .add_formula_field()
+     .add_standard_field("Formula")
      .add_field("NAtoms", lambda j: len(j.molecule))
      .add_settings_input_fields())
 
