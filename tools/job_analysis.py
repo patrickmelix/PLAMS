@@ -60,61 +60,70 @@ class JobAnalysis:
         def __post_init__(self):
             self.display_name = self.key if self.display_name is None else self.display_name
 
-    _path_field = _Field(key="Path", value_extractor=lambda j: j.path)
-    _name_field = _Field(key="Name", value_extractor=lambda j: j.name)
-    _ok_field = _Field(key="OK", value_extractor=lambda j: j.ok())
-    _check_field = _Field(key="Check", value_extractor=lambda j: j.check())
-    _error_msg_field = _Field(key="ErrorMsg", value_extractor=lambda j: j.get_errormsg())
-
-    _parent_path_field = _Field(key="ParentPath", value_extractor=lambda j: j.parent.path if j.parent else None)
-    _parent_name_field = _Field(key="ParentName", value_extractor=lambda j: j.parent.name if j.parent else None)
-
-    _formula_field = _Field(
-        key="Formula",
-        value_extractor=lambda j: (
-            JobAnalysis._mol_formula_extractor(j.molecule) if isinstance(j, SingleJob) else None
+    _standard_fields = {
+        "Path": _Field(key="Path", value_extractor=lambda j: j.path),
+        "Name": _Field(key="Name", value_extractor=lambda j: j.name),
+        "OK": _Field(key="OK", value_extractor=lambda j: j.ok()),
+        "Check": _Field(key="Check", value_extractor=lambda j: j.check()),
+        "ErrorMsg": _Field(key="ErrorMsg", value_extractor=lambda j: j.get_errormsg()),
+        "ParentPath": _Field(key="ParentPath", value_extractor=lambda j: j.parent.path if j.parent else None),
+        "ParentName": _Field(key="ParentName", value_extractor=lambda j: j.parent.name if j.parent else None),
+        "Formula": _Field(
+            key="Formula",
+            value_extractor=lambda j: (
+                JobAnalysis._mol_formula_extractor(j.molecule) if isinstance(j, SingleJob) else None
+            ),
         ),
-    )
-    _smiles_field = _Field(
-        key="Smiles",
-        value_extractor=lambda j: (JobAnalysis._mol_smiles_extractor(j.molecule) if isinstance(j, SingleJob) else None),
-    )
+        "Smiles": _Field(
+            key="Smiles",
+            value_extractor=lambda j: (
+                JobAnalysis._mol_smiles_extractor(j.molecule) if isinstance(j, SingleJob) else None
+            ),
+        ),
+        "GyrationRadius": _Field(
+            key="GyrationRadius",
+            value_extractor=lambda j: (
+                JobAnalysis._mol_gyration_radius_extractor(j.molecule) if isinstance(j, SingleJob) else None
+            ),
+            fmt=".4f",
+        ),
+        "CPUTime": _Field(
+            key="CPUTime",
+            value_extractor=lambda j: (
+                j.results.readrkf("General", "CPUTime") if isinstance(j, AMSJob) and j.results is not None else None
+            ),
+            fmt=".6f",
+        ),
+        "SysTime": _Field(
+            key="SysTime",
+            value_extractor=lambda j: (
+                j.results.readrkf("General", "SysTime") if isinstance(j, AMSJob) and j.results is not None else None
+            ),
+            fmt=".6f",
+        ),
+        "ElapsedTime": _Field(
+            key="ElapsedTime",
+            value_extractor=lambda j: (
+                j.results.readrkf("General", "ElapsedTime") if isinstance(j, AMSJob) and j.results is not None else None
+            ),
+            fmt=".6f",
+        ),
+    }
 
-    _cpu_time_field = _Field(
-        key="CPUTime",
-        value_extractor=lambda j: (
-            j.results.readrkf("General", "CPUTime") if isinstance(j, AMSJob) and j.results is not None else None
-        ),
-        fmt=".6f",
-    )
-    _sys_time_field = _Field(
-        key="SysTime",
-        value_extractor=lambda j: (
-            j.results.readrkf("General", "SysTime") if isinstance(j, AMSJob) and j.results is not None else None
-        ),
-        fmt=".6f",
-    )
-    _elapsed_time_field = _Field(
-        key="ElapsedTime",
-        value_extractor=lambda j: (
-            j.results.readrkf("General", "ElapsedTime") if isinstance(j, AMSJob) and j.results is not None else None
-        ),
-        fmt=".6f",
-    )
-
-    _standard_fields = [
-        _path_field,
-        _name_field,
-        _ok_field,
-        _check_field,
-        _error_msg_field,
-        _parent_path_field,
-        _parent_name_field,
-        _formula_field,
-        _smiles_field,
-        _cpu_time_field,
-        _sys_time_field,
-        _elapsed_time_field,
+    StandardField = Literal[
+        "Path",
+        "Name",
+        "OK",
+        "Check",
+        "ErrorMsg",
+        "ParentPath",
+        "ParentName",
+        "Formula",
+        "Smiles",
+        "GyrationRadius",
+        "CPUTime",
+        "SysTime",
+        "ElapsedTime",
     ]
 
     @staticmethod
@@ -141,14 +150,26 @@ class JobAnalysis:
             return JobAnalysis._mol_smiles_extractor(chemsys_to_plams_molecule(mol))
         return None
 
-    _reserved_names = ["_jobs", "_fields", "_standard_fields", "_pisa_programs"]
+    @staticmethod
+    def _mol_gyration_radius_extractor(
+        mol: Optional[Union[Molecule, Dict[str, Molecule], "ChemicalSystem", Dict[str, "ChemicalSystem"]]]
+    ):
+        if isinstance(mol, dict):
+            return ", ".join([f"{n}: {JobAnalysis._mol_gyration_radius_extractor(m)}" for n, m in mol.items()])
+        elif isinstance(mol, Molecule):
+            return mol.get_gyration_radius()
+        elif _has_scm_libbase and isinstance(mol, ChemicalSystem):
+            return JobAnalysis._mol_gyration_radius_extractor(chemsys_to_plams_molecule(mol))
+        return None
+
+    _reserved_names = ["_jobs", "_fields", "StandardField", "_standard_fields", "_pisa_programs", "_Field"]
 
     def __init__(
         self,
         paths: Optional[Sequence[Union[str, os.PathLike]]] = None,
         jobs: Optional[Sequence[Job]] = None,
         loaders: Optional[Sequence[Callable[[str], Job]]] = None,
-        std_fields: Optional[Sequence[str]] = ("Path", "Name", "OK", "Check", "ErrorMsg"),
+        standard_fields: Optional[Sequence["JobAnalysis.StandardField"]] = ("Path", "Name", "OK", "Check", "ErrorMsg"),
         await_results: bool = True,
     ):
         """
@@ -156,7 +177,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> ja = JobAnalysis(jobs=[job1, job2], std_fields=["Name", "OK"])
+            >>> ja = JobAnalysis(jobs=[job1, job2], standard_fields=["Name", "OK"])
             >>> ja
 
             | Name  | OK   |
@@ -167,7 +188,7 @@ class JobAnalysis:
         :param paths: one or more paths to folders from which to load jobs to add to the analysis
         :param jobs: one or more jobs to add to the analysis
         :param loaders: custom loading functions to generate jobs from a job folder
-        :param std_fields: keys of standard fields to include in analysis, defaults to ``("Path", "Name", "OK", "Check", "ErrorMsg")``
+        :param standard_fields: keys of standard fields to include in analysis, defaults to ``("Path", "Name", "OK", "Check", "ErrorMsg")``
         :param await_results: whether to wait for the results of any passed jobs to finish, defaults to ``True``
         """
         self._jobs: Dict[str, Job] = {}
@@ -187,10 +208,9 @@ class JobAnalysis:
             for p in paths:
                 self.load_job(p, loaders)
 
-        if std_fields:
-            for f in self._standard_fields:
-                if f.key in std_fields:
-                    self._add_standard_field(f)
+        if standard_fields:
+            for sf in standard_fields:
+                self.add_standard_field(sf)
 
     def copy(self) -> "JobAnalysis":
         """
@@ -266,7 +286,7 @@ class JobAnalysis:
         # Handle field expansion, converting single job rows to multiple rows
         if analysis.keys() and self._jobs:
 
-            def expand(data):
+            def expand(data, expand_fields):
                 expanded_data: Dict[str, list] = {col_name: [] for col_name in data.keys()}
                 for i in range(len(data[list(data.keys())[0]])):
                     job_data = {col_name: data[i] for col_name, data in data.items()}
@@ -294,7 +314,7 @@ class JobAnalysis:
             # Recursively expand until complete
             depth = 1
             while expand_fields := {k for k, f in self._fields.items() if f.expansion_depth >= depth}:
-                analysis = expand(analysis)
+                analysis = expand(analysis, expand_fields)
                 depth += 1
 
         return analysis
@@ -1082,14 +1102,12 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> (ja
-            >>>  .remove_field("OK")
-            >>>  .remove_field("N"))
+            >>> ja.remove_field("OK")
 
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
 
         :param key: unique identifier of the field
         :return: updated instance of |JobAnalysis|
@@ -1098,6 +1116,26 @@ class JobAnalysis:
             raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
         self._fields.pop(key)
+        return self
+
+    def remove_fields(self, keys: Sequence[str]) -> "JobAnalysis":
+        """
+        Remove multiple fields from the analysis. This removes columns from the analysis data.
+
+        .. code:: python
+
+            >>> ja.remove_fields(["OK", "N"])
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
+        :param keys: unique identifiers of the fields
+        :return: updated instance of |JobAnalysis|
+        """
+        for key in keys:
+            self.remove_field(key)
         return self
 
     def filter_fields(self, predicate: Callable[[List[Any]], bool]) -> "JobAnalysis":
@@ -1146,7 +1184,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> ja.add_parent_name_field()
+            >>> ja.add_standard_field("ParentName")
 
             | Name  | OK    | ParentName |
             |-------|-------|------------|
@@ -1186,7 +1224,7 @@ class JobAnalysis:
 
         .. code:: python
 
-            >>> ja.add_parent_name_field()
+            >>> ja.add_standard_field("ParentName")
 
             | Name  | OK    | ParentName |
             |-------|-------|------------|
@@ -1260,507 +1298,94 @@ class JobAnalysis:
 
         return self.filter_fields(lambda vals: not is_uniform(vals))
 
-    def _add_standard_field(self, field) -> "JobAnalysis":
-        if field.key not in self._fields:
-            self._fields[field.key] = replace(field)
-        return self
-
-    def _remove_standard_field(self, field) -> "JobAnalysis":
-        if field.key in self._fields:
-            self._fields.pop(field.key)
-        return self
-
-    def add_path_field(self) -> "JobAnalysis":
+    def add_standard_fields(self, keys: Sequence["JobAnalysis.StandardField"]) -> "JobAnalysis":
         """
-        Adds analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
+        Adds multiple standard fields to the analysis.
+
+        These are:
+        * ``Path``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
+        * ``Name``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
+        * ``OK``: for |Job| method :meth:`~scm.plams.core.basejob.Job.ok`
+        * ``Check``: for |Job| method :meth:`~scm.plams.core.basejob.Job.check`
+        * ``ErrorMsg``: for |Job| method :meth:`~scm.plams.core.basejob.Job.get_errormsg`
+        * ``ParentPath``: for attribute :attr:`~scm.plams.core.basejob.Job.path` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+        * ``ParentName``: for attribute :attr:`~scm.plams.core.basejob.Job.name` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+        * ``Formula``: for method :meth:`~scm.plams.mol.molecule.Molecule.get_formula` of |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+        * ``Smiles``: for function :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+        * ``GyrationRadius``: for function :meth:`~scm.plams.mol.molecule.Molecule.gyration_radius` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+        * ``CPUTime``: for method :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/CPUTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+        * ``SysTime``: for method :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/SysTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+        * ``ElapsedTime``: for method :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/ElapsedTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
 
         .. code:: python
 
-            >>> ja.add_path_field()
+            >>> ja
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
+            >>> ja.add_standard_fields(["Path", "Smiles"])
+
+            | Name  | Path        | Smiles |
+            |-------|-------------|--------|
+            | job_1 | /path/job_1 | N      |
+            | job_2 | /path/job_2 | C=C    |
+
+        :param keys: sequence of keys for the analysis fields
+        :return: updated instance of |JobAnalysis|
+        """
+        for key in keys:
+            self.add_standard_field(key)
+        return self
+
+    def add_standard_field(self, key: "JobAnalysis.StandardField") -> "JobAnalysis":
+        """
+        Adds a standard field to the analysis.
+
+        These are:
+        * ``Path``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
+        * ``Name``: for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
+        * ``OK``: for |Job| method :meth:`~scm.plams.core.basejob.Job.ok`
+        * ``Check``: for |Job| method :meth:`~scm.plams.core.basejob.Job.check`
+        * ``ErrorMsg``: for |Job| method :meth:`~scm.plams.core.basejob.Job.get_errormsg`
+        * ``ParentPath``: for attribute :attr:`~scm.plams.core.basejob.Job.path` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+        * ``ParentName``: for attribute :attr:`~scm.plams.core.basejob.Job.name` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
+        * ``Formula``: for method :meth:`~scm.plams.mol.molecule.Molecule.get_formula` of |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+        * ``Smiles``: for function :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+        * ``GyrationRadius``: for function :meth:`~scm.plams.mol.molecule.Molecule.gyration_radius` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
+        * ``CPUTime``: for method :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/CPUTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+        * ``SysTime``: for method :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/SysTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+        * ``ElapsedTime``: for method :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/ElapsedTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
+
+        .. code:: python
+
+            >>> ja
+
+            | Name  |
+            |-------|
+            | job_1 |
+            | job_2 |
+
+            >>> ja.add_standard_field("Path")
 
             | Name  | Path        |
             |-------|-------------|
             | job_1 | /path/job_1 |
             | job_2 | /path/job_2 |
 
+        :param key: key for the analysis field
         :return: updated instance of |JobAnalysis|
         """
-        return self._add_standard_field(self._path_field)
+        if key not in self._standard_fields:
+            raise KeyError(f"'{key}' is not one of the standard fields: {', '.join(self._standard_fields)}.")
 
-    def remove_path_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.path`
+        if key in self._fields:
+            raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
 
-        .. code:: python
-
-            >>> ja
-
-            | Name  | Path        |
-            |-------|-------------|
-            | job_1 | /path/job_1 |
-            | job_2 | /path/job_2 |
-
-            >>> ja.remove_path_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._path_field)
-
-    def add_name_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
-
-        .. code:: python
-
-            >>> ja.add_name_field()
-
-            | Path        | Name  |
-            |-------------|-------|
-            | /path/job_1 | job_1 |
-            | /path/job_2 | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._name_field)
-
-    def remove_name_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for |Job| attribute :attr:`~scm.plams.core.basejob.Job.name`
-
-        .. code:: python
-
-            >>> ja
-
-            | Path        | Name  |
-            |-------------|-------|
-            | /path/job_1 | job_1 |
-            | /path/job_2 | job_2 |
-
-            >>> ja.remove_name_field()
-
-            | Path        |
-            |-------------|
-            | /path/job_1 |
-            | /path/job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._name_field)
-
-    def add_ok_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :meth:`~scm.plams.core.basejob.Job.ok`
-
-        .. code:: python
-
-            >>> ja.add_ok_field()
-
-            | Name  | OK   |
-            |-------|------|
-            | job_1 | True |
-            | job_2 | True |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._ok_field)
-
-    def remove_ok_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :meth:`~scm.plams.core.basejob.Job.ok`
-
-        .. code:: python
-
-            >>> ja
-
-            | Name  | OK   |
-            |-------|------|
-            | job_1 | True |
-            | job_2 | True |
-
-            >>> ja.remove_ok_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._ok_field)
-
-    def add_check_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :meth:`~scm.plams.core.basejob.Job.check`
-
-        .. code:: python
-
-            >>> ja.add_check_field()
-
-            | Name  | Check |
-            |-------|-------|
-            | job_1 | True  |
-            | job_2 | True  |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._check_field)
-
-    def remove_check_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :meth:`~scm.plams.core.basejob.Job.check`
-
-        .. code:: python
-
-            >>> ja
-
-            | Name  | Check |
-            |-------|-------|
-            | job_1 | True  |
-            | job_2 | True  |
-
-            >>> ja.remove_check_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._check_field)
-
-    def add_error_msg_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :meth:`~scm.plams.core.basejob.Job.get_errormsg`
-
-        .. code:: python
-
-            >>> ja.add_error_msg_field()
-
-            | Name  | ErrorMsg |
-            |-------|----------|
-            | job_1 | None     |
-            | job_2 | None     |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._error_msg_field)
-
-    def remove_error_msg_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :meth:`~scm.plams.core.basejob.Job.get_errormsg`
-
-        .. code:: python
-
-            >>> ja
-
-            | Name  | ErrorMsg |
-            |-------|----------|
-            | job_1 | None     |
-            | job_2 | None     |
-
-            >>> ja.remove_error_msg_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._error_msg_field)
-
-    def add_parent_name_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for attribute :attr:`~scm.plams.core.basejob.Job.name` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
-
-        .. code:: python
-
-             >>> ja.add_parent_name_field()
-
-             | Name  | ParentName |
-             |-------|------------|
-             | job_1 | None       |
-             | job_2 | None       |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._parent_name_field)
-
-    def remove_parent_name_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for attribute :attr:`~scm.plams.core.basejob.Job.name` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
-
-        .. code:: python
-
-            >>> ja
-
-            | Name  | ParentName |
-            |-------|------------|
-            | job_1 | None       |
-            | job_2 | None       |
-
-            >>> ja.remove_parent_name_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._parent_name_field)
-
-    def add_parent_path_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for attribute :attr:`~scm.plams.core.basejob.Job.path` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
-
-        .. code:: python
-
-             >>> ja.add_parent_path_field()
-
-             | Name  | ParentPath |
-             |-------|------------|
-             | job_1 | None       |
-             | job_2 | None       |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._parent_path_field)
-
-    def remove_parent_path_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for attribute :attr:`~scm.plams.core.basejob.Job.path` of |Job| attribute :attr:`~scm.plams.core.basejob.Job.parent`
-
-        .. code:: python
-
-            >>> ja
-
-            | Name  | ParentPath |
-            |-------|------------|
-            | job_1 | None       |
-            | job_2 | None       |
-
-            >>> ja.remove_parent_path_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._parent_path_field)
-
-    def add_formula_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :meth:`~scm.plams.mol.molecule.Molecule.get_formula` of |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
-
-        .. code:: python
-
-             >>> ja.add_formula_field()
-
-             | Name  | Formula |
-             |-------|---------|
-             | job_1 | H3N     |
-             | job_2 | C2H4    |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._formula_field)
-
-    def remove_formula_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :meth:`~scm.plams.mol.molecule.Molecule.get_formula` of |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
-
-        .. code:: python
-
-            >>> ja
-
-             | Name  | Formula |
-             |-------|---------|
-             | job_1 | H3N     |
-             | job_2 | C2H4    |
-
-            >>> ja.remove_formula_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._formula_field)
-
-    def add_smiles_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
-
-        .. code:: python
-
-             >>> ja.add_smiles_field()
-
-             | Name  | Smiles |
-             |-------|--------|
-             | job_1 | N      |
-             | job_2 | C=C    |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._smiles_field)
-
-    def remove_smiles_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :func:`~scm.plams.interfaces.molecule.rdkit.to_smiles` for |Job| attribute :attr:`~scm.plams.core.basejob.SingleJob.molecule`
-
-        .. code:: python
-
-            >>> ja
-
-             | Name  | Smiles |
-             |-------|--------|
-             | job_1 | N      |
-             | job_2 | C=C    |
-
-            >>> ja.remove_smiles_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._smiles_field)
-
-    def add_cpu_time_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/CPUTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
-
-        .. code:: python
-
-             >>> ja.add_cpu_time_field()
-
-             | Name  | CPUTime  |
-             |-------|----------|
-             | job_1 | 2.195242 |
-             | job_2 | 1.909444 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._cpu_time_field)
-
-    def remove_cpu_time_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/CPUTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
-
-        .. code:: python
-
-            >>> ja
-
-             | Name  | CPUTime  |
-             |-------|----------|
-             | job_1 | 2.195242 |
-             | job_2 | 1.909444 |
-
-            >>> ja.remove_cpu_time_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._cpu_time_field)
-
-    def add_sys_time_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/SysTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
-
-        .. code:: python
-
-             >>> ja.add_sys_time_field()
-
-             | Name  | SysTime  |
-             |-------|----------|
-             | job_1 | 0.137470 |
-             | job_2 | 0.121350 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._sys_time_field)
-
-    def remove_sys_time_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/SysTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
-
-        .. code:: python
-
-            >>> ja
-
-             | Name  | SysTime  |
-             |-------|----------|
-             | job_1 | 0.137470 |
-             | job_2 | 0.121350 |
-
-            >>> ja.remove_sys_time_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._sys_time_field)
-
-    def add_elapsed_time_field(self) -> "JobAnalysis":
-        """
-        Adds analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/ElapsedTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
-
-        .. code:: python
-
-             >>> ja.add_elapsed_time_field()
-
-             | Name  | ElapsedTime |
-             |-------|-------------|
-             | job_1 | 3.563726    |
-             | job_2 | 2.849558    |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._add_standard_field(self._elapsed_time_field)
-
-    def remove_elapsed_time_field(self) -> "JobAnalysis":
-        """
-        Removes analysis field for :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.readrkf` with ``General/ElapsedTime`` for |Job| attribute :attr:`~scm.plams.interfaces.adfsuite.ams.AMSJob.results`
-
-        .. code:: python
-
-            >>> ja
-
-             | Name  | ElapsedTime |
-             |-------|-------------|
-             | job_1 | 3.563726    |
-             | job_2 | 2.849558    |
-
-            >>> ja.remove_elapsed_time_field()
-
-            | Name  |
-            |-------|
-            | job_1 |
-            | job_2 |
-
-        :return: updated instance of |JobAnalysis|
-        """
-        return self._remove_standard_field(self._elapsed_time_field)
+        self._fields[key] = replace(self._standard_fields[key])
+        return self
 
     def add_settings_field(
         self,
@@ -1839,7 +1464,8 @@ class JobAnalysis:
                 field = self._Field(
                     key=field_key, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), from_settings=True  # type: ignore
                 )
-                self._add_standard_field(field)
+                if field_key not in self._fields:
+                    self._fields[field_key] = field
         return self
 
     def _get_job_settings(self, job: Job) -> Settings:

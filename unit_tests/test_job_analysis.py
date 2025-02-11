@@ -55,44 +55,48 @@ class TestJobAnalysis:
         ja = JobAnalysis(paths=[j.path for j in dummy_single_jobs])
         assert len(ja.jobs) == 10
 
-    def test_init_with_std_fields(self, dummy_single_jobs):
-        ja = JobAnalysis(std_fields=("Name", "Smiles"))
+    def test_init_with_standard_fields(self, dummy_single_jobs):
+        ja = JobAnalysis(standard_fields=("Name", "Smiles"))
         assert len(ja.field_keys) == 2
 
-    def test_default_fields(self, dummy_single_jobs):
-        ja = (
-            JobAnalysis(jobs=dummy_single_jobs)
-            .remove_field("Path")
-            .add_formula_field()
-            .add_smiles_field()
-            .add_cpu_time_field()
-            .add_sys_time_field()
-            .add_elapsed_time_field()
+    def test_standard_fields(self, dummy_single_jobs):
+        ja = JobAnalysis(
+            jobs=dummy_single_jobs,
+            standard_fields=[
+                "Name",
+                "OK",
+                "Check",
+                "ErrorMsg",
+                "Formula",
+                "Smiles",
+                "GyrationRadius",
+                "CPUTime",
+                "SysTime",
+                "ElapsedTime",
+            ],
         )
 
         assert (
             ja.to_table()
             == """\
-| Name         | OK   | Check | ErrorMsg | Formula | Smiles | CPUTime | SysTime | ElapsedTime |
-|--------------|------|-------|----------|---------|--------|---------|---------|-------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | None    | None    | None        |
-| dummyjob.002 | True | True  | None     | CH4     | C      | None    | None    | None        |
-| dummyjob.003 | True | True  | None     | H2O     | O      | None    | None    | None        |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | None    | None    | None        |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | None    | None    | None        |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | None    | None    | None        |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | None    | None    | None        |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None    | None    | None        |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None    | None    | None        |
-| dummyjob.010 | True | True  | None     | None    | None   | None    | None    | None        |"""
+| Name         | OK   | Check | ErrorMsg | Formula | Smiles | GyrationRadius | CPUTime | SysTime | ElapsedTime |
+|--------------|------|-------|----------|---------|--------|----------------|---------|---------|-------------|
+| dummyjob     | True | True  | None     | C2H6    | CC     | 1.0927         | None    | None    | None        |
+| dummyjob.002 | True | True  | None     | CH4     | C      | 0.5983         | None    | None    | None        |
+| dummyjob.003 | True | True  | None     | H2O     | O      | 0.3620         | None    | None    | None        |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | 0.9520         | None    | None    | None        |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | 1.4115         | None    | None    | None        |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | 1.7917         | None    | None    | None        |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | 1.6343         | None    | None    | None        |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | 2.5940         | None    | None    | None        |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | 2.1358         | None    | None    | None        |
+| dummyjob.010 | True | True  | None     | None    | None   | None           | None    | None    | None        |"""
         )
 
         (
-            ja.remove_cpu_time_field()
-            .remove_sys_time_field()
-            .remove_elapsed_time_field()
-            .add_parent_path_field()
-            .add_parent_name_field()
+            ja.remove_fields(["CPUTime", "SysTime", "ElapsedTime", "GyrationRadius"]).add_standard_fields(
+                ["ParentPath", "ParentName"]
+            )
         )
 
         assert (
@@ -112,15 +116,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None       | None       |"""
         )
 
-        (
-            ja.remove_parent_path_field()
-            .remove_parent_name_field()
-            .remove_smiles_field()
-            .remove_formula_field()
-            .remove_error_msg_field()
-            .remove_check_field()
-            .remove_ok_field()
-        )
+        ja.remove_fields(["ParentPath", "ParentName", "Smiles", "Formula", "ErrorMsg", "Check", "OK"])
 
         assert (
             ja.to_table()
@@ -142,11 +138,7 @@ class TestJobAnalysis:
     def test_add_set_remove_rename_filter_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
-            .add_cpu_time_field()
-            .add_sys_time_field()
-            .add_elapsed_time_field()
+            .add_standard_fields(["Formula", "Smiles", "CPUTime", "SysTime", "ElapsedTime"])
             .add_field("Wait", lambda j: j.wait)
             .set_field("Output", lambda _: None, display_name="foo")
             .set_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
@@ -270,8 +262,8 @@ class TestJobAnalysis:
     def test_format_field(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .add_field("WaitS", lambda j: j.wait, fmt="e")
             .add_field("WaitMs", lambda j: j.wait * 1000)
             .format_field("WaitMs", "04.0f")
@@ -300,9 +292,9 @@ class TestJobAnalysis:
     def test_expand_collapse_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .remove_path_field()
-            .add_formula_field()
-            .add_smiles_field()
+            .remove_field("Path")
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .add_field("Atoms", lambda j: [at.symbol for at in j.molecule], expansion_depth=1)
             .add_field("MultiValue", lambda j: [[[f"w{i}" for i in range(int(j.wait * 100) // 2)]]])
         )
@@ -812,8 +804,8 @@ class TestJobAnalysis:
     def test_filter_jobs(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .add_field("Wait", lambda j: j.wait)
             .add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
             .remove_field("Path")
@@ -835,11 +827,11 @@ class TestJobAnalysis:
     def test_reorder_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
-            .add_cpu_time_field()
-            .add_sys_time_field()
-            .add_elapsed_time_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
+            .add_standard_field("CPUTime")
+            .add_standard_field("SysTime")
+            .add_standard_field("ElapsedTime")
             .add_field("Wait", lambda j: j.wait)
         )
 
@@ -908,7 +900,7 @@ class TestJobAnalysis:
     def test_sort_jobs(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
+            .add_standard_field("Formula")
             .add_field("Wait", lambda j: j.wait)
             .sort_jobs(field_keys=["Formula"])
         )
@@ -959,8 +951,8 @@ class TestJobAnalysis:
     def test_settings_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .add_settings_input_fields()
             .add_settings_field(("runscript", "shebang"))
             .remove_field("Path")
@@ -1003,7 +995,7 @@ class TestJobAnalysis:
         )
 
     def test_get_set_del_item(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs).add_formula_field().add_smiles_field()
+        ja = JobAnalysis(jobs=dummy_single_jobs).add_standard_field("Formula").add_standard_field("Smiles")
         del ja["Path"]
         del ja["Check"]
         ja["OK"] = lambda j: "Yes" if j.ok() else "No"
@@ -1030,7 +1022,7 @@ class TestJobAnalysis:
             del ja["Bar"]
 
     def test_get_set_del_attributes(self, dummy_single_jobs):
-        ja = JobAnalysis(jobs=dummy_single_jobs).add_formula_field().add_smiles_field()
+        ja = JobAnalysis(jobs=dummy_single_jobs).add_standard_field("Formula").add_standard_field("Smiles")
         del ja.Path
         del ja.Check
 
@@ -1060,8 +1052,8 @@ class TestJobAnalysis:
     def test_to_table(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .remove_field("Path")
             .add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
             .remove_empty_fields()
@@ -1085,8 +1077,8 @@ class TestJobAnalysis:
     def test_to_csv(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .remove_field("Path")
             .add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
             .remove_empty_fields()
@@ -1123,8 +1115,8 @@ dummyjob.010,,,False
 
         df = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .remove_field("Path")
             .add_settings_field(("Input", "AMS", "Properties", "NormalModes"))
             .remove_empty_fields()
@@ -1399,8 +1391,8 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
     def test_settings_fields(self, dummy_single_jobs):
         ja = (
             JobAnalysis(jobs=dummy_single_jobs)
-            .add_formula_field()
-            .add_smiles_field()
+            .add_standard_field("Formula")
+            .add_standard_field("Smiles")
             .add_settings_input_fields()
             .add_settings_field(("runscript", "shebang"))
             .remove_field("Path")
