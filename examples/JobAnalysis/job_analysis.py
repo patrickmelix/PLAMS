@@ -114,15 +114,13 @@ ja.add_job(jobs[-2]).load_job(jobs[-1].path).display_table()
 
 # ### Adding and Removing Fields
 
-# A range of common standard fields can be added or removed with dedicated methods.
-# Custom fields can also be added or removed, by defining a field key, value accessor and optional arguments like display name and value formatting.
+# A range of common standard fields can be added with the `add_standard_field(s)` methods.
+# Custom fields can also be added with the `add_field` method, by defining a field key, value accessor and optional arguments like display name and value formatting.
+# Fields can be removed by calling `remove_field` with the corresponding field key.
 
 (
-    ja.remove_path_field()
-    .add_formula_field()
-    .add_smiles_field()
-    .add_cpu_time_field()
-    .add_sys_time_field()
+    ja.remove_field("Path")
+    .add_standard_fields(["Formula", "Smiles", "CPUTime", "SysTime"])
     .add_settings_input_fields()
     .add_field("Energy", lambda j: j.results.get_energy(unit="kJ/mol"), display_name="Energy [kJ/mol]", fmt=".2f")
     .display_table(max_rows=5)
@@ -195,7 +193,7 @@ ja_adf.display_table()
     ja_adf.collapse_field("AtomCoords")
     .collapse_field("Coord")
     .filter_fields(lambda vals: all([not isinstance(v, list) for v in vals]))  # remove arrays
-    .remove_name_field()
+    .remove_field("Name")
     .format_field("CPUTime", ".2f")
     .format_field("Charge", ".4f")
     .rename_field("InputAdfBasisType", "Basis")

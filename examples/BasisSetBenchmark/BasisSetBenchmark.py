@@ -5,20 +5,11 @@
 
 import sys
 import multiprocessing
-<<<<<<< HEAD
-from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init
-
-# this line is not required in AMS2025+
-init()
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob
-=======
 from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init
 import numpy as np
 
-init()
 # this line is not required in AMS2025+
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
+init()
 
 
 # ## Set Up Job Runner
@@ -74,9 +65,9 @@ try:
     from scm.plams import JobAnalysis
 
     ja = (
-        JobAnalysis(jobs=jobs, std_fields=None)
-        .add_formula_field()
-        .add_smiles_field()
+        JobAnalysis(jobs=jobs, standard_fields=None)
+        .add_standard_field("Formula")
+        .add_standard_field("Smiles")
         .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
         .add_field("NAtoms", lambda j: len(j.molecule))
         .add_field(

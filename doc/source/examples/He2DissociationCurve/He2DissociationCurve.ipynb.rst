@@ -6,8 +6,7 @@ Initial Imports
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+   import sys
    import numpy as np
    from scm.plams import Settings, Molecule, Atom, AMSJob, init
 
@@ -17,46 +16,7 @@ Initial Imports
 ::
 
    PLAMS working folder: /path/plams/examples/He2DissociationCurve/plams_workdir
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-    import numpy as np
-    from scm.plams import Settings, Molecule, Atom, AMSJob
-=======
-    import sys
-    import numpy as np
-    from scm.plams import Settings, Molecule, Atom, AMSJob, init
-    
-    init();  # this line is not required in AMS2025+
-||||||| parent of 381a437 (Update examples again SO107)
-    import sys
-    import numpy as np
-    from scm.plams import Settings, Molecule, Atom, AMSJob, init
-    
-    init();  # this line is not required in AMS2025+
-=======
-   import sys
-   import numpy as np
-   from scm.plams import Settings, Molecule, Atom, AMSJob, init
 
-   init();  # this line is not required in AMS2025+
->>>>>>> 381a437 (Update examples again SO107)
-
-<<<<<<< HEAD
-
-.. parsed-literal::
-
-    PLAMS working folder: /path/plams/examples/He2DissociationCurve/plams_workdir.003
-
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-
-||||||| parent of c769e54 (Update example notebooks SO107)
-
-.. parsed-literal::
-
-    PLAMS working folder: /path/plams/examples/He2DissociationCurve/plams_workdir.003
-
-
-=======
->>>>>>> c769e54 (Update example notebooks SO107)
 Setup Dimer
 ~~~~~~~~~~~
 
@@ -77,36 +37,8 @@ Create Helium atoms and an array of interatomic distances at which to run calcul
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
    # create a list with interatomic distances
    distances = np.arange(dmin, dmax, step)
-   print(distances)
-
-::
-
-   [2.2 2.4 2.6 2.8 3.  3.2 3.4 3.6 3.8 4. ]
-||||||| parent of c769e54 (Update example notebooks SO107)
-    # create a list with interatomic distances
-    distances = np.arange(dmin, dmax, step)
-    print(distances)
-
-
-.. parsed-literal::
-
-    [2.2 2.4 2.6 2.8 3.  3.2 3.4 3.6 3.8 4. ]
-
-=======
-    # create a list with interatomic distances
-    distances = np.arange(dmin, dmax, step)
->>>>>>> c769e54 (Update example notebooks SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-    # create a list with interatomic distances
-    distances = np.arange(dmin, dmax, step)
-=======
-   # create a list with interatomic distances
-   distances = np.arange(dmin, dmax, step)
->>>>>>> 381a437 (Update examples again SO107)
 
 Calculation Settings
 ~~~~~~~~~~~~~~~~~~~~
@@ -129,45 +61,6 @@ For each interatomic distance, create a Helium dimer molecule with the required 
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   energies = []
-   for d in distances:
-       mol = Molecule()
-       mol.add_atom(Atom(symbol=atom1, coords=(0.0, 0.0, 0.0)))
-       mol.add_atom(Atom(symbol=atom2, coords=(d, 0.0, 0.0)))
-       job = AMSJob(molecule=mol, settings=sett, name=f"dist_{d:.2f}")
-       job.run()
-       energies.append(job.results.get_energy(unit="kcal/mol"))
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-    energies = []
-    for d in distances:
-        mol = Molecule()
-        mol.add_atom(Atom(symbol=atom1, coords=(0.0, 0.0, 0.0)))
-        mol.add_atom(Atom(symbol=atom2, coords=(d, 0.0, 0.0)))
-        job = AMSJob(molecule=mol, settings=sett, name=f"dist_{d:.2f}")
-        job.run()
-        energies.append(job.results.get_energy(unit="kcal/mol"))
-=======
-    jobs = []
-    for d in distances:
-        mol = Molecule()
-        mol.add_atom(Atom(symbol=atom1, coords=(0.0, 0.0, 0.0)))
-        mol.add_atom(Atom(symbol=atom2, coords=(d, 0.0, 0.0)))
-        job = AMSJob(molecule=mol, settings=sett, name=f"dist_{d:.2f}")
-        jobs.append(job)
-        job.run()
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-    jobs = []
-    for d in distances:
-        mol = Molecule()
-        mol.add_atom(Atom(symbol=atom1, coords=(0.0, 0.0, 0.0)))
-        mol.add_atom(Atom(symbol=atom2, coords=(d, 0.0, 0.0)))
-        job = AMSJob(molecule=mol, settings=sett, name=f"dist_{d:.2f}")
-        jobs.append(job)
-        job.run()
-=======
    jobs = []
    for d in distances:
        mol = Molecule()
@@ -176,169 +69,20 @@ For each interatomic distance, create a Helium dimer molecule with the required 
        job = AMSJob(molecule=mol, settings=sett, name=f"dist_{d:.2f}")
        jobs.append(job)
        job.run()
->>>>>>> 381a437 (Update examples again SO107)
 
 ::
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   [10.02|15:18:00] JOB dist_2.20 STARTED
-   [10.02|15:18:00] JOB dist_2.20 RUNNING
-   [10.02|15:18:06] JOB dist_2.20 FINISHED
-   [10.02|15:18:06] JOB dist_2.20 SUCCESSFUL
-   [10.02|15:18:06] JOB dist_2.40 STARTED
-   [10.02|15:18:06] JOB dist_2.40 RUNNING
-   [10.02|15:18:10] JOB dist_2.40 FINISHED
-   [10.02|15:18:10] JOB dist_2.40 SUCCESSFUL
-   [10.02|15:18:10] JOB dist_2.60 STARTED
-   [10.02|15:18:10] JOB dist_2.60 RUNNING
+   [11.02|16:54:46] JOB dist_2.20 STARTED
+   [11.02|16:54:46] JOB dist_2.20 RUNNING
+   [11.02|16:54:49] JOB dist_2.20 FINISHED
+   [11.02|16:54:49] JOB dist_2.20 SUCCESSFUL
+   [11.02|16:54:49] JOB dist_2.40 STARTED
+   [11.02|16:54:49] JOB dist_2.40 RUNNING
+   [11.02|16:54:51] JOB dist_2.40 FINISHED
+   [11.02|16:54:51] JOB dist_2.40 SUCCESSFUL
+   [11.02|16:54:51] JOB dist_2.60 STARTED
+   [11.02|16:54:51] JOB dist_2.60 RUNNING
    ... (PLAMS log lines truncated) ...
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-.. parsed-literal::
-
-    [26.08|15:26:10] JOB dist_2.20 STARTED
-    [26.08|15:26:10] JOB dist_2.20 RUNNING
-    [26.08|15:26:11] JOB dist_2.20 FINISHED
-    [26.08|15:26:12] JOB dist_2.20 SUCCESSFUL
-    [26.08|15:26:12] JOB dist_2.40 STARTED
-    [26.08|15:26:12] JOB dist_2.40 RUNNING
-    [26.08|15:26:13] JOB dist_2.40 FINISHED
-    [26.08|15:26:13] JOB dist_2.40 SUCCESSFUL
-    [26.08|15:26:13] JOB dist_2.60 STARTED
-    [26.08|15:26:13] JOB dist_2.60 RUNNING
-    [26.08|15:26:15] JOB dist_2.60 FINISHED
-    [26.08|15:26:15] JOB dist_2.60 SUCCESSFUL
-    [26.08|15:26:15] JOB dist_2.80 STARTED
-    [26.08|15:26:15] JOB dist_2.80 RUNNING
-    [26.08|15:26:16] JOB dist_2.80 FINISHED
-    [26.08|15:26:16] JOB dist_2.80 SUCCESSFUL
-    [26.08|15:26:16] JOB dist_3.00 STARTED
-    [26.08|15:26:16] JOB dist_3.00 RUNNING
-    [26.08|15:26:18] JOB dist_3.00 FINISHED
-    [26.08|15:26:18] JOB dist_3.00 SUCCESSFUL
-    [26.08|15:26:18] JOB dist_3.20 STARTED
-    [26.08|15:26:18] JOB dist_3.20 RUNNING
-    [26.08|15:26:20] JOB dist_3.20 FINISHED
-    [26.08|15:26:20] JOB dist_3.20 SUCCESSFUL
-    [26.08|15:26:20] JOB dist_3.40 STARTED
-    [26.08|15:26:20] JOB dist_3.40 RUNNING
-    [26.08|15:26:21] JOB dist_3.40 FINISHED
-    [26.08|15:26:21] JOB dist_3.40 SUCCESSFUL
-    [26.08|15:26:21] JOB dist_3.60 STARTED
-    [26.08|15:26:21] JOB dist_3.60 RUNNING
-    [26.08|15:26:23] JOB dist_3.60 FINISHED
-    [26.08|15:26:23] JOB dist_3.60 SUCCESSFUL
-    [26.08|15:26:23] JOB dist_3.80 STARTED
-    [26.08|15:26:23] JOB dist_3.80 RUNNING
-    [26.08|15:26:24] JOB dist_3.80 FINISHED
-    [26.08|15:26:24] JOB dist_3.80 SUCCESSFUL
-    [26.08|15:26:24] JOB dist_4.00 STARTED
-    [26.08|15:26:24] JOB dist_4.00 RUNNING
-    [26.08|15:26:26] JOB dist_4.00 FINISHED
-    [26.08|15:26:26] JOB dist_4.00 SUCCESSFUL
-
-=======
-.. parsed-literal::
-
-    [05.02|09:29:58] JOB dist_2.20 STARTED
-    [05.02|09:29:58] JOB dist_2.20 RUNNING
-    [05.02|09:30:01] JOB dist_2.20 FINISHED
-    [05.02|09:30:01] JOB dist_2.20 SUCCESSFUL
-    [05.02|09:30:01] JOB dist_2.40 STARTED
-    [05.02|09:30:01] JOB dist_2.40 RUNNING
-    [05.02|09:30:04] JOB dist_2.40 FINISHED
-    [05.02|09:30:04] JOB dist_2.40 SUCCESSFUL
-    [05.02|09:30:04] JOB dist_2.60 STARTED
-    [05.02|09:30:04] JOB dist_2.60 RUNNING
-    [05.02|09:30:08] JOB dist_2.60 FINISHED
-    [05.02|09:30:08] JOB dist_2.60 SUCCESSFUL
-    [05.02|09:30:08] JOB dist_2.80 STARTED
-    [05.02|09:30:08] JOB dist_2.80 RUNNING
-    [05.02|09:30:11] JOB dist_2.80 FINISHED
-    [05.02|09:30:11] JOB dist_2.80 SUCCESSFUL
-    [05.02|09:30:11] JOB dist_3.00 STARTED
-    [05.02|09:30:11] JOB dist_3.00 RUNNING
-    [05.02|09:30:15] JOB dist_3.00 FINISHED
-    [05.02|09:30:15] JOB dist_3.00 SUCCESSFUL
-    [05.02|09:30:15] JOB dist_3.20 STARTED
-    [05.02|09:30:15] JOB dist_3.20 RUNNING
-    [05.02|09:30:18] JOB dist_3.20 FINISHED
-    [05.02|09:30:18] JOB dist_3.20 SUCCESSFUL
-    [05.02|09:30:18] JOB dist_3.40 STARTED
-    [05.02|09:30:18] JOB dist_3.40 RUNNING
-    [05.02|09:30:22] JOB dist_3.40 FINISHED
-    [05.02|09:30:22] JOB dist_3.40 SUCCESSFUL
-    [05.02|09:30:22] JOB dist_3.60 STARTED
-    [05.02|09:30:22] JOB dist_3.60 RUNNING
-    [05.02|09:30:25] JOB dist_3.60 FINISHED
-    [05.02|09:30:25] JOB dist_3.60 SUCCESSFUL
-    [05.02|09:30:25] JOB dist_3.80 STARTED
-    [05.02|09:30:25] JOB dist_3.80 RUNNING
-    [05.02|09:30:28] JOB dist_3.80 FINISHED
-    [05.02|09:30:28] JOB dist_3.80 SUCCESSFUL
-    [05.02|09:30:28] JOB dist_4.00 STARTED
-    [05.02|09:30:28] JOB dist_4.00 RUNNING
-    [05.02|09:30:31] JOB dist_4.00 FINISHED
-    [05.02|09:30:31] JOB dist_4.00 SUCCESSFUL
-
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-.. parsed-literal::
-
-    [05.02|09:29:58] JOB dist_2.20 STARTED
-    [05.02|09:29:58] JOB dist_2.20 RUNNING
-    [05.02|09:30:01] JOB dist_2.20 FINISHED
-    [05.02|09:30:01] JOB dist_2.20 SUCCESSFUL
-    [05.02|09:30:01] JOB dist_2.40 STARTED
-    [05.02|09:30:01] JOB dist_2.40 RUNNING
-    [05.02|09:30:04] JOB dist_2.40 FINISHED
-    [05.02|09:30:04] JOB dist_2.40 SUCCESSFUL
-    [05.02|09:30:04] JOB dist_2.60 STARTED
-    [05.02|09:30:04] JOB dist_2.60 RUNNING
-    [05.02|09:30:08] JOB dist_2.60 FINISHED
-    [05.02|09:30:08] JOB dist_2.60 SUCCESSFUL
-    [05.02|09:30:08] JOB dist_2.80 STARTED
-    [05.02|09:30:08] JOB dist_2.80 RUNNING
-    [05.02|09:30:11] JOB dist_2.80 FINISHED
-    [05.02|09:30:11] JOB dist_2.80 SUCCESSFUL
-    [05.02|09:30:11] JOB dist_3.00 STARTED
-    [05.02|09:30:11] JOB dist_3.00 RUNNING
-    [05.02|09:30:15] JOB dist_3.00 FINISHED
-    [05.02|09:30:15] JOB dist_3.00 SUCCESSFUL
-    [05.02|09:30:15] JOB dist_3.20 STARTED
-    [05.02|09:30:15] JOB dist_3.20 RUNNING
-    [05.02|09:30:18] JOB dist_3.20 FINISHED
-    [05.02|09:30:18] JOB dist_3.20 SUCCESSFUL
-    [05.02|09:30:18] JOB dist_3.40 STARTED
-    [05.02|09:30:18] JOB dist_3.40 RUNNING
-    [05.02|09:30:22] JOB dist_3.40 FINISHED
-    [05.02|09:30:22] JOB dist_3.40 SUCCESSFUL
-    [05.02|09:30:22] JOB dist_3.60 STARTED
-    [05.02|09:30:22] JOB dist_3.60 RUNNING
-    [05.02|09:30:25] JOB dist_3.60 FINISHED
-    [05.02|09:30:25] JOB dist_3.60 SUCCESSFUL
-    [05.02|09:30:25] JOB dist_3.80 STARTED
-    [05.02|09:30:25] JOB dist_3.80 RUNNING
-    [05.02|09:30:28] JOB dist_3.80 FINISHED
-    [05.02|09:30:28] JOB dist_3.80 SUCCESSFUL
-    [05.02|09:30:28] JOB dist_4.00 STARTED
-    [05.02|09:30:28] JOB dist_4.00 RUNNING
-    [05.02|09:30:31] JOB dist_4.00 FINISHED
-    [05.02|09:30:31] JOB dist_4.00 SUCCESSFUL
-
-=======
-   [05.02|09:29:58] JOB dist_2.20 STARTED
-   [05.02|09:29:58] JOB dist_2.20 RUNNING
-   [05.02|09:30:01] JOB dist_2.20 FINISHED
-   [05.02|09:30:01] JOB dist_2.20 SUCCESSFUL
-   [05.02|09:30:01] JOB dist_2.40 STARTED
-   [05.02|09:30:01] JOB dist_2.40 RUNNING
-   [05.02|09:30:04] JOB dist_2.40 FINISHED
-   [05.02|09:30:04] JOB dist_2.40 SUCCESSFUL
-   [05.02|09:30:04] JOB dist_2.60 STARTED
-   [05.02|09:30:04] JOB dist_2.60 RUNNING
-   ... (PLAMS log lines truncated) ...
->>>>>>> 381a437 (Update examples again SO107)
 
 Results
 ~~~~~~~
@@ -347,131 +91,22 @@ Print table of results of the distance against the calculated energy.
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   print("== Results ==")
-   print("d[A]    E[kcal/mol]")
-   for d, e in zip(distances, energies):
-       print(f"{d:.2f}    {e:.3f}")
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-    print("== Results ==")
-    print("d[A]    E[kcal/mol]")
-    for d, e in zip(distances, energies):
-        print(f"{d:.2f}    {e:.3f}")
-=======
-    print("== Results ==")
-    try:
-        # For AMS2025+ can use JobAnalysis class to perform results analysis
-        from scm.plams import JobAnalysis
-    
-        ja = (
-            JobAnalysis(jobs=jobs, std_fields=None)
-            .add_field("Dist", lambda j: j.molecule[2].x, display_name="d[A]", fmt=".2f")
-            .add_field("Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="E[kcal/mol]", fmt=".3f")
-        )
-    
-        # Pretty-print if running in a notebook
-        if "ipykernel" in sys.modules:
-            ja.display_table()
-        else:
-            print(ja.to_table())
-    
-        energies = ja.Energy
-    
-    except ImportError:
-    
-        energies = [j.results.get_energy(unit="kcal/mol") for j in jobs]
-    
-        print("d[A]    E[kcal/mol]")
-        for d, e in zip(distances, energies):
-            print(f"{d:.2f}    {e:.3f}")
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-    print("== Results ==")
-    try:
-        # For AMS2025+ can use JobAnalysis class to perform results analysis
-        from scm.plams import JobAnalysis
-    
-        ja = (
-            JobAnalysis(jobs=jobs, std_fields=None)
-            .add_field("Dist", lambda j: j.molecule[2].x, display_name="d[A]", fmt=".2f")
-            .add_field("Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="E[kcal/mol]", fmt=".3f")
-        )
-    
-        # Pretty-print if running in a notebook
-        if "ipykernel" in sys.modules:
-            ja.display_table()
-        else:
-            print(ja.to_table())
-    
-        energies = ja.Energy
-    
-    except ImportError:
-    
-        energies = [j.results.get_energy(unit="kcal/mol") for j in jobs]
-    
-        print("d[A]    E[kcal/mol]")
-        for d, e in zip(distances, energies):
-            print(f"{d:.2f}    {e:.3f}")
-=======
    print("== Results ==")
    try:
        # For AMS2025+ can use JobAnalysis class to perform results analysis
        from scm.plams import JobAnalysis
->>>>>>> 381a437 (Update examples again SO107)
 
-<<<<<<< HEAD
-::
-||||||| parent of 381a437 (Update examples again SO107)
-=======
        ja = (
-           JobAnalysis(jobs=jobs, std_fields=None)
+           JobAnalysis(jobs=jobs, standard_fields=None)
            .add_field("Dist", lambda j: j.molecule[2].x, display_name="d[A]", fmt=".2f")
            .add_field("Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="E[kcal/mol]", fmt=".3f")
        )
->>>>>>> 381a437 (Update examples again SO107)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   == Results ==
-   d[A]    E[kcal/mol]
-   2.20    0.230
-   2.40    -0.054
-   2.60    -0.127
-   2.80    -0.122
-   3.00    -0.094
-   3.20    -0.066
-   3.40    -0.045
-   3.60    -0.030
-   3.80    -0.020
-   4.00    -0.013
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-.. parsed-literal::
-
-    == Results ==
-    d[A]    E[kcal/mol]
-    2.20    0.230
-    2.40    -0.054
-    2.60    -0.127
-    2.80    -0.122
-    3.00    -0.094
-    3.20    -0.066
-    3.40    -0.045
-    3.60    -0.030
-    3.80    -0.020
-    4.00    -0.013
-
-=======
-.. parsed-literal::
-||||||| parent of 381a437 (Update examples again SO107)
-.. parsed-literal::
-=======
        # Pretty-print if running in a notebook
        if "ipykernel" in sys.modules:
            ja.display_table()
        else:
            print(ja.to_table())
->>>>>>> 381a437 (Update examples again SO107)
 
        energies = ja.Energy
 
@@ -502,16 +137,8 @@ d[A] E[kcal/mol]
 4.00 -0.013
 ==== ===========
 
-<<<<<<< HEAD
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-
-||||||| parent of 381a437 (Update examples again SO107)
-
-=======
->>>>>>> 381a437 (Update examples again SO107)
 .. code:: ipython3
 
-<<<<<<< HEAD
    import matplotlib.pyplot as plt
 
    fig, ax = plt.subplots(figsize=(3, 3))
@@ -519,38 +146,4 @@ d[A] E[kcal/mol]
    ax.set_xlabel("He-He distance (Å)")
    ax.set_ylabel("Energy (kcal/mol)");
 
-<<<<<<< HEAD
 .. figure:: He2DissociationCurve_files/He2DissociationCurve_12_0.png
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-
-.. image:: He2DissociationCurve_files/He2DissociationCurve_12_0.png
-
-=======
-
-.. image:: He2DissociationCurve_files/He2DissociationCurve_12_0.png
-||||||| parent of 381a437 (Update examples again SO107)
-    import matplotlib.pyplot as plt
-    
-    fig, ax = plt.subplots(figsize=(3, 3))
-    ax.plot(distances, energies, ".-")
-    ax.set_xlabel("He-He distance (Å)")
-    ax.set_ylabel("Energy (kcal/mol)");
-
-
-
-.. image:: He2DissociationCurve_files/He2DissociationCurve_12_0.png
-=======
-   import matplotlib.pyplot as plt
->>>>>>> 381a437 (Update examples again SO107)
-
-   fig, ax = plt.subplots(figsize=(3, 3))
-   ax.plot(distances, energies, ".-")
-   ax.set_xlabel("He-He distance (Å)")
-   ax.set_ylabel("Energy (kcal/mol)");
-
-<<<<<<< HEAD
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-=======
-.. figure:: He2DissociationCurve_files/He2DissociationCurve_12_0.png
->>>>>>> 381a437 (Update examples again SO107)

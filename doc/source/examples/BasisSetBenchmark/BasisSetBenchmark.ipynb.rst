@@ -6,43 +6,17 @@ Initial Imports
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   import multiprocessing
-   from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init
-
-   # this line is not required in AMS2025+
-   init()
-
-::
-
-   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-    import multiprocessing
-    from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob
-=======
-    import sys
-    import multiprocessing
-    from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init
-    import numpy as np
-    
-    init();  # this line is not required in AMS2025+
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-    import sys
-    import multiprocessing
-    from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init
-    import numpy as np
-    
-    init();  # this line is not required in AMS2025+
-=======
    import sys
    import multiprocessing
    from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init
    import numpy as np
 
-   init();  # this line is not required in AMS2025+
->>>>>>> 381a437 (Update examples again SO107)
+   # this line is not required in AMS2025+
+   init();
+
+::
+
+   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir
 
 Set Up Job Runner
 ~~~~~~~~~~~~~~~~~
@@ -147,45 +121,6 @@ Run Calculations
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   results = {}
-   for bas in basis:
-       for name, molecule in molecules.items():
-           settings = common_settings.copy()
-           settings.input.adf.Basis.Type = bas
-           job = AMSJob(name=name + "_" + bas, molecule=molecule, settings=settings)
-           results[(name, bas)] = job.run()
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-    results = {}
-    for bas in basis:
-        for name, molecule in molecules.items():
-            settings = common_settings.copy()
-            settings.input.adf.Basis.Type = bas
-            job = AMSJob(name=name + "_" + bas, molecule=molecule, settings=settings)
-            results[(name, bas)] = job.run()
-=======
-    results = {}
-    jobs = []
-    for bas in basis:
-        for name, molecule in molecules.items():
-            settings = common_settings.copy()
-            settings.input.adf.Basis.Type = bas
-            job = AMSJob(name=name + "_" + bas, molecule=molecule, settings=settings)
-            jobs.append(job)
-            results[(name, bas)] = job.run()
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-    results = {}
-    jobs = []
-    for bas in basis:
-        for name, molecule in molecules.items():
-            settings = common_settings.copy()
-            settings.input.adf.Basis.Type = bas
-            job = AMSJob(name=name + "_" + bas, molecule=molecule, settings=settings)
-            jobs.append(job)
-            results[(name, bas)] = job.run()
-=======
    results = {}
    jobs = []
    for bas in basis:
@@ -195,287 +130,20 @@ Run Calculations
            job = AMSJob(name=name + "_" + bas, molecule=molecule, settings=settings)
            jobs.append(job)
            results[(name, bas)] = job.run()
->>>>>>> 381a437 (Update examples again SO107)
 
 ::
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   [10.02|15:01:11] JOB Methane_QZ4P STARTED
-   [10.02|15:01:11] JOB Ethane_QZ4P STARTED
-   [10.02|15:01:11] JOB Ethylene_QZ4P STARTED
-   [10.02|15:01:11] JOB Methane_QZ4P RUNNING
-   [10.02|15:01:11] JOB Acetylene_QZ4P STARTED
-   [10.02|15:01:11] JOB Methane_TZ2P STARTED
-   [10.02|15:01:11] JOB Ethane_TZ2P STARTED
-   [10.02|15:01:11] JOB Ethylene_TZ2P STARTED
-   [10.02|15:01:11] JOB Acetylene_TZ2P STARTED
-   [10.02|15:01:11] JOB Methane_TZP STARTED
+   [11.02|16:56:34] JOB Methane_QZ4P STARTED
+   [11.02|16:56:34] JOB Ethane_QZ4P STARTED
+   [11.02|16:56:34] JOB Ethylene_QZ4P STARTED
+   [11.02|16:56:34] JOB Acetylene_QZ4P STARTED
+   [11.02|16:56:34] JOB Methane_TZ2P STARTED
+   [11.02|16:56:34] JOB Methane_QZ4P RUNNING
+   [11.02|16:56:34] JOB Ethane_TZ2P STARTED
+   [11.02|16:56:34] JOB Ethylene_TZ2P STARTED
+   [11.02|16:56:34] JOB Acetylene_TZ2P STARTED
+   [11.02|16:56:34] JOB Acetylene_QZ4P RUNNING
    ... (PLAMS log lines truncated) ...
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-.. parsed-literal::
-
-    [13.08|15:09:01] JOB Methane_QZ4P STARTED
-    [13.08|15:09:01] JOB Ethane_QZ4P STARTED
-    [13.08|15:09:01] JOB Ethylene_QZ4P STARTED
-    [13.08|15:09:01] JOB Acetylene_QZ4P STARTED
-    [13.08|15:09:01] JOB Methane_TZ2P STARTED
-    [13.08|15:09:01] JOB Methane_QZ4P RUNNING
-    [13.08|15:09:01] JOB Ethane_TZ2P STARTED
-    [13.08|15:09:01] JOB Ethane_QZ4P RUNNING
-    [13.08|15:09:01] JOB Ethylene_TZ2P STARTED
-    [13.08|15:09:01] JOB Ethylene_QZ4P RUNNING
-    [13.08|15:09:01] JOB Acetylene_TZ2P STARTED
-    [13.08|15:09:01] JOB Acetylene_QZ4P RUNNING
-    [13.08|15:09:01] JOB Methane_TZ2P RUNNING
-    [13.08|15:09:01] JOB Methane_TZP STARTED
-    [13.08|15:09:01] JOB Ethane_TZ2P RUNNING
-    [13.08|15:09:01] JOB Ethylene_TZ2P RUNNING
-    [13.08|15:09:01] JOB Ethane_TZP STARTED
-    [13.08|15:09:01] JOB Ethylene_TZP STARTED
-    [13.08|15:09:01] JOB Acetylene_TZ2P RUNNING
-    [13.08|15:09:01] JOB Acetylene_TZP STARTED
-    [13.08|15:09:01] JOB Methane_DZP STARTED
-    [13.08|15:09:01] JOB Methane_TZP RUNNING
-    [13.08|15:09:01] JOB Ethane_DZP STARTED
-    [13.08|15:09:01] JOB Ethane_TZP RUNNING
-    [13.08|15:09:01] JOB Ethylene_DZP STARTED
-    [13.08|15:09:01] JOB Ethylene_TZP RUNNING
-    [13.08|15:09:01] JOB Acetylene_DZP STARTED
-    [13.08|15:09:01] JOB Acetylene_TZP RUNNING
-    [13.08|15:09:01] JOB Methane_DZ STARTED
-    [13.08|15:09:01] JOB Methane_DZP RUNNING
-    [13.08|15:09:01] JOB Ethane_DZ STARTED
-    [13.08|15:09:01] JOB Ethane_DZP RUNNING
-    [13.08|15:09:01] JOB Ethylene_DZ STARTED
-    [13.08|15:09:01] JOB Ethylene_DZP RUNNING
-    [13.08|15:09:01] JOB Acetylene_DZ STARTED
-    [13.08|15:09:01] JOB Acetylene_DZP RUNNING
-    [13.08|15:09:01] JOB Methane_SZ STARTED
-    [13.08|15:09:01] JOB Methane_DZ RUNNING
-    [13.08|15:09:01] JOB Ethane_SZ STARTED
-    [13.08|15:09:01] JOB Ethane_DZ RUNNING
-    [13.08|15:09:01] JOB Ethylene_SZ STARTED
-    [13.08|15:09:01] JOB Ethylene_DZ RUNNING
-    [13.08|15:09:01] JOB Acetylene_DZ RUNNING
-    [13.08|15:09:01] JOB Acetylene_SZ STARTED
-    [13.08|15:09:01] JOB Methane_SZ RUNNING
-    [13.08|15:09:01] JOB Ethane_SZ RUNNING
-
-=======
-.. parsed-literal::
-
-    [04.02|17:21:55] JOB Methane_QZ4P STARTED
-    [04.02|17:21:55] JOB Ethane_QZ4P STARTED
-    [04.02|17:21:55] JOB Ethylene_QZ4P STARTED
-    [04.02|17:21:55] JOB Acetylene_QZ4P STARTED
-    [04.02|17:21:55] JOB Methane_QZ4P RUNNING
-    [04.02|17:21:55] JOB Methane_TZ2P STARTED
-    [04.02|17:21:55] JOB Ethane_QZ4P RUNNING
-    [04.02|17:21:55] JOB Ethane_TZ2P STARTED
-    [04.02|17:21:55] JOB Ethylene_QZ4P RUNNING
-    [04.02|17:21:55] JOB Ethylene_TZ2P STARTED
-    [04.02|17:21:55] JOB Methane_TZ2P RUNNING
-    [04.02|17:21:55] JOB Acetylene_TZ2P STARTED
-    [04.02|17:21:55] JOB Acetylene_QZ4P RUNNING
-    [04.02|17:21:55] JOB Acetylene_TZ2P RUNNING
-    [04.02|17:21:55] JOB Methane_TZP STARTED
-    [04.02|17:21:55] JOB Ethane_TZP STARTED
-    [04.02|17:21:55] JOB Ethane_TZ2P RUNNING
-    [04.02|17:21:55] JOB Ethylene_TZP STARTED
-    [04.02|17:21:55] JOB Acetylene_TZP STARTED
-    [04.02|17:21:55] JOB Methane_DZP STARTED
-    [04.02|17:21:55] JOB Ethane_DZP STARTED
-    [04.02|17:21:55] JOB Ethylene_TZ2P RUNNING
-    [04.02|17:21:55] JOB Ethylene_DZP STARTED
-    [04.02|17:21:55] JOB Acetylene_DZP STARTED
-    [04.02|17:21:55] JOB Methane_DZ STARTED
-    [04.02|17:21:55] JOB Ethane_DZ STARTED
-    [04.02|17:21:55] JOB Ethylene_DZ STARTED
-    [04.02|17:21:55] JOB Acetylene_DZ STARTED
-    [04.02|17:21:55] JOB Ethylene_TZP RUNNING
-    [04.02|17:21:55] JOB Methane_SZ STARTED
-    [04.02|17:21:55] JOB Acetylene_TZP RUNNING
-    [04.02|17:21:55] JOB Ethane_SZ STARTED
-    [04.02|17:21:55] JOB Ethylene_SZ STARTED
-    [04.02|17:21:55] JOB Methane_TZP RUNNING
-    [04.02|17:21:55] JOB Acetylene_SZ STARTED
-    [04.02|17:21:55] JOB Acetylene_DZP RUNNING
-    [04.02|17:21:55] JOB Methane_DZP RUNNING
-    [04.02|17:21:55] JOB Ethylene_DZP RUNNING
-    [04.02|17:21:55] JOB Ethane_DZP RUNNING
-    [04.02|17:21:55] JOB Ethylene_SZ RUNNING
-    [04.02|17:21:55] JOB Ethane_TZP RUNNING
-    [04.02|17:21:55] JOB Acetylene_DZ RUNNING
-    [04.02|17:21:55] JOB Methane_DZ RUNNING
-    [04.02|17:21:55] JOB Ethane_DZ RUNNING
-    [04.02|17:21:55] JOB Methane_SZ RUNNING
-    [04.02|17:21:55] JOB Ethylene_DZ RUNNING
-    [04.02|17:21:55] JOB Acetylene_SZ RUNNING
-    [04.02|17:21:55] JOB Ethane_SZ RUNNING
-    [04.02|17:21:59] JOB Methane_TZ2P FINISHED
-    [04.02|17:21:59] JOB Methane_TZ2P SUCCESSFUL
-    [04.02|17:21:59] JOB Methane_QZ4P FINISHED
-    [04.02|17:21:59] JOB Methane_QZ4P SUCCESSFUL
-    [04.02|17:21:59] JOB Methane_TZP FINISHED
-    [04.02|17:21:59] JOB Methane_TZP SUCCESSFUL
-    [04.02|17:22:00] JOB Acetylene_TZP FINISHED
-    [04.02|17:22:00] JOB Acetylene_TZP SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_TZ2P FINISHED
-    [04.02|17:22:00] JOB Ethylene_TZ2P SUCCESSFUL
-    [04.02|17:22:00] JOB Acetylene_TZ2P FINISHED
-    [04.02|17:22:00] JOB Acetylene_TZ2P SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_TZP FINISHED
-    [04.02|17:22:00] JOB Acetylene_DZP FINISHED
-    [04.02|17:22:00] JOB Acetylene_DZP SUCCESSFUL
-    [04.02|17:22:00] JOB Acetylene_QZ4P FINISHED
-    [04.02|17:22:00] JOB Ethylene_TZP SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_QZ4P FINISHED
-    [04.02|17:22:00] JOB Acetylene_QZ4P SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_QZ4P SUCCESSFUL
-    [04.02|17:22:03] JOB Ethane_TZ2P FINISHED
-    [04.02|17:22:03] JOB Ethane_TZ2P SUCCESSFUL
-    [04.02|17:22:03] JOB Acetylene_SZ FINISHED
-    [04.02|17:22:03] JOB Acetylene_SZ SUCCESSFUL
-    [04.02|17:22:04] JOB Acetylene_DZ FINISHED
-    [04.02|17:22:04] JOB Acetylene_DZ SUCCESSFUL
-    [04.02|17:22:04] JOB Methane_DZP FINISHED
-    [04.02|17:22:04] JOB Methane_DZP SUCCESSFUL
-    [04.02|17:22:04] JOB Ethane_QZ4P FINISHED
-    [04.02|17:22:04] JOB Ethane_QZ4P SUCCESSFUL
-    [04.02|17:22:04] JOB Methane_DZ FINISHED
-    [04.02|17:22:04] JOB Methane_SZ FINISHED
-    [04.02|17:22:04] JOB Methane_DZ SUCCESSFUL
-    [04.02|17:22:04] JOB Methane_SZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethylene_DZ FINISHED
-    [04.02|17:22:05] JOB Ethylene_DZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethane_DZP FINISHED
-    [04.02|17:22:05] JOB Ethane_SZ FINISHED
-    [04.02|17:22:05] JOB Ethane_DZP SUCCESSFUL
-    [04.02|17:22:05] JOB Ethane_SZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethylene_DZP FINISHED
-    [04.02|17:22:05] JOB Ethylene_DZP SUCCESSFUL
-    [04.02|17:22:05] JOB Ethane_DZ FINISHED
-    [04.02|17:22:05] JOB Ethane_DZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethylene_SZ FINISHED
-    [04.02|17:22:05] JOB Ethylene_SZ SUCCESSFUL
-    [04.02|17:22:06] JOB Ethane_TZP FINISHED
-    [04.02|17:22:06] JOB Ethane_TZP SUCCESSFUL
-
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-.. parsed-literal::
-
-    [04.02|17:21:55] JOB Methane_QZ4P STARTED
-    [04.02|17:21:55] JOB Ethane_QZ4P STARTED
-    [04.02|17:21:55] JOB Ethylene_QZ4P STARTED
-    [04.02|17:21:55] JOB Acetylene_QZ4P STARTED
-    [04.02|17:21:55] JOB Methane_QZ4P RUNNING
-    [04.02|17:21:55] JOB Methane_TZ2P STARTED
-    [04.02|17:21:55] JOB Ethane_QZ4P RUNNING
-    [04.02|17:21:55] JOB Ethane_TZ2P STARTED
-    [04.02|17:21:55] JOB Ethylene_QZ4P RUNNING
-    [04.02|17:21:55] JOB Ethylene_TZ2P STARTED
-    [04.02|17:21:55] JOB Methane_TZ2P RUNNING
-    [04.02|17:21:55] JOB Acetylene_TZ2P STARTED
-    [04.02|17:21:55] JOB Acetylene_QZ4P RUNNING
-    [04.02|17:21:55] JOB Acetylene_TZ2P RUNNING
-    [04.02|17:21:55] JOB Methane_TZP STARTED
-    [04.02|17:21:55] JOB Ethane_TZP STARTED
-    [04.02|17:21:55] JOB Ethane_TZ2P RUNNING
-    [04.02|17:21:55] JOB Ethylene_TZP STARTED
-    [04.02|17:21:55] JOB Acetylene_TZP STARTED
-    [04.02|17:21:55] JOB Methane_DZP STARTED
-    [04.02|17:21:55] JOB Ethane_DZP STARTED
-    [04.02|17:21:55] JOB Ethylene_TZ2P RUNNING
-    [04.02|17:21:55] JOB Ethylene_DZP STARTED
-    [04.02|17:21:55] JOB Acetylene_DZP STARTED
-    [04.02|17:21:55] JOB Methane_DZ STARTED
-    [04.02|17:21:55] JOB Ethane_DZ STARTED
-    [04.02|17:21:55] JOB Ethylene_DZ STARTED
-    [04.02|17:21:55] JOB Acetylene_DZ STARTED
-    [04.02|17:21:55] JOB Ethylene_TZP RUNNING
-    [04.02|17:21:55] JOB Methane_SZ STARTED
-    [04.02|17:21:55] JOB Acetylene_TZP RUNNING
-    [04.02|17:21:55] JOB Ethane_SZ STARTED
-    [04.02|17:21:55] JOB Ethylene_SZ STARTED
-    [04.02|17:21:55] JOB Methane_TZP RUNNING
-    [04.02|17:21:55] JOB Acetylene_SZ STARTED
-    [04.02|17:21:55] JOB Acetylene_DZP RUNNING
-    [04.02|17:21:55] JOB Methane_DZP RUNNING
-    [04.02|17:21:55] JOB Ethylene_DZP RUNNING
-    [04.02|17:21:55] JOB Ethane_DZP RUNNING
-    [04.02|17:21:55] JOB Ethylene_SZ RUNNING
-    [04.02|17:21:55] JOB Ethane_TZP RUNNING
-    [04.02|17:21:55] JOB Acetylene_DZ RUNNING
-    [04.02|17:21:55] JOB Methane_DZ RUNNING
-    [04.02|17:21:55] JOB Ethane_DZ RUNNING
-    [04.02|17:21:55] JOB Methane_SZ RUNNING
-    [04.02|17:21:55] JOB Ethylene_DZ RUNNING
-    [04.02|17:21:55] JOB Acetylene_SZ RUNNING
-    [04.02|17:21:55] JOB Ethane_SZ RUNNING
-    [04.02|17:21:59] JOB Methane_TZ2P FINISHED
-    [04.02|17:21:59] JOB Methane_TZ2P SUCCESSFUL
-    [04.02|17:21:59] JOB Methane_QZ4P FINISHED
-    [04.02|17:21:59] JOB Methane_QZ4P SUCCESSFUL
-    [04.02|17:21:59] JOB Methane_TZP FINISHED
-    [04.02|17:21:59] JOB Methane_TZP SUCCESSFUL
-    [04.02|17:22:00] JOB Acetylene_TZP FINISHED
-    [04.02|17:22:00] JOB Acetylene_TZP SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_TZ2P FINISHED
-    [04.02|17:22:00] JOB Ethylene_TZ2P SUCCESSFUL
-    [04.02|17:22:00] JOB Acetylene_TZ2P FINISHED
-    [04.02|17:22:00] JOB Acetylene_TZ2P SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_TZP FINISHED
-    [04.02|17:22:00] JOB Acetylene_DZP FINISHED
-    [04.02|17:22:00] JOB Acetylene_DZP SUCCESSFUL
-    [04.02|17:22:00] JOB Acetylene_QZ4P FINISHED
-    [04.02|17:22:00] JOB Ethylene_TZP SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_QZ4P FINISHED
-    [04.02|17:22:00] JOB Acetylene_QZ4P SUCCESSFUL
-    [04.02|17:22:00] JOB Ethylene_QZ4P SUCCESSFUL
-    [04.02|17:22:03] JOB Ethane_TZ2P FINISHED
-    [04.02|17:22:03] JOB Ethane_TZ2P SUCCESSFUL
-    [04.02|17:22:03] JOB Acetylene_SZ FINISHED
-    [04.02|17:22:03] JOB Acetylene_SZ SUCCESSFUL
-    [04.02|17:22:04] JOB Acetylene_DZ FINISHED
-    [04.02|17:22:04] JOB Acetylene_DZ SUCCESSFUL
-    [04.02|17:22:04] JOB Methane_DZP FINISHED
-    [04.02|17:22:04] JOB Methane_DZP SUCCESSFUL
-    [04.02|17:22:04] JOB Ethane_QZ4P FINISHED
-    [04.02|17:22:04] JOB Ethane_QZ4P SUCCESSFUL
-    [04.02|17:22:04] JOB Methane_DZ FINISHED
-    [04.02|17:22:04] JOB Methane_SZ FINISHED
-    [04.02|17:22:04] JOB Methane_DZ SUCCESSFUL
-    [04.02|17:22:04] JOB Methane_SZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethylene_DZ FINISHED
-    [04.02|17:22:05] JOB Ethylene_DZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethane_DZP FINISHED
-    [04.02|17:22:05] JOB Ethane_SZ FINISHED
-    [04.02|17:22:05] JOB Ethane_DZP SUCCESSFUL
-    [04.02|17:22:05] JOB Ethane_SZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethylene_DZP FINISHED
-    [04.02|17:22:05] JOB Ethylene_DZP SUCCESSFUL
-    [04.02|17:22:05] JOB Ethane_DZ FINISHED
-    [04.02|17:22:05] JOB Ethane_DZ SUCCESSFUL
-    [04.02|17:22:05] JOB Ethylene_SZ FINISHED
-    [04.02|17:22:05] JOB Ethylene_SZ SUCCESSFUL
-    [04.02|17:22:06] JOB Ethane_TZP FINISHED
-    [04.02|17:22:06] JOB Ethane_TZP SUCCESSFUL
-
-=======
-   [04.02|17:21:55] JOB Methane_QZ4P STARTED
-   [04.02|17:21:55] JOB Ethane_QZ4P STARTED
-   [04.02|17:21:55] JOB Ethylene_QZ4P STARTED
-   [04.02|17:21:55] JOB Acetylene_QZ4P STARTED
-   [04.02|17:21:55] JOB Methane_QZ4P RUNNING
-   [04.02|17:21:55] JOB Methane_TZ2P STARTED
-   [04.02|17:21:55] JOB Ethane_QZ4P RUNNING
-   [04.02|17:21:55] JOB Ethane_TZ2P STARTED
-   [04.02|17:21:55] JOB Ethylene_QZ4P RUNNING
-   [04.02|17:21:55] JOB Ethylene_TZ2P STARTED
-   ... (PLAMS log lines truncated) ...
->>>>>>> 381a437 (Update examples again SO107)
 
 Results
 ~~~~~~~
@@ -484,136 +152,14 @@ Extract the energy from each calculation. Calculate the average absolute error i
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   average_errors = {}
-   for bas in basis:
-       if bas != reference_basis:
-           errors = []
-           for name, molecule in molecules.items():
-               reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
-               energy = results[(name, bas)].get_energy(unit="kcal/mol")
-               errors.append(abs(energy - reference_energy) / len(molecule))
-               print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
-           average_errors[bas] = sum(errors) / len(errors)
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-    average_errors = {}
-    for bas in basis:
-        if bas != reference_basis:
-            errors = []
-            for name, molecule in molecules.items():
-                reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
-                energy = results[(name, bas)].get_energy(unit="kcal/mol")
-                errors.append(abs(energy - reference_energy) / len(molecule))
-                print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
-            average_errors[bas] = sum(errors) / len(errors)
-=======
-    try:
-        # For AMS2025+ can use JobAnalysis class to perform results analysis
-        from scm.plams import JobAnalysis
-    
-        ja = (
-            JobAnalysis(jobs=jobs, std_fields=None)
-            .add_formula_field()
-            .add_smiles_field()
-            .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
-            .add_field("NAtoms", lambda j: len(j.molecule))
-            .add_field(
-                "Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="Energy [kcal/mol]", fmt=".2f"
-            )
-            .sort_jobs(["NAtoms", "Energy"])
-        )
-    
-        ref_ja = ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
-    
-        ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
-    
-        def get_average_error(job):
-            return abs(job.results.get_energy(unit="kcal/mol") - ref_energies[job.molecule.get_formula()]) / len(
-                job.molecule
-            )
-    
-        ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
-    
-        # Pretty-print if running in a notebook
-        if "ipykernel" in sys.modules:
-            ja.display_table()
-        else:
-            print(ja.to_table())
-    
-    except ImportError:
-    
-        average_errors = {}
-        for bas in basis:
-            if bas != reference_basis:
-                errors = []
-                for name, molecule in molecules.items():
-                    reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
-                    energy = results[(name, bas)].get_energy(unit="kcal/mol")
-                    errors.append(abs(energy - reference_energy) / len(molecule))
-                    print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
-                average_errors[bas] = sum(errors) / len(errors)
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-    try:
-        # For AMS2025+ can use JobAnalysis class to perform results analysis
-        from scm.plams import JobAnalysis
-    
-        ja = (
-            JobAnalysis(jobs=jobs, std_fields=None)
-            .add_formula_field()
-            .add_smiles_field()
-            .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
-            .add_field("NAtoms", lambda j: len(j.molecule))
-            .add_field(
-                "Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="Energy [kcal/mol]", fmt=".2f"
-            )
-            .sort_jobs(["NAtoms", "Energy"])
-        )
-    
-        ref_ja = ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
-    
-        ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
-    
-        def get_average_error(job):
-            return abs(job.results.get_energy(unit="kcal/mol") - ref_energies[job.molecule.get_formula()]) / len(
-                job.molecule
-            )
-    
-        ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
-    
-        # Pretty-print if running in a notebook
-        if "ipykernel" in sys.modules:
-            ja.display_table()
-        else:
-            print(ja.to_table())
-    
-    except ImportError:
-    
-        average_errors = {}
-        for bas in basis:
-            if bas != reference_basis:
-                errors = []
-                for name, molecule in molecules.items():
-                    reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
-                    energy = results[(name, bas)].get_energy(unit="kcal/mol")
-                    errors.append(abs(energy - reference_energy) / len(molecule))
-                    print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
-                average_errors[bas] = sum(errors) / len(errors)
-=======
    try:
        # For AMS2025+ can use JobAnalysis class to perform results analysis
        from scm.plams import JobAnalysis
->>>>>>> 381a437 (Update examples again SO107)
 
-<<<<<<< HEAD
-::
-||||||| parent of 381a437 (Update examples again SO107)
-=======
        ja = (
-           JobAnalysis(jobs=jobs, std_fields=None)
-           .add_formula_field()
-           .add_smiles_field()
+           JobAnalysis(jobs=jobs, standard_fields=None)
+           .add_standard_field("Formula")
+           .add_standard_field("Smiles")
            .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
            .add_field("NAtoms", lambda j: len(j.molecule))
            .add_field(
@@ -621,146 +167,11 @@ Extract the energy from each calculation. Calculate the average absolute error i
            )
            .sort_jobs(["NAtoms", "Energy"])
        )
->>>>>>> 381a437 (Update examples again SO107)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-   [10.02|15:01:11] JOB Acetylene_TZP RUNNING
-   [10.02|15:01:11] Waiting for job Methane_QZ4P to finish
-   [10.02|15:01:11] JOB Methane_DZ RUNNING
-   [10.02|15:01:11] JOB Ethane_DZP RUNNING
-   [10.02|15:01:11] JOB Ethylene_DZP RUNNING
-   [10.02|15:01:11] JOB Acetylene_DZP RUNNING
-   [10.02|15:01:11] JOB Methane_SZ RUNNING
-   [10.02|15:01:11] JOB Ethane_DZ RUNNING
-   [10.02|15:01:11] JOB Ethane_SZ RUNNING
-   [10.02|15:01:11] JOB Ethylene_DZ RUNNING
-   [10.02|15:01:11] JOB Acetylene_DZ RUNNING
-   ... (PLAMS log lines truncated) ...
-   Energy for Methane using TZ2P basis set: -572.110159165262 [kcal/mol]
-   [10.02|15:01:15] Waiting for job Ethane_QZ4P to finish
-   Energy for Ethane using TZ2P basis set: -971.8820186844459 [kcal/mol]
-   Energy for Ethylene using TZ2P basis set: -769.4329031250381 [kcal/mol]
-   Energy for Acetylene using TZ2P basis set: -555.6672902509043 [kcal/mol]
-   Energy for Methane using TZP basis set: -571.0448969099549 [kcal/mol]
-   Energy for Ethane using TZP basis set: -970.0758887573307 [kcal/mol]
-   Energy for Ethylene using TZP basis set: -767.3275176578105 [kcal/mol]
-   [10.02|15:01:18] Waiting for job Acetylene_TZP to finish
-   Energy for Acetylene using TZP basis set: -552.9562856742521 [kcal/mol]
-   Energy for Methane using DZP basis set: -569.1190156251034 [kcal/mol]
-   [10.02|15:01:19] Waiting for job Ethane_DZP to finish
-   Energy for Ethane using DZP basis set: -966.0916443143674 [kcal/mol]
-   Energy for Ethylene using DZP basis set: -764.4132984010868 [kcal/mol]
-   Energy for Acetylene using DZP basis set: -550.6461805496328 [kcal/mol]
-   Energy for Methane using DZ basis set: -560.9344313073021 [kcal/mol]
-   [10.02|15:01:19] Waiting for job Ethane_DZ to finish
-   Energy for Ethane using DZ basis set: -951.1666971758781 [kcal/mol]
-   Energy for Ethylene using DZ basis set: -750.1745108422972 [kcal/mol]
-   Energy for Acetylene using DZ basis set: -537.1008020388887 [kcal/mol]
-   Energy for Methane using SZ basis set: -723.550123154895 [kcal/mol]
-   Energy for Ethane using SZ basis set: -1216.914233427825 [kcal/mol]
-   Energy for Ethylene using SZ basis set: -934.6558200110123 [kcal/mol]
-   Energy for Acetylene using SZ basis set: -647.5029836817757 [kcal/mol]
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-.. parsed-literal::
-
-    [13.08|15:09:01] JOB Ethylene_SZ RUNNING
-    [13.08|15:09:01] Waiting for job Methane_QZ4P to finish
-    [13.08|15:09:01] JOB Acetylene_SZ RUNNING
-    [13.08|15:09:04] JOB Methane_QZ4P FINISHED
-    [13.08|15:09:04] JOB Methane_QZ4P SUCCESSFUL
-    [13.08|15:09:04] Waiting for job Methane_TZ2P to finish
-    [13.08|15:09:04] JOB Methane_TZ2P FINISHED
-    [13.08|15:09:04] JOB Methane_TZ2P SUCCESSFUL
-    Energy for Methane using TZ2P basis set: -572.1101591652508 [kcal/mol]
-    [13.08|15:09:04] Waiting for job Ethane_QZ4P to finish
-    [13.08|15:09:04] JOB Methane_TZP FINISHED
-    [13.08|15:09:04] JOB Methane_TZP SUCCESSFUL
-    [13.08|15:09:05] JOB Ethylene_QZ4P FINISHED
-    [13.08|15:09:05] JOB Ethylene_QZ4P SUCCESSFUL
-    [13.08|15:09:05] JOB Acetylene_QZ4P FINISHED
-    [13.08|15:09:05] JOB Acetylene_QZ4P SUCCESSFUL
-    [13.08|15:09:05] JOB Ethylene_TZ2P FINISHED
-    [13.08|15:09:05] JOB Ethylene_TZ2P SUCCESSFUL
-    [13.08|15:09:05] JOB Ethylene_TZP FINISHED
-    [13.08|15:09:05] JOB Ethylene_TZP SUCCESSFUL
-    [13.08|15:09:05] JOB Acetylene_TZP FINISHED
-    [13.08|15:09:05] JOB Acetylene_TZP SUCCESSFUL
-    [13.08|15:09:05] JOB Acetylene_TZ2P FINISHED
-    [13.08|15:09:05] JOB Acetylene_TZ2P SUCCESSFUL
-    [13.08|15:09:06] JOB Ethane_TZP FINISHED
-    [13.08|15:09:06] JOB Ethane_TZP SUCCESSFUL
-    [13.08|15:09:06] JOB Methane_DZP FINISHED
-    [13.08|15:09:06] JOB Methane_DZP SUCCESSFUL
-    [13.08|15:09:06] JOB Ethane_TZ2P FINISHED
-    [13.08|15:09:06] JOB Ethane_TZ2P SUCCESSFUL
-    [13.08|15:09:07] JOB Ethane_QZ4P FINISHED
-    [13.08|15:09:07] JOB Ethane_QZ4P SUCCESSFUL
-    Energy for Ethane using TZ2P basis set: -971.8820186845153 [kcal/mol]
-    Energy for Ethylene using TZ2P basis set: -769.4329031250394 [kcal/mol]
-    Energy for Acetylene using TZ2P basis set: -555.667290250868 [kcal/mol]
-    Energy for Methane using TZP basis set: -571.0448969099632 [kcal/mol]
-    Energy for Ethane using TZP basis set: -970.0758887574258 [kcal/mol]
-    Energy for Ethylene using TZP basis set: -767.3275176577931 [kcal/mol]
-    Energy for Acetylene using TZP basis set: -552.956285674204 [kcal/mol]
-    Energy for Methane using DZP basis set: -569.1190156251367 [kcal/mol]
-    [13.08|15:09:07] Waiting for job Ethane_DZP to finish
-    [13.08|15:09:07] JOB Methane_DZ FINISHED
-    [13.08|15:09:07] JOB Methane_DZ SUCCESSFUL
-    [13.08|15:09:07] JOB Ethylene_DZP FINISHED
-    [13.08|15:09:07] JOB Ethylene_DZP SUCCESSFUL
-    [13.08|15:09:07] JOB Ethane_DZP FINISHED
-    [13.08|15:09:08] JOB Ethane_DZP SUCCESSFUL
-    Energy for Ethane using DZP basis set: -966.0916443143979 [kcal/mol]
-    Energy for Ethylene using DZP basis set: -764.4132984011687 [kcal/mol]
-    [13.08|15:09:08] Waiting for job Acetylene_DZP to finish
-    [13.08|15:09:08] JOB Methane_SZ FINISHED
-    [13.08|15:09:08] JOB Methane_SZ SUCCESSFUL
-    [13.08|15:09:08] JOB Acetylene_DZP FINISHED
-    [13.08|15:09:08] JOB Acetylene_DZP SUCCESSFUL
-    Energy for Acetylene using DZP basis set: -550.6461805495554 [kcal/mol]
-    Energy for Methane using DZ basis set: -560.9344313072968 [kcal/mol]
-    [13.08|15:09:08] Waiting for job Ethane_DZ to finish
-    [13.08|15:09:08] JOB Ethylene_DZ FINISHED
-    [13.08|15:09:08] JOB Ethylene_DZ SUCCESSFUL
-    [13.08|15:09:08] JOB Acetylene_DZ FINISHED
-    [13.08|15:09:08] JOB Acetylene_DZ SUCCESSFUL
-    [13.08|15:09:08] JOB Ethane_DZ FINISHED
-    [13.08|15:09:08] JOB Ethane_DZ SUCCESSFUL
-    Energy for Ethane using DZ basis set: -951.1666971758054 [kcal/mol]
-    Energy for Ethylene using DZ basis set: -750.1745108423067 [kcal/mol]
-    Energy for Acetylene using DZ basis set: -537.100802038877 [kcal/mol]
-    Energy for Methane using SZ basis set: -723.5501231548906 [kcal/mol]
-    [13.08|15:09:08] Waiting for job Ethane_SZ to finish
-    [13.08|15:09:09] JOB Ethylene_SZ FINISHED
-    [13.08|15:09:09] JOB Ethylene_SZ SUCCESSFUL
-    [13.08|15:09:09] JOB Ethane_SZ FINISHED
-    [13.08|15:09:09] JOB Ethane_SZ SUCCESSFUL
-    Energy for Ethane using SZ basis set: -1216.91423342784 [kcal/mol]
-    Energy for Ethylene using SZ basis set: -934.6558200110214 [kcal/mol]
-    [13.08|15:09:09] Waiting for job Acetylene_SZ to finish
-    [13.08|15:09:09] JOB Acetylene_SZ FINISHED
-    [13.08|15:09:09] JOB Acetylene_SZ SUCCESSFUL
-    Energy for Acetylene using SZ basis set: -647.50298368177 [kcal/mol]
-
-=======
-.. parsed-literal::
-||||||| parent of c769e54 (Update example notebooks SO107)
-.. parsed-literal::
-=======
->>>>>>> c769e54 (Update example notebooks SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-=======
        ref_ja = ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
->>>>>>> 381a437 (Update examples again SO107)
 
        ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
 
-<<<<<<< HEAD
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-=======
        def get_average_error(job):
            return abs(job.results.get_energy(unit="kcal/mol") - ref_energies[job.molecule.get_formula()]) / len(
                job.molecule
@@ -815,88 +226,9 @@ C2H6    CC     TZP   8      -970.08           0.37
 C2H6    CC     TZ2P  8      -971.88           0.14
 C2H6    CC     QZ4P  8      -973.02           0.00
 ======= ====== ===== ====== ================= ========================
->>>>>>> 381a437 (Update examples again SO107)
 
 .. code:: ipython3
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   print("== Results ==")
-   print("Average absolute error in bond energy per atom")
-   for bas in basis:
-       if bas != reference_basis:
-           print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, average_errors[bas]))
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-    print("== Results ==")
-    print("Average absolute error in bond energy per atom")
-    for bas in basis:
-        if bas != reference_basis:
-            print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, average_errors[bas]))
-=======
-    print("== Results ==")
-    print("Average absolute error in bond energy per atom")
-    for bas in basis:
-        if bas != reference_basis:
-            if ja:
-                av = np.average(ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
-            else:
-                av = average_errors[bas]
-            print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, av))
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-
-::
-
-<<<<<<< HEAD
-   == Results ==
-   Average absolute error in bond energy per atom
-   Error for basis set TZ2P:      0.170 [kcal/mol]
-   Error for basis set TZP :      0.537 [kcal/mol]
-   Error for basis set DZP :      1.024 [kcal/mol]
-   Error for basis set DZ  :      3.339 [kcal/mol]
-   Error for basis set SZ  :     27.683 [kcal/mol]
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-.. parsed-literal::
-
-    == Results ==
-    Average absolute error in bond energy per atom
-    Error for basis set TZ2P:      0.170 [kcal/mol]
-    Error for basis set TZP :      0.537 [kcal/mol]
-    Error for basis set DZP :      1.024 [kcal/mol]
-    Error for basis set DZ  :      3.339 [kcal/mol]
-    Error for basis set SZ  :     27.683 [kcal/mol]
-
-=======
-.. parsed-literal::
-
-    == Results ==
-    Average absolute error in bond energy per atom
-    Error for basis set TZ2P:      0.170 [kcal/mol]
-    Error for basis set TZP :      0.537 [kcal/mol]
-    Error for basis set DZP :      1.024 [kcal/mol]
-    Error for basis set DZ  :      3.339 [kcal/mol]
-    Error for basis set SZ  :     27.683 [kcal/mol]
-||||||| parent of 381a437 (Update examples again SO107)
-    print("== Results ==")
-    print("Average absolute error in bond energy per atom")
-    for bas in basis:
-        if bas != reference_basis:
-            if ja:
-                av = np.average(ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
-            else:
-                av = average_errors[bas]
-            print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, av))
-
-
-.. parsed-literal::
-
-    == Results ==
-    Average absolute error in bond energy per atom
-    Error for basis set TZ2P:      0.170 [kcal/mol]
-    Error for basis set TZP :      0.537 [kcal/mol]
-    Error for basis set DZP :      1.024 [kcal/mol]
-    Error for basis set DZ  :      3.339 [kcal/mol]
-    Error for basis set SZ  :     27.683 [kcal/mol]
-=======
    print("== Results ==")
    print("Average absolute error in bond energy per atom")
    for bas in basis:
@@ -906,14 +238,9 @@ C2H6    CC     QZ4P  8      -973.02           0.00
            else:
                av = average_errors[bas]
            print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, av))
->>>>>>> 381a437 (Update examples again SO107)
 
 ::
 
-<<<<<<< HEAD
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
-||||||| parent of 381a437 (Update examples again SO107)
-=======
    == Results ==
    Average absolute error in bond energy per atom
    Error for basis set TZ2P:      0.170 [kcal/mol]
@@ -921,4 +248,3 @@ C2H6    CC     QZ4P  8      -973.02           0.00
    Error for basis set DZP :      1.024 [kcal/mol]
    Error for basis set DZ  :      3.339 [kcal/mol]
    Error for basis set SZ  :     27.683 [kcal/mol]
->>>>>>> 381a437 (Update examples again SO107)

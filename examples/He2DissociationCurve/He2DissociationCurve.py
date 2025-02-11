@@ -5,19 +5,10 @@
 
 import sys
 import numpy as np
-<<<<<<< HEAD
 from scm.plams import Settings, Molecule, Atom, AMSJob, init
 
 # this line is not required in AMS2025+
 init()
-||||||| parent of dd6913c (Update some existing examples to use the job analysis tool SO107)
-from scm.plams import Settings, Molecule, Atom, AMSJob
-=======
-from scm.plams import Settings, Molecule, Atom, AMSJob, init
-
-init()
-# this line is not required in AMS2025+
->>>>>>> dd6913c (Update some existing examples to use the job analysis tool SO107)
 
 
 # ## Setup Dimer
@@ -74,7 +65,7 @@ try:
     from scm.plams import JobAnalysis
 
     ja = (
-        JobAnalysis(jobs=jobs, std_fields=None)
+        JobAnalysis(jobs=jobs, standard_fields=None)
         .add_field("Dist", lambda j: j.molecule[2].x, display_name="d[A]", fmt=".2f")
         .add_field("Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="E[kcal/mol]", fmt=".3f")
     )

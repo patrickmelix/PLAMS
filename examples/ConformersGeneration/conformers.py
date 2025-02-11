@@ -12,8 +12,8 @@ import numpy as np
 from scm.conformers import ConformersJob
 from scm.plams import *
 
-init()
 # this line is not required in AMS2025+
+init()
 
 
 # ## Initial structure
@@ -105,7 +105,7 @@ try:
 
     def print_results(job: ConformersJob, temperature=298, unit="kcal/mol"):
         ja = (
-            JobAnalysis(std_fields=None)
+            JobAnalysis(standard_fields=None)
             .add_job(job)
             .add_field(
                 "Id",

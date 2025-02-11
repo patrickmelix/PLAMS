@@ -16,7 +16,8 @@ Initial imports
    import matplotlib.pyplot as plt
    import os
 
-   plams.init();  # this line is not required in AMS2025+
+   # this line is not required in AMS2025+
+   plams.init();
 
 Single alanine molecule
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -143,7 +144,7 @@ Finally in AMS2025, you can also inspect the conformer data using the JobAnalysi
        from scm.plams import JobAnalysis
 
        ja = (
-           JobAnalysis(std_fields=None)
+           JobAnalysis(standard_fields=None)
            .add_job(job)
            .add_field(
                "Id",
