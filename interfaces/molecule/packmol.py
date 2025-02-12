@@ -968,6 +968,7 @@ def packmol_around(
         details["current_atomic_volume"] = current_atomic_volume
         return details
 
+    molecules = tolist(molecules)
     details = get_details_for_remaining_volume(
         original_ucs,
         molecules,
