@@ -983,9 +983,21 @@ class AMSResults(Results):
             -1,
         )
 
-    def get_ir_spectrum(
+    def get_raman_intensities(self, engine: Optional[str] = None) -> np.ndarray:
+        """Return the Raman intensities in Angstrom^4/amu unit.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(
+            self._process_engine_results(lambda x: x.read("Vibrations", "RamanIntens[A^4/amu]"), engine)
+        ).reshape(
+            -1,
+        )
+
+    def _get_ir_raman_spectrum(
         self,
         engine: Optional[str] = None,
+        spectrum_type: Literal["ir", "raman"] = "ir",
         broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
         broadening_width=40,
         min_x=0,
@@ -993,7 +1005,7 @@ class AMSResults(Results):
         x_spacing=0.5,
         post_process: Optional[Literal["all_intensities_to_1", "max_to_1"]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Return the IR spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
+        """Return the IR/Raman spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) for IR and Angstrom^4/amu for Raman but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
@@ -1003,7 +1015,10 @@ class AMSResults(Results):
         if post_process == "all_intensities_to_1":
             intensities = frequencies * 0 + 1
         else:
-            intensities = self.get_ir_intensities(engine=engine)
+            if spectrum_type == "ir":
+                intensities = self.get_ir_intensities(engine=engine)
+            elif spectrum_type == "raman":
+                intensities = self.get_raman_intensities(engine=engine)
 
         x_data, y_data = broaden_results(
             centers=frequencies,
@@ -1018,6 +1033,60 @@ class AMSResults(Results):
             y_data /= np.max(y_data)
 
         return x_data, y_data
+
+    def get_ir_spectrum(
+        self,
+        engine: Optional[str] = None,
+        broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
+        broadening_width=40,
+        min_x=0,
+        max_x=4000,
+        x_spacing=0.5,
+        post_process: Optional[Literal["all_intensities_to_1", "max_to_1"]] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Return the IR spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        data = self._get_ir_raman_spectrum(
+            engine=engine,
+            spectrum_type="ir",
+            broadening_type=broadening_type,
+            broadening_width=broadening_width,
+            min_x=min_x,
+            max_x=max_x,
+            x_spacing=x_spacing,
+            post_process=post_process,
+        )
+
+        return data
+
+    def get_raman_spectrum(
+        self,
+        engine: Optional[str] = None,
+        broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
+        broadening_width=40,
+        min_x=0,
+        max_x=4000,
+        x_spacing=0.5,
+        post_process: Optional[Literal["all_intensities_to_1", "max_to_1"]] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Return the Raman spectrum. Units: frequencies are in cm-1, the intensities by the default are in Angstrom^4/amu units but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        data = self._get_ir_raman_spectrum(
+            engine=engine,
+            spectrum_type="raman",
+            broadening_type=broadening_type,
+            broadening_width=broadening_width,
+            min_x=min_x,
+            max_x=max_x,
+            x_spacing=x_spacing,
+            post_process=post_process,
+        )
+
+        return data
 
     def get_n_spin(self, engine: Optional[str] = None) -> int:
         """n_spin is 1 in case of spin-restricted or spin-orbit coupling calculations, and 2 in case of spin-unrestricted calculations
