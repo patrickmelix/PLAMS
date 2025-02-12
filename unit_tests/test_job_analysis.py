@@ -74,22 +74,24 @@ class TestJobAnalysis:
                 "SysTime",
                 "ElapsedTime",
             ],
-        )
+        ).format_field(
+            "GyrationRadius", ".0f"
+        )  # For different rdkit versions on GitHub and amspython
 
         assert (
             ja.to_table()
             == """\
 | Name         | OK   | Check | ErrorMsg | Formula | Smiles | GyrationRadius | CPUTime | SysTime | ElapsedTime |
 |--------------|------|-------|----------|---------|--------|----------------|---------|---------|-------------|
-| dummyjob     | True | True  | None     | C2H6    | CC     | 1.0927         | None    | None    | None        |
-| dummyjob.002 | True | True  | None     | CH4     | C      | 0.5983         | None    | None    | None        |
-| dummyjob.003 | True | True  | None     | H2O     | O      | 0.3620         | None    | None    | None        |
-| dummyjob.004 | True | True  | None     | CH4O    | CO     | 0.9520         | None    | None    | None        |
-| dummyjob.005 | True | True  | None     | C3H8    | CCC    | 1.4115         | None    | None    | None        |
-| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | 1.7917         | None    | None    | None        |
-| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | 1.6343         | None    | None    | None        |
-| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | 2.5940         | None    | None    | None        |
-| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | 2.1358         | None    | None    | None        |
+| dummyjob     | True | True  | None     | C2H6    | CC     | 1              | None    | None    | None        |
+| dummyjob.002 | True | True  | None     | CH4     | C      | 1              | None    | None    | None        |
+| dummyjob.003 | True | True  | None     | H2O     | O      | 0              | None    | None    | None        |
+| dummyjob.004 | True | True  | None     | CH4O    | CO     | 1              | None    | None    | None        |
+| dummyjob.005 | True | True  | None     | C3H8    | CCC    | 1              | None    | None    | None        |
+| dummyjob.006 | True | True  | None     | C4H10   | CCCC   | 2              | None    | None    | None        |
+| dummyjob.007 | True | True  | None     | C3H8O   | CCCO   | 2              | None    | None    | None        |
+| dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | 3              | None    | None    | None        |
+| dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | 2              | None    | None    | None        |
 | dummyjob.010 | True | True  | None     | None    | None   | None           | None    | None    | None        |"""
         )
 
