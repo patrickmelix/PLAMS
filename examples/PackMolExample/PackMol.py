@@ -8,13 +8,11 @@ from scm.plams.interfaces.molecule.packmol import packmol
 from ase.visualize.plot import plot_atoms
 from ase.build import fcc111, bulk
 import matplotlib.pyplot as plt
+import importlib.metadata
 
-try:
+AMS2025 = importlib.metadata.version("scm") >= "2024.201"
+if AMS2025:
     from scm.plams import packmol_around
-
-    has_packmol_around = True
-except ImportError:
-    has_packmol_around = False
 
 
 # ## Helper functions
@@ -69,11 +67,10 @@ out.write("water-4.xyz")
 plot_molecule(out)
 
 
-print("water-5.xyz: pure liquid in non-orthorhombic box (requires AMS2025 or later)")
-print("NOTE: Non-orthorhombic boxes may yield inaccurate results, always carefully check the output")
-# You can pack inside any lattice using the packmol_around function
-
-if has_packmol_around:
+if AMS2025:
+    print("water-5.xyz: pure liquid in non-orthorhombic box (requires AMS2025 or later)")
+    print("NOTE: Non-orthorhombic boxes may yield inaccurate results, always carefully check the output")
+    # You can pack inside any lattice using the packmol_around function
     box = Molecule()
     box.lattice = [[10.0, 2.0, -1.0], [-5.0, 8.0, 0.0], [0.0, -2.0, 11.0]]
     out = packmol_around(box, molecules=[water], n_molecules=[32])
@@ -81,11 +78,12 @@ if has_packmol_around:
     plot_molecule(out)
 
 
-print("Experimental feature (AMS2025): guess density for pure liquid")
-print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
-out = packmol(water, n_atoms=100)
-print(f"Guessed density: {out.get_density():.2f} kg/m^3")
-plot_molecule(out)
+if AMS2025:
+    print("Experimental feature (AMS2025): guess density for pure liquid")
+    print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
+    out = packmol(water, n_atoms=100)
+    print(f"Guessed density: {out.get_density():.2f} kg/m^3")
+    plot_molecule(out)
 
 
 # ## Water-acetonitrile mixture (fluid with 2 or more components)
@@ -169,11 +167,12 @@ out.write("water-acetonitrile-4.xyz")
 plot_molecule(out)
 
 
-print("Experimental feature (AMS2025): guess density for mixture")
-print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
-out = packmol([water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], n_atoms=100)
-print(f"Guessed density: {out.get_density():.2f} kg/m^3")
-plot_molecule(out)
+if AMS2025:
+    print("Experimental feature (AMS2025): guess density for mixture")
+    print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
+    out = packmol([water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], n_atoms=100)
+    print(f"Guessed density: {out.get_density():.2f} kg/m^3")
+    plot_molecule(out)
 
 
 # ## Pack inside sphere
@@ -252,7 +251,7 @@ plot_molecule(slab, figsize=figsize, rotation=rotation)
 
 
 print("water surrounding an Al slab, from an approximate density")
-if has_packmol_around:
+if AMS2025:
     out = packmol_around(slab, water, density=1.0)
     printsummary(out)
     out.write("al-water-pure.xyz")
@@ -260,7 +259,7 @@ if has_packmol_around:
 
 
 print("2-1 water-acetonitrile mixture surrounding an Al slab, from mole fractions and an approximate density")
-if has_packmol_around:
+if AMS2025:
     out = packmol_around(slab, [water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], density=density)
     printsummary(out)
     out.write("al-water-acetonitrile.xyz")
@@ -269,7 +268,7 @@ if has_packmol_around:
 
 from ase.build import surface
 
-if has_packmol_around:
+if AMS2025:
     print("water surrounding non-orthorhombic Au(211) slab, from an approximate number of molecules")
     print("NOTE: non-orthorhombic cell, results are approximate, requires AMS2025")
     slab = surface("Au", (2, 1, 1), 6)
@@ -293,7 +292,7 @@ rotation = "-85x,5y,0z"
 plot_molecule(bulk_Al, rotation=rotation, radii=0.4)
 
 
-if has_packmol_around:
+if AMS2025:
     out = packmol_around(
         current=bulk_Al,
         molecules=[from_smiles("[H]"), from_smiles("[He]")],
