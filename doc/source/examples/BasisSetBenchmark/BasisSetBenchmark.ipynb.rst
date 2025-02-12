@@ -6,15 +6,17 @@ Initial Imports
 
 .. code:: ipython3
 
+   import sys
    import multiprocessing
    from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init
+   import numpy as np
 
    # this line is not required in AMS2025+
-   init()
+   init();
 
 ::
 
-   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir
+   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir.003
 
 Set Up Job Runner
 ~~~~~~~~~~~~~~~~~
@@ -120,25 +122,27 @@ Run Calculations
 .. code:: ipython3
 
    results = {}
+   jobs = []
    for bas in basis:
        for name, molecule in molecules.items():
            settings = common_settings.copy()
            settings.input.adf.Basis.Type = bas
            job = AMSJob(name=name + "_" + bas, molecule=molecule, settings=settings)
+           jobs.append(job)
            results[(name, bas)] = job.run()
 
 ::
 
-   [10.02|15:01:11] JOB Methane_QZ4P STARTED
-   [10.02|15:01:11] JOB Ethane_QZ4P STARTED
-   [10.02|15:01:11] JOB Ethylene_QZ4P STARTED
-   [10.02|15:01:11] JOB Methane_QZ4P RUNNING
-   [10.02|15:01:11] JOB Acetylene_QZ4P STARTED
-   [10.02|15:01:11] JOB Methane_TZ2P STARTED
-   [10.02|15:01:11] JOB Ethane_TZ2P STARTED
-   [10.02|15:01:11] JOB Ethylene_TZ2P STARTED
-   [10.02|15:01:11] JOB Acetylene_TZ2P STARTED
-   [10.02|15:01:11] JOB Methane_TZP STARTED
+   [11.02|17:38:25] JOB Methane_QZ4P STARTED
+   [11.02|17:38:25] JOB Ethane_QZ4P STARTED
+   [11.02|17:38:25] JOB Ethylene_QZ4P STARTED
+   [11.02|17:38:25] JOB Methane_QZ4P RUNNING
+   [11.02|17:38:25] JOB Ethane_QZ4P RUNNING
+   [11.02|17:38:25] JOB Acetylene_QZ4P STARTED
+   [11.02|17:38:25] JOB Ethylene_QZ4P RUNNING
+   [11.02|17:38:25] JOB Methane_TZ2P STARTED
+   [11.02|17:38:25] JOB Acetylene_QZ4P RUNNING
+   [11.02|17:38:25] JOB Ethane_TZ2P STARTED
    ... (PLAMS log lines truncated) ...
 
 Results
@@ -148,55 +152,97 @@ Extract the energy from each calculation. Calculate the average absolute error i
 
 .. code:: ipython3
 
-   average_errors = {}
-   for bas in basis:
-       if bas != reference_basis:
-           errors = []
-           for name, molecule in molecules.items():
-               reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
-               energy = results[(name, bas)].get_energy(unit="kcal/mol")
-               errors.append(abs(energy - reference_energy) / len(molecule))
-               print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
-           average_errors[bas] = sum(errors) / len(errors)
+   try:
+       # For AMS2025+ can use JobAnalysis class to perform results analysis
+       from scm.plams import JobAnalysis
+
+       ja = (
+           JobAnalysis(jobs=jobs, standard_fields=None)
+           .add_standard_fields(["Formula", "Smiles"])
+           .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
+           .add_field("NAtoms", lambda j: len(j.molecule))
+           .add_field(
+               "Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="Energy [kcal/mol]", fmt=".2f"
+           )
+           .sort_jobs(["NAtoms", "Energy"])
+       )
+
+       ref_ja = ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
+
+       ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
+
+       def get_average_error(job):
+           return abs(job.results.get_energy(unit="kcal/mol") - ref_energies[job.molecule.get_formula()]) / len(
+               job.molecule
+           )
+
+       ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
+
+       # Pretty-print if running in a notebook
+       if "ipykernel" in sys.modules:
+           ja.display_table()
+       else:
+           print(ja.to_table())
+
+   except ImportError:
+
+       average_errors = {}
+       for bas in basis:
+           if bas != reference_basis:
+               errors = []
+               for name, molecule in molecules.items():
+                   reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
+                   energy = results[(name, bas)].get_energy(unit="kcal/mol")
+                   errors.append(abs(energy - reference_energy) / len(molecule))
+                   print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
+               average_errors[bas] = sum(errors) / len(errors)
 
 ::
 
-   [10.02|15:01:11] JOB Acetylene_TZP RUNNING
-   [10.02|15:01:11] Waiting for job Methane_QZ4P to finish
-   [10.02|15:01:11] JOB Methane_DZ RUNNING
-   [10.02|15:01:11] JOB Ethane_DZP RUNNING
-   [10.02|15:01:11] JOB Ethylene_DZP RUNNING
-   [10.02|15:01:11] JOB Acetylene_DZP RUNNING
-   [10.02|15:01:11] JOB Methane_SZ RUNNING
-   [10.02|15:01:11] JOB Ethane_DZ RUNNING
-   [10.02|15:01:11] JOB Ethane_SZ RUNNING
-   [10.02|15:01:11] JOB Ethylene_DZ RUNNING
-   [10.02|15:01:11] JOB Acetylene_DZ RUNNING
+   [11.02|17:38:26] Waiting for job Methane_QZ4P to finish
+   [11.02|17:38:26] JOB Ethylene_SZ RUNNING
+   [11.02|17:38:26] JOB Acetylene_DZ RUNNING
+   [11.02|17:38:26] JOB Acetylene_SZ RUNNING
+   [11.02|17:38:26] JOB Ethane_SZ RUNNING
+   [11.02|17:38:26] JOB Methane_SZ RUNNING
+   [11.02|17:38:30] JOB Methane_TZ2P FINISHED
+   [11.02|17:38:30] JOB Methane_TZ2P SUCCESSFUL
+   [11.02|17:38:30] JOB Methane_TZP FINISHED
+   [11.02|17:38:30] JOB Methane_TZP SUCCESSFUL
+   [11.02|17:38:30] JOB Methane_QZ4P FINISHED
    ... (PLAMS log lines truncated) ...
-   Energy for Methane using TZ2P basis set: -572.110159165262 [kcal/mol]
-   [10.02|15:01:15] Waiting for job Ethane_QZ4P to finish
-   Energy for Ethane using TZ2P basis set: -971.8820186844459 [kcal/mol]
-   Energy for Ethylene using TZ2P basis set: -769.4329031250381 [kcal/mol]
-   Energy for Acetylene using TZ2P basis set: -555.6672902509043 [kcal/mol]
-   Energy for Methane using TZP basis set: -571.0448969099549 [kcal/mol]
-   Energy for Ethane using TZP basis set: -970.0758887573307 [kcal/mol]
-   Energy for Ethylene using TZP basis set: -767.3275176578105 [kcal/mol]
-   [10.02|15:01:18] Waiting for job Acetylene_TZP to finish
-   Energy for Acetylene using TZP basis set: -552.9562856742521 [kcal/mol]
-   Energy for Methane using DZP basis set: -569.1190156251034 [kcal/mol]
-   [10.02|15:01:19] Waiting for job Ethane_DZP to finish
-   Energy for Ethane using DZP basis set: -966.0916443143674 [kcal/mol]
-   Energy for Ethylene using DZP basis set: -764.4132984010868 [kcal/mol]
-   Energy for Acetylene using DZP basis set: -550.6461805496328 [kcal/mol]
-   Energy for Methane using DZ basis set: -560.9344313073021 [kcal/mol]
-   [10.02|15:01:19] Waiting for job Ethane_DZ to finish
-   Energy for Ethane using DZ basis set: -951.1666971758781 [kcal/mol]
-   Energy for Ethylene using DZ basis set: -750.1745108422972 [kcal/mol]
-   Energy for Acetylene using DZ basis set: -537.1008020388887 [kcal/mol]
-   Energy for Methane using SZ basis set: -723.550123154895 [kcal/mol]
-   Energy for Ethane using SZ basis set: -1216.914233427825 [kcal/mol]
-   Energy for Ethylene using SZ basis set: -934.6558200110123 [kcal/mol]
-   Energy for Acetylene using SZ basis set: -647.5029836817757 [kcal/mol]
+   [11.02|17:38:30] Waiting for job Ethane_QZ4P to finish
+   [11.02|17:38:34] Waiting for job Ethane_DZP to finish
+   [11.02|17:38:34] Waiting for job Methane_DZ to finish
+
+======= ====== ===== ====== ================= ========================
+Formula Smiles Basis NAtoms Energy [kcal/mol] Average Error [kcal/mol]
+======= ====== ===== ====== ================= ========================
+C2H2    C#C    DZ    4      -537.10           4.91
+C2H2    C#C    DZP   4      -550.65           1.53
+C2H2    C#C    TZP   4      -552.96           0.95
+C2H2    C#C    TZ2P  4      -555.67           0.27
+C2H2    C#C    QZ4P  4      -556.76           0.00
+C2H2    C#C    SZ    4      -647.50           22.69
+CH4     C      DZ    5      -560.93           2.34
+CH4     C      DZP   5      -569.12           0.70
+CH4     C      TZP   5      -571.04           0.32
+CH4     C      TZ2P  5      -572.11           0.10
+CH4     C      QZ4P  5      -572.63           0.00
+CH4     C      SZ    5      -723.55           30.18
+C2H4    C=C    DZ    6      -750.17           3.37
+C2H4    C=C    DZP   6      -764.41           1.00
+C2H4    C=C    TZP   6      -767.33           0.51
+C2H4    C=C    TZ2P  6      -769.43           0.16
+C2H4    C=C    QZ4P  6      -770.41           0.00
+C2H4    C=C    SZ    6      -934.66           27.37
+C2H6    CC     SZ    8      -1216.91          30.49
+C2H6    CC     DZ    8      -951.17           2.73
+C2H6    CC     DZP   8      -966.09           0.87
+C2H6    CC     TZP   8      -970.08           0.37
+C2H6    CC     TZ2P  8      -971.88           0.14
+C2H6    CC     QZ4P  8      -973.02           0.00
+======= ====== ===== ====== ================= ========================
 
 .. code:: ipython3
 
@@ -204,7 +250,11 @@ Extract the energy from each calculation. Calculate the average absolute error i
    print("Average absolute error in bond energy per atom")
    for bas in basis:
        if bas != reference_basis:
-           print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, average_errors[bas]))
+           if ja:
+               av = np.average(ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
+           else:
+               av = average_errors[bas]
+           print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, av))
 
 ::
 
