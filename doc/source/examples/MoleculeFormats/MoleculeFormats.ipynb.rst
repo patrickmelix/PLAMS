@@ -236,6 +236,7 @@ Convert PLAMS Molecule to ASE Atoms
    from scm.plams import toASE
    from ase import Atoms
    from ase.visualize.plot import plot_atoms
+   import matplotlib.pyplot as plt
 
    print(f"{type(mol)=}")
    print(f"{mol.get_formula()=}")
@@ -244,7 +245,8 @@ Convert PLAMS Molecule to ASE Atoms
    print(f"{type(ase_atoms)=}")
    print(f"{ase_atoms.get_chemical_formula()=}")
 
-   plot_atoms(ase_atoms, rotation="-85x,5y,0z");
+   _, ax = plt.subplots(figsize=(2, 2))
+   plot_atoms(ase_atoms, rotation="-85x,5y,0z", ax=ax);
 
 ::
 
@@ -343,15 +345,15 @@ This molecule will fail to convert to an RDKit Mol object, because RDKit does no
 
 ::
 
-   [25.02|09:40:39] RDKit Sanitization Error.
-   [25.02|09:40:39] Most likely this is a problem with the assigned bond orders: Use chemical insight to adjust them.
-   [25.02|09:40:39] Note that the atom indices below start at zero, while the AMS-GUI indices start at 1.
+   [25.02|10:29:13] RDKit Sanitization Error.
+   [25.02|10:29:13] Most likely this is a problem with the assigned bond orders: Use chemical insight to adjust them.
+   [25.02|10:29:13] Note that the atom indices below start at zero, while the AMS-GUI indices start at 1.
    Failed to convert
 
 
-   RDKit ERROR: [09:40:39] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
+   RDKit ERROR: [10:29:13] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
    RDKit ERROR: 
-   [09:40:39] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
+   [10:29:13] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
 
 The problem can be fixed by passing the argument ``presanitize`` to the ``to_rdmol`` function.
 
@@ -362,10 +364,9 @@ The problem can be fixed by passing the argument ``presanitize`` to the ``to_rdm
 
 ::
 
-   RDKit ERROR: [09:40:39] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
-   [09:40:39] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
-
+   RDKit ERROR: [10:29:13] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
    RDKit ERROR: 
+   [10:29:13] Can't kekulize mol.  Unkekulized atoms: 10 11 12 13 14
 
 .. figure:: MoleculeFormats_files/MoleculeFormats_42_1.svg
 
