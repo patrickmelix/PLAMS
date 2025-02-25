@@ -240,6 +240,9 @@ plot_molecule(mol)
 
 # ### pymatgen Structure and Molecule Python classes
 
+# Note that for this part of the example, the `pymatgen` package needs to be installed. This can be done via `amspackages`.
+
+
 # #### Convert PLAMS Molecule to pymatgen Structure (periodic)
 #
 # There is no builtin converter between PLAMS Molecule and pymatgen Structure (periodic crystal). Instead, you need to go through the ASE interface to both packages:
