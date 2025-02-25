@@ -858,7 +858,7 @@ class TestJobAnalysis:
             .add_field("Output", lambda j: j.results.read_file("$JN.out")[:5])
             .add_field("Atoms", lambda j: [at.symbol for at in j.molecule], expansion_depth=1)
             .remove_field("Path")
-            .filter_jobs(lambda d: d["Formula"] is not None and d["Atoms"] is not "O")
+            .filter_jobs(lambda d: d["Formula"] is not None and d["Atoms"] != "O")
             .collapse_field("Atoms")
         )
 
