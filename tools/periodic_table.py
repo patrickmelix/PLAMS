@@ -1,5 +1,6 @@
 from scm.plams.core.errors import PTError
 from typing import List
+from typing import Dict
 import numpy
 
 __all__ = ["PeriodicTable", "PT"]
@@ -150,6 +151,52 @@ class PeriodicTable:
     # Collection of symbols used for different kinds of dummy atoms:
     dummysymbols = ["Xx", "El", "Eh", "J"]
 
+    # https://pubchem.ncbi.nlm.nih.gov/ptable/electron-affinity/
+    # https://pubchem.ncbi.nlm.nih.gov/ptable/ionization-energy/
+    metaldata: Dict[str, List] = {
+        # Element:[     ElectronAffinity,     IonizationEnergy]
+        "Li": [0.0227110811, 0.1981523452],
+        "Na": [0.0201386286, 0.1888547667],
+        "Al": [0.0162064511, 0.2199814425],
+        "Si": [0.0508978112, 0.2995804744],
+        "Sc": [0.0069088726, 0.2411123028],
+        "Ti": [0.0029031965, 0.2509243718],
+        "V": [0.0192933941, 0.2479109274],
+        "Cr": [0.0244750486, 0.2486826632],
+        "Fe": [0.0059901395, 0.2903931438],
+        "Co": [0.0242913020, 0.2896214081],
+        "Ni": [0.0424822164, 0.2807648214],
+        "Cu": [0.0451281676, 0.2839252631],
+        "Ga": [0.0110247967, 0.2204591837],
+        "Ge": [0.0496115849, 0.2903196452],
+        "Rb": [0.0171986828, 0.1535019187],
+        "Y": [0.0112820419, 0.2284705360],
+        "Zr": [0.0156552112, 0.2437950033],
+        "Nb": [0.0328171447, 0.2483886686],
+        "Mo": [0.0274149943, 0.2606261929],
+        "Tc": [0.0202121272, 0.2675350654],
+        "Ru": [0.0385867883, 0.2705117605],
+        "Rh": [0.0417839793, 0.2741131941],
+        "Pd": [0.0204693725, 0.3063790990],
+        "Ag": [0.0478476175, 0.2784128648],
+        "In": [0.0110247967, 0.2126315781],
+        "Sn": [0.0440991866, 0.2698870221],
+        "Sb": [0.0393217747, 0.3175141436],
+        "Cs": [0.0173456801, 0.1431018606],
+        "La": [0.0183746611, 0.2049509698],
+        "Ce": [0.0183746611, 0.2035544955],
+        "Ta": [0.0118332817, 0.2899521520],
+        "W": [0.0299506976, 0.2932595910],
+        "Re": [0.0055123983, 0.2895846587],
+        "Os": [0.0404242544, 0.3197191029],
+        "Ir": [0.0575126892, 0.3344188318],
+        "Au": [0.0848541849, 0.3390492464],
+        "Tl": [0.0073498644, 0.2244648598],
+        "Pb": [0.0132297560, 0.2725697226],
+        "Bi": [0.0347648588, 0.2678658093],
+        "Po": [0.0698237121, 0.3093190448],
+    }
+
     def __init__(self):
         raise PTError("Instances of PeriodicTable cannot be created")
 
@@ -227,6 +274,26 @@ class PeriodicTable:
             except KeyError:
                 raise PTError("trying to convert incorrect atomic number")
         return pr
+
+    @classmethod
+    def get_electron_affinity(cls, element):
+        """
+        Get the electron affinity of the metal element
+
+        Note: Returns None if data is not available
+        """
+        if element in cls.metaldata:
+            return cls.metaldata[element][0]
+
+    @classmethod
+    def get_ionization_energy(cls, element):
+        """
+        Get the electron affinity of the metal element
+
+        Note: Returns None if data is not available
+        """
+        if element in cls.metaldata:
+            return cls.metaldata[element][1]
 
 
 PT = PeriodicTable

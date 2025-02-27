@@ -1,46 +1,35 @@
 import sys
 import os
-from scm.plams import AMSJob, Settings, Units, AMSAnalysisJob
+from scm.plams import AMSJob, Molecule, Settings, Units, AMSAnalysisJob
+from scm.plams.recipes.assign_charged_ions import assign_charged_ions
 
 
-def main(filename, chargelines):
+def main(filename):
     """
     The main body of the script
     """
-    # Get the molecular system
+    # Get the molecule
     job = AMSJob.load_external(filename)
     mol = job.molecule
-    elements = [at.symbol for at in mol.atoms]
+
+    # Assign the charges to the ions
+    mol = assign_charged_ions(mol, use_system_charges=False)
 
     # Read the temperature from KF
+    job = AMSJob.load_external(filename)
     T = job.results.readrkf("MDResults", "MeanTemperature")
     kBT = Units.constants["Boltzmann"] * T
     print("Average temperaturs %f K" % (T))
 
-    # Read the charges from the input file
-    ions = {}
-    ioncharges = {}
-    nions = {}
-    formulas = {}
-    for line in chargelines:
-        words = line.split()
-        if len(words) == 0:
-            continue
-        q = float(line.split(":")[0])
-        atoms = [int(iat) for iat in line.split(":")[-1].split()]
-        submol = mol.get_fragment(atoms)
-        label = submol.label()
-        if not label in ions.keys():
-            ions[label] = []
-            ioncharges[label] = q * Units.constants["electron_charge"]
-            nions[label] = 0
-            formulas[label] = submol.separate()[0].get_formula()
-        ions[label] += atoms
-        nions[label] += len(atoms)
+    # Get the molecular system and extract the ions
+    iontypes, ioncharges, nions, formulas = get_ions(mol)
+    print("%8s %8s %10s" % ("Ion", "N", "Charge"))
+    for k, indices in iontypes.items():
+        print("%8s %8i %10.5f" % (formulas[k], len(indices), ioncharges[k]))
 
     # Compute diffusion coefficient for each ion
     diffusion_coeffs = {}
-    for label, atoms in ions.items():
+    for label, atoms in iontypes.items():
         s = Settings()
         s.input.Task = "MeanSquareDisplacement"
         s.input.TrajectoryInfo.Trajectory.KFFilename = filename
@@ -62,16 +51,66 @@ def main(filename, chargelines):
     # Compute the ionic conductivity
     sigma = 0.0
     for label, D in diffusion_coeffs.items():
-        s = ioncharges[label] ** 2 * rho[label] * D / kBT
+        q = ioncharges[label] * Units.constants["electron_charge"]
+        s = q**2 * rho[label] * D / kBT
         sigma += s
     return sigma
 
 
+def get_ions(mol):
+    """
+    Extract the ions and their charges from the atom properties
+    """
+    ions = {}
+    for i, at in enumerate(mol.atoms):
+        regions = []
+        if "region" in at.properties:
+            regions = at.properties.region
+            if not isinstance(regions, set):
+                regions = set([regions])
+            regions = [s for s in regions if s[:3] == "ion"]
+        if len(regions) == 0:
+            continue
+        name = regions[0]
+        if not name in ions:
+            ions[name] = []
+        ions[name].append(i)
+
+    # Extract the ion info
+    iontypes = {}
+    ioncharges = {}
+    nions = {}
+    formulas = {}
+    for name, atoms in ions.items():
+        charge = 0
+        for iat in atoms:
+            if "analysis" in mol.atoms[iat].properties:
+                if "charge" in mol.atoms[iat].properties.analysis:
+                    charge += mol.atoms[iat].properties.analysis.charge
+                else:
+                    raise PlamsError("Not all charges present in system file")
+            elif "forcefield" in mol.atoms[iat].properties:
+                if "charge" in mol.atoms[iat].properties.forcefield:
+                    charge += mol.atoms[iat].properties.forcefield.charge
+                else:
+                    raise PlamsError("Not all charges present in system file")
+        typename = name.split("_")[0]
+        if not typename in iontypes:
+            ion = mol.get_fragment(atoms)
+            formulas[typename] = ion.get_formula()
+            ioncharges[typename] = charge
+            iontypes[typename] = []
+            nions[typename] = 0
+        iontypes[typename] += atoms
+        nions[typename] += 1
+
+    return iontypes, ioncharges, nions, formulas
+
+
 if __name__ == "__main__":
-    if len(sys.argv) == 1 or sys.stdin.isatty():
-        print("Usage: amspython get_ionic_conductivity.py path/to/ams.rkf < charges.in")
+    if len(sys.argv) < 2:
+        print("Usage: amspython get_ionic_conductivity.py path/to/ams.rkf")
         sys.exit(0)
-    chargelines = sys.stdin.readlines()
     filename = os.path.abspath(sys.argv[1])
-    sigma = main(filename, chargelines)
+    sigma = main(filename)
     print("Ionic conductivity: %20.10e Siemens/m" % (sigma))
