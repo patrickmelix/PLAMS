@@ -1,14 +1,12 @@
 import sys
-from scm.plams import AMSJob, Settings, Units, AMSAnalysisJob, init
+import os
+from scm.plams import AMSJob, Settings, Units, AMSAnalysisJob
 
 
 def main(filename, chargelines):
     """
     The main body of the script
     """
-    # this line is not required in AMS2025+
-    init()
-
     # Get the molecular system
     job = AMSJob.load_external(filename)
     mol = job.molecule
@@ -74,6 +72,6 @@ if __name__ == "__main__":
         print("Usage: amspython get_ionic_conductivity.py path/to/ams.rkf < charges.in")
         sys.exit(0)
     chargelines = sys.stdin.readlines()
-    filename = sys.argv[1]
+    filename = os.path.abspath(sys.argv[1])
     sigma = main(filename, chargelines)
     print("Ionic conductivity: %20.10e Siemens/m" % (sigma))
