@@ -12,6 +12,7 @@ from pyCRS.CRSManager import CRSSystem
 from scm.plams import Settings, from_smiles, CRSJob, CRSResults
 from scm.plams.recipes.adfcosmorscompound import ADFCOSMORSCompoundJob
 
+
 def solubility_pyCRS():
 
     db = COSKFDatabase("my_coskf_db.db")
@@ -49,16 +50,24 @@ def solubility_pyCRS():
     additional_sett = Settings()
     additional_sett.input.property.DensitySolvent = solvent_density
 
-    crs.add_Mixture(mixture=mixture, temperature=temp, database="my_coskf_db.db", problem_type="solubility", additional_sett=additional_sett)
+    crs.add_Mixture(
+        mixture=mixture,
+        temperature=temp,
+        database="my_coskf_db.db",
+        problem_type="solubility",
+        additional_sett=additional_sett,
+    )
     crs.runCRSJob()
 
     plot_results(crs.outputs[0])
+
 
 def generate_coskf(smiles, jobname=None, mol_info=None, densf2hbc=False):
     molecule = from_smiles(smiles, nconfs=100, forcefield="uff")[0]
     job = ADFCOSMORSCompoundJob(name=jobname, molecule=molecule, mol_info=mol_info, densf2hbc=densf2hbc)
     job.run()
     return job.results.coskfpath()
+
 
 def plot_results(job):
     if isinstance(job, CRSJob):
