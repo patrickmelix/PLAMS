@@ -34,7 +34,7 @@ This script is built on the PLAMS. For more detailed useage of COSMO-RS with PLA
 
 **pyCRS example usage**: AMS2024+ required (:download:`ams_pyCRS.py <../../../examples/ams_pyCRS.py>`)
 
-This script utilizes pyCRS, a convient python wrapper built on PLAMS and SQL database for various thermodynamic calculations. For more detatils, refer to the `pyCRS Overview <../../../COSMO-RS/pyCRS_Overview.html#overview>`__.
+This script utilizes pyCRS, a convient python wrapper built on PLAMS and SQL database for various thermodynamic calculations. For more detatils, refer to the `pyCRS Overview <../../COSMO-RS/pyCRS_Overview.html#overview>`__.
 
 .. raw:: html
 
