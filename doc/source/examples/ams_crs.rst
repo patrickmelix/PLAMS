@@ -18,7 +18,7 @@ using the property prediction tool, or the experimental numbers can be given
 
 **Example usage**: AMS2023+ required (:download:`ams_crs.py <../../../examples/ams_crs.py>`)
 
-This script is built on the PLAMS. For more detailed useage of COSMO-RS with PLAMS, refer to the documentation: `Python scripting for COSMO-RS with PLAMS <../../COSMO-RS/PLAMS_COSMO-RS_scripting.html#python-scripting-for-cosmo-rs-with-plams>`__.
+This script is built on the PLAMS. For more detailed useage of COSMO-RS with PLAMS, refer to the `documentation <../../COSMO-RS/PLAMS_COSMO-RS_scripting.html#python-scripting-for-cosmo-rs-with-plams>`__.
 
 .. raw:: html
 
