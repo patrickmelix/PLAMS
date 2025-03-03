@@ -219,9 +219,7 @@ def test_plot_phonons_band_structure(run_calculations, rkf_tools_plot):
 # ----------------------------------------------------------
 # Testing plot_phonons_dos
 # ----------------------------------------------------------
-@image_comparison(
-    baseline_images=["plot_phonons_dos"], remove_text=True, extensions=["png"], style="mpl20", tol=3
-)
+@image_comparison(baseline_images=["plot_phonons_dos"], remove_text=True, extensions=["png"], style="mpl20", tol=3)
 def test_plot_phonons_dos(run_calculations, rkf_tools_plot):
     plt.close("all")
 
