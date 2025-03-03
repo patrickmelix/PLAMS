@@ -660,6 +660,10 @@ class AMSResults(Results):
 
         nEnergies = self.readrkf("DOS_Phonons", "nEnergies", file="engine")
 
+        integrateDeltaE = self.readrkf("DOS_Phonons", "IntegrateDeltaE", file="engine")
+
+        assert integrateDeltaE
+
         energy = np.array(self.readrkf("DOS_Phonons", "Energies", file="engine")) * energyConv
         dE = energy[1] - energy[0]
 
@@ -697,6 +701,7 @@ class AMSResults(Results):
 
             DOSperAtom = np.array(self.readrkf("DOS_Phonons", "DOS per atom", file="engine")).reshape(nAtoms, -1)
             atomToSpecies = np.array(self.readrkf("DOS_Phonons", "Atom to Species", file="engine")) - 1
+            if isinstance(atomToSpecies, np.int64): atomToSpecies = atomToSpecies.reshape(1)
 
             for i in range(nAtoms):
                 label = species[atomToSpecies[i]] + "(" + str(i + 1) + ")"
