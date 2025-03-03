@@ -821,7 +821,7 @@ class AMSResults(Results):
         nPlots = self.readrkf("Plot", "numPlots", file="engine")
 
         temperature = np.array(
-            self.readrkf("Plot", f"XValues(1)", file="engine")
+            self.readrkf("Plot", "XValues(1)", file="engine")
         )  # We assume that temperature is the same for all properties
 
         for iProp in range(nPlots):
@@ -838,6 +838,7 @@ class AMSResults(Results):
             temperature_label = self.readrkf("Plot", f"XLabel({iProp+1})", file="engine").strip()
 
             assert property_title == label
+            assert temperature_label == "Temperature"
             assert temperature_unit == "Kelvin"
             if label in ["Internal Energy", "Free Energy"]:
                 assert property_unit == "Hartree"
