@@ -118,7 +118,7 @@ Other AMS calculations
    BandStructure/BandStructure
    AMSPlumedMD/AMSPlumedMD
    QE_AMS_AFM_HubbardU
-   BasicMDPostanalysis
+   BasicMDAnalysis/BasicMDAnalysis
    UseLowestEnergy/UseLowestEnergy
    M3GNet/M3GNet
    ConstrainedGOAMSWorker/ConstrainedGOAMSWorker
