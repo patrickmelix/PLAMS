@@ -54,6 +54,8 @@ class Units:
         -   ``kJ/mol``
         -   ``cm^-1``, ``cm-1``
         -   ``K``, ``Kelvin``
+        -   ``Hz``, ``Hertz``
+        -   ``THz``
 
     *   dipole moment:
 
@@ -146,6 +148,10 @@ class Units:
     energy["kcal/mol"] = energy["kJ/mol"] / 4.184
     energy["cm^-1"] = energy["cm-1"] = 219474.6313702  # http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
     energy["K"] = energy["J"] / constants["k_B"]
+    energy["Hz"] = energy["Hertz"] = (
+        6.57968389898681e15  # https://physics.nist.gov/cgi-bin/cuu/Convert?exp=0&num=1&From=hr&To=hz&Action=Only+show+factor
+    )
+    energy["THz"] = energy["Hz"] / 1e12
 
     mass = {}
     mass["au"] = mass["a.u."] = mass["amu"] = 1.0

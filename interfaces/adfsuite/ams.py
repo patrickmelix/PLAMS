@@ -634,6 +634,82 @@ class AMSResults(Results):
 
         return x, complete_spinup_data, complete_spindown_data, labels, fermi_energy  # type: ignore
 
+    def get_phonons_dos(
+        self, unit: str = "hartree"
+    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+        """
+        Extracts the phonons density of states (DOS) as a function of the energy from a phonons calculation. The returned data can be plotted with ``plot_phonons_dos``.
+
+        Returns: ``energy``, ``total_dos``, ``dos_per_atom``, ``dos_per_species``
+
+        ``energy``: 1D array of float.
+
+        ``total_dos``: 1D array of float.
+
+        ``dos_per_atom``: List of 1D float arrays.
+
+        ``dos_per_species``: Dictionary of 1D float arrays. Keys are the species.
+
+        Arguments below.
+
+        unit: str
+            Unit of the returned energy. All DOS are returned in units of inverse of ``unit``.
+
+        """
+        energyConv = Units.convert(1.0, "Hartree", unit)
+
+        nEnergies = self.readrkf("DOS_Phonons", "nEnergies", file="engine")
+
+        integrateDeltaE = self.readrkf("DOS_Phonons", "IntegrateDeltaE", file="engine")
+
+        assert integrateDeltaE
+
+        energy = np.array(self.readrkf("DOS_Phonons", "Energies", file="engine")) * energyConv
+        dE = energy[1] - energy[0]
+
+        total_dos = np.array(self.readrkf("DOS_Phonons", "Total DOS", file="engine")) / dE
+
+        assert len(energy) == nEnergies
+        assert len(total_dos) == nEnergies
+
+        dos_per_species = {}
+        dos_per_atom = {}
+
+        nSpecies = None
+        try:
+            nSpecies = self.readrkf("DOS_Phonons", "nSpecies", file="engine")
+        except KeyError:
+            print(
+                "Warning! The density of states (DOS) per atom and species is currently only supported by the Quantum Espresso engine."
+            )
+            print("         Only the total DOS is available.")
+            pass
+
+        if nSpecies:
+
+            nAtoms = self.readrkf("DOS_Phonons", "nAtoms", file="engine")
+
+            assert nAtoms == len(self.job.molecule)
+
+            DOSperSpecies = np.array(self.readrkf("DOS_Phonons", "DOS per species", file="engine")).reshape(
+                nSpecies, -1
+            )
+            species = self.readrkf("DOS_Phonons", "Species", file="engine").split("\0")
+
+            for i, s in enumerate(species):
+                dos_per_species[s] = DOSperSpecies[i] / dE
+
+            DOSperAtom = np.array(self.readrkf("DOS_Phonons", "DOS per atom", file="engine")).reshape(nAtoms, -1)
+            atomToSpecies = np.array(self.readrkf("DOS_Phonons", "Atom to Species", file="engine")) - 1
+            if isinstance(atomToSpecies, np.int64):
+                atomToSpecies = atomToSpecies.reshape(1)
+
+            for i in range(nAtoms):
+                label = species[atomToSpecies[i]] + "(" + str(i + 1) + ")"
+                dos_per_atom[label] = DOSperAtom[i] / dE
+
+        return energy, total_dos, dos_per_species, dos_per_atom
+
     def get_phonons_band_structure(
         self, bands=None, unit: str = "hartree", only_high_symmetry_points: bool = False
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], float]:
@@ -707,6 +783,81 @@ class AMSResults(Results):
         x = np.concatenate(x).ravel()
 
         return x, y, labels  # type: ignore
+
+    def get_phonons_thermodynamic_properties(
+        self, temperature_unit: str = "K", properties_unit: List[str] = ["hartree", "kB"]
+    ) -> Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, str]]:
+        """
+        Extracts the thermodynamic properties as a function of the temperature from a phonons calculations. The returned data can be plotted with ``plot_phonons_thermodynamic_properties``.
+
+        Returns: ``temperature``, ``properties``, ``units``
+
+        ``temperature``: 1D array of float. In units of ``temperature_unit``
+
+        ``properties``: Dictionary of 1D float arrays in units of ``properties_unit``. Available keys: "Internal Energy", "Free Energy", "Specific Heat", "Entropy".
+
+        ``units``: Dictionary of str. Selected units for properties. Available keys: "Internal Energy", "Free Energy", "Specific Heat", "Entropy".
+
+        Arguments below.
+
+        temperature_unit: str
+            Unit of the returned temperature
+
+        property_unit: List[str]
+            Unit of the returned properties. The first element, representing units for 'Internal Energy' and 'Free Energy', accepts any standard energy unit. The second element, specifying units for 'Specific Heat' and 'Entropy', accepts kB, J/K, J/K/mol, eV/K, or eV/K/mol. kB means boltzman constant units.
+
+        """
+        properties = {}
+        units = {}
+
+        energyConv = Units.convert(1.0, "Hartree", properties_unit[0])
+
+        entropyConv = 1.0
+        if properties_unit[1].lower() == "j/k":
+            entropyConv = Units.constants["Boltzmann"]
+        if properties_unit[1].lower() == "ev/k":
+            entropyConv = Units.constants["Boltzmann"] / Units.constants["electron_charge"]
+        elif properties_unit[1].lower() == "j/k/mol":
+            entropyConv = Units.constants["Boltzmann"] * Units.constants["Avogadro_constant"]
+        elif properties_unit[1].lower() == "ev/k/mol":
+            entropyConv = (
+                Units.constants["Boltzmann"] * Units.constants["Avogadro_constant"] / Units.constants["electron_charge"]
+            )
+
+        nPlots = self.readrkf("Plot", "numPlots", file="engine")
+
+        temperature = np.array(
+            self.readrkf("Plot", "XValues(1)", file="engine")
+        )  # We assume that temperature is the same for all properties
+
+        for iProp in range(nPlots):
+            label = self.readrkf("Plot", f"YLabel({iProp+1})", file="engine").strip()
+
+            if label not in ["Internal Energy", "Free Energy", "Specific Heat", "Entropy"]:
+                continue
+
+            values = np.array(self.readrkf("Plot", f"YValues({iProp+1})", file="engine"))
+
+            property_title = self.readrkf("Plot", f"Title({iProp+1})", file="engine").strip()
+            temperature_unit = self.readrkf("Plot", f"XUnit({iProp+1})", file="engine").strip()
+            property_unit = self.readrkf("Plot", f"YUnit({iProp+1})", file="engine").strip()
+            temperature_label = self.readrkf("Plot", f"XLabel({iProp+1})", file="engine").strip()
+
+            assert property_title == label
+            assert temperature_label == "Temperature"
+            assert temperature_unit == "Kelvin"
+            if label in ["Internal Energy", "Free Energy"]:
+                assert property_unit == "Hartree"
+                units[label] = properties_unit[0]
+                values *= energyConv
+            if label in ["Specific Heat", "Entropy"]:
+                assert property_unit == "kB"
+                units[label] = properties_unit[1]
+                values *= entropyConv
+
+            properties[label] = values
+
+        return temperature, properties, units
 
     def get_engine_results(self, engine: Optional[str] = None) -> Dict:
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
