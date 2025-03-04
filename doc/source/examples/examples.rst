@@ -120,7 +120,7 @@ Other AMS calculations
    QE_AMS_AFM_HubbardU
    BasicMDPostanalysis
    UseLowestEnergy/UseLowestEnergy
-   M3GNet
+   M3GNet/M3GNet
    ConstrainedGOAMSWorker/ConstrainedGOAMSWorker
 
 Pymatgen
