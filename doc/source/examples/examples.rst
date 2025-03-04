@@ -119,7 +119,7 @@ Other AMS calculations
    AMSPlumedMD/AMSPlumedMD
    QE_AMS_AFM_HubbardU
    BasicMDPostanalysis
-   UseLowestEnergy
+   UseLowestEnergy/UseLowestEnergy
    M3GNet
    ConstrainedGOAMSWorker/ConstrainedGOAMSWorker
 
