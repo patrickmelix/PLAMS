@@ -4,9 +4,9 @@ Worked Example
 Purpose
 ~~~~~~~
 
-Example showing the UseLowestEnergy feature of the Hybrid engine and the OptimizeSpinRound feature of the ADF engine.
+Example showing the ``UseLowestEnergy`` feature of the Hybrid engine and the ``OptimizeSpinRound`` feature of the ADF engine.
 
-A bond scan is performed on hydrogen peroxide with UFF. The resulting structures are then recalculated with DFT using four different setups. In particular, one setup uses the Hybrid engine with DynamicFactors=UseLowestEnergy. Another uses the ADF engine with OptimizeSpinRound in combination with an ElectronicTemperature.
+A bond scan is performed on hydrogen peroxide with UFF. The resulting structures are then recalculated with DFT using four different setups. In particular, one setup uses the Hybrid engine with DynamicFactors=UseLowestEnergy. Another uses the ADF engine with ``OptimizeSpinRound`` in combination with an ``ElectronicTemperature``.
 
 In the end, the results of energy vs. bond length are plotted.
 
@@ -120,7 +120,9 @@ Helper functions
        plt.title("PES Scan for hydrogen peroxide")
        plt.xlabel("O-O bond length (Å)")
        plt.ylabel("Energy (hartree)")
-       plt.legend(["Singlet", "Triplet", "Hybrid: Lowest energy (slightly shifted)", "ADF: optimized spin (slightly shifted)"])
+       plt.legend(
+           ["Singlet", "Triplet", "Hybrid: Lowest energy (slightly shifted)", "ADF: optimized spin (slightly shifted)"]
+       )
        plt.savefig("pesplot.png")
        plt.show()
 
@@ -145,30 +147,30 @@ Run the job
 
 ::
 
-   [04.03|09:33:02] JOB initial_pesscan STARTED
-   [04.03|09:33:02] Renaming job initial_pesscan to initial_pesscan.002
-   [04.03|09:33:02] Job initial_pesscan.002 previously run as initial_pesscan, using old results
-   [04.03|09:33:03] JOB initial_pesscan.002 COPIED
-   [04.03|09:33:03] Job initial_pesscan.002 reported warnings. Please check the output
-   [04.03|09:33:03] Job initial_pesscan.002 reported warnings. Please check the output
-   [04.03|09:33:03] Job initial_pesscan.002 reported warnings. Please check the output
-   [04.03|09:33:03] JOB singlet STARTED
-   [04.03|09:33:03] Renaming job singlet to singlet.002
-   [04.03|09:33:03] JOB singlet.002 RUNNING
-   [04.03|09:33:10] JOB singlet.002 FINISHED
-   [04.03|09:33:10] JOB singlet.002 SUCCESSFUL
-   [04.03|09:33:10] JOB triplet STARTED
-   [04.03|09:33:10] Renaming job triplet to triplet.002
+   [04.03|14:01:29] JOB initial_pesscan STARTED
+   [04.03|14:01:29] JOB initial_pesscan RUNNING
+   [04.03|14:01:31] JOB initial_pesscan FINISHED
+   [04.03|14:01:31] Job initial_pesscan reported warnings. Please check the output
+   [04.03|14:01:31] JOB initial_pesscan SUCCESSFUL
+   [04.03|14:01:31] Job initial_pesscan reported warnings. Please check the output
+   [04.03|14:01:31] Job initial_pesscan reported warnings. Please check the output
+   [04.03|14:01:31] Job initial_pesscan reported warnings. Please check the output
+   [04.03|14:01:31] JOB singlet STARTED
+   [04.03|14:01:31] JOB singlet RUNNING
+   [04.03|14:01:42] JOB singlet FINISHED
+   [04.03|14:01:42] Job singlet reported warnings. Please check the output
+   [04.03|14:01:42] JOB singlet SUCCESSFUL
+   [04.03|14:01:42] Job singlet reported warnings. Please check the output
+   [04.03|14:01:42] Job singlet reported warnings. Please check the output
+   [04.03|14:01:42] Job singlet reported warnings. Please check the output
+   [04.03|14:01:42] JOB triplet STARTED
+   [04.03|14:01:42] JOB triplet RUNNING
    ... (PLAMS log lines truncated) ...
-   [04.03|09:33:32] Job hybrid.002 reported warnings. Please check the output
-   [04.03|09:33:32] Job hybrid.002 reported warnings. Please check the output
-   [04.03|09:33:32] Job hybrid.002 reported warnings. Please check the output
-   [04.03|09:33:32] Job hybrid.002 reported warnings. Please check the output
 
 Plot the result
 ~~~~~~~~~~~~~~~
 
-Two equivalent to follow the lowest energy of the singlet and the triplet state, with either the Hybrid engine or the optimize spin option from ADF.
+Two equivalent to follow the lowest energy of the singlet and the triplet state, with either the Hybrid engine (green) or the optimize spin option (red) from ADF.
 
 .. code:: ipython3
 

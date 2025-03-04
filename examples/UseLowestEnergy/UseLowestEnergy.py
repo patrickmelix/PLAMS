@@ -2,15 +2,15 @@
 # coding: utf-8
 
 # ## Purpose
-# Example showing the UseLowestEnergy feature of the Hybrid engine and the OptimizeSpinRound feature of the ADF engine.
-# 
+# Example showing the `UseLowestEnergy` feature of the Hybrid engine and the `OptimizeSpinRound` feature of the ADF engine.
+#
 # A bond scan is performed on hydrogen peroxide with UFF. The resulting
 # structures are then recalculated with DFT using four different setups. In
 # particular, one setup uses the Hybrid engine with DynamicFactors=UseLowestEnergy.
-# Another uses the ADF engine with OptimizeSpinRound in combination with an ElectronicTemperature.
-# 
+# Another uses the ADF engine with `OptimizeSpinRound` in combination with an `ElectronicTemperature`.
+#
 # In the end, the results of energy vs. bond length are plotted.
-# 
+#
 # ## Initial imports
 
 import matplotlib.pyplot as plt
@@ -21,6 +21,7 @@ init()
 
 
 # ## Helper functions
+
 
 def initial_pesscan():
     """Run a bond scan for hydrogen peroxide with UFF. Returns the finished job"""
@@ -116,7 +117,9 @@ def plot_results(singlet_job, triplet_job, hybrid_job, optimizespin_job):
     plt.title("PES Scan for hydrogen peroxide")
     plt.xlabel("O-O bond length (Å)")
     plt.ylabel("Energy (hartree)")
-    plt.legend(["Singlet", "Triplet", "Hybrid: Lowest energy (slightly shifted)", "ADF: optimized spin (slightly shifted)"])
+    plt.legend(
+        ["Singlet", "Triplet", "Hybrid: Lowest energy (slightly shifted)", "ADF: optimized spin (slightly shifted)"]
+    )
     plt.savefig("pesplot.png")
     plt.show()
 
@@ -139,11 +142,7 @@ optimizespin_job = replay_job(rkf, "optimizespin")
 
 
 # ## Plot the result
-# 
-# Two equivalent to follow the lowest energy of the singlet and the triplet state, with either the Hybrid engine or the optimize spin option from ADF.
+#
+# Two equivalent to follow the lowest energy of the singlet and the triplet state, with either the Hybrid engine (green) or the optimize spin option (red) from ADF.
 
 plot_results(singlet_job, triplet_job, hybrid_job, optimizespin_job)
-
-
-
-
