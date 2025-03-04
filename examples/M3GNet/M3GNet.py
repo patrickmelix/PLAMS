@@ -2,16 +2,17 @@
 # coding: utf-8
 
 # ## Requirements
-# 
+#
 # The package m3net can be installed with `amspackages`
 
 # ## Purpose
-# 
+#
 # Use the M3GNet ML potential with AMS.
 
 # ## Initialization
 
 from scm.plams import *
+
 # this line is not required in AMS2025+
 init()
 
@@ -45,7 +46,3 @@ job.run()
 
 energy = job.results.get_energy(unit="eV")
 print(f"M3GNet: final energy {energy:.3f} eV")
-
-
-
-

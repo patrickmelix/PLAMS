@@ -4,7 +4,7 @@ Worked Example
 Requirements
 ~~~~~~~~~~~~
 
-The package m3net can be installed with the `package manager <../../../Installation/Optional_Components.html>`__.
+The package m3net can be installed with ``amspackages``
 
 Purpose
 ~~~~~~~
@@ -17,6 +17,7 @@ Initialization
 .. code:: ipython3
 
    from scm.plams import *
+
    # this line is not required in AMS2025+
    init()
 
