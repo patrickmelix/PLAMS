@@ -27,6 +27,19 @@ For more information about Sella, refer to the Sella documentation and examples.
 
 **Example usage:** (:download:`Download SellaTransitionStateSearch.py <../../../examples/SellaTransitionStateSearch.py>`)
 
+Results
+-------
+
+.. parsed-literal::
+
+    AMS finished after 6 iterations
+    AMS optimized energy: -26.80493874566488 eV
+
+Complete Python code
+--------------------
+
 .. literalinclude:: ../../../examples/SellaTransitionStateSearch.py
     :language: python
+
+
 
