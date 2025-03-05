@@ -63,5 +63,4 @@ print(numerical_gradients)
 print("Analytical Gradients, hartree/angstrom:")
 print(analytical_gradients)
 print("Error Gradients, hartree/angstrom:")
-print(numerical_gradients- analytical_gradients)
-
+print(numerical_gradients - analytical_gradients)
