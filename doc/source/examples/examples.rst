@@ -150,7 +150,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     ADFFrag/ADFFrag
     ReorganizationEnergy/ReorganizationEnergy
     adfnbo
-    numgrad
+    NumGrad/NumGrad
     numhess
     pyAHFCDOS
     ADFVibronicDOS/ADFVibronicDOS.rst
