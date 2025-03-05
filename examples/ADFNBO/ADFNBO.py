@@ -12,13 +12,15 @@ init()
 
 # ## Define molecule
 
+
 # mol = Molecule("methane.xyz")
 def get_molecule(input_string):
-   job = AMSJob.from_input(input_string)
-   return job.molecule[""]
+    job = AMSJob.from_input(input_string)
+    return job.molecule[""]
 
 
-mol = get_molecule("""
+mol = get_molecule(
+    """
 System
     Atoms
          C      0.000000      0.000000      0.000000
@@ -28,7 +30,8 @@ System
          H     -0.631600     -0.631600      0.631600
     End
 End
-""")
+"""
+)
 
 
 # ## Create and run job
@@ -49,7 +52,3 @@ r = j.run()
 lines = r.get_output_chunk(begin="NATURAL BOND ORBITALS (Summary):", end="Charge unit", inc_begin=True, inc_end=True)
 for line in lines:
     print(line)
-
-
-
-
