@@ -56,7 +56,7 @@ Benchmarks
    :maxdepth: 1
 
    BasisSetBenchmark/BasisSetBenchmark
-   ReactionEnergyBenchmark
+   ReactionEnergyBenchmark/ReactionEnergyBenchmark
 
 Workflows
 ------------------
