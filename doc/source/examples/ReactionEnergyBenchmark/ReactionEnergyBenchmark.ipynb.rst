@@ -207,9 +207,15 @@ Results can be loaded from the summary file and displayed using pandas. The pand
        try:
            import pandas as pd
            from IPython.display import display, Markdown
+           import sys
 
            data = pd.read_csv(summary_file, delim_whitespace=True).iloc[:, :-1]
-           display(Markdown(data.to_markdown()))
+
+           # Pretty-print if in notebook
+           if "ipykernel" in sys.modules:
+               display(Markdown(data.to_markdown()))
+           else:
+               print(data.to_markdown())
 
        except ImportError:
            data = summary_file.read()
