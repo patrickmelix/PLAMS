@@ -1,5 +1,7 @@
+.. _NumHessExample:
+
 Numerical Hessian
---------------------
+=================
 
 This module implements a simple scheme for calculating a numerical Hessian matrix.
 We define a new job type ``NumHessJob`` by extending |MultiJob|.
@@ -15,22 +17,8 @@ The returned Hessian can optionally be mass weighted.
 
 The source code of the whole module with both aforementioned classes:
 
-.. literalinclude:: ../../../recipes/numhess.py
+.. literalinclude:: ../../../../recipes/numhess.py
 
-An example usage::
-
-    mol = Molecule('methanol.xyz')
-
-    s = Settings()
-    s.input.ams.task = 'SinglePoint'
-    s.input.ams.Properties.Gradients = 'Yes'
-    s.input.adf.basis.type = 'DZP'
-    s.input.adf.symmetry = 'NOSYM'
-    s.input.adf.xc.gga = 'PW91'
-    s.runscript.nproc = 1
-
-    j = NumHessJob(name='test', molecule=mol, settings=s, jobtype=AMSJob,
-                   gradient = lambda x: x.get_gradients().reshape(-1))
-    r = j.run(jobrunner=JobRunner(parallel=True, maxjobs=8))
-    print(r.get_hessian(mass_weighted=True))
-
+.. include:: NumHess.common_header.rst
+.. include:: NumHess.ipynb.rst
+.. include:: NumHess.common_footer.rst
