@@ -2,7 +2,7 @@ Worked Example
 --------------
 
 Initial Imports
-===============
+~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -18,7 +18,7 @@ Initial Imports
    PLAMS working folder: /path/plams/examples/plams_workdir.011
 
 Summary Text File
-=================
+~~~~~~~~~~~~~~~~~
 
 Set up a results file, ``summary.txt``, which will hold a table with reaction energies.
 
@@ -33,7 +33,7 @@ Set up a results file, ``summary.txt``, which will hold a table with reaction en
        summary_file.write("Smith_wB97X_ref 28.77 41.09 1.75 6.26 9.30 238.83 157.65 9.32 20.80 1.03 26.43 0.40\n")
 
 Benchmark Calculation Setup
-===========================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The molecules used in the benchmark calculations are loaded, and the settings for each engine created.
 
@@ -98,7 +98,7 @@ The engines in ``s_engine_dict`` below will be used for the calculation - you ca
    jobs = dict()
 
 Running Benchmark Calculations
-==============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Benchmark calculations are configured to run in parallel with one core per job.
 
@@ -197,7 +197,7 @@ Note: calculations will take some time to run, around 1-2 hours on a modern lapt
    BAND 19.2 30.2 -2.7 7.3 11.0 218.5 141.3 9.9 18.5 5.3 31.7 4.7
 
 Results
-=======
+~~~~~~~
 
 Results can be loaded from the summary file using pandas if available (pandas is installable with ``amspackages``).
 

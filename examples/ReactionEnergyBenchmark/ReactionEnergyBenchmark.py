@@ -1,7 +1,7 @@
 #!/usr/bin/env amspython
 # coding: utf-8
 
-# # Initial Imports
+# ## Initial Imports
 
 from scm.plams import read_molecules, Settings, AMSJob, init, config, JobRunner
 
@@ -10,7 +10,7 @@ from scm.plams import read_molecules, Settings, AMSJob, init, config, JobRunner
 init()
 
 
-# # Summary Text File
+# ## Summary Text File
 
 # Set up a results file, `summary.txt`, which will hold a table with reaction energies.
 
@@ -23,7 +23,7 @@ with open(summary_fname, "w", buffering=1) as summary_file:
     summary_file.write("Smith_wB97X_ref 28.77 41.09 1.75 6.26 9.30 238.83 157.65 9.32 20.80 1.03 26.43 0.40\n")
 
 
-# # Benchmark Calculation Setup
+# ## Benchmark Calculation Setup
 
 # The molecules used in the benchmark calculations are loaded, and the settings for each engine created.
 
@@ -83,7 +83,7 @@ s_ams.input.ams.Task = "SinglePoint"
 jobs = dict()
 
 
-# # Running Benchmark Calculations
+# ## Running Benchmark Calculations
 
 # Benchmark calculations are configured to run in parallel with one core per job.
 
@@ -139,7 +139,7 @@ with open(summary_fname, "a", buffering=1) as summary_file:
         summary_file.write(out_str)
 
 
-# # Results
+# ## Results
 
 # Results can be loaded from the summary file using pandas if available (pandas is installable with `amspackages`).
 
