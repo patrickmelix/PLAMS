@@ -30,7 +30,7 @@ with open("patch.dat", "w") as outfile:
 # Set up new job settings
 settings = Settings()
 settings.input.ForceField.Type = "GAFF"
-settings.input.ForceField.ForceFieldPatchFile = "patch.dat"
+settings.input.ForceField.GAFF.ForceFieldPatchFile = "patch.dat"
 settings.input.ams.Task = "SinglePoint"
 
 # Create the new job, and write the input file
