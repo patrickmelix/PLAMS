@@ -12,19 +12,24 @@ Initialization
    # this line is not required in AMS2025+
    init()
 
-define the molecules
+::
+
+   PLAMS working folder: /path/plams/examples/ADFFrag/plams_workdir.005
+
+Define the molecules
 ~~~~~~~~~~~~~~~~~~~~
 
-Fir convenience we define here two molecules, normally you would read them from xyz files
+For convenience we define here two molecules, normally you would read them from xyz files
 
 .. code:: ipython3
 
    def get_molecule(input_string):
-      job = AMSJob.from_input(input_string)
-      return job.molecule[""]
+       job = AMSJob.from_input(input_string)
+       return job.molecule[""]
 
 
-   mol1=get_molecule("""
+   mol1 = get_molecule(
+       """
    System
        Atoms
            C      -0.75086900       1.37782400      -2.43303700
@@ -35,11 +40,12 @@ Fir convenience we define here two molecules, normally you would read them from 
            H       0.98633900       2.54913500      -2.74329400
        End
    End
-   """)
+   """
+   )
 
 
-
-   mol2=get_molecule("""
+   mol2 = get_molecule(
+       """
    System
        Atoms
            C       0.14667300      -0.21503500       0.40053800
@@ -54,7 +60,8 @@ Fir convenience we define here two molecules, normally you would read them from 
            H       0.74193400       2.60120700       0.64028800
        End
    End
-   """)
+   """
+   )
 
 Setup and run the job
 ~~~~~~~~~~~~~~~~~~~~~
@@ -72,26 +79,24 @@ Setup and run the job
    full.input.adf.print = "etslowdin"
 
    # normally you would read here the two molecules from xyz files.
-   #mol1 = Molecule("ethene.xyz")
-   #mol2 = Molecule("butadiene.xyz")
+   # mol1 = Molecule("ethene.xyz")
+   # mol2 = Molecule("butadiene.xyz")
 
    j = ADFFragmentJob(fragment1=mol1, fragment2=mol2, settings=common, full_settings=full)
    r = j.run()
 
 ::
 
-   [05.03|11:12:38] JOB plamsjob STARTED
-   [05.03|11:12:38] Renaming job plamsjob to plamsjob.002
-   [05.03|11:12:38] JOB plamsjob.002 RUNNING
-   [05.03|11:12:38] JOB plamsjob.002/frag1 STARTED
-   [05.03|11:12:38] Job frag1 previously run as frag1, using old results
-   [05.03|11:12:38] JOB plamsjob.002/frag1 COPIED
-   [05.03|11:12:38] JOB plamsjob.002/frag2 STARTED
-   [05.03|11:12:38] Job frag2 previously run as frag2, using old results
-   [05.03|11:12:38] JOB plamsjob.002/frag2 COPIED
-   [05.03|11:12:38] JOB plamsjob.002/full STARTED
-   [05.03|11:12:38] JOB plamsjob.002/full RUNNING
-   [05.03|11:12:47] JOB plamsjob.002/full FINISHED
+   [05.03|16:29:18] JOB plamsjob STARTED
+   [05.03|16:29:18] JOB plamsjob RUNNING
+   [05.03|16:29:18] JOB plamsjob/frag1 STARTED
+   [05.03|16:29:18] JOB plamsjob/frag1 RUNNING
+   [05.03|16:29:21] JOB plamsjob/frag1 FINISHED
+   [05.03|16:29:21] JOB plamsjob/frag1 SUCCESSFUL
+   [05.03|16:29:21] JOB plamsjob/frag2 STARTED
+   [05.03|16:29:21] JOB plamsjob/frag2 RUNNING
+   [05.03|16:29:25] JOB plamsjob/frag2 FINISHED
+   [05.03|16:29:25] JOB plamsjob/frag2 SUCCESSFUL
    ... (PLAMS log lines truncated) ...
 
 Print the results
@@ -100,51 +105,55 @@ Print the results
 .. code:: ipython3
 
    def print_eterm(energy_term, energy):
-       print(f'{energy_term:>30s} {energy:16.4f} {Units.convert(energy, "au", "eV"):16.3f} {Units.convert(energy, "au", "kcal/mol"):16.2f} {Units.convert(energy, "au", "kJ/mol"):16.2f}')
-       
+       print(
+           f'{energy_term:>30s} {energy:16.4f} {Units.convert(energy, "au", "eV"):16.3f} {Units.convert(energy, "au", "kcal/mol"):16.2f} {Units.convert(energy, "au", "kJ/mol"):16.2f}'
+       )
+
+
    def print_bonding_energy_terms(r):
        print("Energy terms contributing to the bond energy (with respect to the fragments):")
-       
+
        bond_energy = r.get_energy()
        decom = r.get_energy_decomposition()
        print(f'\n{"term":>30s} {"Hartree":>16s} {"eV":>16s} {"kcal/mol":>16s} {"kJ/mol":>16s}')
-       for energy_term in decom:
-           energy = decom[energy_term]
+       for energy_term, energy in decom.items():
            print_eterm(energy_term, energy)
-           
-       print_eterm('total bond energy', bond_energy)
-       print('')
-       
+
+       print_eterm("total bond energy", bond_energy)
+       print("")
+
+
    def print_eda_terms(job):
-       bond_energy =job.full.results.readrkf('Energy', 'Bond Energy', 'adf')
-       steric_interaction = job.full.results.readrkf('Energy', 'Steric Total', 'adf')
-       orbital_interaction = job.full.results.readrkf('Energy', 'Orb.Int. Total', 'adf')
+       bond_energy = job.full.results.readrkf("Energy", "Bond Energy", "adf")
+       steric_interaction = job.full.results.readrkf("Energy", "Steric Total", "adf")
+       orbital_interaction = job.full.results.readrkf("Energy", "Orb.Int. Total", "adf")
        print("\nFragment based energy decomposition analysis of the bond energy:")
        print(f'\n{"term":>30s} {"Hartree":>16s} {"eV":>16s} {"kcal/mol":>16s} {"kJ/mol":>16s}')
-       print_eterm('Steric interaction', steric_interaction)
-       print_eterm('Orbital interaction', orbital_interaction)
-       print_eterm('total bond energy', bond_energy)
-       print('')
-       
+       print_eterm("Steric interaction", steric_interaction)
+       print_eterm("Orbital interaction", orbital_interaction)
+       print_eterm("total bond energy", bond_energy)
+       print("")
+
+
    def print_nocv_decomposition():
-       print('NOCV decomposition of the orbital interaction term\n')
+       print("NOCV decomposition of the orbital interaction term\n")
 
-       print('The NOCV eigenvalues should come in pairs, with one negative value by mirrored by a positive value')
+       print("The NOCV eigenvalues should come in pairs, with one negative value by mirrored by a positive value")
 
-       nocv_eigenvalues=j.full.results.readrkf("NOCV", "NOCV_eigenvalues_restricted", "engine")
+       nocv_eigenvalues = j.full.results.readrkf("NOCV", "NOCV_eigenvalues_restricted", "engine")
 
-       n_pairs = int(len(nocv_eigenvalues)/2)
+       n_pairs = int(len(nocv_eigenvalues) / 2)
        threshold = 0.001
 
        print(f'{"index":>9s} {"neg":>9s} {"pos":>9s}')
        for index in range(n_pairs):
            pop1 = nocv_eigenvalues[index]
-           pop2 = nocv_eigenvalues[len(nocv_eigenvalues)-index-1]
+           pop2 = nocv_eigenvalues[len(nocv_eigenvalues) - index - 1]
 
-           if (abs(pop1) + abs(pop2))<threshold:
+           if (abs(pop1) + abs(pop2)) < threshold:
                continue
 
-           print(f'{index:9d} {pop1:9.3f} {pop2:9.3f}')    
+           print(f"{index:9d} {pop1:9.3f} {pop2:9.3f}")
 
 .. code:: ipython3
 
