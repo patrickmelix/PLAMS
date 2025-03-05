@@ -1,5 +1,7 @@
+.. _NumGradExample:
+
 Numerical gradients
---------------------
+===================
 
 This module implements a simple numerical differentiation scheme with respect to molecular coordinates.
 We define a new job type ``NumGradJob`` by extending |MultiJob|.
@@ -15,9 +17,8 @@ Any function that takes results of a single point job and returns a single numbe
 
 The source code of the whole module with both abovementioned classes:
 
-.. literalinclude:: ../../../recipes/numgrad.py
+.. literalinclude:: ../../../../recipes/numgrad.py
 
-An example usage:
-
-.. literalinclude:: ../../../examples/numgrad.py
-
+.. include:: NumGrad.common_header.rst
+.. include:: NumGrad.ipynb.rst
+.. include:: NumGrad.common_footer.rst
