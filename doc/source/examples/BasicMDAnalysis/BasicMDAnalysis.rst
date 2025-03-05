@@ -27,7 +27,7 @@ For details about the functions, see the |AMSResults| API.
 
     More advanced analysis is possible by setting up an :class:`~scm.plams.interfaces.adfsuite.amsanalysis.AMSAnalysisJob` job.
 
-    See also: `Molecular Dynamics with Python <../../Tutorials/MolecularDynamicsAndMonteCarlo/MDintroPython/intro.html>`__
+    See also: `Molecular Dynamics with Python <../../../Tutorials/MolecularDynamicsAndMonteCarlo/MDintroPython/intro.html>`__
 
 .. include:: BasicMDAnalysis.common_header.rst
 .. include:: BasicMDPostanalysis.ipynb.rst
