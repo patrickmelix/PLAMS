@@ -1,5 +1,7 @@
+.. _ADFNBOExample:
+
 NBO with ADF
-------------
+============
 
 NBO 6.0 is a tool for Natural Bond order analysis that uses the results of an ADF calculation.
 More information about NBO can be found in the corresponding section of the `ADF manual  <../../ADF/Input/Advanced_analysis.html#adfnbo-gennbo-nbo-analysis>`_.
@@ -15,12 +17,8 @@ No specialized |Results| subclass is defined for ``ADFNBOJob``.
 
 The source code of the whole module:
 
-.. literalinclude:: ../../../recipes/adfnbo.py
+.. literalinclude:: ../../../../recipes/adfnbo.py
 
-An example usage:
-(:download:`methane.xyz <../../../examples/ADFNBO/methane.xyz>`,
-:download:`adfnbo_test.py <../../../examples/ADFNBO/adfnbo.py>`)
-
-
-.. literalinclude:: ../../../examples/ADFNBO/methane.xyz
-.. literalinclude:: ../../../examples/ADFNBO/adfnbo.py
+.. include:: ADFNBO.common_header.rst
+.. include:: ADFNBO.ipynb.rst
+.. include:: ADFNBO.common_footer.rst

@@ -149,7 +149,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     MDJobs
     ADFFrag/ADFFrag
     ReorganizationEnergy/ReorganizationEnergy
-    adfnbo
+    ADFNBO/ADFNBO
     NumGrad/NumGrad
     numhess
     pyAHFCDOS
