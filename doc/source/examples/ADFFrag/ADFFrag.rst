@@ -1,7 +1,9 @@
+.. _ADFFragExample:
+
 .. _adf-fragment-recipe:
 
 ADF fragment job
---------------------
+================
 
 In this module a dedicated job type for ADF fragment analysis is defined.
 Such an analysis is performed on a molecular system divided into 2 fragments and consists of 3 separate ADF runs: one for each fragment and one for full system.
@@ -17,12 +19,10 @@ It simply redirects the usual |AMSResults| methods to the results of the full sy
 
 The source code of the whole module with both abovementioned classes:
 
-.. literalinclude:: ../../../recipes/adffragment.py
+.. literalinclude:: ../../../../recipes/adffragment.py
 
-An example usage: (:download:`ethene.xyz <../../../examples/ADFFrag/ethene.xyz>`,
-:download:`butadiene.xyz <../../../examples/ADFFrag/butadiene.xyz>`,
-:download:`adffrag_test.py <../../../examples/ADFFrag/adffrag.py>`)
+.. include:: ADFFrag.common_header.rst
+.. include:: adffrag.ipynb.rst
+.. include:: ADFFrag.common_footer.rst
 
-.. literalinclude:: ../../../examples/ADFFrag/ethene.xyz
-.. literalinclude:: ../../../examples/ADFFrag/butadiene.xyz
-.. literalinclude:: ../../../examples/ADFFrag/adffrag.py
+
