@@ -23,15 +23,16 @@ Normally you would read it from an xyz file, but here is for convenience explici
 
 .. code:: ipython3
 
-
    # molecule = Molecule("pyrrole.xyz")
 
+
    def get_molecule(input_string):
-      job = AMSJob.from_input(input_string)
-      return job.molecule[""]
+       job = AMSJob.from_input(input_string)
+       return job.molecule[""]
 
 
-   molecule = get_molecule("""
+   molecule = get_molecule(
+       """
    System
        Atoms
            C      -1.12843000       0.00000000      -0.35463200
@@ -46,9 +47,10 @@ Normally you would read it from an xyz file, but here is for convenience explici
            H       2.12074000       0.00000000      -0.79100200
        End
    End
-   """)
+   """
+   )
 
-   molecule.properties.name='pyrrole'  # normally the name of the xyz file
+   molecule.properties.name = "pyrrole"  # normally the name of the xyz file
 
 Setup and run job
 ~~~~~~~~~~~~~~~~~
