@@ -148,7 +148,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     ADFCOSMORSConformers
     MDJobs
     ADFFrag/ADFFrag
-    ReorganizationEnergy
+    ReorganizationEnergy/ReorganizationEnergy
     adfnbo
     numgrad
     numhess

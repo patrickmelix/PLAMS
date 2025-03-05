@@ -1,3 +1,5 @@
+.. _ReorganizationEnergyExample:
+
 Reorganization Energy
 =====================
 
@@ -15,16 +17,11 @@ In this recipe we build a job class ``ReorganizationEnergyJob`` by extending |Mu
 
 In ``ReorganizationEnergyResults``, the reorganization energy is computed by fetching and combining the results from the children jobs.
 
-.. literalinclude:: ../../../recipes/reorganization_energy.py
+.. literalinclude:: ../../../../recipes/reorganization_energy.py
 
-**Example usage:**
 
-.. literalinclude:: ../../../examples/ReorganizationEnergy/ReorganizationEnergy.py
-   :language: python
+.. include:: ReorganizationEnergy.common_header.rst
+.. include:: ReorganizationEnergy.ipynb.rst
+.. include:: ReorganizationEnergy.common_footer.rst
 
-.. note::
-    To execute this PLAMS script:
-    
-    * :download:`Download ReorganizationEnergy.py <../../../examples/ReorganizationEnergy/ReorganizationEnergy.py>`
-    * :download:`Download pyrrole.xyz <../../../examples/ReorganizationEnergy/pyrrole.xyz>`
-    * ``$AMSBIN/amspython ReorganizationEnergy.py``
+
