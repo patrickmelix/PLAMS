@@ -2,7 +2,7 @@ Worked Example
 --------------
 
 Initial Imports
-===============
+~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -12,7 +12,7 @@ Initial Imports
    from scm.plams import init, packmol, Settings, AMSJob, from_smiles, plot_molecule
 
 Run Simple MD Simulation of Water
-=================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Run a short MD simulation of 16 water molecules in a box.
 
@@ -63,7 +63,7 @@ Or alternatively, load a previously run MD job:
    results = job.results
 
 Velocity Autocorrelation Function
-=================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -80,7 +80,7 @@ Velocity Autocorrelation Function
 .. figure:: BasicMDPostanalysis_files/BasicMDPostanalysis_9_0.png
 
 Diffusion Coefficient
-=====================
+~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -96,7 +96,7 @@ Diffusion Coefficient
 .. figure:: BasicMDPostanalysis_files/BasicMDPostanalysis_11_0.png
 
 Power Spectrum
-==============
+~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -112,7 +112,7 @@ Power Spectrum
 .. figure:: BasicMDPostanalysis_files/BasicMDPostanalysis_13_0.png
 
 Green-Kubo Viscosity
-====================
+~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
@@ -128,7 +128,7 @@ Green-Kubo Viscosity
 .. figure:: BasicMDPostanalysis_files/BasicMDPostanalysis_15_0.png
 
 Density Along Axis
-==================
+~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 

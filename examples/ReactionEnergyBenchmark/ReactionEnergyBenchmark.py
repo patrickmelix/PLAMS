@@ -96,7 +96,7 @@ config.job.runscript.nproc = 1
 print(f"Running up to {maxjobs} jobs in parallel")
 
 
-# Note: calculations will take some time to run, around 1-2 hours on a modern laptop
+# Note: calculations will take some time to run, around 1-2 hours on a modern laptop.
 
 with open(summary_fname, "a", buffering=1) as summary_file:
     for engine_name, s_engine in s_engine_dict.items():
@@ -141,7 +141,7 @@ with open(summary_fname, "a", buffering=1) as summary_file:
 
 # ## Results
 
-# Results can be loaded from the summary file using pandas if available (pandas is installable with `amspackages`).
+# Results can be loaded from the summary file and displayed using pandas. The pandas package is installable with `amspackages`.
 
 with open(summary_fname) as summary_file:
     try:

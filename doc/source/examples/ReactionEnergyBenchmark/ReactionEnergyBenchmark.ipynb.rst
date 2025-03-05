@@ -116,7 +116,7 @@ Benchmark calculations are configured to run in parallel with one core per job.
 
    Running up to 12 jobs in parallel
 
-Note: calculations will take some time to run, around 1-2 hours on a modern laptop
+Note: calculations will take some time to run, around 1-2 hours on a modern laptop.
 
 .. code:: ipython3
 
@@ -199,7 +199,7 @@ Note: calculations will take some time to run, around 1-2 hours on a modern lapt
 Results
 ~~~~~~~
 
-Results can be loaded from the summary file using pandas if available (pandas is installable with ``amspackages``).
+Results can be loaded from the summary file and displayed using pandas. The pandas package is installable with ``amspackages``.
 
 .. code:: ipython3
 

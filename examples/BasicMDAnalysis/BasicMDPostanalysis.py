@@ -1,7 +1,7 @@
 #!/usr/bin/env amspython
 # coding: utf-8
 
-# # Initial Imports
+# ## Initial Imports
 
 import os
 import numpy as np
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from scm.plams import init, packmol, Settings, AMSJob, from_smiles, plot_molecule
 
 
-# # Run Simple MD Simulation of Water
+# ## Run Simple MD Simulation of Water
 
 # Run a short MD simulation of 16 water molecules in a box.
 
@@ -40,7 +40,7 @@ plot_molecule(mol, rotation=("80x,10y,0z"))
 results = job.results
 
 
-# # Velocity Autocorrelation Function
+# ## Velocity Autocorrelation Function
 
 times, vacf = results.get_velocity_acf(start_fs=0, max_dt_fs=250, normalize=False)
 normalized_vacf = vacf / vacf[0]
@@ -53,7 +53,7 @@ A = np.stack((times, normalized_vacf), axis=1)
 np.savetxt("plams_vacf.txt", A, header="Time(fs) VACF")
 
 
-# # Diffusion Coefficient
+# ## Diffusion Coefficient
 
 t_D, D = results.get_diffusion_coefficient_from_velocity_acf(times, vacf)
 plt.plot(t_D, D)
@@ -65,7 +65,7 @@ A = np.stack((t_D, D), axis=1)
 np.savetxt("plams_vacf_D.txt", A, header="time(fs) D(m^2*s^-1)")
 
 
-# # Power Spectrum
+# ## Power Spectrum
 
 freq, intensities = results.get_power_spectrum(times, vacf, number_of_points=1000)
 plt.plot(freq, intensities)
@@ -77,7 +77,7 @@ A = np.stack((freq, intensities), axis=1)
 np.savetxt("plams_power_spectrum.txt", A, header="Frequency(cm^-1) PowerSpectrum")
 
 
-# # Green-Kubo Viscosity
+# ## Green-Kubo Viscosity
 
 t, viscosity = results.get_green_kubo_viscosity(start_fs=0, max_dt_fs=250)  # do not do this for NPT simulations
 plt.plot(t, viscosity)
@@ -89,7 +89,7 @@ A = np.stack((t, viscosity), axis=1)
 np.savetxt("plams_green_kubo_viscosity.txt", A, header="Time(fs) Viscosity(mPa*s)")
 
 
-# # Density Along Axis
+# ## Density Along Axis
 
 z, density = results.get_density_along_axis(axis="z", density_type="mass", bin_width=0.2, atom_indices=None)
 plt.plot(z, density)
