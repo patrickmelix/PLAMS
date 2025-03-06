@@ -78,7 +78,10 @@ def add_metal_charges(mol, charges):
     """
     Assign charges to the metal ions using a simple EEQ scheme
     """
-    system_charge = mol.properties.charge if not isinstance(mol.properties.charge, Settings) else 0.0
+    if "charge" in mol.properties:
+        system_charge = mol.properties.charge
+    else:
+        system_charge = 0.0
     if system_charge == sum(charges):
         return charges
     dq = system_charge - sum(charges)
