@@ -1,5 +1,4 @@
 import numpy
-from scm.plams import Settings
 from scm.plams import PlamsError
 from scm.plams import PT
 
