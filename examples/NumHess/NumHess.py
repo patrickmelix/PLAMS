@@ -12,7 +12,7 @@ init()
 # ## Define molecule
 # Normally you would read the molecule from an xyz file
 
-#mol = Molecule('methanol.xyz')
+# mol = Molecule('methanol.xyz')
 
 
 mol = AMSJob.from_input(
@@ -34,23 +34,18 @@ End
 # Here we use the fast DFTB engine, for ADF it is recommended to disable symmetry
 
 s = Settings()
-s.input.ams.task = 'SinglePoint'
-s.input.ams.Properties.Gradients = 'Yes'
+s.input.ams.task = "SinglePoint"
+s.input.ams.Properties.Gradients = "Yes"
 # s.input.adf.basis.type = 'DZP'
 # s.input.adf.symmetry = 'NOSYM'
 # s.input.adf.xc.gga = 'PW91'
-s.input.DFTB.Model = 'GFN1-xTB'
+s.input.DFTB.Model = "GFN1-xTB"
 s.runscript.nproc = 1
 
-j = NumHessJob(name='test', molecule=mol, settings=s, jobtype=AMSJob,
-               gradient = lambda x: x.get_gradients().reshape(-1))
+j = NumHessJob(name="test", molecule=mol, settings=s, jobtype=AMSJob, gradient=lambda x: x.get_gradients().reshape(-1))
 r = j.run(jobrunner=JobRunner(parallel=True, maxjobs=8))
 
 
 # ## Print results
 
 print(r.get_hessian(mass_weighted=True))
-
-
-
-
