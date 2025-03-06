@@ -151,7 +151,7 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     ReorganizationEnergy/ReorganizationEnergy
     ADFNBO/ADFNBO
     NumGrad/NumGrad
-    numhess
+    NumHess/NumHess
     pyAHFCDOS
     ADFVibronicDOS/ADFVibronicDOS.rst
     ReuseForceFieldParams
