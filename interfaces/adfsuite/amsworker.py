@@ -1062,7 +1062,7 @@ class AMSWorker:
         - *convstep*: Convergence criterion for displacements (in Bohr).
         - *convstressenergyperatom*: Convergence criterion for the stress energy per atom (in Hartree).
         - *constraints*: A PLAMS Settings object defining the constraints, as they would be passed to a PLAMS job
-                         (e.g. s.input.ams.Constraints.Atoms = [1, 2, 3, 4], where s is a Settings object).
+                         (e.g. s.input.ams.Constraints.Atom = [1, 2, 3, 4], where s is a Settings object).
         """
         gradients = True
         if optimizelattice:
