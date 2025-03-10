@@ -376,11 +376,7 @@ class CRSResults(SCMResults):
 
         # Show and return
         if plot_fig:
-            try:
-                get_ipython
-                plt.show(block=False)
-            except:
-                plt.show()
+            plt.show()
         return fig
 
     def _get_array_dict(
