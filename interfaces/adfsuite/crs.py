@@ -377,9 +377,28 @@ class CRSResults(SCMResults):
         # Show and return
         if plot_fig:
             try:
-                get_ipython
-                plt.show(block=False)
-            except:
+                from IPython import get_ipython
+                shell = get_ipython()
+                if shell is None:
+                    plt.show()
+                else:
+                    from IPython.core.interactiveshell import InteractiveShell
+                    if isinstance(shell, InteractiveShell):
+                        try:
+                            ipython = get_ipython()
+                            if "zmqshell" in str(type(ipython)):  # Detect Jupyter
+                                # from IPython.display import display
+                                # display(plt.gcf())  # Ensure the figure is displayed correctly
+                                # ipython().run_line_magic("matplotlib", "inline")  # Equivalent to %matplotlib notebook
+                                ipython().run_line_magic("matplotlib", "notebook")  # Equivalent to %matplotlib notebook
+                                plt.show()
+                            else:
+                                plt.show(block=False)  # IPython Terminal → Non-blocking mode
+                        except Exception:
+                            plt.show()  # Fallback
+                    else:
+                        plt.show()  # Default case (shouldn't occur)
+            except ImportError:
                 plt.show()
         return fig
 
