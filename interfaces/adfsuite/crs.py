@@ -323,11 +323,32 @@ class CRSResults(SCMResults):
             ret = ret.ravel()  # Flatten it
             return ret[: array.shape[1]]
 
+        # Check running enviroment
+        try:
+            from IPython import get_ipython
+            ipython = get_ipython()
+            if ipython is not None:
+                if "zmqshell" in str(type(ipython)):
+                    terminal = "jupyter"
+                else:
+                    terminal = "interactive"
+            else:
+                terminal = "script"
+        except ImportError:
+            terminal = "script"
+
         # Check if matplotlib is installed
         try:
             import matplotlib
 
-            matplotlib.use("TkAgg") if plot_fig else matplotlib.use("Agg")
+            if plot_fig:
+                if terminal == "jupyter":
+                    ipython.run_line_magic("matplotlib", "inline")
+                else:
+                    matplotlib.use("TkAgg")
+            elif not plot_fig:
+                matplotlib.use("Agg")
+
             import matplotlib.pyplot as plt
         except ImportError:
             method = self.__class__.__name__ + ".plot"
@@ -376,29 +397,11 @@ class CRSResults(SCMResults):
 
         # Show and return
         if plot_fig:
-            try:
-                from IPython import get_ipython
-                shell = get_ipython()
-                if shell is None:
-                    plt.show()
-                else:
-                    from IPython.core.interactiveshell import InteractiveShell
-                    if isinstance(shell, InteractiveShell):
-                        try:
-                            ipython = get_ipython()
-                            if "zmqshell" in str(type(ipython)):  # Detect Jupyter
-                                # from IPython.display import display
-                                # display(plt.gcf())  # Ensure the figure is displayed correctly
-                                # ipython().run_line_magic("matplotlib", "inline")  # Equivalent to %matplotlib notebook
-                                ipython().run_line_magic("matplotlib", "notebook")  # Equivalent to %matplotlib notebook
-                                plt.show()
-                            else:
-                                plt.show(block=False)  # IPython Terminal → Non-blocking mode
-                        except Exception:
-                            plt.show()  # Fallback
-                    else:
-                        plt.show()  # Default case (shouldn't occur)
-            except ImportError:
+            if terminal == "jupyter":
+                pass
+            elif terminal == "interactive":
+                plt.show(block=False)
+            else:
                 plt.show()
         return fig
 
