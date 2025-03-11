@@ -326,6 +326,7 @@ class CRSResults(SCMResults):
         # Check running enviroment
         try:
             from IPython import get_ipython
+
             ipython = get_ipython()
             if ipython is not None:
                 if "zmqshell" in str(type(ipython)):
