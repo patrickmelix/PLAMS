@@ -64,7 +64,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
         singlepoint (bool) :  Run a singlepoint in gasphase and with solvation to generate the .coskf file on the given Molecule. (no geometry optimization). Cannot be combined with ``preoptimization``.
         settings (Settings) : A |Settings| object.  settings.runscript.nproc, settings.input.adf.custom_options. If 'adf' is in settings.input it should be provided without the solvation block.
         mol_info (dict) : an optional dictionary containing information will be written to the Compound Data section within the COSKF file.
-        densf2hbc (bool) : Defaults to Fasle. Performs DENSF analysis to determine the hydrogen bond center (HBC) used in COSMOSAC-DHB-MESP.
+        hbc_from_MESP (bool) : Defaults to False. Performs DENSF analysis to determine the hydrogen bond center (HBC) used in COSMOSAC-DHB-MESP.
         name : an optional name for the calculation directory
 
     Example:
@@ -96,7 +96,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
         singlepoint: bool = False,
         settings: Optional[Settings] = None,
         mol_info: Optional[Dict[str, Union[float, int, str]]] = None,
-        densf2hbc: bool = False,
+        hbc_from_MESP: bool = False,
         **kwargs,
     ):
         """
@@ -131,7 +131,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         self.coskf_name = coskf_name
         self.coskf_dir = coskf_dir
-        self.densf2hbc = densf2hbc
+        self.hbc_from_MESP = hbc_from_MESP
 
         if self.coskf_dir is not None and not os.path.exists(self.coskf_dir):
             os.mkdir(self.coskf_dir)
@@ -173,7 +173,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         self.children["gas"] = gas_job
 
-        if self.densf2hbc:
+        if self.hbc_from_MESP:
             densf_job = DensfJob(settings=ADFCOSMORSCompoundJob.densf_settings(), name="densf")
             self.children["densf"] = densf_job
 
@@ -203,7 +203,7 @@ class ADFCOSMORSCompoundJob(MultiJob):
 
         @add_to_instance(solv_job)
         def postrun(self):
-            if self.parent.densf2hbc:
+            if self.parent.hbc_from_MESP:
                 densf_job.results.wait()
                 densf_path = densf_job.results.kfpath()
             else:
