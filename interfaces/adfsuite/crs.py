@@ -205,6 +205,8 @@ class CRSResults(SCMResults):
         * mu_pdh: the energy contribution from the Pitzer-Debye-Hückel term
         * mu_RTlnz: the energy contribution from the ideal mixing
         * mu_Ecosmo: the Ecosmo energy
+        * mu_misfit : the electrostatic interaction in residual part of the pseudo-chemical potential
+        * mu_hb : the hydrogen bond interaction in residual part of the pseudo-chemical potential
         * Assoc: True if the structure has any association with other compound
         * NumRepMonomer: the number of repeated monomers used for polymers
         * NumStrucPerComp: the number of structures per compound used for dimers, trimers
@@ -253,6 +255,8 @@ class CRSResults(SCMResults):
         dict_species["mu_pdh"] = mu_component[:, 3]
         dict_species["mu_RTlnz"] = mu_component[:, 4]
         dict_species["mu_Ecosmo"] = mu_component[:, 5]
+        dict_species["mu_res_misfit"] = mu_component[:, 6]
+        dict_species["mu_res_hb"] = mu_component[:, 7]
         dict_species["Assoc"] = Assoc
         dict_species["NumRepMonmer"] = NumRepMonmer
         dict_species["NumStrucPerComp"] = NumStrucPerComp
