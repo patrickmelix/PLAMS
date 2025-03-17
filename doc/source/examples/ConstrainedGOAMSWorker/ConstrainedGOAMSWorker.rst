@@ -1,8 +1,11 @@
 .. _ConstrainedGOAMSWorkerExample:
 
-ConstrainedGOAMSWorker
-==============================
+AMSWorker: Constrained geometry optimization
+=============================================
 
+.. seealso::
+
+   Documentation for :ref:`AMSWorker <AMSWorker>`
 ..
    Feel free to modify the above label, header, and add any custom information here
 

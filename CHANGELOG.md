@@ -33,6 +33,7 @@ This changelog is effective from the 2025 releases.
 * Method `readcoskf` added to `Molecule` class, enabling the reading of COSKF file
 * Added support for calculating the hydrogen bond center using the Densf calculation in the `ADFCOSMORSCompoundJob` class
 * Introduced the `update_hbc_to_coskf` method in `ADFCOSMORSCompoundJob` class to calculate the hydrogen bond center using an existing COSKF file
+* Added `AMSViscosityFromBinLogJob` for running the AMS trajectory analysis tool to extract viscosity.
 
 ### Changed
 * Functions for optional packages (e.g. RDKit, ASE) are available even when these packages are not installed, but will raise an `MissingOptionalPackageError` when called
