@@ -181,41 +181,43 @@ class CRSResults(SCMResults):
 
     def get_structure_energy(self, as_df: bool = False):
         """
-        If the OUTPUT_ENERGY_COMPONENTS is set to True in the input file, this funcion returns:
+        Retrieve the energy information for each structure in multispecies.
+        If OUTPUT_ENERGY_COMPONENTS is set to True in the input file, this function returns:
 
         1. The energy of each structure in multispecies (units in kcal/mol).
-
         2. Information related to association with other compound, if any.
 
-        It takes the following optional boolean keyword argument, *as_df*. If *as_df* is True, the result will be
-        returned as a Pandas DataFrame. Otherwise the result will be returned as a dictionary.
+        Parameters:
+            as_df (bool, optional): If True, returns the result as a list of Pandas DataFrames.
+                                    If False, returns the result as a list of dictionaries.
+                                    Default is False.
+        Returns:
+            List[dict] or List[pandas.DataFrame]: A list containing the energy data and association information for each structure.
 
-        The following abbreviations are used in the dictionary or Pandas DataFrame for the energy:
+        Energy Abbreviations:
+            * s_idx: the index for each unique structure
+            * CompIdx: the compound index in multispecies
+            * FormIdx: the form index in multispecies
+            * SpecIdx: the species index in multispecies
+            * StrucIdx: the structure index in multispecies
+            * z: the equilibrium concentration in multispecies
+            * coskf: the corresponding coskf file for each s_idx
+            * mu_res: the residual part of the pseudo-chemical potential
+            * mu_comb: the combinatorial part of the pseudo-chemical potential
+            * mu_disp: the energy contribution from the dispersive interaction
+            * mu_pdh: the energy contribution from the Pitzer-Debye-Hückel term
+            * mu_RTlnz: the energy contribution from the ideal mixing
+            * mu_Ecosmo: the Ecosmo energy
+            * mu_res_misfit : the electrostatic interaction in residual part of the pseudo-chemical potential
+            * mu_res_hb : the hydrogen bond interaction in residual part of the pseudo-chemical potential
+            * Assoc: True if the structure has any association with other compound
+            * NumRepMonomer: the number of repeated monomers used for polymers
+            * NumStrucPerComp: the number of structures per compound used for dimers, trimers
 
-        * s_idx: the index for each unique structure
-        * CompIdx: the compound index in multispecies
-        * FormIdx: the form index in multispecies
-        * SpecIdx: the species index in multispecies
-        * StrucIdx: the structure index in multispecies
-        * z: the equilibrium concentration in multispecies
-        * coskf: the corresponding coskf file for each s_idx
-        * mu_res: the residual part of the pseudo-chemical potential
-        * mu_comb: the combinatorial part of the pseudo-chemical potential
-        * mu_disp: the energy contribution from the dispersive interaction
-        * mu_pdh: the energy contribution from the Pitzer-Debye-Hückel term
-        * mu_RTlnz: the energy contribution from the ideal mixing
-        * mu_Ecosmo: the Ecosmo energy
-        * mu_misfit : the electrostatic interaction in residual part of the pseudo-chemical potential
-        * mu_hb : the hydrogen bond interaction in residual part of the pseudo-chemical potential
-        * Assoc: True if the structure has any association with other compound
-        * NumRepMonomer: the number of repeated monomers used for polymers
-        * NumStrucPerComp: the number of structures per compound used for dimers, trimers
-
-        The following abbreviations are used in the dictionary or Pandas DataFrame for the information related to association with other compound:
-
-        * ReqCompNameAssoc: the required compound name for the associating structure
-        * ReqCompIdxAssoc: the required compound index (CompIdx) for the associating structure
-        * NumReqCompAssoc: the number of the required compounds in the associating structure
+        Association Information Abbreviations:
+            * ReqCompNameAssoc: the required compound name for the associating structure
+            * ReqCompIdxAssoc: the required compound index (CompIdx) for the associating structure
+            * NumReqCompAssoc: the number of the required compounds in the associating structure
         """
 
         section = "EnegyComponent"
