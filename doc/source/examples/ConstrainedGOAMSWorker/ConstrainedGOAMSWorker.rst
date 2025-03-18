@@ -1,6 +1,6 @@
 .. _ConstrainedGOAMSWorkerExample:
 
-ConstrainedGOAMSWorker
+Constrained GO AMSWorker
 ==============================
 
 ..
