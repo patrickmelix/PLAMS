@@ -256,7 +256,7 @@ class AMSViscosityFromBinLogJob(AMSConvenientAnalysisJob):
 
         popt, fit_x, fit_y = self.results.get_double_exponential_fit()
         with open(self.path + "/fit_viscosity_integral.txt", "w") as f:
-            f.write("#Time(fs), DoubleExponentialFitToViscosityIntegral(ang^2)")
+            f.write("#Time(fs), DoubleExponentialFitToViscosityIntegral(Pa*s)")
             for x, y in zip(fit_x, fit_y):
                 f.write(f"{x} {y}\n")
 
