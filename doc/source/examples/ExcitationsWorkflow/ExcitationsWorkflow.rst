@@ -21,7 +21,7 @@ The basic workflow may look as follows:
 **Step 1**
 
 * Optimize the structure of all molecules in the database with DFTB and calculate excitation energies and oscillator strengths with TD-DFTB
-* Select the molecules with electronic excitations of energies between 1 and 6 eV and non-zero oscillator strenght (since TD-DFTB is less accurate than TD-DFT, we opt for a larger energy range in this step). This should significantly reduce the number of molecules to be considered in the following steps.
+* Select the molecules with electronic excitations of energies between 1 and 6 eV and non-zero oscillator strength (since TD-DFTB is less accurate than TD-DFT, we opt for a larger energy range in this step). This should significantly reduce the number of molecules to be considered in the following steps.
 
 **Step 2**
 
