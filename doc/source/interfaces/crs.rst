@@ -125,7 +125,7 @@ COSMO-RS Parameters
 
 A large number of configurable parameters_ is available for COSMO-RS.
 If one is interested in running multiple jobs it can be usefull to store the paramaters
-in seperate dictionary / |Settings| instance and update the Job settings as needed,
+in separate dictionary / |Settings| instance and update the Job settings as needed,
 double so if one wants to use multiple different paramater sets.
 
 An example is provided below with the default COSMO-RS paramaters (*i.e.* ADF Combi2005):
