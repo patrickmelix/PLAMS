@@ -132,7 +132,7 @@ Obtain the results
 Categories
 ~~~~~~~~~~
 
-The categories are ``Products`` ``Reactants`` and ``Unstable``, as described in the reactions discovery manual. ``molecules`` is a dictionairy with keys equal to the categories and each concomitant value is a list of PLAMS molecules.
+The categories are ``Products`` ``Reactants`` and ``Unstable``, as described in the reactions discovery manual. ``molecules`` is a dictionary with keys equal to the categories and each concomitant value is a list of PLAMS molecules.
 
 .. code:: ipython3
 

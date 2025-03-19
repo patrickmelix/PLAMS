@@ -54,7 +54,7 @@ Some general parameters
 Equilibration
 ~~~~~~~~~~~~~
 
-``temperature=(500, T, T)`` means that in the first half the simulation the system is cooled from 500 K to the gievn temperature, and then kept constant at that temperature.
+``temperature=(500, T, T)`` means that in the first half the simulation the system is cooled from 500 K to the given temperature, and then kept constant at that temperature.
 
 The initial temperature of 500 K does some preliminary conformer search.
 

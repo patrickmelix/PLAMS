@@ -40,7 +40,7 @@ First, we'll import the necessary classes and enable the parallel calculation th
     config.job.runscript.nproc = 1                                        # Number of cores for each job
     config.log.stdout = 1                                                 # Suppress plams output
 
-Now, we will specify the smiles and name of a set of compounds and generate the initial geometry of each compound using |from_smiles| function. With the setting, ``nconfs=100`` and ``forcefield='uff'``, we will generate 100 conformers and find the one with the loweset energy using 'uff' forcefield. It's worth to notice that we can also generate a set of mutiple conformers through the |ADFCOSMORSConfJob| class as illustrate in the next `example <./ADFCOSMORSConformers.html>`__.
+Now, we will specify the smiles and name of a set of compounds and generate the initial geometry of each compound using |from_smiles| function. With the setting, ``nconfs=100`` and ``forcefield='uff'``, we will generate 100 conformers and find the one with the lowest energy using 'uff' forcefield. It's worth to notice that we can also generate a set of multiple conformers through the |ADFCOSMORSConfJob| class as illustrate in the next `example <./ADFCOSMORSConformers.html>`__.
 
 .. code-block:: python
 

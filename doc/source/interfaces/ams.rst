@@ -244,7 +244,7 @@ or::
 A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`_ for details).
 Various details of this process can be adjusted based on attributes of the supplied |Molecule|.
 If ``mol.lattice`` is nonempty, the information about periodicity vectors is printed to the ``lattice`` subblock of the ``system`` block.
-If the supplied lattice consists of 1 or 2 vectors that do not follow the convention requied by AMS (1D -- vector aligned with X axis; 2D -- vectors aligned with XY plane) the whole system is rotated to meet these criteria.
+If the supplied lattice consists of 1 or 2 vectors that do not follow the convention required by AMS (1D -- vector aligned with X axis; 2D -- vectors aligned with XY plane) the whole system is rotated to meet these criteria.
 If ``mol.properties.charge`` exists, it is used as the ``charge`` key in the ``system`` block.
 
 Moreover, each |Atom| present in the supplied |Molecule| has its own ``properties`` attribute that can be used to adjust the details of the line generated for this atom in the ``atoms`` block:
