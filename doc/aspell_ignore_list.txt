@@ -644,8 +644,6 @@ amspython
 amsspectra
 amssuite
 amsworker
-analyse
-analysing
 anb
 ang
 ani
@@ -1098,7 +1096,6 @@ scipy
 scm
 seealso
 sella
-seperate
 serjob
 sersett
 setattr
