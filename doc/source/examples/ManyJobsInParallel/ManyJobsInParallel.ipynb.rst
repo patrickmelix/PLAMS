@@ -85,7 +85,7 @@ Print a table of results only for the successful calculations.
 
 .. code:: ipython3
 
-   # Only print the results of the succesful caluclations:
+   # Only print the results of the successful calculations:
    for result in [r for r in results if r.ok()]:
        print("Energy for {:<12}: {:>10.3f} kcal/mol".format(result.name, result.get_energy(unit="kcal/mol")))
 

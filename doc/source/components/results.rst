@@ -186,7 +186,7 @@ To picture this matter we will use the following script that performs geometry o
 
     go = AMSJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
     go.settings.input.ams.task = 'GeometryOptimization'
-    ... #other settings adjustments for geometry optimisation
+    ... #other settings adjustments for geometry optimization
     go_results = go.run()
 
     opt_geo = go_results.get_main_molecule()
@@ -213,7 +213,7 @@ We need to fix the script:
 
     go = AMSJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
     go.settings.input.ams.task = 'GeometryOptimization'
-    ... #other settings adjustments for geometry optimisation
+    ... #other settings adjustments for geometry optimization
     go_results = go.run()
 
     freq = AMSJob(name='Freq')
