@@ -14,7 +14,7 @@ benzene_box = plams.packmol(plams.from_smiles("c1ccccc1", forcefield="uff"), den
 plams.plot_molecule(benzene_box)
 
 
-# ## Equlibration MD simulation
+# ## Equilibration MD simulation
 #
 # Short equilibration MD simulation at 300 K for 5 ps with the GAFF force field and automatic atom typing.
 

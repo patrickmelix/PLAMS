@@ -20,8 +20,8 @@ Create initial benzene system
 
 .. figure:: ViscosityGreenKubo_files/ViscosityGreenKubo_3_0.png
 
-Equlibration MD simulation
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Equilibration MD simulation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Short equilibration MD simulation at 300 K for 5 ps with the GAFF force field and automatic atom typing.
 
