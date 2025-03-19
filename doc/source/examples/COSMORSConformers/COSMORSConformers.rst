@@ -5,7 +5,7 @@
 Generating multiple conformers for use with COSMO-RS
 ====================================================
 
-The |ADFCOSMORSConfJob| is a customizable class that allows the user to design a conformer generation workflow for COSMO-RS.  The default instance of this class generates a set of conformers and then performs ADF and subsequent COSMO calculations (equivalent to the AMS Task:COSMO-RS Compound) to generate ``.coskf`` files for *all* unique conformers.  This class can be customized by adding both filters (to limit the number of conformers) and additional calculation steps (to improve the final geometry given to ADF and/or to increase the accuracy of energy calculations for filters). The generated ``.coskf`` can subsequently be utilized by the multi-species COSMO-RS, which accounts for compounds existing in multiple conformations. The application of multi-species COSMO-RS can be explored through  tutorials available in both the `GUI <../../Tutorials/COSMO-RS/COSMO-RS_multispecies.html#cosmo-rs-with-multi-species-components>`__ and `python scripting with pyCRS <../../COSMO-RS/Examples/conformer_CRSManager.html#adding-conformers-to-the-database>`__.
+The |ADFCOSMORSConfJob| is a customizable class that allows the user to design a conformer generation workflow for COSMO-RS.  The default instance of this class generates a set of conformers and then performs ADF and subsequent COSMO calculations (equivalent to the AMS Task:COSMO-RS Compound) to generate ``.coskf`` files for *all* unique conformers.  This class can be customized by adding both filters (to limit the number of conformers) and additional calculation steps (to improve the final geometry given to ADF and/or to increase the accuracy of energy calculations for filters). The generated ``.coskf`` can subsequently be utilized by the multi-species COSMO-RS, which accounts for compounds existing in multiple conformations. The application of multi-species COSMO-RS can be explored through  tutorials available in both the `GUI <../../../Tutorials/COSMO-RS/COSMO-RS_multispecies.html#cosmo-rs-with-multi-species-components>`__ and `python scripting with pyCRS <../../../COSMO-RS/Examples/conformer_CRSManager.html#adding-conformers-to-the-database>`__.
 
 This example will produce two ``.coskf`` files with the following geometries:
 
@@ -37,12 +37,12 @@ Specifying Settings for additional jobs
 |Settings| objects provided to the ``additional`` keyword should be valid.  |ADFCOSMORSConfJob| will likely fail if there are errors in the |Settings| objects.  In the case of unexpected failures, take a look in the calculation subdirectories called ``additional_i`` where ``i`` is an index representing the index of the additional calculation.
 
 .. note::
-    The tasks for **Settings objects should correspond to Tasks for AMSConformers**.  The most important two types are **Optimize** to perform a geometry optimization and **Score** to perform a single point calculation.  `The tasks section <../../AMS/Utilities/Conformers.html#tasks>`__ in the Conformers doc contains all additional information.
+    The tasks for **Settings objects should correspond to Tasks for AMSConformers**.  The most important two types are **Optimize** to perform a geometry optimization and **Score** to perform a single point calculation.  `The tasks section <../../../AMS/Utilities/Conformers.html#tasks>`__ in the Conformers doc contains all additional information.
 
 Specifying conformer sampling strategies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The default conformer sampling strategy is based on RDKit.  This is likely sufficient for more use cases, but the user can specify another sampling strategy by providing a |ConformersJob| instance to the ``conf_gen`` keyword.  See also `The generator section <../../AMS/Utilities/Conformers.html#generators>`__ of the conformer documentation for more information about specifying alternative generators.
+The default conformer sampling strategy is based on RDKit.  This is likely sufficient for more use cases, but the user can specify another sampling strategy by providing a |ConformersJob| instance to the ``conf_gen`` keyword.  See also `The generator section <../../../AMS/Utilities/Conformers.html#generators>`__ of the conformer documentation for more information about specifying alternative generators.
 
 Brief API Documentation
 -----------------------
