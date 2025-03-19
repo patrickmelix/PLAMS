@@ -1,7 +1,7 @@
 .. _UseLowestEnergyExample:
 
-UseLowestEnergy
-==============================
+Hybrid engine: Use lowest energy
+================================
 
 ..
    Feel free to modify the above label, header, and add any custom information here

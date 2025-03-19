@@ -374,7 +374,7 @@ For example, |postrun| can be used to collect the relevant data from all childre
 A more flexible way of using |MultiJob| is by creating your own subclasses of it.
 That way you can enclose several jobs that are conceptually similar in one convenient "unit", for example:
 
-*   |MultiJob| running a chain of single jobs: take a molecule, preoptimize its geometry using some approximate method, follow with a high-level geometry optimization and then use the optimized geoemtry for some properties calculation
+*   |MultiJob| running a chain of single jobs: take a molecule, preoptimize its geometry using some approximate method, follow with a high-level geometry optimization and then use the optimized geometry for some properties calculation
 *   |MultiJob| comparing different values of some parameter: run multiple single jobs with the same molecule and settings, but differing in one parameter (for example: XC functional, numerical accuracy, basis set etc.) for the sake of investigating the influence of that parameter on the final results
 *   |MultiJob| running different geometries of the same system to investigate some property of the potential energy surface.
     A classic example here would be numerical gradient or numerical hessian calculations.

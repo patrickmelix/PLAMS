@@ -1,7 +1,7 @@
 .. _ConstrainedGOAMSWorkerExample:
 
 AMSWorker: Constrained geometry optimization
-=============================================
+==============================================
 
 .. seealso::
 
