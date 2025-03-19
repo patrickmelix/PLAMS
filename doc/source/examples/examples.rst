@@ -156,8 +156,8 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
 .. toctree::
     :maxdepth: 2
 
-    ADFCOSMORSCompound
-    ADFCOSMORSConformers
+    COSMORSCompound/COSMORSCompound
+    COSMORSConformers/COSMORSConformers
     MDJobs
     ADFFrag/ADFFrag
     ReorganizationEnergy/ReorganizationEnergy
