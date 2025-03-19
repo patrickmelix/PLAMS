@@ -154,5 +154,5 @@ The source code of ``recipes`` modules is presented here to demonstrate how easy
     NumHess/NumHess
     pyAHFCDOS
     ADFVibronicDOS/ADFVibronicDOS.rst
-    ReuseForceFieldParams
+    ReuseForceFieldParams/ReuseForceFieldParams
 
