@@ -12,9 +12,7 @@ from scm.plams.core.errors import PTError
         [None, "Foo", 0, 0, 0, 0, 0],
     ],
 )
-def test_get_property(
-    atomic_number, symbol, mass, radius, connectors, is_metallic, is_electronegative
-):
+def test_get_property(atomic_number, symbol, mass, radius, connectors, is_metallic, is_electronegative):
     if atomic_number is not None:
         assert PT.get_atomic_number(symbol) == atomic_number
         assert PT.get_symbol(atomic_number) == symbol
