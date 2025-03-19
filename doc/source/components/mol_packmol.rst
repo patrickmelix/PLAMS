@@ -10,13 +10,16 @@ Packmol (`Packmol website <https://m3g.github.io/packmol/download.shtml>`__) is 
 * packing inside voids in a crystal
 * microsolvation
 
-The following functions eixst:
+The following functions exist:
 
 * ``packmol`` (for fluids with 1 or more components)
 * ``packmol_around`` (for fluids with 1 or more components, used to pack around an existing system in AMS2025+)
-* ``packmol_on_slab`` (for solid/liquid or solid/gas interfaces with 1 or more components in the fluid)
-* ``packmol_in_void`` (for packing molecules inside crystal voids)
 * ``packmol_microsolvation`` (for microsolvation of a solute with a solvent)
+
+In AMS2025, we recommend to use ``packmol_around`` over ``packmol_on_slab`` and ``packmol_in_void``:
+
+* ``packmol_on_slab`` (deprecated, for solid/liquid or solid/gas interfaces with 1 or more components in the fluid)
+* ``packmol_in_void`` (deprecated, for packing molecules inside crystal voids)
 
 See the :ref:`Packmol example <PackMolExample>` for all the ways these functions can be used.
 
