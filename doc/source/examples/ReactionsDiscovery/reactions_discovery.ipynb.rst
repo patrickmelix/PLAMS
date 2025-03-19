@@ -107,7 +107,7 @@ Running reactions discovery
 .. code:: ipython3
 
    result = job.run()  # start the job
-   job.check()  # check if job was succesful
+   job.check()  # check if job was successful
 
 ::
 
