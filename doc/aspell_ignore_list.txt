@@ -644,8 +644,6 @@ amspython
 amsspectra
 amssuite
 amsworker
-analyse
-analysing
 anb
 ang
 ani
@@ -708,7 +706,6 @@ confs
 constitutent
 contraints
 conve
-convient
 coords
 coskf
 coskfs
@@ -744,7 +741,6 @@ dfcoef
 dftb
 dftbplus
 di
-dictionairy
 dicyclopentadiene
 diels
 diene
@@ -830,7 +826,6 @@ getattribute
 getitem
 getstate
 gga
-gievn
 glycine
 gml
 gnet
@@ -847,7 +842,6 @@ hydroxyl
 iPIExample
 iadd
 iloc
-imageas
 importlib
 ingle
 init
@@ -904,7 +898,6 @@ loadengine
 loadsystem
 logfile
 lorentzian
-loweset
 lt
 lumo
 mPa
@@ -936,8 +929,6 @@ mols
 molsPerRow
 multijob
 multijobs
-mutiple
-mutlijob's
 myAMSEnergy
 myAMSJob
 myAMSResults
@@ -1045,7 +1036,6 @@ printsummary
 propanol
 propene
 propertyX
-provies
 ptimization
 puresigmaprofile
 px
@@ -1079,7 +1069,6 @@ reoptimization
 reoptimize
 repickle
 repr
-requied
 rescale
 returncode
 rkf
@@ -1098,7 +1087,6 @@ scipy
 scm
 seealso
 sella
-seperate
 serjob
 sersett
 setattr
@@ -1111,7 +1099,6 @@ simulationtype
 singlepoint
 sizeof
 skf
-smalles
 solvated
 solvation
 someMOF

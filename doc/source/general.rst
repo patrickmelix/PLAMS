@@ -96,7 +96,7 @@ Since ``AMS2025``, these are available for installation through extra dependency
 The available groups are:
 
 - **chem**: for chemistry packages such as ``RDKit``, ``ase``
-- **analysis**: for packages used to analyse and plot results of calculations e.g. ``scipy``, ``matploblib``, ``networkx``
+- **analysis**: for packages used to analyze and plot results of calculations e.g. ``scipy``, ``matploblib``, ``networkx``
 - **ams**: for technical packages for use with the AMS interface
 
 One or more of these can be installed using the command ``pip install 'plams[chem,analysis,ams]'``.

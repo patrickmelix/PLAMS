@@ -369,7 +369,7 @@ The simplest application is just to use an instance of |MultiJob| as a container
     mj.run(...)
 
 Such a "container job" can further be customized with :ref:`prerun-postrun`.
-For example, |postrun| can be used to collect the relevant data from all children jobs and store it in an easily accessible way in mutlijob's |Results|.
+For example, |postrun| can be used to collect the relevant data from all children jobs and store it in an easily accessible way in multijob's |Results|.
 
 A more flexible way of using |MultiJob| is by creating your own subclasses of it.
 That way you can enclose several jobs that are conceptually similar in one convenient "unit", for example:
