@@ -1,6 +1,6 @@
 .. _ReuseForceFieldParamsExample:
 
-ReuseForceFieldParams
+Reuse ForceField Parameters
 ==============================
 
 This example demonstrates how to reuse the force field atom types and charges assigned in a previous AMS computation.
