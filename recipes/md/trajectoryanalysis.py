@@ -165,10 +165,114 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
             f.write(f"{D}\n")
 
 
+def viscosity_double_exponential(x, A, lam, tau1, tau2):
+    return A * (lam * (1 - np.exp(-x / tau1)) + (1 - lam) * (1 - np.exp(-x / tau2)))
+
+
+class AMSViscosityFromBinLogResults(AMSAnalysisResults):
+    """Results class for AMSViscosityFromBinLogJob"""
+
+    def get_viscosity_integral(self):
+        """Extract the running viscosity integral.
+
+        Returns a 2-tuple with 1D numpy arrays ``time, viscosity_integral``, with time in fs and viscosity_integral in Pa*s.
+        """
+
+        xy = self.get_xy("Integral")
+        time = np.array(xy.x[0])  # fs
+        y = np.array(xy.y)  # Pa s
+
+        return time, y
+
+    @requires_optional_package("scipy")
+    def get_double_exponential_fit(self):
+        """Perform a double exponential fit to the viscosity integral.
+
+        The fitted function is of the form
+
+        ``A * (lam * (1 - np.exp(-x / tau1)) + (1 - lam) * (1 - np.exp(-x / tau2)))``
+
+        where ``A`` is the limiting value in the infinite time limit.
+
+        Returns: a 3-tuple ``popt, time, prediction``, where
+
+        - ``popt`` is a 4-tuple containing A, lam, tau1, and tau2,
+
+        - ``time`` is in fs, and
+
+        - ``prediction`` is the value of the above function vs time.
+        """
+
+        from scipy.optimize import curve_fit
+
+        x, y = self.get_viscosity_integral()
+
+        # The fit
+        f, p0 = viscosity_double_exponential, (y[-1], 0.5, 0.1 * x[-1], 0.9 * x[-1])
+        popt, _ = curve_fit(f, x, y, p0=p0)
+        prediction = f(x, *popt)
+
+        return popt, x, prediction
+
+
+class AMSViscosityFromBinLogJob(AMSConvenientAnalysisJob):
+    """A convenient class wrapping around the trajectory analysis ViscosityFromBinLog tool. Only runs with default input options (max correlation time 10% of the total trajectory)."""
+
+    _result_type = AMSViscosityFromBinLogResults
+    _parent_write_atoms = False
+
+    def __init__(
+        self,
+        previous_job,  # needs to be finished
+        **kwargs,
+    ):
+        """
+        previous_job: AMSJob
+            An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts. It must have been run with the BinLog%PressureTensor option set.
+
+        kwargs: dict
+            Other options to AMSAnalysisJob
+
+        """
+        AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, **kwargs)
+
+    def prerun(self):  # noqa F811
+        """
+        Constructs the final settings
+        """
+        self._parent_prerun("AutoCorrelation")  # trajectory and atom_indices handled
+        self.settings.input.Task = "AutoCorrelation"
+        self.settings.input.AutoCorrelation.Property = "ViscosityFromBinLog"
+
+    def postrun(self):
+        """
+        Creates viscosity_integral, fit_viscosity_integral, and viscosity.txt
+        """
+        time, integral = self.results.get_viscosity_integral()
+        with open(self.path + "/viscosity_integral.txt", "w") as f:
+            f.write("#Time(fs) Integral(Pa*s)")
+            for x, y in zip(time, integral):
+                f.write(f"{x} {y}\n")
+
+        popt, fit_x, fit_y = self.results.get_double_exponential_fit()
+        with open(self.path + "/fit_viscosity_integral.txt", "w") as f:
+            f.write("#Time(fs), DoubleExponentialFitToViscosityIntegral(Pa*s)")
+            for x, y in zip(fit_x, fit_y):
+                f.write(f"{x} {y}\n")
+
+        eta = popt[0]
+        with open(self.path + "/viscosity.txt", "w") as f:
+            f.write(f"{eta}\n")
+
+
 class AMSVACFResults(AMSAnalysisResults):
     """Results class for AMSVACFJob"""
 
     def get_vacf(self):
+        """Extract the velocity autocorrelation function vs. time.
+
+        Returns a 2-tuple ``time, y`` with ``time`` in fs.
+        """
         xy = self.get_xy()
         time = np.array(xy.x[0])  # fs
         y = np.array(xy.y)
@@ -176,6 +280,14 @@ class AMSVACFResults(AMSAnalysisResults):
         return time, y
 
     def get_power_spectrum(self, max_freq=None):
+        """Calculate the power spectrum as the Fourier transform of the velocity autocorrelation function.
+
+        max_freq: float, optional
+            The maximum frequency in cm^-1.
+
+        Returns: A 2-tuple ``freq, y`` with ``freq`` in cm^-1 and ``y`` unitless.
+        """
+
         max_freq = max_freq or self.job.max_freq or 5000
         xy = self.get_xy("Spectrum")
         freq = np.array(xy.x[0])

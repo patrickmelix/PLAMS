@@ -1,3 +1,5 @@
+.. _AMSWorker:
+
 AMS worker
 ----------
 

@@ -3,11 +3,22 @@
 Examples
 ========
 
-In this section we present example PLAMS scripts covering various applications, from very simple tasks (like running the same calculation for multiple molecules) to more advanced dynamic workflows.
+The PLAMS examples use the Amsterdam Modeling Suite. Get a license or free trial from www.scm.com.
 
-The example scripts use computational engines from the Amsterdam Modeling Suite, and you will need a license to run them. Contact license@scm.com for further questions.
+.. dropdown:: Note about $AMSBIN for external Python environments
 
-In order to run the examples, the ``AMSBIN`` environment variable should be properly set. You can test this by typing ``$AMSBIN/amspython -h`` in a terminal: this should print the help message. If this is not the case (e.g. you get 'No such file or directory'), you need to set up the environmental variable ``$AMSBIN`` (see the `Linux Quickstart guide <../../Installation/Linux_Quickstart_Guide.html>`__ for details).
+   If you run PLAMS with ``amspython`` (recommended), then you most likely
+   have already set the $AMSBIN environment correctly and can ignore the
+   rest of this message.
+
+   If you do not use ``amspython`` but a custom Python environment, make sure
+   that the ``AMSBIN`` environment variable is properly set. 
+
+   You can test this by typing ``$AMSBIN/amspython -h`` in a terminal: this
+   should print the help message. 
+
+   If this is not the case, see the `AMS Installation
+   documentation <../../Installation/index.html>`__ for details.
 
 Getting Started
 ----------------
@@ -46,6 +57,7 @@ MD trajectory analysis
     :maxdepth: 1
 
     IonicConductivityFromMD.rst
+    ViscosityGreenKubo/ViscosityGreenKubo
     IRSpectrumFromMD/IRSpectrumFromMD.rst
     IRSpectrumFromMDH2ODimer.rst
 
