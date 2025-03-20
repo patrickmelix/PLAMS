@@ -31,6 +31,7 @@ AMSJob
 AMSMDJob
 AMSMDScanDensityJob
 AMSMSDJob
+AMSMSDResults
 AMSMoleculeHandling
 AMSNPTJob
 AMSNPTResults
@@ -48,6 +49,7 @@ AMSPipeUnknownVersionError
 AMSPlumedMD
 AMSPlumedMDExample
 AMSRDFJob
+AMSRDFResults
 AMSRESOURCES
 AMSRedoxDirectJob
 AMSRedoxDirectResults
@@ -64,6 +66,9 @@ AMSSuite
 AMSTSWorkflow
 AMSTSWorkflowExample
 AMSVACFJob
+AMSVACFResults
+AMSViscosityFromBinLogJob
+AMSViscosityFromBinLogResults
 AMSWorker
 AMSWorkerError
 AMSWorkerPool
@@ -129,6 +134,8 @@ COMBI
 CONTCAR
 COORD
 COSMO
+COSMORSCompound
+COSMORSConformers
 COSMORScompound
 CP
 CPUTime
@@ -560,6 +567,7 @@ TZ
 TZP
 TZV
 TaperBO
+TargetDensity
 TestMols
 TightSCF
 Tomáš
@@ -596,6 +604,8 @@ ValueError
 Vasp
 Vibrational
 Vibronic
+ViscosityGreenKubo
+ViscosityGreenKuboExample
 Vrije
 Vtot
 WB
@@ -643,6 +653,7 @@ amspipe
 amspython
 amsspectra
 amssuite
+amsview
 amsworker
 anb
 ang
@@ -709,6 +720,7 @@ conve
 coords
 coskf
 coskfs
+cosmors
 cp
 cpu
 createnumberofmolecules
@@ -754,6 +766,7 @@ dists
 dmax
 dmin
 dont
+dropdown
 dt
 dtype
 eV
@@ -772,6 +785,7 @@ environ
 eometry
 eq
 equilibrated
+equilibration
 errormsg
 et
 eterm
@@ -928,6 +942,7 @@ moleculedefinition
 mols
 molsPerRow
 multijob
+multijob's
 multijobs
 myAMSEnergy
 myAMSJob
@@ -1018,6 +1033,7 @@ plamstest
 plt
 png
 polarizability
+popt
 pos
 postadf
 postanalysis
@@ -1030,12 +1046,14 @@ preprint
 prerun
 presanitize
 prescreen
+pressuretensor
 printevery
 printoptions
 printsummary
 propanol
 propene
 propertyX
+ps
 ptimization
 puresigmaprofile
 px
@@ -1090,6 +1108,7 @@ sella
 serjob
 sersett
 setattr
+settingsWorked
 shakemd
 sideview
 sigmahbond
@@ -1099,6 +1118,7 @@ simulationtype
 singlepoint
 sizeof
 skf
+solv
 solvated
 solvation
 someMOF
