@@ -5,6 +5,7 @@ from typing import Dict, Any
 from scm.plams.core.logging import CSVFormatter
 from scm.plams.core.basejob import Job
 from scm.plams.core.enums import JobStatus
+from scm.plams.core.errors import ResultsError
 
 __all__ = ["JobCSVFormatter"]
 
@@ -37,10 +38,14 @@ class JobCSVFormatter(CSVFormatter):
         if job.status not in [JobStatus.CREATED, JobStatus.STARTED]:
             message.update({"job_path": job.path})
 
-            if job.status not in [JobStatus.REGISTERED, JobStatus.RUNNING, JobStatus.DELETED]:
-                message.update({"job_ok": job.ok()})
-                message.update({"job_check": job.check()})
-                message.update({"job_get_errormsg": job.get_errormsg()})
+            # Avoid race condition when accessing results for deleted job
+            try:
+                if job.status not in [JobStatus.REGISTERED, JobStatus.RUNNING, JobStatus.DELETED]:
+                    message.update({"job_ok": job.ok()})
+                    message.update({"job_check": job.check()})
+                    message.update({"job_get_errormsg": job.get_errormsg()})
+            except ResultsError:
+                pass
 
         if job.parent:
             message["job_parent_name"] = job.parent.name

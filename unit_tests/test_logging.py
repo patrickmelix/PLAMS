@@ -234,6 +234,21 @@ To 2, level 1
                 )
             logger.close()
 
+    def test_logger_does_not_error_when_existing_logfile_deleted(self):
+        with temp_file_path(suffix=".log") as temp_log_file1, temp_file_path(suffix=".log") as temp_log_file2:
+            logger = get_logger(str(uuid.uuid4()))
+            logger.configure(logfile_path=temp_log_file1, logfile_level=2)
+
+            for i in range(5):
+                logger.log(f"To 1, level {i}", i)
+
+            os.remove(temp_log_file1)
+
+            for i in range(5):
+                logger.log(f"To 1 (deleted), level {i}", i)
+
+            logger.close()
+
     def test_configure_prefixes_date_and_or_time_for_stdout_and_file(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             with temp_file_path(suffix=".log") as temp_log_file:
@@ -278,7 +293,11 @@ To 2, level 1
                     logger.configure(5, 5, temp_log_file1)
                     for i in range(num_msgs):
                         logger.configure(
-                            5, 5, temp_log_file1 if i % 2 == 0 else temp_log_file2, i % 5 == 0, i % 11 == 0
+                            5,
+                            5,
+                            temp_log_file1 if i % 2 == 0 else temp_log_file2,
+                            i % 5 == 0,
+                            i % 11 == 0,
                         )
                         logger.log(f"id {id} msg {i}", 5)
 
@@ -610,8 +629,14 @@ bar,buzz
                 reader = csv.reader(tf)
 
                 assert next(reader) == ["commas", "multi-line"]
-                assert next(reader) == ["a,b,c,'(d,e,f)'", "See the following:\n    a,b,c\n    d,e,f\n"]
-                assert next(reader) == ['m,"n,",,,o\'', "See the following:\n    m,n,o\n\n    p,q,r\n"]
+                assert next(reader) == [
+                    "a,b,c,'(d,e,f)'",
+                    "See the following:\n    a,b,c\n    d,e,f\n",
+                ]
+                assert next(reader) == [
+                    'm,"n,",,,o\'',
+                    "See the following:\n    m,n,o\n\n    p,q,r\n",
+                ]
 
             logger.close()
 
@@ -630,7 +655,11 @@ class TestJobCSVFormatter:
             setattr(job2, "get_errormsg", get_errormsg)
 
             logger = get_logger(str(uuid.uuid4()), "csv")
-            logger.configure(logfile_level=7, csv_formatter=JobCSVFormatter, logfile_path=temp_log_file)
+            logger.configure(
+                logfile_level=7,
+                csv_formatter=JobCSVFormatter,
+                logfile_path=temp_log_file,
+            )
 
             logger.log(job1, 3)
             logger.log(job2, 3)
