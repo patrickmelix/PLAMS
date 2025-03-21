@@ -38,14 +38,14 @@ class JobCSVFormatter(CSVFormatter):
         if job.status not in [JobStatus.CREATED, JobStatus.STARTED]:
             message.update({"job_path": job.path})
 
-            # Avoid race condition when accessing results for deleted job
-            try:
-                if job.status not in [JobStatus.REGISTERED, JobStatus.RUNNING, JobStatus.DELETED]:
+            if job.status not in [JobStatus.REGISTERED, JobStatus.RUNNING, JobStatus.DELETED]:
+                # Avoid race condition when accessing results for deleted job
+                try:
                     message.update({"job_ok": job.ok()})
                     message.update({"job_check": job.check()})
                     message.update({"job_get_errormsg": job.get_errormsg()})
-            except ResultsError:
-                pass
+                except ResultsError:
+                    pass
 
         if job.parent:
             message["job_parent_name"] = job.parent.name
