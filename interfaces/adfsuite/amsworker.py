@@ -1471,13 +1471,16 @@ class AMSWorkerPool:
         The *items* argument is expected to be an iterable of 2-tuples ``(name, molecule)`` and/or 3-tuples ``(name, molecule, kwargs)``, which are passed on to the :meth:`GeometryOptimization <AMSWorker.GeometryOptimization>` method of the pool's |AMSWorker| instances. (Here ``kwargs`` is a dictionary containing the optional keyword arguments and their values for this method.)
         """
         # Convert the constraints from settings to text
-        for item in items:
+        for ii, item in enumerate(items):
             if len(item) == 3:
                 name, mol, kwargs = item
+                kwargs = kwargs.copy()
+                items[ii] = (name, mol, kwargs)
                 if "constraints" in kwargs:
                     if kwargs["constraints"] is not None:
                         text = AMSJob(settings=kwargs["constraints"]).get_input()
                         kwargs["constraints"] = text
+                        print (kwargs["constraints"])
         solve_items = self._prep_solve_from_settings("GeometryOptimization", items)
         return self._solve_from_settings(solve_items, watch, watch_interval)
 
