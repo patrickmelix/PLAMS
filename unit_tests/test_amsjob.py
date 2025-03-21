@@ -1721,7 +1721,7 @@ class TestAMSJobRun:
 
                 # Then ams logs are also forwarded to the standard output
                 stdout = mock_stdout.getvalue().replace("\r\n", "\n").split("\n")
-                postrun_lines = [l for l in stdout if re.fullmatch("plamsjob: line \d", l)]
+                postrun_lines = [l for l in stdout if re.fullmatch(r"plamsjob: line \d", l)]
                 status_lines = [l for l in stdout if re.fullmatch("JOB plamsjob (STARTED|RUNNING|FINISHED|FAILED)", l)]
 
                 assert len(postrun_lines) == 10

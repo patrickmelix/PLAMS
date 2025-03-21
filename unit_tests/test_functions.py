@@ -681,12 +681,12 @@ log with level 3
 
         # Check all log lines match the expected pattern
         if date_expected and time_expected:
-            pattern = "\[\d{2}\.\d{2}\|\d{2}:\d{2}:\d{2}\] date and time log with level \d"
+            pattern = r"\[\d{2}\.\d{2}\|\d{2}:\d{2}:\d{2}\] date and time log with level \d"
         elif date_expected:
-            pattern = "\[\d{2}\.\d{2}] date log with level \d"
+            pattern = r"\[\d{2}\.\d{2}] date log with level \d"
         elif time_expected:
-            pattern = "\[\d{2}:\d{2}:\d{2}] time log with level \d"
+            pattern = r"\[\d{2}:\d{2}:\d{2}] time log with level \d"
         else:
-            pattern = "log with level \d"
+            pattern = r"log with level \d"
 
         assert all([re.fullmatch(pattern, line) is not None for line in lines])
