@@ -1,6 +1,7 @@
 from io import StringIO
 from scm.plams import Molecule, Settings, AMSJob
 
+
 def main(text):
     """
     The main script
@@ -9,7 +10,7 @@ def main(text):
     mol = Molecule()
     infile = StringIO(text)
     mol.readin(infile)
-    
+
     # Set up the MD
     settings = Settings()
     settings.input.ams.Task = "MolecularDynamics"
@@ -22,11 +23,12 @@ def main(text):
     settings.input.ams.MolecularDynamics.Thermostat.Tau = 100
     settings.input.ams.MolecularDynamics.Checkpoint.Frequency = 10000
     settings.input.ForceField.Type = "Amber95"
-    
+
     # Run the AMS MD simulation
     job = AMSJob(name="NaClwater", molecule=mol, settings=settings)
     results = job.run()
     print("Path to RKF file: ", results.rkfpath())
+
 
 if __name__ == "__main__":
 
