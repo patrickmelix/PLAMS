@@ -1480,7 +1480,6 @@ class AMSWorkerPool:
                     if kwargs["constraints"] is not None:
                         text = AMSJob(settings=kwargs["constraints"]).get_input()
                         kwargs["constraints"] = text
-                        print (kwargs["constraints"])
         solve_items = self._prep_solve_from_settings("GeometryOptimization", items)
         return self._solve_from_settings(solve_items, watch, watch_interval)
 
