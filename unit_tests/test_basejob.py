@@ -409,7 +409,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         job2.run(jobmanager=job_manager)
         job3.run(jobmanager=job_manager)
 
-        dt_fmt = "\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"
+        dt_fmt = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"
 
         def assert_csv_entry(entry, statuses, postfix="", ok="True", check="True", error_msg=""):
             assert re.match(dt_fmt, entry[0])

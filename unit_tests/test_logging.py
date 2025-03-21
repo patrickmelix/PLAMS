@@ -272,11 +272,11 @@ To 2, level 1
                         date, time = dts[i // 2]
                         pattern = f"d={date}, t={time}, level={i % 2 + 3}"
                         if date and time:
-                            pattern = "\[\d{2}\.\d{2}\|\d{2}:\d{2}:\d{2}\] " + pattern
+                            pattern = r"\[\d{2}\.\d{2}\|\d{2}:\d{2}:\d{2}\] " + pattern
                         elif date:
-                            pattern = "\[\d{2}\.\d{2}\] " + pattern
+                            pattern = r"\[\d{2}\.\d{2}\] " + pattern
                         elif time:
-                            pattern = "\[\d{2}:\d{2}:\d{2}\] " + pattern
+                            pattern = r"\[\d{2}:\d{2}:\d{2}\] " + pattern
                         assert re.fullmatch(pattern, l1) is not None and re.fullmatch(pattern, l2) is not None
 
                 logger.close()
@@ -510,11 +510,11 @@ message
                     date, time = dts[i // 2]
                     pattern = f"{date},{time}"
                     if date and time:
-                        pattern = "[3-4],\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}," + pattern
+                        pattern = r"[3-4],\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}," + pattern
                     elif date:
-                        pattern = "[3-4],\d{4}-\d{2}-\d{2}," + pattern
+                        pattern = r"[3-4],\d{4}-\d{2}-\d{2}," + pattern
                     elif time:
-                        pattern = "[3-4],\d{2}:\d{2}:\d{2}," + pattern
+                        pattern = r"[3-4],\d{2}:\d{2}:\d{2}," + pattern
                     else:
                         pattern = "[3-4]," + pattern
                     assert re.fullmatch(pattern, l)
