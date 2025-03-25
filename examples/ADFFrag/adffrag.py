@@ -112,14 +112,18 @@ def print_eda_terms(job):
 def print_nocv_decomposition():
     print("NOCV decomposition of the orbital interaction term\n")
 
-    print("The NOCV eigenvalues should come in pairs, with one negative value by mirrored by a positive value")
+    print("The NOCV eigenvalues are occupation numbers, they should come in pairs,")
+    print("with one negative value mirrored by a positive value.")
+    print("The orbital interaction energy contribution is calculated for each NOCV pair.")
+    print("")
 
     nocv_eigenvalues = j.full.results.readrkf("NOCV", "NOCV_eigenvalues_restricted", "engine")
+    nocv_orbitalinteraction = j.full.results.readrkf("NOCV", "NOCV_oi_restricted", "engine")
 
     n_pairs = int(len(nocv_eigenvalues) / 2)
     threshold = 0.001
 
-    print(f'{"index":>9s} {"neg":>9s} {"pos":>9s}')
+    print(f'{"index":>9s} {"neg":>9s} {"pos":>9s} {"kcal/mol":>10s}')
     for index in range(n_pairs):
         pop1 = nocv_eigenvalues[index]
         pop2 = nocv_eigenvalues[len(nocv_eigenvalues) - index - 1]
@@ -127,7 +131,10 @@ def print_nocv_decomposition():
         if (abs(pop1) + abs(pop2)) < threshold:
             continue
 
-        print(f"{index:9d} {pop1:9.3f} {pop2:9.3f}")
+        orbitalinteraction = (
+            nocv_orbitalinteraction[index] + nocv_orbitalinteraction[len(nocv_orbitalinteraction) - index - 1]
+        )
+        print(f"{index:9d} {pop1:9.3f} {pop2:9.3f} {orbitalinteraction:10.2f}")
 
 
 print_bonding_energy_terms(r)

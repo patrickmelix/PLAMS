@@ -14,7 +14,7 @@ Initialization
 
 ::
 
-   PLAMS working folder: /path/plams/examples/ADFFrag/plams_workdir.005
+   PLAMS working folder: /path/plams/examples/ADFFrag/plams_workdir
 
 Define the molecules
 ~~~~~~~~~~~~~~~~~~~~
@@ -87,16 +87,16 @@ Setup and run the job
 
 ::
 
-   [05.03|16:29:18] JOB plamsjob STARTED
-   [05.03|16:29:18] JOB plamsjob RUNNING
-   [05.03|16:29:18] JOB plamsjob/frag1 STARTED
-   [05.03|16:29:18] JOB plamsjob/frag1 RUNNING
-   [05.03|16:29:21] JOB plamsjob/frag1 FINISHED
-   [05.03|16:29:21] JOB plamsjob/frag1 SUCCESSFUL
-   [05.03|16:29:21] JOB plamsjob/frag2 STARTED
-   [05.03|16:29:21] JOB plamsjob/frag2 RUNNING
-   [05.03|16:29:25] JOB plamsjob/frag2 FINISHED
-   [05.03|16:29:25] JOB plamsjob/frag2 SUCCESSFUL
+   [25.03|17:15:00] JOB plamsjob STARTED
+   [25.03|17:15:00] JOB plamsjob RUNNING
+   [25.03|17:15:00] JOB plamsjob/frag1 STARTED
+   [25.03|17:15:00] JOB plamsjob/frag1 RUNNING
+   [25.03|17:15:11] JOB plamsjob/frag1 FINISHED
+   [25.03|17:15:12] JOB plamsjob/frag1 SUCCESSFUL
+   [25.03|17:15:12] JOB plamsjob/frag2 STARTED
+   [25.03|17:15:12] JOB plamsjob/frag2 RUNNING
+   [25.03|17:15:23] JOB plamsjob/frag2 FINISHED
+   [25.03|17:15:23] JOB plamsjob/frag2 SUCCESSFUL
    ... (PLAMS log lines truncated) ...
 
 Print the results
@@ -138,14 +138,18 @@ Print the results
    def print_nocv_decomposition():
        print("NOCV decomposition of the orbital interaction term\n")
 
-       print("The NOCV eigenvalues should come in pairs, with one negative value by mirrored by a positive value")
+       print("The NOCV eigenvalues are occupation numbers, they should come in pairs,")
+       print("with one negative value mirrored by a positive value.")
+       print("The orbital interaction energy contribution is calculated for each NOCV pair.")
+       print("")
 
        nocv_eigenvalues = j.full.results.readrkf("NOCV", "NOCV_eigenvalues_restricted", "engine")
+       nocv_orbitalinteraction = j.full.results.readrkf("NOCV", "NOCV_oi_restricted", "engine")
 
        n_pairs = int(len(nocv_eigenvalues) / 2)
        threshold = 0.001
 
-       print(f'{"index":>9s} {"neg":>9s} {"pos":>9s}')
+       print(f'{"index":>9s} {"neg":>9s} {"pos":>9s} {"kcal/mol":>10s}')
        for index in range(n_pairs):
            pop1 = nocv_eigenvalues[index]
            pop2 = nocv_eigenvalues[len(nocv_eigenvalues) - index - 1]
@@ -153,7 +157,10 @@ Print the results
            if (abs(pop1) + abs(pop2)) < threshold:
                continue
 
-           print(f"{index:9d} {pop1:9.3f} {pop2:9.3f}")
+           orbitalinteraction = (
+               nocv_orbitalinteraction[index] + nocv_orbitalinteraction[len(nocv_orbitalinteraction) - index - 1]
+           )
+           print(f"{index:9d} {pop1:9.3f} {pop2:9.3f} {orbitalinteraction:10.2f}")
 
 .. code:: ipython3
 
@@ -184,22 +191,25 @@ Print the results
 
    NOCV decomposition of the orbital interaction term
 
-   The NOCV eigenvalues should come in pairs, with one negative value by mirrored by a positive value
-       index       neg       pos
-           0    -0.098     0.098
-           1    -0.084     0.084
-           2    -0.045     0.045
-           3    -0.014     0.014
-           4    -0.012     0.012
-           5    -0.012     0.012
-           6    -0.010     0.010
-           7    -0.008     0.008
-           8    -0.008     0.008
-           9    -0.006     0.006
-          10    -0.006     0.006
-          11    -0.006     0.006
-          12    -0.005     0.005
-          13    -0.004     0.004
-          14    -0.003     0.003
-          15    -0.003     0.003
-          16    -0.002     0.002
+   The NOCV eigenvalues are occupation numbers, they should come in pairs,
+   with one negative value mirrored by a positive value.
+   The orbital interaction energy contribution is calculated for each NOCV pair.
+
+       index       neg       pos   kcal/mol
+           0    -0.098     0.098      -0.65
+           1    -0.084     0.084      -0.76
+           2    -0.045     0.045      -0.38
+           3    -0.014     0.014      -0.06
+           4    -0.012     0.012      -0.04
+           5    -0.012     0.012      -0.04
+           6    -0.010     0.010      -0.03
+           7    -0.008     0.008      -0.02
+           8    -0.008     0.008      -0.02
+           9    -0.006     0.006      -0.01
+          10    -0.006     0.006      -0.01
+          11    -0.006     0.006      -0.01
+          12    -0.005     0.005      -0.01
+          13    -0.004     0.004      -0.01
+          14    -0.003     0.003      -0.00
+          15    -0.003     0.003      -0.00
+          16    -0.002     0.002      -0.00
