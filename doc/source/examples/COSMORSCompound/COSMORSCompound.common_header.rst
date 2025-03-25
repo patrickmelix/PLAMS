@@ -1,6 +1,6 @@
 To follow along
 
-* Download :download:`compounds_xyz.zip <../../../../examples/COSMORSCompound/compounds_xyz.zip>`
+* Download and unzip :download:`compounds_xyz.zip <../../../../examples/COSMORSCompound/compounds_xyz.zip>`
 
 then, either
 
