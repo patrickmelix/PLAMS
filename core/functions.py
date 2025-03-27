@@ -11,6 +11,8 @@ from typing import Dict, Iterable, Optional, TYPE_CHECKING
 import atexit
 from importlib.util import find_spec
 import functools
+import contextvars
+from contextlib import contextmanager
 
 from scm.plams.core.logging import get_logger
 from scm.plams.core.errors import FileError, MissingOptionalPackageError
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
 __all__ = [
     "init",
     "finish",
+    "config_overrides",
+    "get_config",
     "log",
     "load",
     "load_all",
@@ -38,11 +42,55 @@ __all__ = [
 ]
 
 # Initialise config with default values for standard settings
+# Also add a context variable to allow for config overrides with a specific code context
 # An initial call to '_init' and a final call to '_finish' are made later in this module
 config = ConfigSettings()
+_config_overrides = contextvars.ContextVar("config_overrides", default=Settings())
 # ===========================================================================
 
 _logger = get_logger("plams")
+
+
+@contextmanager
+def config_overrides(overrides: Settings):
+    """
+    Override the global |config| settings for the current context.
+
+    .. note::
+
+        These overrides will only apply when using the method :func:`get_config`, not when accessing |config| directly
+
+    .. code:: python
+
+        >>> overrides = Settings()
+        >>> overrides.log.stdout = 0
+        >>> with config_overrides(overrides):
+        >>>     print(f"Stdout logging inside context disabled: {get_config().log.stdout == 0}")
+        >>> print(f"Stdout logging outside context disabled: {get_config().log.stdout == 0}")
+
+            Stdout logging inside context disabled: True
+            Stdout logging outside context disabled: False
+
+    :param overrides: |Settings| object with overrides for global |ConfigSettings|
+    """
+    context_config_overrides = _config_overrides.get().copy()
+    context_config_overrides.update(overrides)
+    token = _config_overrides.set(context_config_overrides)
+    try:
+        yield
+    finally:
+        _config_overrides.reset(token)
+
+
+def get_config() -> ConfigSettings:
+    """
+    Gets a copy of the |ConfigSettings| for the current execution context from the global |config| object,
+    with any context-specific overrides applied on the top.
+    """
+    context_config = config.copy()
+    context_overrides = _config_overrides.get().copy()
+    context_config.update(context_overrides)
+    return context_config
 
 
 def log(message: str, level: int = 0) -> None:

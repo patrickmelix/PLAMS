@@ -18,6 +18,8 @@ from scm.plams.core.functions import (
     add_to_class,
     add_to_instance,
     log,
+    get_config,
+    config_overrides,
 )
 from scm.plams.core.settings import Settings
 from scm.plams.core.errors import MissingOptionalPackageError
@@ -690,3 +692,127 @@ log with level 3
             pattern = r"log with level \d"
 
         assert all([re.fullmatch(pattern, line) is not None for line in lines])
+
+
+class TestConfig:
+
+    def test_get_config_returns_copy_of_global_config(self, config):
+        context_config = get_config()
+        assert context_config == config
+
+        context_config.init = False
+        assert context_config != config
+
+    def test_config_overrides_apply_to_nested_contexts_as_expected(self, config):
+        # Verify config in context is as expected, with overrides applied
+        def assert_context_config(expected_level, expected_name, expected_thread):
+            context_config = get_config()
+            assert context_config.context.level == expected_level
+            assert context_config.context.name == expected_name
+            assert context_config.thread == expected_thread
+            assert context_config.job == config.job
+            assert context_config.log == config.log
+
+        # Apply some updates to the global context
+        config.context.level = 0
+        config.context.name = "global"
+        config.thread = "main"
+
+        # Set up overrides for outer context
+        overrides_outer = Settings()
+        overrides_outer.context.level = 1
+        overrides_outer.context.name = "outer"
+        overrides_outer.outer = True
+        with config_overrides(overrides_outer):
+
+            # Set up overrides for inner context
+            overrides_inner = Settings()
+            overrides_inner.context.level = 2
+            overrides_inner.context.name = "inner"
+            overrides_inner.outer = False
+            overrides_inner.inner = True
+            with config_overrides(overrides_inner):
+
+                # Verify outer and inner overrides applied, where inner take precedence over outer
+                context_config = get_config()
+                assert_context_config(2, "inner", "main")
+                assert not context_config.outer
+                assert context_config.inner
+
+            # Verify outer overrides applied, where inner take precedence over outer
+            context_config = get_config()
+            assert_context_config(1, "outer", "main")
+            assert context_config.outer
+            assert "inner" not in context_config
+
+        # Verify overrides not applied
+        context_config = get_config()
+        assert_context_config(0, "global", "main")
+        assert "outer" not in context_config
+        assert "inner" not in context_config
+
+    def test_config_overrides_apply_to_threads_as_expected(self, config):
+        # Verify config in context is as expected, with overrides applied
+        def assert_context_config(expected_level, expected_name, expected_thread):
+            context_config = get_config()
+            print(context_config.context)
+            assert context_config.context.level == expected_level
+            assert context_config.context.name == expected_name
+            assert context_config.thread == expected_thread
+            assert context_config.job == config.job
+            assert context_config.log == config.log
+
+        def assert_in_new_thread(expected_level, expected_name, expected_thread):
+            t = threading.Thread(assert_context_config(expected_level, expected_name, expected_thread))
+            t.start()
+            t.join()
+
+        def assert_in_new_thread_in_new_context(level, name, thread):
+            overrides = Settings()
+            overrides.context.level = level
+            overrides.context.name = name
+            overrides.thread = thread
+            with config_overrides(overrides):
+                assert_in_new_thread(level, name, thread)
+
+        def assert_in_new_thread_in_new_contexts(levels, names, threads, depth=None):
+            depth = depth or len(levels)
+            depth -= 1
+            overrides = Settings()
+            overrides.context.level = levels[depth]
+            overrides.context.name = names[depth]
+            overrides.thread = threads[depth]
+            with config_overrides(overrides):
+                if depth == 0:
+                    assert_in_new_thread_in_new_context(levels[depth], names[depth], threads[depth])
+                else:
+                    assert_context_config(levels[depth], names[depth], threads[depth])
+                    assert_in_new_thread_in_new_contexts(levels[:-1], names[:-1], threads[:-1], depth)
+
+        # Apply some updates to the global context
+        config.context.level = 0
+        config.context.name = "global"
+        config.thread = "main"
+
+        # Verify global config is unchanged in new thread
+        assert_in_new_thread(0, "global", "main")
+
+        # Verify config overrides applied just to context in new thread
+        assert_in_new_thread_in_new_context(1, "cxt", "t1")
+
+        # Verify config overrides applied just to nested contexts in new threads
+        assert_in_new_thread_in_new_contexts([1, 2, 3], ["outer", "inner", "inner2"], ["t1", "t2", "t3"])
+
+        # Set up overrides for outer context
+        overrides_outer = Settings()
+        overrides_outer.context.level = 1
+        overrides_outer.context.name = "outer"
+        with config_overrides(overrides_outer):
+            # Verify config overrides applied just to nested contexts in new threads
+            assert_in_new_thread_in_new_contexts([2, 3, 4], ["inner", "inner2", "inner3"], ["t1", "t2", "t3"])
+
+            # Verify config unchanged in main thread in outer context
+            assert_context_config(1, "outer", "main")
+
+        # Verify config unchanged in main thread
+        assert_context_config(0, "global", "main")
