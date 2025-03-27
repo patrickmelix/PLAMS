@@ -314,7 +314,6 @@ class TestRDKit:
             crd = m.as_array()[fixed_atoms]
             diff = crd - coords
             rms = np.sqrt((diff**2).sum())
-            maxdiff = (abs(diff)).sum()
             assert rms < 2.0
 
 
