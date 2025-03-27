@@ -505,6 +505,38 @@ def get_conformations(
     else:
         rdkit_mol = mol
 
+    def constrained_embedding(rdkit_mol, nconfs, param_obj, template_mol, randomSeed):
+        """
+        Use RDKit ConstrainedEmbed to add conformers to rdkit_mol (EmbedMultipleConfs does not constrain)
+
+        Note: ConstrainedEmbed seems very sensitive to the randomseed supplied
+              High seeds lead to badly constrained coordinates
+        """
+        # ConstrainedEmbed overwrites conformers (does not add)
+        # So I need to do that in a separate molecule, and add the resulting confs later.
+        rdmol_orig = copy.deepcopy(rdkit_mol)
+        if randomSeed:
+            seed = randomSeed
+            # Will crash with high seed
+            if randomSeed > 1e9:
+                seed = randomSeed - (int((randomSeed / 1e9)) * int(1e9))
+            random_ints = [i + seed for i in range(nconfs)]
+        else:
+            base = random.getrandbits(32)
+            random_ints = [i + base for i in range(nconfs)]
+        conformers = []
+        for seed in random_ints:
+            rdmol_orig.RemoveAllConformers()
+            rdmol_orig = AllChem.ConstrainedEmbed(rdmol_orig, template_mol, param_obj, randomseed=seed)
+            conf = rdmol_orig.GetConformer(0)
+            newconf = Chem.Conformer()
+            for i, pos in enumerate(conf.GetPositions()):
+                newconf.SetAtomPosition(i, pos)
+            conformers.append(newconf)
+            rdkit_mol.AddConformer(newconf, True)
+            cids = [c.GetId() for c in rdkit_mol.GetConformers()]
+        return cids
+
     def MMFFenergy(cid):
         ff = AllChem.MMFFGetMoleculeForceField(rdkit_mol, AllChem.MMFFGetMoleculeProperties(rdkit_mol), confId=cid)
         try:
@@ -555,25 +587,42 @@ def get_conformations(
     # param_obj = AllChem.ETKDG()
     param_obj = getattr(AllChem, EmbedParameters)()
     param_obj.pruneRmsThresh = rms
-    param_obj.randomSeed = randomSeed if randomSeed is not None else random.getrandbits(31)
     param_obj.enforceChirality = enforceChirality
     if useExpTorsionAnglePrefs != "default":  # The default (True of False) changes with rdkit versions
         param_obj.useExpTorsionAnglePrefs = True
     if constraint_ats is not None:
-        coordMap = {}
-        for i, iat in enumerate(constraint_ats):
-            coordMap[iat] = rdkit_mol.GetConformer(0).GetAtomPosition(iat)
-        param_obj.coordMap = coordMap
+        # Just adding the coordMap and using EmbedMultipleConfs does not seem to work (in this version)
+        # coordMap = {}
+        # for i, iat in enumerate(constraint_ats):
+        #     coordMap[iat] = rdkit_mol.GetConformer(0).GetAtomPosition(iat)
+        # param_obj.coordMap = coordMap
+        emol = Chem.RWMol(rdkit_mol)
+        indices = [i for i in range(rdkit_mol.GetNumAtoms()) if not i in constraint_ats][::-1]
+        for iat in indices:
+            emol.RemoveAtom(iat)
+        template_mol = emol.GetMol()
+    else:
+        param_obj.randomSeed = randomSeed if randomSeed is not None else random.getrandbits(31)
     try:
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
+        if constraint_ats is not None:
+            cids = constrained_embedding(rdkit_mol, nconfs, param_obj, template_mol, randomSeed)
+        else:
+            param_obj.randomSeed = randomSeed if randomSeed is not None else random.getrandbits(31)
+            cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
     except Exception:
         # ``useRandomCoords = True`` prevents (poorly documented) crash for large systems
         param_obj.useRandomCoords = True
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
+        if constraint_ats is not None:
+            cids = constrained_embedding(rdkit_mol, nconfs, param_obj, template_mol, randomSeed)
+        else:
+            cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
     if len(cids) == 0:
         # Sometimes rdkit does not crash (for large systems), but simply doe snot create conformers
         param_obj.useRandomCoords = True
-        cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
+        if constraint_ats is not None:
+            cids = constrained_embedding(rdkit_mol, nconfs, param_obj, template_mol, randomSeed)
+        else:
+            cids = list(AllChem.EmbedMultipleConfs(rdkit_mol, nconfs, param_obj))
 
     if forcefield:
         # Select the forcefield (UFF or MMFF)
