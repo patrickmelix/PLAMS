@@ -103,9 +103,10 @@ def log(message: str, level: int = 0) -> None:
     Date and/or time can be added based on ``config.log.date`` and ``config.log.time``.
     All logging activity is thread safe.
     """
-    if config.init and "log" in config:
-        logfile = config.default_jobmanager.logfile if config["default_jobmanager"] is not None else None
-        _logger.configure(config.log.stdout, config.log.file, logfile, config.log.date, config.log.time)
+    cfg = get_config()
+    if cfg.init and "log" in cfg:
+        logfile = cfg.default_jobmanager.logfile if cfg["default_jobmanager"] is not None else None
+        _logger.configure(cfg.log.stdout, cfg.log.file, logfile, cfg.log.date, cfg.log.time)
     else:
         # By default write to stdout with level 3
         _logger.configure(3)
@@ -356,7 +357,7 @@ atexit.register(_logger.close)
 
 def load(filename):
     """Load previously saved job from ``.dill`` file. This is just a shortcut for |load_job| method of the default |JobManager| ``config.default_jobmanager``."""
-    return config.default_jobmanager.load_job(filename)
+    return get_config().default_jobmanager.load_job(filename)
 
 
 # ===========================================================================
@@ -375,7 +376,7 @@ def load_all(path, jobmanager=None):
 
     Returned value is a dictionary containing all loaded jobs as values and absolute paths to ``.dill`` files as keys.
     """
-    jm = jobmanager or config.default_jobmanager
+    jm = jobmanager or get_config().default_jobmanager
     loaded_jobs = {}
     for foldername in filter(lambda x: isdir(opj(path, x)), os.listdir(path)):
         maybedill = opj(path, foldername, foldername + ".dill")

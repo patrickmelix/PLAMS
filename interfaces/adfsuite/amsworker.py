@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from scm.plams.core.errors import JobError, PlamsError, ResultsError
-from scm.plams.core.functions import config, log
+from scm.plams.core.functions import get_config, log
 from scm.plams.core.private import retry
 from scm.plams.core.functions import requires_optional_package
 from scm.plams.core.settings import Settings
@@ -82,7 +82,7 @@ def _restrict(func):
         if self.ok():
             return func(self, *args, **kwargs)
         else:
-            if config.ignore_failure:
+            if get_config().ignore_failure:
                 log("WARNING: Trying to obtain results of a failed calculation {}".format(self.name), 3)
                 try:
                     ret = func(self, *args, **kwargs)

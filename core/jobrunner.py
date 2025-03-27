@@ -6,7 +6,7 @@ from os.path import join as opj
 from subprocess import DEVNULL, PIPE
 
 from scm.plams.core.errors import PlamsError
-from scm.plams.core.functions import config, log
+from scm.plams.core.functions import get_config, log
 from scm.plams.core.private import saferun
 from scm.plams.core.settings import Settings
 from scm.plams.core.threading_utils import LimitedSemaphore
@@ -21,7 +21,7 @@ def _in_thread(func):
     def wrapper(self, *args, **kwargs):
         if self.parallel:
             t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
-            t.daemon = config.daemon_threads
+            t.daemon = get_config().daemon_threads
             t.start()
         else:
             func(self, *args, **kwargs)
@@ -36,7 +36,7 @@ def _in_limited_thread(func):
     def wrapper(self, *args, **kwargs):
         if self.parallel:
             t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
-            t.daemon = config.daemon_threads
+            t.daemon = get_config().daemon_threads
             if self._jobthread_limit:
                 self._jobthread_limit.acquire()
             try:

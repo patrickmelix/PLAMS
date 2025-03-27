@@ -5,7 +5,7 @@ import numpy as np
 
 from scm.plams.core.basejob import SingleJob
 from scm.plams.core.errors import FileError, JobError, PlamsError, PTError, ResultsError, MissingOptionalPackageError
-from scm.plams.core.functions import config, log, parse_heredoc, requires_optional_package
+from scm.plams.core.functions import get_config, log, parse_heredoc, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
@@ -2267,7 +2267,7 @@ class AMSResults(Results):
             s.input = inp
             if "system" in s.input.ams:
                 del s.input.ams.system
-            s.soft_update(config.job)
+            s.soft_update(get_config().job)
             return s
         return None
 
@@ -2664,6 +2664,7 @@ class AMSJob(SingleJob):
         """
 
         if _has_watchdog and watch:
+            config = get_config()
             if "default_jobmanager" in config:
                 jobmanager = config.default_jobmanager
             else:
@@ -2715,6 +2716,7 @@ class AMSJob(SingleJob):
         """
         ret = "unset AMS_SWITCH_LOGFILE_AND_STDOUT\n"
         ret += "unset SCM_LOGFILE\n"
+        config = get_config()
         if "nnode" in self.settings.runscript and config.slurm:
             # Running as a SLURM job step and user specified the number of nodes explicitly.
             ret += f'export SCM_SRUN_OPTIONS="$SCM_SRUN_OPTIONS -N {self.settings.runscript.nnode}"\n'
