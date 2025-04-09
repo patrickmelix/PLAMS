@@ -181,39 +181,43 @@ class CRSResults(SCMResults):
 
     def get_structure_energy(self, as_df: bool = False):
         """
-        If the OUTPUT_ENERGY_COMPONENTS is set to True in the input file, this funcion returns:
+        Retrieve the energy information for each structure in multispecies.
+        If OUTPUT_ENERGY_COMPONENTS is set to True in the input file, this function returns:
 
         1. The energy of each structure in multispecies (units in kcal/mol).
-
         2. Information related to association with other compound, if any.
 
-        It takes the following optional boolean keyword argument, *as_df*. If *as_df* is True, the result will be
-        returned as a Pandas DataFrame. Otherwise the result will be returned as a dictionary.
+        Parameters:
+            as_df (bool, optional): If True, returns the result as a list of Pandas DataFrames.
+                                    If False, returns the result as a list of dictionaries.
+                                    Default is False.
+        Returns:
+            List[dict] or List[pandas.DataFrame]: A list containing the energy data and association information for each structure.
 
-        The following abbreviations are used in the dictionary or Pandas DataFrame for the energy:
+        Energy Abbreviations:
+            * s_idx: the index for each unique structure
+            * CompIdx: the compound index in multispecies
+            * FormIdx: the form index in multispecies
+            * SpecIdx: the species index in multispecies
+            * StrucIdx: the structure index in multispecies
+            * z: the equilibrium concentration in multispecies
+            * coskf: the corresponding coskf file for each s_idx
+            * mu_res: the residual part of the pseudo-chemical potential
+            * mu_comb: the combinatorial part of the pseudo-chemical potential
+            * mu_disp: the energy contribution from the dispersive interaction
+            * mu_pdh: the energy contribution from the Pitzer-Debye-Hückel term
+            * mu_RTlnz: the energy contribution from the ideal mixing
+            * mu_Ecosmo: the Ecosmo energy
+            * mu_res_misfit : the electrostatic interaction in residual part of the pseudo-chemical potential
+            * mu_res_hb : the hydrogen bond interaction in residual part of the pseudo-chemical potential
+            * Assoc: True if the structure has any association with other compound
+            * NumRepMonomer: the number of repeated monomers used for polymers
+            * NumStrucPerComp: the number of structures per compound used for dimers, trimers
 
-        * s_idx: the index for each unique structure
-        * CompIdx: the compound index in multispecies
-        * FormIdx: the form index in multispecies
-        * SpecIdx: the species index in multispecies
-        * StrucIdx: the structure index in multispecies
-        * z: the equilibrium concentration in multispecies
-        * coskf: the corresponding coskf file for each s_idx
-        * mu_res: the residual part of the pseudo-chemical potential
-        * mu_comb: the combinatorial part of the pseudo-chemical potential
-        * mu_disp: the energy contribution from the dispersive interaction
-        * mu_pdh: the energy contribution from the Pitzer-Debye-Hückel term
-        * mu_RTlnz: the energy contribution from the ideal mixing
-        * mu_Ecosmo: the Ecosmo energy
-        * Assoc: True if the structure has any association with other compound
-        * NumRepMonomer: the number of repeated monomers used for polymers
-        * NumStrucPerComp: the number of structures per compound used for dimers, trimers
-
-        The following abbreviations are used in the dictionary or Pandas DataFrame for the information related to association with other compound:
-
-        * ReqCompNameAssoc: the required compound name for the associating structure
-        * ReqCompIdxAssoc: the required compound index (CompIdx) for the associating structure
-        * NumReqCompAssoc: the number of the required compounds in the associating structure
+        Association Information Abbreviations:
+            * ReqCompNameAssoc: the required compound name for the associating structure
+            * ReqCompIdxAssoc: the required compound index (CompIdx) for the associating structure
+            * NumReqCompAssoc: the number of the required compounds in the associating structure
         """
 
         section = "EnegyComponent"
@@ -253,6 +257,8 @@ class CRSResults(SCMResults):
         dict_species["mu_pdh"] = mu_component[:, 3]
         dict_species["mu_RTlnz"] = mu_component[:, 4]
         dict_species["mu_Ecosmo"] = mu_component[:, 5]
+        dict_species["mu_res_misfit"] = mu_component[:, 6]
+        dict_species["mu_res_hb"] = mu_component[:, 7]
         dict_species["Assoc"] = Assoc
         dict_species["NumRepMonmer"] = NumRepMonmer
         dict_species["NumStrucPerComp"] = NumStrucPerComp
@@ -323,11 +329,33 @@ class CRSResults(SCMResults):
             ret = ret.ravel()  # Flatten it
             return ret[: array.shape[1]]
 
+        # Check running enviroment
+        try:
+            from IPython import get_ipython
+
+            ipython = get_ipython()
+            if ipython is not None:
+                if "zmqshell" in str(type(ipython)):
+                    terminal = "jupyter"
+                else:
+                    terminal = "interactive"
+            else:
+                terminal = "script"
+        except ImportError:
+            terminal = "script"
+
         # Check if matplotlib is installed
         try:
             import matplotlib
 
-            matplotlib.use("TkAgg") if plot_fig else matplotlib.use("Agg")
+            if plot_fig:
+                if terminal == "jupyter":
+                    ipython.run_line_magic("matplotlib", "inline")
+                else:
+                    matplotlib.use("TkAgg")
+            elif not plot_fig:
+                matplotlib.use("Agg")
+
             import matplotlib.pyplot as plt
         except ImportError:
             method = self.__class__.__name__ + ".plot"
@@ -376,7 +404,12 @@ class CRSResults(SCMResults):
 
         # Show and return
         if plot_fig:
-            plt.show()
+            if terminal == "jupyter":
+                pass
+            elif terminal == "interactive":
+                plt.show(block=False)
+            else:
+                plt.show()
         return fig
 
     def _get_array_dict(

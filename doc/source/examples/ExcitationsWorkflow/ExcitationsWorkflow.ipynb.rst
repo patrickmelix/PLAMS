@@ -24,7 +24,7 @@ Set up a couple of useful functions for extracting results.
 
    @add_to_class(AMSResults)
    def get_excitations(results):
-       """Returns excitation energies (in eV) and oscillator strenghts (in Debye)."""
+       """Returns excitation energies (in eV) and oscillator strengths (in Debye)."""
        if results.job.ok():
            exci_energies_au = results.readrkf("Excitations SS A", "excenergies", file="engine")
            oscillator_str_au = results.readrkf("Excitations SS A", "oscillator strengths", file="engine")
@@ -39,7 +39,7 @@ Set up a couple of useful functions for extracting results.
 
    @add_to_class(AMSResults)
    def has_good_excitations(results, min_energy, max_energy, oscillator_str_threshold=1e-4):
-       """Returns True if there is at least one excitation with non-vanishing oscillator strenght
+       """Returns True if there is at least one excitation with non-vanishing oscillator strength
        in the energy range [min_energy, max_energy]. Unit for min_energy and max energy: eV."""
        exci_energies, oscillator_str = results.get_excitations()
        for e, o in zip(exci_energies, oscillator_str):

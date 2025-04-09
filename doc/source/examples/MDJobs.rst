@@ -9,7 +9,7 @@ AMS Molecular Dynamics PLAMS jobs
 
 .. currentmodule:: scm.plams.recipes.md.amsmdjob
 
-In AMS2023, the following special Jobs exist to simplify running MD simulations (and continuing/restarting MD simulations):
+The following special Jobs exist to simplify running MD simulations (and continuing/restarting MD simulations):
 
 * ``AMSMDJob``. A general class for which you can set up most common MD options using arguments to the constructor.
 
@@ -19,7 +19,7 @@ In AMS2023, the following special Jobs exist to simplify running MD simulations 
 
 * ``AMSNPTJob`` for NPT simulations
 
-* ``AMSMDScanDensityJob`` for running MD deformation simulations while isotropically scaling the density
+* ``AMSMDScanDensityJob`` for running MD deformation simulations while isotropically scaling the density (from AMS2025 a similar input option is available in the AMS Driver, ``MolecularDynamics%Deformation%TargetDensity``)
 
 * ``AMSNVESpawnerJob`` is a special MultiJob that runs several NVE simulations with initial velocities taken from evenly spaced frames in a previous job.
 
@@ -96,6 +96,7 @@ AMSNVESpawnerJob API
 
 .. autoclass:: AMSNVESpawnerJob
     :no-private-members:
+    :exclude-members: prerun, postrun
 
 .. currentmodule:: scm.plams.recipes.md.scandensity
 
@@ -113,11 +114,19 @@ AMSRDFJob API
 
 .. autoclass:: AMSRDFJob
     :no-private-members:
+    :exclude-members: prerun, postrun
+
+.. autoclass:: AMSRDFResults
+    :no-private-members:
 
 AMSMSDJob API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: AMSMSDJob
+    :no-private-members:
+    :exclude-members: prerun, postrun
+
+.. autoclass:: AMSMSDResults
     :no-private-members:
 
 AMSVACFJob API
@@ -125,4 +134,17 @@ AMSVACFJob API
 
 .. autoclass:: AMSVACFJob
     :no-private-members:
+    :exclude-members: prerun, postrun
 
+.. autoclass:: AMSVACFResults
+    :no-private-members:
+
+AMSViscosityFromBinLogJob API
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: AMSViscosityFromBinLogJob
+    :no-private-members:
+    :exclude-members: prerun, postrun
+
+.. autoclass:: AMSViscosityFromBinLogResults
+    :no-private-members:

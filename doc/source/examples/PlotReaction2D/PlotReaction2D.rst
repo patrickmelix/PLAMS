@@ -1,6 +1,6 @@
 .. _PlotReaction2DExample:
 
-PlotReaction2D
+Plot molecular reactions
 ==============================
 
 ..
