@@ -332,7 +332,7 @@ This is how one searches for the smallest set of rings in a molecule:
    dicyclopentadiene = from_smiles('C1C=CC2C1C3CC2C=C3')
    rdmol = to_rdmol(dicyclopentadiene)
 
-   # Calculate smalles set of rings
+   # Calculate smallest set of rings
    for atoms in Chem.GetSymmSSSR(rdmol):
         print ([atom_id for atom_id in atoms], len(atoms))
 

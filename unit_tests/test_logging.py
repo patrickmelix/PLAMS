@@ -9,6 +9,7 @@ import pytest
 import time
 import random
 
+from scm.plams.core.functions import delete_job
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.core.logging import get_logger, TextLogger, CSVLogger
 from scm.plams.core.formatters import JobCSVFormatter
@@ -233,6 +234,23 @@ To 2, level 1
                 )
             logger.close()
 
+    def test_logger_does_not_error_when_existing_logfile_deleted(self):
+        with temp_file_path(suffix=".log") as temp_log_file1:
+            logger = get_logger(str(uuid.uuid4()))
+            logger.configure(logfile_path=temp_log_file1, logfile_level=2)
+
+            for i in range(5):
+                logger.log(f"To 1, level {i}", i)
+
+            try:
+                os.remove(temp_log_file1)
+                logger.log(f"To 1 (deleted), level {i}", i)
+            except PermissionError:
+                # On windows we cannot delete the logfile anyway
+                pass
+
+            logger.close()
+
     def test_configure_prefixes_date_and_or_time_for_stdout_and_file(self):
         with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             with temp_file_path(suffix=".log") as temp_log_file:
@@ -254,11 +272,11 @@ To 2, level 1
                         date, time = dts[i // 2]
                         pattern = f"d={date}, t={time}, level={i % 2 + 3}"
                         if date and time:
-                            pattern = "\[\d{2}\.\d{2}\|\d{2}:\d{2}:\d{2}\] " + pattern
+                            pattern = r"\[\d{2}\.\d{2}\|\d{2}:\d{2}:\d{2}\] " + pattern
                         elif date:
-                            pattern = "\[\d{2}\.\d{2}\] " + pattern
+                            pattern = r"\[\d{2}\.\d{2}\] " + pattern
                         elif time:
-                            pattern = "\[\d{2}:\d{2}:\d{2}\] " + pattern
+                            pattern = r"\[\d{2}:\d{2}:\d{2}\] " + pattern
                         assert re.fullmatch(pattern, l1) is not None and re.fullmatch(pattern, l2) is not None
 
                 logger.close()
@@ -277,7 +295,11 @@ To 2, level 1
                     logger.configure(5, 5, temp_log_file1)
                     for i in range(num_msgs):
                         logger.configure(
-                            5, 5, temp_log_file1 if i % 2 == 0 else temp_log_file2, i % 5 == 0, i % 11 == 0
+                            5,
+                            5,
+                            temp_log_file1 if i % 2 == 0 else temp_log_file2,
+                            i % 5 == 0,
+                            i % 11 == 0,
                         )
                         logger.log(f"id {id} msg {i}", 5)
 
@@ -488,11 +510,11 @@ message
                     date, time = dts[i // 2]
                     pattern = f"{date},{time}"
                     if date and time:
-                        pattern = "[3-4],\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}," + pattern
+                        pattern = r"[3-4],\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}," + pattern
                     elif date:
-                        pattern = "[3-4],\d{4}-\d{2}-\d{2}," + pattern
+                        pattern = r"[3-4],\d{4}-\d{2}-\d{2}," + pattern
                     elif time:
-                        pattern = "[3-4],\d{2}:\d{2}:\d{2}," + pattern
+                        pattern = r"[3-4],\d{2}:\d{2}:\d{2}," + pattern
                     else:
                         pattern = "[3-4]," + pattern
                     assert re.fullmatch(pattern, l)
@@ -609,8 +631,14 @@ bar,buzz
                 reader = csv.reader(tf)
 
                 assert next(reader) == ["commas", "multi-line"]
-                assert next(reader) == ["a,b,c,'(d,e,f)'", "See the following:\n    a,b,c\n    d,e,f\n"]
-                assert next(reader) == ['m,"n,",,,o\'', "See the following:\n    m,n,o\n\n    p,q,r\n"]
+                assert next(reader) == [
+                    "a,b,c,'(d,e,f)'",
+                    "See the following:\n    a,b,c\n    d,e,f\n",
+                ]
+                assert next(reader) == [
+                    'm,"n,",,,o\'',
+                    "See the following:\n    m,n,o\n\n    p,q,r\n",
+                ]
 
             logger.close()
 
@@ -629,7 +657,11 @@ class TestJobCSVFormatter:
             setattr(job2, "get_errormsg", get_errormsg)
 
             logger = get_logger(str(uuid.uuid4()), "csv")
-            logger.configure(logfile_level=7, csv_formatter=JobCSVFormatter, logfile_path=temp_log_file)
+            logger.configure(
+                logfile_level=7,
+                csv_formatter=JobCSVFormatter,
+                logfile_path=temp_log_file,
+            )
 
             logger.log(job1, 3)
             logger.log(job2, 3)
@@ -639,6 +671,9 @@ class TestJobCSVFormatter:
 
             logger.log(job1, 3)
             logger.log(job2, 3)
+
+            delete_job(job1)
+            logger.log(job1, 3)
 
             dir = os.getcwd()
             path1 = os.path.join(dir, "plams_workdir", "test_job_csv_formatter")
@@ -668,6 +703,10 @@ class TestJobCSVFormatter:
                 assert (
                     read_row()
                     == f"test_job_csv_formatter,test_job_csv_formatter.002,crashed,{path2},False,False,some error,<timestamp> created -> <timestamp> started -> <timestamp> registered -> <timestamp> running -> <timestamp> crashed,,"
+                )
+                assert (
+                    read_row()
+                    == f"test_job_csv_formatter,test_job_csv_formatter,deleted,{path1},,,,<timestamp> created -> <timestamp> started -> <timestamp> registered -> <timestamp> running -> <timestamp> finished -> <timestamp> successful -> <timestamp> deleted,,"
                 )
 
             logger.close()

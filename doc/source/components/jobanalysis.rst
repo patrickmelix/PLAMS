@@ -9,7 +9,7 @@ Job Analysis
 
     The |JobAnalysis| class is available in AMS2025+
 
-The |JobAnalysis| class is a tool which aims to simplify the process of analysing the status, inputs and outputs of multiple jobs.
+The |JobAnalysis| class is a tool which aims to simplify the process of analyzing the status, inputs and outputs of multiple jobs.
 It helps to create analysis tables, with jobs as rows and "analysis fields" as columns.
 An analysis field is simply a definition for how to extract a value from each job.
 These tables can then be easily visualized in a jupyter notebook or script, or exported for use with other analysis packages like `pandas <https://pandas.pydata.org/docs/index.html>`_.

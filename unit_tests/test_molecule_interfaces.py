@@ -296,6 +296,26 @@ class TestRDKit:
             file = result_dir / f
             assert file.exists()
 
+    def test_rdkit_get_conformations_with_constraints(self):
+        import numpy as np
+        from scm.plams import get_conformations
+
+        mol = from_smiles("CCCCCC1CCCCC1")
+
+        # Find the ring atoms (to be fixed)
+        ring = mol.locate_rings()[0]
+        hs = [[at for at in mol.neighbors(mol.atoms[iat]) if at.symbol == "H"] for iat in ring]
+        fixed_atoms = ring + [mol.index(at) - 1 for atoms in hs for at in atoms]
+        coords = mol.as_array()[fixed_atoms]
+
+        # Add conformers, with fixed atoms, and check constraints
+        molecules = get_conformations(mol, 10, constraint_ats=fixed_atoms)
+        for i, m in enumerate(molecules):
+            crd = m.as_array()[fixed_atoms]
+            diff = crd - coords
+            rms = np.sqrt((diff**2).sum())
+            assert rms < 2.0
+
 
 class TestPackmol:
     """

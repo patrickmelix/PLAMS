@@ -147,6 +147,9 @@ from scm.plams.tools.job_analysis import JobAnalysis
 from scm.plams.tools.plot import (
     get_correlation_xy,
     plot_band_structure,
+    plot_phonons_band_structure,
+    plot_phonons_dos,
+    plot_phonons_thermodynamic_properties,
     plot_correlation,
     plot_grid_molecules,
     plot_molecule,

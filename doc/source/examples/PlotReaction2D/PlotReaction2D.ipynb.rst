@@ -23,8 +23,8 @@ It is also possible to write the image to file in a range of different formats (
    text = to_image(aspirin, filename="aspirin.svg")
    text = to_image(aspirin, filename="aspiring.png")
 
-Creating 2D imageas of reactions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Creating 2D images of reactions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We can have aspirin react with water to form acetic acid and salicylic acid
 

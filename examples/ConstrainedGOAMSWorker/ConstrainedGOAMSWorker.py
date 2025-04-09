@@ -43,7 +43,7 @@ for i, mol in enumerate(molecules):
 plot_molecule(stackmol)
 
 
-# We may prefer to perform the optimization while constraining the positions of the benzene carbon atoms, so that the benzene rings can be stacked directly on top of one another. The constraints need to be set by a call to the `SetConstraints()` method of the `AMSWorker`, and will apply to only a single geometry optimization.
+# We may prefer to perform the optimization while constraining the positions of the benzene carbon atoms, so that the benzene rings can be stacked directly on top of one another. The constraints can be passed to the `GeometryOptimization()` call as a settings object. The settings object has the same layout as the constraints passed to a regular `AMSJob`.
 
 stackmol = Molecule()
 s = Settings()

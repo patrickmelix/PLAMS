@@ -539,7 +539,7 @@ class AMSResults(Results):
         self, bands=None, unit: str = "hartree", only_high_symmetry_points: bool = False
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], float]:
         """
-        Extracts the electronic band structure from DFTB or BAND calculations. The returned data can be plotted with ``plot_band_structure``.
+        Extracts the electronic band structure from DFTB, BAND or QuantumEspresso calculations. The returned data can be plotted with ``plot_band_structure``.
 
         Note: for unrestricted calculations bands 0, 2, 4, ... are spin-up and bands 1, 3, 5, ... are spin-down.
 
@@ -633,6 +633,231 @@ class AMSResults(Results):
         fermi_energy = Units.convert(fermi_energy, "hartree", unit)
 
         return x, complete_spinup_data, complete_spindown_data, labels, fermi_energy  # type: ignore
+
+    def get_phonons_dos(
+        self, unit: str = "hartree"
+    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+        """
+        Extracts the phonons density of states (DOS) as a function of the energy from a phonons calculation. The returned data can be plotted with ``plot_phonons_dos``.
+
+        Returns: ``energy``, ``total_dos``, ``dos_per_atom``, ``dos_per_species``
+
+        ``energy``: 1D array of float.
+
+        ``total_dos``: 1D array of float.
+
+        ``dos_per_atom``: List of 1D float arrays.
+
+        ``dos_per_species``: Dictionary of 1D float arrays. Keys are the species.
+
+        Arguments below.
+
+        unit: str
+            Unit of the returned energy. All DOS are returned in units of inverse of ``unit``.
+
+        """
+        energyConv = Units.convert(1.0, "Hartree", unit)
+
+        nEnergies = self.readrkf("DOS_Phonons", "nEnergies", file="engine")
+
+        integrateDeltaE = self.readrkf("DOS_Phonons", "IntegrateDeltaE", file="engine")
+
+        assert integrateDeltaE
+
+        energy = np.array(self.readrkf("DOS_Phonons", "Energies", file="engine")) * energyConv
+        dE = energy[1] - energy[0]
+
+        total_dos = np.array(self.readrkf("DOS_Phonons", "Total DOS", file="engine")) / dE
+
+        assert len(energy) == nEnergies
+        assert len(total_dos) == nEnergies
+
+        dos_per_species = {}
+        dos_per_atom = {}
+
+        nSpecies = None
+        try:
+            nSpecies = self.readrkf("DOS_Phonons", "nSpecies", file="engine")
+        except KeyError:
+            print(
+                "Warning! The density of states (DOS) per atom and species is currently only supported by the Quantum Espresso engine."
+            )
+            print("         Only the total DOS is available.")
+            pass
+
+        if nSpecies:
+
+            nAtoms = self.readrkf("DOS_Phonons", "nAtoms", file="engine")
+
+            assert nAtoms == len(self.job.molecule)
+
+            DOSperSpecies = np.array(self.readrkf("DOS_Phonons", "DOS per species", file="engine")).reshape(
+                nSpecies, -1
+            )
+            species = self.readrkf("DOS_Phonons", "Species", file="engine").split("\0")
+
+            for i, s in enumerate(species):
+                dos_per_species[s] = DOSperSpecies[i] / dE
+
+            DOSperAtom = np.array(self.readrkf("DOS_Phonons", "DOS per atom", file="engine")).reshape(nAtoms, -1)
+            atomToSpecies = np.array(self.readrkf("DOS_Phonons", "Atom to Species", file="engine")) - 1
+            if isinstance(atomToSpecies, np.int64):
+                atomToSpecies = atomToSpecies.reshape(1)
+
+            for i in range(nAtoms):
+                label = species[atomToSpecies[i]] + "(" + str(i + 1) + ")"
+                dos_per_atom[label] = DOSperAtom[i] / dE
+
+        return energy, total_dos, dos_per_species, dos_per_atom
+
+    def get_phonons_band_structure(
+        self, bands=None, unit: str = "hartree", only_high_symmetry_points: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[str], float]:
+        """
+        Extracts the electronic band structure from DFTB, BAND or QuantumEspresso calculations. The returned data can be plotted with ``plot_phonons_band_structure``.
+
+        Returns: ``x``, ``y``, ``labels``
+
+        ``x``: 1D array of float
+
+        ``y``: 2D array of shape (len(x), len(bands)). Every column is a separate band. In units of ``unit``
+
+        ``labels``: 1D list of str of length len(x). If a point is not a high-symmetry point then the label is an empty string.
+
+        Arguments below.
+
+        bands: list of int or None
+            If None, all bands are returned. Note: the band indices start with 0.
+
+        unit: str
+            Unit of the returned band energies
+
+        only_high_symmetry_points: bool
+            Return only the first point of each edge.
+
+        """
+
+        read_labels = True
+
+        nBands = self.readrkf("phonon_curves", "nBands", file="engine")
+        nEdges = self.readrkf("phonon_curves", "nEdges", file="engine")
+
+        if bands is None:
+            bands = np.arange(nBands)
+
+        x = []
+        y = []
+        labels = []
+
+        prevmaxx = 0
+        for i in range(nEdges):
+            my_x = self.readrkf("phonon_curves", f"Edge_{i+1}_xFor1DPlotting", file="engine")
+            my_x = np.array(my_x) + prevmaxx
+            prevmaxx = np.max(my_x)
+
+            if read_labels:
+                my_labels = self.readrkf("phonon_curves", f"Edge_{i+1}_labels", file="engine").split()
+                if len(my_labels) == 2:
+                    if only_high_symmetry_points:
+                        labels += [my_labels[0]]  # only the first point of the curve
+                    else:
+                        labels += [my_labels[0]] + [""] * (len(my_x) - 2) + [my_labels[1]]
+
+            if only_high_symmetry_points:
+                x.append(my_x[0:1])
+            else:
+                x.append(my_x)
+
+            A = self.readrkf("phonon_curves", f"Edge_{i+1}_bands", file="engine")
+            A = np.array(A).reshape(-1, nBands)
+            spinup_data = A[:, bands]
+
+            if only_high_symmetry_points:
+                spinup_data = np.reshape(spinup_data[0, :], (-1, len(bands)))
+
+            y.append(spinup_data)
+
+        y = np.concatenate(y)
+        y = Units.convert(y, "hartree", unit)
+
+        x = np.concatenate(x).ravel()
+
+        return x, y, labels  # type: ignore
+
+    def get_phonons_thermodynamic_properties(
+        self, temperature_unit: str = "K", properties_unit: List[str] = ["hartree", "kB"]
+    ) -> Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, str]]:
+        """
+        Extracts the thermodynamic properties as a function of the temperature from a phonons calculations. The returned data can be plotted with ``plot_phonons_thermodynamic_properties``.
+
+        Returns: ``temperature``, ``properties``, ``units``
+
+        ``temperature``: 1D array of float. In units of ``temperature_unit``
+
+        ``properties``: Dictionary of 1D float arrays in units of ``properties_unit``. Available keys: "Internal Energy", "Free Energy", "Specific Heat", "Entropy".
+
+        ``units``: Dictionary of str. Selected units for properties. Available keys: "Internal Energy", "Free Energy", "Specific Heat", "Entropy".
+
+        Arguments below.
+
+        temperature_unit: str
+            Unit of the returned temperature
+
+        property_unit: List[str]
+            Unit of the returned properties. The first element, representing units for 'Internal Energy' and 'Free Energy', accepts any standard energy unit. The second element, specifying units for 'Specific Heat' and 'Entropy', accepts kB, J/K, J/K/mol, eV/K, or eV/K/mol. kB means boltzman constant units.
+
+        """
+        properties = {}
+        units = {}
+
+        energyConv = Units.convert(1.0, "Hartree", properties_unit[0])
+
+        entropyConv = 1.0
+        if properties_unit[1].lower() == "j/k":
+            entropyConv = Units.constants["Boltzmann"]
+        if properties_unit[1].lower() == "ev/k":
+            entropyConv = Units.constants["Boltzmann"] / Units.constants["electron_charge"]
+        elif properties_unit[1].lower() == "j/k/mol":
+            entropyConv = Units.constants["Boltzmann"] * Units.constants["Avogadro_constant"]
+        elif properties_unit[1].lower() == "ev/k/mol":
+            entropyConv = (
+                Units.constants["Boltzmann"] * Units.constants["Avogadro_constant"] / Units.constants["electron_charge"]
+            )
+
+        nPlots = self.readrkf("Plot", "numPlots", file="engine")
+
+        temperature = np.array(
+            self.readrkf("Plot", "XValues(1)", file="engine")
+        )  # We assume that temperature is the same for all properties
+
+        for iProp in range(nPlots):
+            label = self.readrkf("Plot", f"YLabel({iProp+1})", file="engine").strip()
+
+            if label not in ["Internal Energy", "Free Energy", "Specific Heat", "Entropy"]:
+                continue
+
+            values = np.array(self.readrkf("Plot", f"YValues({iProp+1})", file="engine"))
+
+            property_title = self.readrkf("Plot", f"Title({iProp+1})", file="engine").strip()
+            temperature_unit = self.readrkf("Plot", f"XUnit({iProp+1})", file="engine").strip()
+            property_unit = self.readrkf("Plot", f"YUnit({iProp+1})", file="engine").strip()
+            temperature_label = self.readrkf("Plot", f"XLabel({iProp+1})", file="engine").strip()
+
+            assert property_title == label
+            assert temperature_label == "Temperature"
+            assert temperature_unit == "Kelvin"
+            if label in ["Internal Energy", "Free Energy"]:
+                assert property_unit == "Hartree"
+                units[label] = properties_unit[0]
+                values *= energyConv
+            if label in ["Specific Heat", "Entropy"]:
+                assert property_unit == "kB"
+                units[label] = properties_unit[1]
+                values *= entropyConv
+
+            properties[label] = values
+
+        return temperature, properties, units
 
     def get_engine_results(self, engine: Optional[str] = None) -> Dict:
         """Return a dictionary with contents of ``AMSResults`` section from an engine results ``.rkf`` file.
@@ -909,9 +1134,21 @@ class AMSResults(Results):
             -1,
         )
 
-    def get_ir_spectrum(
+    def get_raman_intensities(self, engine: Optional[str] = None) -> np.ndarray:
+        """Return the Raman intensities in Angstrom^4/amu unit.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        return np.asarray(
+            self._process_engine_results(lambda x: x.read("Vibrations", "RamanIntens[A^4/amu]"), engine)
+        ).reshape(
+            -1,
+        )
+
+    def _get_ir_raman_spectrum(
         self,
         engine: Optional[str] = None,
+        spectrum_type: Literal["ir", "raman"] = "ir",
         broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
         broadening_width=40,
         min_x=0,
@@ -919,7 +1156,7 @@ class AMSResults(Results):
         x_spacing=0.5,
         post_process: Optional[Literal["all_intensities_to_1", "max_to_1"]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Return the IR spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
+        """Return the IR/Raman spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) for IR and Angstrom^4/amu for Raman but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
 
         The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
         """
@@ -929,7 +1166,10 @@ class AMSResults(Results):
         if post_process == "all_intensities_to_1":
             intensities = frequencies * 0 + 1
         else:
-            intensities = self.get_ir_intensities(engine=engine)
+            if spectrum_type == "ir":
+                intensities = self.get_ir_intensities(engine=engine)
+            elif spectrum_type == "raman":
+                intensities = self.get_raman_intensities(engine=engine)
 
         x_data, y_data = broaden_results(
             centers=frequencies,
@@ -944,6 +1184,60 @@ class AMSResults(Results):
             y_data /= np.max(y_data)
 
         return x_data, y_data
+
+    def get_ir_spectrum(
+        self,
+        engine: Optional[str] = None,
+        broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
+        broadening_width=40,
+        min_x=0,
+        max_x=4000,
+        x_spacing=0.5,
+        post_process: Optional[Literal["all_intensities_to_1", "max_to_1"]] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Return the IR spectrum. Units: frequencies are in cm-1, the intensities by the default are in km/mol units (kilometers/mol) but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        data = self._get_ir_raman_spectrum(
+            engine=engine,
+            spectrum_type="ir",
+            broadening_type=broadening_type,
+            broadening_width=broadening_width,
+            min_x=min_x,
+            max_x=max_x,
+            x_spacing=x_spacing,
+            post_process=post_process,
+        )
+
+        return data
+
+    def get_raman_spectrum(
+        self,
+        engine: Optional[str] = None,
+        broadening_type: Literal["gaussian", "lorentzian"] = "gaussian",
+        broadening_width=40,
+        min_x=0,
+        max_x=4000,
+        x_spacing=0.5,
+        post_process: Optional[Literal["all_intensities_to_1", "max_to_1"]] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Return the Raman spectrum. Units: frequencies are in cm-1, the intensities by the default are in Angstrom^4/amu units but if post_process is all_intensities_to_1 the units are in modes counts otherwise if equal to max_to_1 are in arbitrary units.
+
+        The *engine* argument should be the identifier of the file you wish to read. To access a file called ``something.rkf`` you need to call this function with ``engine='something'``. The *engine* argument can be omitted if there's only one engine results file in the job folder.
+        """
+        data = self._get_ir_raman_spectrum(
+            engine=engine,
+            spectrum_type="raman",
+            broadening_type=broadening_type,
+            broadening_width=broadening_width,
+            min_x=min_x,
+            max_x=max_x,
+            x_spacing=x_spacing,
+            post_process=post_process,
+        )
+
+        return data
 
     def get_n_spin(self, engine: Optional[str] = None) -> int:
         """n_spin is 1 in case of spin-restricted or spin-orbit coupling calculations, and 2 in case of spin-unrestricted calculations

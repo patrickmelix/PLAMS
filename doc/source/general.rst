@@ -96,7 +96,7 @@ Since ``AMS2025``, these are available for installation through extra dependency
 The available groups are:
 
 - **chem**: for chemistry packages such as ``RDKit``, ``ase``
-- **analysis**: for packages used to analyse and plot results of calculations e.g. ``scipy``, ``matploblib``, ``networkx``
+- **analysis**: for packages used to analyze and plot results of calculations e.g. ``scipy``, ``matploblib``, ``networkx``
 - **ams**: for technical packages for use with the AMS interface
 
 One or more of these can be installed using the command ``pip install 'plams[chem,analysis,ams]'``.
@@ -118,11 +118,21 @@ Added
 * Support for `AMS ChemicalSystem <../Scripting/LibBase/ChemicalSystem.html>`__ within |AMSJob| and |AMSResults|. |AMSJob| can accept a ``ChemicalSystem`` as an input system, and the methods :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_system`, :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_input_system` and :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_main_system` on |AMSResults| return a ``ChemicalSystem``. These provide the option to use a ``ChemicalSystem`` in place of a PLAMS |Molecule|.
 * Support for work functions through :meth:`~scm.plams.interfaces.adfsuite.ams.AMSResults.get_work_function_results` and :func:`~scm.plams.tools.plot.plot_work_function`
 * Interface to the `Serenity program <https://github.com/qcserenity/serenity>`_ through classes such as |SerenityJob|, |SerenitySettings|, and |SerenityResults|.
-* Improved job logging. The method :meth:`~ scm.plams.core.basejob.Job.get_errormsg` is enforced on the |Job| base class and job errors now appear in the PLAMS output. In addition a summary csv logfile ``job_logfile.csv`` is created in the main directory with details about job timings and status.
+* Improved job logging. The method :meth:`~scm.plams.core.basejob.Job.get_errormsg` is enforced on the |Job| base class and job errors now appear in the PLAMS output. In addition a summary csv logfile ``job_logfile.csv`` is created in the main directory with details about job timings and status.
+* Improved |Settings| access, comparison and manipulation, with additional methods:
+    * :meth:`~scm.plams.core.settings.Settings.nested_keys`
+    * :meth:`~scm.plams.core.settings.Settings.block_keys`
+    * :meth:`~scm.plams.core.settings.Settings.contains_nested`
+    * :meth:`~scm.plams.core.settings.Settings.pop_nested`
+    * :meth:`~scm.plams.core.settings.Settings.compare`
+    * :meth:`~scm.plams.core.settings.Settings.remove`
+    * :meth:`~scm.plams.core.settings.Settings.difference`
+* |JobAnalysis| tool for easy extraction and comparison of job data, including statuses, settings and results
+* :class:`~scm.plams.recipes.md.trajectoryanalysis.AMSViscosityFromBinLogJob` for running the AMS trajectory analysis tool to extract viscosity
 * Additional methods:
     * :meth:`~scm.plams.interfaces.molecule.packmol.packmol_around` to pack around an existing molecule or pack molecules into a non-orthorhombic box
     * :meth:`~scm.plams.tools.plot.plot_grid_molecules` for plotting multiple molecules with rdkit
-    * :meth:`~scm.plams.mol.Molecule.delete_atoms` for deleting multiple atoms with partial success
+    * :meth:`~scm.plams.mol.molecule.Molecule.delete_atoms` for deleting multiple atoms with partial success
 
 Changed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -143,7 +153,7 @@ Fixed
     * ``charge`` property on a |Molecule| is a numeric instead of string type when loading molecule from a file
 * In |Job| classes:
     * :meth:`~scm.plams.core.basejob.SingleJob.load` returns the correctly loaded job
-    * :meth:`~scm.plams.core.basejob.MultiJob.run` locking issues resolved when errors raised within |prerun| and |postrun| methods
+    * :meth:`~scm.plams.core.basejob.Job.run` locking issues resolved for multijobs when errors raised within |prerun| and |postrun| methods
     * :meth:`~scm.plams.interfaces.adfsuite.ams.AMSJob.check` handles a ``NoneType`` status, returning ``False``
 
 Deprecated
