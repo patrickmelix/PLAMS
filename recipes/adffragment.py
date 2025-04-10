@@ -10,7 +10,7 @@ import numpy as np
 
 from os.path import join as opj
 from os.path import abspath, isdir, basename
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 __all__ = ["ADFFragmentJob", "ADFFragmentResults"]
 
@@ -107,7 +107,7 @@ class ADFFragmentResults(Results):
 
         return ret
 
-    def get_nocv_eigenvalues(self) -> Union[List[float], Tuple[List[float]]]:
+    def get_nocv_eigenvalues(self) -> Union[List[float], Tuple[List[float], List[float]]]:
         """Get the NOCV eigenvalues of the full calculation."""
         keys = self.job.full.results.get_rkf_skeleton(file="adf")
         if "NOCV" not in keys:
@@ -118,9 +118,11 @@ class ADFFragmentResults(Results):
             return self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_restricted", file="adf")
         # unrestricted calculation
         elif "NOCV_eigenvalues_alpha" in keys:
+            alpha = self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_alpha", file="adf")
+            beta = self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_beta", file="adf")
             tpl = (
-                self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_alpha", file="adf"),
-                self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_beta", file="adf"),
+                [float(x) for x in alpha],
+                [float(x) for x in beta] #  make mypy happy by ensuring return is tuple of list of floats
             )
             return tpl
         else:
@@ -156,7 +158,7 @@ class ADFFragmentResults(Results):
     def get_nocv_orbital_interaction(self, unit="kcal/mol") -> Union[List[float], Tuple[List[float]]]:
         """Get the NOCV orbital interactions of the full calculation."""
 
-        def _calc_energies(oi) -> List[float]:
+        def _calc_energies(oi: List[float]) -> List[float]:
             ret = []
             for i in range(int(len(oi) / 2)):
                 a = oi[i]
@@ -179,9 +181,10 @@ class ADFFragmentResults(Results):
             )
         else:
             raise KeyError("NOCV orbital interaction not found in rkf file")
+        energies: List[float] | Tuple[List[float], List[float]] #  make mypy happy
         if isinstance(oi, tuple):
             energies = (_calc_energies(tpl[0]), _calc_energies(tpl[1]))
-        else:
+        elif isinstance(oi, list):
             energies = _calc_energies(oi)
         return Units.convert(energies, "kcal/mol", unit)
 
@@ -280,7 +283,7 @@ class ADFFragmentJob(MultiJob):
             self.children.append(self.f2_opt)
 
     @classmethod
-    def load_external(cls, path: str, jobname: str = None) -> "ADFFragmentJob":
+    def load_external(cls, path: str, jobname: Optional[str] = None) -> "ADFFragmentJob":
         """Load the results of the ADFFragmentJob job from an external path.
 
         Args:

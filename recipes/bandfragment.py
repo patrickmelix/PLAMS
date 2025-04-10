@@ -10,7 +10,7 @@ from scm.plams.core.functions import add_to_instance
 from os.path import join as opj
 from os.path import abspath, isdir, basename, relpath
 from os import symlink
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
 
 __all__ = ["BANDFragmentJob", "BANDFragmentResults"]
 
@@ -113,7 +113,7 @@ class BANDFragmentJob(ADFFragmentJob):
         self.children += [self.f1, self.f2]
 
     @classmethod
-    def load_external(cls, path: str, jobname: str = None) -> "BANDFragmentJob":
+    def load_external(cls, path: str, jobname: Optional[str] = None) -> "BANDFragmentJob":
         """Load the results of the BANDFragmentJob job from an external path.
 
         Args:
@@ -196,7 +196,7 @@ class NOCVBandFragmentJob(BANDFragmentJob):
             return [self.nocv]
 
     @classmethod
-    def load_external(cls, path: str, jobname: str = None) -> "NOCVBandFragmentJob":
+    def load_external(cls, path: str, jobname: Optional[str] = None) -> "NOCVBandFragmentJob":
         """Load the results of the BANDFragmentJob job from an external path.
 
         Args:
