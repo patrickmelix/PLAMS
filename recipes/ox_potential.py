@@ -532,7 +532,7 @@ if __name__ == "__main__":
             # calculation part
             init(path=job_dir, folder=job_name)
 
-            workdir = get_config().default_jobmanager.workdir
+            workdir = get_config("default_jobmanager").workdir
             logfile = open(f"{workdir}/{job_name}_python.log", "w")
 
             OxPotCalc = OxidationPotentialCalculator(logfile=logfile)

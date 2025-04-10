@@ -21,7 +21,7 @@ def _in_thread(func):
     def wrapper(self, *args, **kwargs):
         if self.parallel:
             t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
-            t.daemon = get_config().daemon_threads
+            t.daemon = get_config("daemon_threads")
             t.start()
         else:
             func(self, *args, **kwargs)
@@ -36,7 +36,7 @@ def _in_limited_thread(func):
     def wrapper(self, *args, **kwargs):
         if self.parallel:
             t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
-            t.daemon = get_config().daemon_threads
+            t.daemon = get_config("daemon_threads")
             if self._jobthread_limit:
                 self._jobthread_limit.acquire()
             try:

@@ -696,22 +696,48 @@ log with level 3
 
 class TestConfig:
 
-    def test_get_config_returns_copy_of_global_config(self, config):
-        context_config = get_config()
-        assert context_config == config
+    def test_get_config_retrieves_values_from_global_config(self, config):
+        # Verify retrieves top-level and nested values, with default if the key does not exist
+        assert get_config("daemon_threads")
+        assert get_config(("saferun", "repeat")) == 10
+        assert get_config("doesnotexist") is None
+        assert get_config(("does", "not", "exist"), default="foo") == "foo"
 
-        context_config.init = False
-        assert context_config != config
+        # Verify retrieves lazy job manager/runner, initializing them unless specified
+        assert get_config("default_jobrunner", init_lazy=False, default=1) is None
+        assert get_config("default_jobmanager", init_lazy=False, default=1) is None
+        jr = get_config("default_jobrunner", default=1)
+        jm = get_config("default_jobmanager", default=1)
+        assert jr is not None
+        assert jm is not None
+        assert jm == config.default_jobmanager
+        assert jr == config.default_jobrunner
+
+    def test_get_config_retrieves_values_from_overrides_in_preference_to_global_config(self, config):
+        overrides = Settings()
+        overrides.saferun.repeat = 20
+        overrides.not_in_global = True
+        overrides.also_not.in_global = True
+
+        with config_overrides(overrides):
+            assert get_config("daemon_threads")
+            assert get_config(("saferun", "repeat")) == 20
+            assert get_config("doesnotexist") is None
+            assert get_config(("does", "not", "exist"), default="foo") == "foo"
+            assert get_config("not_in_global")
+            assert get_config(("also_not", "in_global"))
+
+        assert not get_config("not_in_global")
+        assert not get_config(("also_not", "in_global"))
 
     def test_config_overrides_apply_to_nested_contexts_as_expected(self, config):
         # Verify config in context is as expected, with overrides applied
         def assert_context_config(expected_level, expected_name, expected_thread):
-            context_config = get_config()
-            assert context_config.context.level == expected_level
-            assert context_config.context.name == expected_name
-            assert context_config.thread == expected_thread
-            assert context_config.job == config.job
-            assert context_config.log == config.log
+            assert get_config(("context", "level")) == expected_level
+            assert get_config(("context", "name")) == expected_name
+            assert get_config("thread") == expected_thread
+            assert get_config("job") == config.job
+            assert get_config("log") == config.log
 
         # Apply some updates to the global context
         config.context.level = 0
@@ -734,33 +760,28 @@ class TestConfig:
             with config_overrides(overrides_inner):
 
                 # Verify outer and inner overrides applied, where inner take precedence over outer
-                context_config = get_config()
                 assert_context_config(2, "inner", "main")
-                assert not context_config.outer
-                assert context_config.inner
+                assert not get_config("outer")
+                assert get_config("inner")
 
             # Verify outer overrides applied, where inner take precedence over outer
-            context_config = get_config()
             assert_context_config(1, "outer", "main")
-            assert context_config.outer
-            assert "inner" not in context_config
+            assert get_config("outer")
+            assert get_config("inner") is None
 
         # Verify overrides not applied
-        context_config = get_config()
         assert_context_config(0, "global", "main")
-        assert "outer" not in context_config
-        assert "inner" not in context_config
+        assert get_config("outer") is None
+        assert get_config("inner") is None
 
     def test_config_overrides_apply_to_threads_as_expected(self, config):
         # Verify config in context is as expected, with overrides applied
         def assert_context_config(expected_level, expected_name, expected_thread):
-            context_config = get_config()
-            print(context_config.context)
-            assert context_config.context.level == expected_level
-            assert context_config.context.name == expected_name
-            assert context_config.thread == expected_thread
-            assert context_config.job == config.job
-            assert context_config.log == config.log
+            assert get_config(("context", "level")) == expected_level
+            assert get_config(("context", "name")) == expected_name
+            assert get_config("thread") == expected_thread
+            assert get_config("job") == config.job
+            assert get_config("log") == config.log
 
         def assert_in_new_thread(expected_level, expected_name, expected_thread):
             t = threading.Thread(assert_context_config(expected_level, expected_name, expected_thread))

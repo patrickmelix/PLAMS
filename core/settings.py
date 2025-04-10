@@ -1006,8 +1006,8 @@ class JobManagerSettings(Settings):
 class ConfigSettings(Settings):
     """
     Extends the default |Settings| with standard options which are required for global config.
-    The values for these options are initialised to default values.
-    The default |JobRunner| and |JobManager| are lazily initialised when first accessed.
+    The values for these options are initialized to default values.
+    The default |JobRunner| and |JobManager| are lazily initialized when first accessed.
     """
 
     def __init__(self, *args, **kwargs):

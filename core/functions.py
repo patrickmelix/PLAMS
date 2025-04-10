@@ -7,7 +7,7 @@ import threading
 import types
 from os.path import dirname, expandvars, isdir, isfile
 from os.path import join as opj
-from typing import Dict, Iterable, Optional, TYPE_CHECKING
+from typing import Dict, Iterable, Optional, Hashable, Tuple, Union, Any, TYPE_CHECKING
 import atexit
 from importlib.util import find_spec
 import functools
@@ -65,8 +65,8 @@ def config_overrides(overrides: Settings):
         >>> overrides = Settings()
         >>> overrides.log.stdout = 0
         >>> with config_overrides(overrides):
-        >>>     print(f"Stdout logging inside context disabled: {get_config().log.stdout == 0}")
-        >>> print(f"Stdout logging outside context disabled: {get_config().log.stdout == 0}")
+        >>>     print(f"Stdout logging inside context disabled: {get_config(('log', 'stdout')) == 0}")
+        >>> print(f"Stdout logging outside context disabled: {get_config(('log', 'stdout')) == 0}")
 
             Stdout logging inside context disabled: True
             Stdout logging outside context disabled: False
@@ -82,16 +82,30 @@ def config_overrides(overrides: Settings):
         _config_overrides.reset(token)
 
 
-def get_config() -> ConfigSettings:
+def get_config(key: Union[Hashable, Tuple[Hashable,...]], default: Optional[Any] = None, init_lazy: bool = True) -> Any:
     """
-    Gets a copy of the |ConfigSettings| for the current execution context from the global |config| object,
-    with any context-specific overrides applied on the top.
-    """
-    context_config = config.copy()
-    context_overrides = _config_overrides.get().copy()
-    context_config.update(context_overrides)
-    return context_config
+    Gets a (nested) value for a given key in |ConfigSettings|, for the current execution context.
+    This will be retrieved from the global |config| object, unless any context-specific overrides have been applied with :func:`config_overrides`.
 
+    :param key: single key or a tuple if for a nested value
+    :param default: default value if a key is not in the config
+    :param init_lazy: whether to initialize lazy values like |JobRunner| and |JobManager|, defaults to ``True``
+    :return: (nested) value from config
+    """
+    # Convert a single top-level key to a nested key
+    key_tuple = key if isinstance(key, tuple) else (key,)
+
+    # Overrides take precedence over global config object
+    context_overrides = _config_overrides.get()
+    context_config = context_overrides if context_overrides.contains_nested(key_tuple) else config
+
+    # Special case for lazy values - these must first be initialized
+    if key == "default_jobrunner" and init_lazy:
+        return context_config.default_jobrunner
+    elif key == "default_jobmanager" and init_lazy:
+        return context_config.default_jobmanager
+    else:
+        return context_config.get_nested(key_tuple, default=default)
 
 def log(message: str, level: int = 0) -> None:
     """
@@ -103,10 +117,11 @@ def log(message: str, level: int = 0) -> None:
     Date and/or time can be added based on ``config.log.date`` and ``config.log.time``.
     All logging activity is thread safe.
     """
-    cfg = get_config()
-    if cfg.init and "log" in cfg:
-        logfile = cfg.default_jobmanager.logfile if cfg["default_jobmanager"] is not None else None
-        _logger.configure(cfg.log.stdout, cfg.log.file, logfile, cfg.log.date, cfg.log.time)
+    config_log = get_config("log")
+    if get_config("init") and config_log:
+        config_default_jobmanager = get_config("default_jobmanager", init_lazy=False)
+        logfile = config_default_jobmanager.logfile if config_default_jobmanager is not None else None
+        _logger.configure(config_log.stdout, config_log.file, logfile, config_log.date, config_log.time)
     else:
         # By default write to stdout with level 3
         _logger.configure(3)
@@ -133,8 +148,9 @@ def _init() -> None:
 
     _load_defaults_file()
 
+    # Slurm settings should be the same irrespective of context so update the global config
+    # Similarly for init - this is signalled globally
     config.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
-
     config.init = True
 
 
@@ -253,7 +269,7 @@ def init(
     :param config_settings: |Settings| to update config with - these will overwrite any existing items
     :param quiet: do not log header with information about the PLAMS environment
     """
-
+    # init() is an explicit call which for backwards-compatibility applies to the global config
     if config.init and config._explicit_init:
         return
 
@@ -290,7 +306,7 @@ def _finish():
     """
     Internal clean up of the PLAMS environment, which will be called at the end of the script.
     """
-
+    # _finish() for backwards-compatibility applies to the global config
     if not config.init:
         return
 
@@ -334,6 +350,7 @@ def finish(otherJM: Optional[Iterable["JobManager"]] = None):
 
     :param otherJM: additional job managers used in a workflow to be cleaned
     """
+    # finish() is an explicit call which for backwards-compatibility applies to the global config
     if not config.init:
         return
 
@@ -357,7 +374,7 @@ atexit.register(_logger.close)
 
 def load(filename):
     """Load previously saved job from ``.dill`` file. This is just a shortcut for |load_job| method of the default |JobManager| ``config.default_jobmanager``."""
-    return get_config().default_jobmanager.load_job(filename)
+    return get_config("default_jobmanager").load_job(filename)
 
 
 # ===========================================================================
@@ -376,7 +393,7 @@ def load_all(path, jobmanager=None):
 
     Returned value is a dictionary containing all loaded jobs as values and absolute paths to ``.dill`` files as keys.
     """
-    jm = jobmanager or get_config().default_jobmanager
+    jm = jobmanager or get_config("default_jobmanager")
     loaded_jobs = {}
     for foldername in filter(lambda x: isdir(opj(path, x)), os.listdir(path)):
         maybedill = opj(path, foldername, foldername + ".dill")

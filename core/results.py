@@ -65,7 +65,7 @@ def _restrict(func):
             return func(self, *args, **kwargs)
 
         elif self.job.status == JobStatus.PREVIEW:
-            if get_config().ignore_failure:
+            if get_config("ignore_failure"):
                 log(
                     "WARNING: Trying to obtain results of job {} run in a preview mode. Returned value is None".format(
                         self.job.name
@@ -95,7 +95,7 @@ def _restrict(func):
                 if isinstance(arg, Results):
                     return func(self, *args, **kwargs)
 
-            if get_config().ignore_failure:
+            if get_config("ignore_failure"):
                 log("WARNING: Trying to obtain results of crashed or failed job {}".format(self.job.name), 3)
                 try:
                     ret = func(self, *args, **kwargs)

@@ -44,8 +44,7 @@ def saferun(*args, **kwargs):
     from scm.plams.core.functions import get_config, log
 
     attempt = 0
-    config = get_config()
-    (repeat, delay) = (config.saferun.repeat, config.saferun.delay) if ("saferun" in config) else (5, 1)
+    (repeat, delay) = (get_config(("saferun", "repeat")), get_config(("saferun", "delay"))) if get_config("saferun") is not None else (5, 1)
     while attempt <= repeat:
         try:
             return subprocess.run(*args, **kwargs)

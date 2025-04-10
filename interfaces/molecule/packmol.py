@@ -853,7 +853,7 @@ def _run_uff_md(
     with config_overrides(overrides):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            job_manager = JobManager(get_config().jobmanager, path=tmp_dir)
+            job_manager = JobManager(get_config("jobmanager"), path=tmp_dir)
             job = AMSJob(settings=s, molecule=md_ucs, name="shakemd")
             job.run(jobmanager=job_manager)
 
