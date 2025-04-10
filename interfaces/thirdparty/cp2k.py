@@ -1,4 +1,5 @@
 """Class to manipulate CP2K jobs."""
+
 import shutil
 from os.path import join as opj
 from pathlib import Path
@@ -13,7 +14,7 @@ from scm.plams.mol.atom import Atom
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.units import Units
 
-__all__ = ['Cp2kJob', 'Cp2kResults', 'Cp2kSettings2Mol']
+__all__ = ["Cp2kJob", "Cp2kResults", "Cp2kSettings2Mol"]
 
 
 class Cp2kResults(Results):
@@ -36,8 +37,7 @@ class Cp2kResults(Results):
         """
 
         _reserved_keywords = ["KIND", "@SET", "@INCLUDE", "@IF"]
-        _different_keywords = ["COORD", "VELOCITY",
-                               "MASS", "FORCE"]  # blocks of information
+        _different_keywords = ["COORD", "VELOCITY", "MASS", "FORCE"]  # blocks of information
 
         def input_generator(f):
             """Yield lines from input."""
@@ -60,54 +60,54 @@ class Cp2kResults(Results):
             if not string:
                 return True
             # comment line:
-            elif string.startswith('#'):
+            elif string.startswith("#"):
                 return True
             # end section
-            elif string.startswith('&END'):
+            elif string.startswith("&END"):
                 return False
             # special cases
             elif any(k in string for k in _reserved_keywords):
-                if '@' in string:
-                    l[0] = l[0].replace('@', 'AT_')
+                if "@" in string:
+                    l[0] = l[0].replace("@", "AT_")
                     res_dic.update({l[0].lower(): " ".join(l[1:])})
-                elif 'KIND' in string:
-                    if 'kind' not in res_dic:
-                        res_dic['kind'] = {}
-                    res_dic['kind'][l[1].lower()] = {}
+                elif "KIND" in string:
+                    if "kind" not in res_dic:
+                        res_dic["kind"] = {}
+                    res_dic["kind"][l[1].lower()] = {}
                     r = True
                     while r:
-                        r = parse(input_iter, res_dic['kind'][l[1].lower()])
+                        r = parse(input_iter, res_dic["kind"][l[1].lower()])
                 return True
             elif any("&" + k == string for k in _different_keywords):
                 # save the entire block as one string until &END
-                l[0] = l[0].replace('&', '')
-                res_dic[l[0].lower()] = {'_h': ""}
+                l[0] = l[0].replace("&", "")
+                res_dic[l[0].lower()] = {"_h": ""}
                 r = True
                 while r:
                     r = next(input_iter).strip()
                     if "&" in r:
                         r = False
                         break
-                    res_dic[l[0].lower()]['_h'] += "\n"
-                    res_dic[l[0].lower()]['_h'] += r
+                    res_dic[l[0].lower()]["_h"] += "\n"
+                    res_dic[l[0].lower()]["_h"] += r
                 return True
             # section
-            elif string.startswith('&'):
-                l[0] = l[0].replace('&', '')
+            elif string.startswith("&"):
+                l[0] = l[0].replace("&", "")
                 # if section already exists as a key, use the key
                 if l[0].lower() in res_dic:
                     # fast forward to the next &END
                     r = True
                     while r:
                         r = next(input_iter).strip()
-                        if r.startswith('&END'):
+                        if r.startswith("&END"):
                             r = False
                             break
                     return True
                 res_dic[l[0].lower()] = {}
                 # if section has a header value
                 if len(l) > 1:
-                    res_dic[l[0].lower()]['_h'] = " ".join(l[1:])
+                    res_dic[l[0].lower()]["_h"] = " ".join(l[1:])
                 # parse content of section
                 r = True
                 while r:
@@ -120,7 +120,7 @@ class Cp2kResults(Results):
                 return True
 
         dic = {}
-        with open(opj(self.job.path, self.job._filename('inp'))) as f:
+        with open(opj(self.job.path, self.job._filename("inp"))) as f:
             input_string = input_generator(f)
             while input_string:
                 try:
@@ -136,9 +136,9 @@ class Cp2kResults(Results):
     def get_runtime(self):
         """Return runtime in seconds from output."""
         from datetime import datetime
-        start = " ".join(self.grep_output(
-            'PROGRAM STARTED AT')[-1].split()[-2:])
-        end = " ".join(self.grep_output('PROGRAM ENDED AT')[-1].split()[-2:])
+
+        start = " ".join(self.grep_output("PROGRAM STARTED AT")[-1].split()[-2:])
+        end = " ".join(self.grep_output("PROGRAM ENDED AT")[-1].split()[-2:])
         startTime = datetime.fromisoformat(start)
         endTime = datetime.fromisoformat(end)
         diff = endTime - startTime
@@ -153,31 +153,30 @@ class Cp2kResults(Results):
             ret[l0] = l1
         return ret
 
-    def _get_energy_type(self, search='Total', index=-1, unit='a.u.'):
-        s = self.grep_output(search + ' energy:')[index]
+    def _get_energy_type(self, search="Total", index=-1, unit="a.u."):
+        s = self.grep_output(search + " energy:")[index]
         if not isinstance(index, slice):
-            return Units.convert(float(s.split()[-1]), 'a.u.', unit)
+            return Units.convert(float(s.split()[-1]), "a.u.", unit)
         else:
-            return [Units.convert(float(x.split()[-1]), 'a.u.', unit)
-                    for x in s]
+            return [Units.convert(float(x.split()[-1]), "a.u.", unit) for x in s]
 
-    def get_energy(self, index=-1, unit='a.u.'):
+    def get_energy(self, index=-1, unit="a.u."):
         """Returns 'Total energy:' from the output file.
 
         Set ``index`` to choose the n-th occurence of the total energy in
         the output, *e.g.* to choose an optimization step. Also supports
         slices. Defaults to the last occurence.
         """
-        return self._get_energy_type('Total', index=index, unit=unit)
+        return self._get_energy_type("Total", index=index, unit=unit)
 
-    def get_dispersion(self, index=-1, unit='a.u.'):
+    def get_dispersion(self, index=-1, unit="a.u."):
         """Returns 'Dispersion energy:' from the output file.
 
         Set ``index`` to choose the n-th occurence of the dispersion energy
         in the output, *e.g.* to choose an optimization step.
         Also supports slices. Defaults to the last occurence.
         """
-        return self._get_energy_type('Dispersion', index=index, unit=unit)
+        return self._get_energy_type("Dispersion", index=index, unit=unit)
 
     def get_forces(self, file=None, index=-1):
         """Returns list of ndarrays with forces for each atom.
@@ -189,20 +188,19 @@ class Cp2kResults(Results):
         Set to *None* to return all as a list. Defaults to the last occurence.
         """
         if not file:
-            file = self.job._filename('out')
+            file = self.job._filename("out")
         searchBegin = "ATOMIC FORCES in"
         searchEnd = "SUM OF ATOMIC FORCES"
         n = len(self.grep_file(file, searchBegin))
         match = self._idx_to_match(n, index)
-        block = self.get_file_chunk(
-            file, begin=searchBegin, end=searchEnd, match=match)
+        block = self.get_file_chunk(file, begin=searchBegin, end=searchEnd, match=match)
         ret = []
         for line in block:
             line = line.strip().split()
             if len(line) == 0:
                 continue
             # new forces block
-            if line[0] == '#':
+            if line[0] == "#":
                 ret.append([])
                 continue
             ret[-1].append(line[-3:])
@@ -224,24 +222,23 @@ class Cp2kResults(Results):
         ret = []
         step = len(l) // n
         for i in range(0, len(l), step):
-            ret.append(l[i + skip:i + step])
+            ret.append(l[i + skip : i + step])
         return ret
 
-    def _get_charges(self, return_spin=False, index=-1, name='Mulliken'):
-        if name == 'Mulliken':
+    def _get_charges(self, return_spin=False, index=-1, name="Mulliken"):
+        if name == "Mulliken":
             searchBegin = "Mulliken Population Analysis"
             searchEnd = " # Total charge and spin"
             selectCharge = -2
             selectSpin = -1
-        if name == 'Hirshfeld':
+        if name == "Hirshfeld":
             searchBegin = "Hirshfeld Charges"
             searchEnd = "Total Charge"
             selectCharge = -1
             selectSpin = -2
         n = len(self.grep_output(searchBegin))
         match = self._idx_to_match(n, index)
-        chunk = self.get_output_chunk(
-            begin=searchBegin, end=searchEnd, match=match)
+        chunk = self.get_output_chunk(begin=searchBegin, end=searchEnd, match=match)
         if match == 0:
             chunk = self._chunks(chunk, n, skip=2)
         else:
@@ -249,11 +246,9 @@ class Cp2kResults(Results):
         charges = []
         spin = []
         for ch in chunk:
-            charges.append([float(line.strip().split()[selectCharge])
-                            for line in ch if line])
+            charges.append([float(line.strip().split()[selectCharge]) for line in ch if line])
             if return_spin:
-                spin.append([float(line.strip().split()[selectSpin])
-                             for line in ch if line])
+                spin.append([float(line.strip().split()[selectSpin]) for line in ch if line])
         if return_spin:
             if match == 0:
                 return charges, spin
@@ -275,7 +270,7 @@ class Cp2kResults(Results):
         Returns list of charges. If ``return_spin`` is `True` returns tuple
         of charges and spins.
         """
-        return self._get_charges(return_spin, index, 'Mulliken')
+        return self._get_charges(return_spin, index, "Mulliken")
 
     def get_hirshfeld_charges(self, return_spin=False, index=-1):
         """Get Hirshfeld charges (and spin moments).
@@ -287,7 +282,7 @@ class Cp2kResults(Results):
         Returns list of charges. If ``return_spin`` is `True` returns tuple of
         charges and spins.
         """
-        return self._get_charges(return_spin, index, 'Hirshfeld')
+        return self._get_charges(return_spin, index, "Hirshfeld")
 
     def get_multigrid_info(self):
         """Get Information on multigrids.
@@ -297,14 +292,13 @@ class Cp2kResults(Results):
 
         Returns a dict with keys 'counts' and 'cutoffs'.
         """
-        dic = {'counts': [], 'cutoffs': []}
+        dic = {"counts": [], "cutoffs": []}
 
-        s = self.get_output_chunk(
-            begin='MULTIGRID INFO', end='total gridlevel count')[1:]
+        s = self.get_output_chunk(begin="MULTIGRID INFO", end="total gridlevel count")[1:]
         for line in s:
             split = line.strip().split()
-            dic['counts'].append(int(split[4]))
-            dic['cutoffs'].append(float(split[-1]))
+            dic["counts"].append(int(split[4]))
+            dic["cutoffs"].append(float(split[-1]))
 
         return dic
 
@@ -317,17 +311,12 @@ class Cp2kResults(Results):
         Set ``cache`` to save the results in ``self.md_infos`` to speed up
         analysis by avoiding I/O.
         """
-        if hasattr(self, 'md_infos'):
+        if hasattr(self, "md_infos"):
             return self.md_infos
         if not file:
-            file = self.job._filename('out')
-        delimiter = '*' * 10
-        chunk = self.get_file_chunk(
-            file,
-            begin=delimiter,
-            end=delimiter,
-            match=0,
-            inc_begin=True)
+            file = self.job._filename("out")
+        delimiter = "*" * 10
+        chunk = self.get_file_chunk(file, begin=delimiter, end=delimiter, match=0, inc_begin=True)
         frames = [[]]
         newFormat = False  # Older Format
         for line in chunk:
@@ -338,29 +327,29 @@ class Cp2kResults(Results):
                     continue  # first exists
                 frames.append([])  # next timestep
                 continue
-            if line.startswith(' MD|'):  # new file format
+            if line.startswith(" MD|"):  # new file format
                 newFormat = True
             if newFormat:
-                if ('-' * 74 in line):  # separator line
+                if "-" * 74 in line:  # separator line
                     continue
-                elif 'Instantaneous' in line:  # separator line
+                elif "Instantaneous" in line:  # separator line
                     continue
-                elif not line.startswith(' MD|'):  # empty line
+                elif not line.startswith(" MD|"):  # empty line
                     continue
-                line = line.replace('MD|', '')
+                line = line.replace("MD|", "")
                 line = [line[0:36], line[36:]]  # split by length
             else:  # old format
-                if '=' not in line:  # old format uses = as separator
+                if "=" not in line:  # old format uses = as separator
                     continue
-                line = line.strip().split('=')
+                line = line.strip().split("=")
             line = [x.strip() for x in line]
             frames[-1].append(line)
 
         ret = []
         for frame in frames:
-            if any('INITIAL' in x[0].upper() for x in frame):  # old format
+            if any("INITIAL" in x[0].upper() for x in frame):  # old format
                 continue
-            elif any('MD_INI' in x[0].upper() for x in frame):  # new format
+            elif any("MD_INI" in x[0].upper() for x in frame):  # new format
                 continue
             elif len(frame) == 0:
                 continue
@@ -369,34 +358,35 @@ class Cp2kResults(Results):
 
         names = [x[0] for x in ret[0]]
         for i, frame in enumerate(ret):
-            assert names == [x[0] for x in frame], ("Namings in output\
-            not constant?")
-            assert len(frame) == len(names), ("{:}".format(frame))
+            assert names == [
+                x[0] for x in frame
+            ], "Namings in output\
+            not constant?"
+            assert len(frame) == len(names), "{:}".format(frame)
             assert set(len(x) for x in frame) == {2}
             ret[i] = [x[1] for x in frame]
         if cache:
             self.md_infos = [names, ret]
         return names, ret
 
-    def get_md_cell_volumes(self, file=None, unit='angstrom'):
+    def get_md_cell_volumes(self, file=None, unit="angstrom"):
         """Get cell Volumes using the :meth:`get_md_infos` function."""
         if not file:
-            file = self.job._filename('out')
-        if not hasattr(self, 'md_infos'):
+            file = self.job._filename("out")
+        if not hasattr(self, "md_infos"):
             n, data = self.get_md_infos(file=file)
         else:
             n, data = self.md_infos
         idx = n.index("VOLUME[bohr^3]")
-        ret = np.array([x[idx].split(maxsplit=1)[0]
-                       for x in data], dtype=float)
-        ret *= Units.conversion_ratio('bohr', unit)**3
+        ret = np.array([x[idx].split(maxsplit=1)[0] for x in data], dtype=float)
+        ret *= Units.conversion_ratio("bohr", unit) ** 3
         return ret
 
     def get_md_pressure(self, file=None):
         """Get pressures using the :meth:`get_md_infos` function."""
         if not file:
-            file = self.job._filename('out')
-        if not hasattr(self, 'md_infos'):
+            file = self.job._filename("out")
+        if not hasattr(self, "md_infos"):
             n, data = self.get_md_infos(file=file)
         else:
             n, data = self.md_infos
@@ -413,7 +403,7 @@ class Cp2kResults(Results):
         Set *return_n* to recieve the number of occurences instead of a bool.
         """
         if not file:
-            file = self.job._filename('out')
+            file = self.job._filename("out")
         search = "SCF run NOT converged"
         n = len(self.grep_file(file, search))
         if return_n:
@@ -427,7 +417,7 @@ class Cp2kResults(Results):
         *file* defaults to ``self.job._filename('out')``.
         """
         if not file:
-            file = self.job._filename('out')
+            file = self.job._filename("out")
         search = "GEOMETRY OPTIMIZATION COMPLETED"
         n = len(self.grep_file(file, search))
         return bool(n)
@@ -442,6 +432,7 @@ class Cp2kJob(SingleJob):
     to be copied to the jobs directory. This might e.g. be a molecule,
     further input files etc.
     """
+
     _result_type = Cp2kResults
 
     def __init__(self, copy=None, **kwargs):
@@ -466,62 +457,61 @@ class Cp2kJob(SingleJob):
 
         _reserved_keywords = ["KIND", "AT_SET", "AT_INCLUDE", "AT_IF"]
 
-        def parse(key, value, indent=''):
-            ret = ''
+        def parse(key, value, indent=""):
+            ret = ""
             key = key.upper()
             if isinstance(value, Settings):
                 if not any(k == key for k in _reserved_keywords):
-                    if '_h' in value:
-                        ret += '{}&{} {}\n'.format(indent, key, value['_h'])
+                    if "_h" in value:
+                        ret += "{}&{} {}\n".format(indent, key, value["_h"])
                     else:
-                        ret += '{}&{}\n'.format(indent, key)
+                        ret += "{}&{}\n".format(indent, key)
                     for el in value:
-                        if el == '_h':
+                        if el == "_h":
                             continue
-                        ret += parse(el, value[el], indent + '  ')
-                    ret += '{}&END\n'.format(indent)
+                        ret += parse(el, value[el], indent + "  ")
+                    ret += "{}&END\n".format(indent)
 
                 elif "KIND" in key:
                     for el in value:
-                        ret += '{}&{}  {}\n'.format(indent, key, el.upper())
+                        ret += "{}&{}  {}\n".format(indent, key, el.upper())
                         for v in value[el]:
-                            ret += parse(v, value[el][v], indent + '  ')
-                        ret += '{}&END\n'.format(indent)
+                            ret += parse(v, value[el][v], indent + "  ")
+                        ret += "{}&END\n".format(indent)
 
                 elif "AT_SET" in key:
                     var, val = tuple(value.items())[0]
-                    ret += '@SET {} {}\n'.format(var, val)
+                    ret += "@SET {} {}\n".format(var, val)
 
                 elif "AT_IF" in key:
                     pred, branch = tuple(value.items())[0]
-                    ret += '{}@IF {}\n'.format(indent, pred)
+                    ret += "{}@IF {}\n".format(indent, pred)
                     for k, v in branch.items():
-                        ret += parse(k, v, indent + '  ')
-                    ret += '{}@ENDIF\n'.format(indent)
+                        ret += parse(k, v, indent + "  ")
+                    ret += "{}@ENDIF\n".format(indent)
 
             elif key == "AT_INCLUDE":
-                ret += '@include {}\n'.format(value)
+                ret += "@include {}\n".format(value)
 
             elif isinstance(value, list):
                 for el in value:
                     ret += parse(key, el, indent)
 
-            elif value == '' or value is True:
-                ret += '{}{}\n'.format(indent, key)
+            elif value == "" or value is True:
+                ret += "{}{}\n".format(indent, key)
             else:
-                ret += '{}{}  {}\n'.format(indent, key, str(value))
+                ret += "{}{}  {}\n".format(indent, key, str(value))
             return ret
 
-        inp = ''
+        inp = ""
 
         if self.molecule:
-            use_molecule = ('ignore_molecule' not in self.settings) or (
-                self.settings.ignore_molecule is False)
+            use_molecule = ("ignore_molecule" not in self.settings) or (self.settings.ignore_molecule is False)
             if use_molecule:
                 self._parsemol()
 
         for item in self.settings.input:
-            inp += parse(item, self.settings.input[item]) + '\n'
+            inp += parse(item, self.settings.input[item]) + "\n"
 
         return inp
 
@@ -586,10 +576,9 @@ class Cp2kJob(SingleJob):
         cp2k_command = self.settings.get("executable", "cp2k.popt")
 
         # Check the executable name
-        available_executables = {
-            "sdbg", "sopt", "ssmp", "pdbg", "popt", "psmp"}
+        available_executables = {"sdbg", "sopt", "ssmp", "pdbg", "popt", "psmp"}
 
-        available_mpi_commands = ('srun', 'mpirun')
+        available_mpi_commands = ("srun", "mpirun")
         mpi_command = ""
 
         # If there is a MPI command the user knows what she is doing
@@ -602,7 +591,7 @@ class Cp2kJob(SingleJob):
 
             # Try to run cp2k MPI binaries using mpirun and otherwise srun (if
             # available)
-            if suffix not in {'sdbg', 'sopt'}:
+            if suffix not in {"sdbg", "sopt"}:
                 available = (shutil.which(c) for c in available_mpi_commands)
                 mpi_command = next((c for c in available if c is not None), "")
 
@@ -623,22 +612,22 @@ def Cp2kSettings2Mol(settings):
     """
     mol = Molecule()
 
-    if 'force_eval' not in settings.input:
+    if "force_eval" not in settings.input:
         return None
-    elif 'subsys' not in settings.input.force_eval:
+    elif "subsys" not in settings.input.force_eval:
         return None
-    elif 'coord' not in settings.input.force_eval.subsys:
+    elif "coord" not in settings.input.force_eval.subsys:
         return None
-    elif '_h' not in settings.input.force_eval.subsys.coord:
+    elif "_h" not in settings.input.force_eval.subsys.coord:
         return None
     coord = settings.input.force_eval.subsys.coord._h
 
     pbc = False
-    if 'cell' in settings.input.force_eval.subsys:
+    if "cell" in settings.input.force_eval.subsys:
         pbc = True
         cell = settings.input.force_eval.subsys.cell
 
-    split = coord.strip().split('\n')
+    split = coord.strip().split("\n")
     for line in split:
         lineSplit = line.split()
         try:
@@ -650,7 +639,7 @@ def Cp2kSettings2Mol(settings):
 
     if pbc:
         vec = []
-        keys = ['a', 'b', 'c']
+        keys = ["a", "b", "c"]
         for key in keys:
             if key not in cell:
                 break

@@ -16,19 +16,21 @@ This example requires an ADF license.
 
 """
 
+
 def adf_settings():
     s = Settings()
-    s.input.adf.basis.type = 'DZP'
-    s.input.adf.basis.core = 'None'
-    s.input.adf.xc.gga = 'pbe'
-    s.input.adf.symmetry = 'nosym'
+    s.input.adf.basis.type = "DZP"
+    s.input.adf.basis.core = "None"
+    s.input.adf.xc.gga = "pbe"
+    s.input.adf.symmetry = "nosym"
     return s
 
+
 def run_sella(molecule):
-    """ Run a TS search with Sella """
+    """Run a TS search with Sella"""
     s = adf_settings()
-    s.input.ams.task = 'SinglePoint'
-    s.input.ams.properties.gradients = 'Yes'
+    s.input.ams.task = "SinglePoint"
+    s.input.ams.properties.gradients = "Yes"
 
     atoms = toASE(molecule)
 
@@ -49,18 +51,24 @@ def run_sella(molecule):
     optimized_mol = fromASE(atoms)
     return optimized_mol
 
+
 def run_ams(molecule):
-    """ Run DFT transition state search but use initial hessian calculated with DFTB """
+    """Run DFT transition state search but use initial hessian calculated with DFTB"""
+    # this line is not required in AMS2025+
+    init()
+
     s = adf_settings()
-    s.input.ams.task = 'TransitionStateSearch'
-    s.input.ams.geometryoptimization.initialhessian.type = 'CalculateWithFastEngine'
-    job = AMSJob(settings=s, molecule=molecule, name='ams_ts')
+    s.input.ams.task = "TransitionStateSearch"
+    s.input.ams.geometryoptimization.initialhessian.type = "CalculateWithFastEngine"
+    job = AMSJob(settings=s, molecule=molecule, name="ams_ts")
     job.run()
     print(f"AMS finished after {len(job.results.get_history_property('Energy'))} iterations")
     print(f"AMS optimized energy: {job.results.get_energy(unit='eV')} eV")
 
+
 def get_molecule():
-    return AMSJob.from_input("""
+    return AMSJob.from_input(
+        """
         System
           atoms
              C         0.049484    0.042994    0.000000
@@ -74,11 +82,15 @@ def get_molecule():
           end
         End
 
-    """).molecule['']
+    """
+    ).molecule[""]
+
 
 def main():
-    os.environ['OMP_NUM_THREADS'] = '1'
+    # this line is not required in AMS2025+
     init()
+
+    os.environ["OMP_NUM_THREADS"] = "1"
     mol = get_molecule()
 
     start = time.time()
@@ -89,8 +101,6 @@ def main():
     run_ams(mol)
     print(f"AMS finished in {time.time()-start} seconds")
 
-    finish()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

@@ -3,7 +3,7 @@
 Reactions Discovery
 -------------------
 
-See the :ref:`Reactions Discovery Python example <rd_example>`.
+See the :ref:`Reactions Discovery Python example <ReactionsDiscoveryExample>`.
 
-The PLAMS interface to Reactions Discovery is described in the `Reactions Discovery documentation <../../AMS/Utilities/ReactionsDiscovery.html#reactions-discovery-in-python-plams>`__.
+The PLAMS interface to Reactions Discovery is described in the `Reactions Discovery documentation <../../Workflows/ReactionsDiscovery/ReactionsDiscovery.html#reactions-discovery-in-python-plams>`__.
 

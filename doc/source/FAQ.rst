@@ -3,19 +3,6 @@
 FAQ
 ###
 
-
-Do I always need to run PLAMS scripts through $AMSBIN/plams myscript.py?
-************************************************************************
-
-Highly advisable as this ensures you get the right /compatible python libraries loaded.
-Alternatively you could import the plams packages:
-
-::
-
-   from scm.plams import *
-   init()
-
-
 Where can I find some help on setting up python workflows with PLAMS?
 *********************************************************************
 
@@ -34,5 +21,3 @@ Download: :download:`workflow.py <https://downloads.scm.com/distr/workflow.py>`
 For several simple and more advanced workflows, take a look at the :ref:`Examples <examples>` section of this PLAMS manual.
 
 Another common PLAMS application is the post-processing of calculation results. A good example of this is found in the analysis section of the `Battery Discharge tutorial <../Tutorials/MolecularDynamicsAndMonteCarlo/GCMCLiSBattery.html>`__.
-Download: :download:`LiVoltageProfile.py <../../../../../userdoc/Tutorials/downloads/GCMCLiSBattery/LiVoltageProfile.py>`
-

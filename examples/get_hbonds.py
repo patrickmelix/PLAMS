@@ -1,7 +1,7 @@
 import sys
 from io import StringIO
 import numpy
-from scm.plams import RKFTrajectoryFile
+from scm.plams import RKFTrajectoryFile, init
 from scm.flexmd import PDBMolecule
 
 
@@ -9,6 +9,9 @@ def main():
     """
     Main sctipt
     """
+    # this line is not required in AMS2025+
+    init()
+
     if sys.argv[1] == "-h":
         raise SystemExit("amspython get_hbonds.py path/to/ams.rkf path/to/indices.txt")
 
@@ -50,7 +53,7 @@ def main():
         pdb.set_cellvectors(cell)
         for iat in indices:
             atomlists = (heavy_atoms, hydrogens)
-            atoms,hs = pdb.find_neighbours_using_cubes(iat,d_indices,boxlist,atomlists)
+            atoms, hs = pdb.find_neighbours_using_cubes(iat, d_indices, boxlist, atomlists)
             hbonds = pdb.get_hbonds(iat, atoms, hs)
             print("%8i %8i %s" % (istep, iat, str(hbonds)))
             values.append(len(hbonds))

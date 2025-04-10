@@ -6,19 +6,13 @@ from os.path import join as opj
 from typing import List, Optional, Union
 
 from scm.plams.core.basejob import SingleJob
-from scm.plams.core.errors import FileError, JobError, ResultsError
+from scm.plams.core.errors import FileError, JobError, MissingOptionalPackageError
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.crs import CRSResults
+from scm.plams.interfaces.molecule.rdkit import from_smiles
 from scm.plams.mol.molecule import Molecule
 
-try:
-    from scm.plams.interfaces.molecule.rdkit import from_smiles
-    from rdkit.Chem import MolToSmiles, RemoveHs
-    RDKIT_EX = None
-except ImportError as ex:
-    RDKIT_EX = ex
-
-__all__ = ['UnifacJob', 'UnifacResults']
+__all__ = ["UnifacJob", "UnifacResults"]
 
 
 class UnifacResults(CRSResults):
@@ -29,10 +23,6 @@ class UnifacResults(CRSResults):
 
         Molecules are extracted from the SMILES string(s) in the .run file.
         """
-        if RDKIT_EX is not None:
-            err = f"SMILES to Molecule conversion requires the 'rdkit' package: {RDKIT_EX}"
-            raise ResultsError(err).with_traceback(RDKIT_EX.__traceback__)
-
         s = self.recreate_settings()
         if isinstance(s.input.smiles, list):
             from_smiles(s.input.smiles[geometry])
@@ -40,20 +30,22 @@ class UnifacResults(CRSResults):
 
     def recreate_settings(self) -> Settings:
         """Reconstruct a :class:`Settings` instance from the .run file."""
+
         def _read_runfile(runfile: str) -> Optional[List[str]]:
             """Extract the command line input from the runfile"""
             ret = None
-            with open(runfile, 'r') as f:
+            with open(runfile, "r") as f:
+                # ToDo: this looks buggy - arg_list and rstrip on list?
                 for i in f:
                     if '"$AMSBIN"/unifac' in i:
                         ret = i.split()
-                        arg_list[-1] = arg_list[-1].rstrip('\\')
+                        arg_list[-1] = arg_list[-1].rstrip("\\")  # type: ignore
                     else:
                         continue
 
-                    while i.endswith('\\'):  # The input might be spread over multiple lines
+                    while i.endswith("\\"):  # The input might be spread over multiple lines
                         i = next(f)
-                        ret += i.split().rstrip('\\')
+                        ret += i.split().rstrip("\\")  # type: ignore
                     del ret[0]  # Delete ``"$AMSBIN"/unifac``
                     break
             return ret
@@ -65,25 +57,25 @@ class UnifacResults(CRSResults):
             s = Settings()
             for value in iterator:
                 # Identify potential keys
-                if value.startswith('-'):
-                    key = value.strip('-').lower()
+                if value.startswith("-"):
+                    key = value.strip("-").lower()
                     continue
 
                 #  If possible, convert value into a float or integer
-                value = self._str_to_number(value)
+                converted_value = self._str_to_number(value)
 
                 # Create a new key/value pair or update an old key/value pair with a list of values
                 if key in s.input:
                     try:
-                        s.input[key].append(value)
+                        s.input[key].append(converted_value)
                     except AttributeError:
-                        s.input[key] = [s.input.pop(key), value]
+                        s.input[key] = [s.input.pop(key), converted_value]
                 else:
-                    s.input[key] = value
+                    s.input[key] = converted_value
             return s
 
         # Read the .run file
-        runfile = self['$JN.run']
+        runfile = self["$JN.run"]
         arg_list = _read_runfile(runfile)
         if arg_list is None:
             raise FileError(f"Failed to parse the content of '{runfile}'")
@@ -94,7 +86,7 @@ class UnifacResults(CRSResults):
     @staticmethod
     def _str_to_number(value: str) -> Union[str, int, float]:
         """Attempt to convert *value* into a :class:`float` or :class:`int`."""
-        if '.' in value:
+        if "." in value:
             try:
                 return float(value)
             except ValueError:
@@ -157,33 +149,37 @@ class UnifacJob(SingleJob):
         super().__init__(**kwargs)
 
         # If supplied, convert self.molecule into a SMILES string
-        if self.molecule and RDKIT_EX is not None:
-            err = f"Molecule to SMILES conversion requires the 'rdkit' package: {RDKIT_EX}"
-            raise JobError(err).with_traceback(RDKIT_EX.__traceback__)
+        if self.molecule:
+            try:
+                from rdkit.Chem import MolToSmiles, RemoveHs
+            except ImportError:
+                MissingOptionalPackageError("rdkit")
 
-        elif self.molecule:
             mol_list = [self.molecule] if isinstance(self.molecule, Molecule) else self.molecule
-            k1 = self.settings.input.find_case('smiles')
-            k2 = self.settings.input.find_case('-smiles')
+            k1 = self.settings.input.find_case("smiles")
+            k2 = self.settings.input.find_case("-smiles")
             smiles = k1 if k2 not in self.settings.input else k2
             self.settings.input[smiles] = [MolToSmiles(RemoveHs(mol)) for mol in mol_list]
 
     def _get_ready(self) -> None:
         """Create the runfile."""
-        runfile = opj(self.path, self._filename('run'))
-        with open(runfile, 'w') as f:
+        runfile = opj(self.path, self._filename("run"))
+        with open(runfile, "w") as f:
             f.write(self.full_runscript())
         os.chmod(runfile, os.stat(runfile).st_mode | stat.S_IEXEC)
 
-    def get_input(self) -> None: return None
-    def hash_input(self) -> str: return self.hash_runscript()
+    def get_input(self) -> None:
+        return None
+
+    def hash_input(self) -> str:
+        return self.hash_runscript()
 
     def get_runscript(self) -> str:
         """Run a MACTH runscript."""
         iterator = self.settings.input.items()
         kwargs = {self._sanitize_key(k): self._sanitize_value(v) for k, v in iterator}
         kwargs_iter = chain.from_iterable(kwargs.items())
-        args = ' '.join(i for i in kwargs_iter)
+        args = " ".join(i for i in kwargs_iter)
         return f'"$AMSBIN"/unifac {args}'
 
     """###################################### New methods ######################################"""
@@ -192,7 +188,7 @@ class UnifacJob(SingleJob):
     def _sanitize_key(key: str) -> str:
         """Lower *key* and prepended it with the ``"-"`` character."""
         try:
-            ret = key if key.startswith('-') else f'-{key}'
+            ret = key if key.startswith("-") else f"-{key}"
         except AttributeError as ex:  # *key* is not a string
             err = f"Key of invalid type encountered in Job settings: {repr(key)}"
             raise JobError(err).with_traceback(ex.__traceback__)
@@ -203,4 +199,4 @@ class UnifacJob(SingleJob):
         """Convert *value* into a string; join its elements if it's an iterable."""
         if isinstance(value, str) or not isinstance(value, Iterable):
             return repr(value)
-        return ' '.join(repr(i) for i in value)
+        return " ".join(repr(i) for i in value)

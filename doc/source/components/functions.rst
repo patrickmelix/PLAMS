@@ -67,8 +67,7 @@ It can be done in a few different ways:
 *   One can go directly to the source code defining the class and modify it there before running a script.
     Such a change is global -- it affects all the future scripts, so in most cases it is not a good thing (for defining |prerun|, for example).
 *   Creating a subclass with new or modified method definitions is usually the best solution.
-    It can be done directly in your script before the work is done or in a separate dedicated file executed before the actual script (see |master-script|).
-    Newly defined class can be then used instead of the old one.
+    It can be done directly in your script before the work is done. The newly defined class can be then used instead of the old one.
     However, this solution fails in some rare cases when a method needs to differ for different instances or when it needs to be changed during the runtime of the script.
 *   PLAMS binding decorators (|add_to_class| and |add_to_instance|) can be used.
 

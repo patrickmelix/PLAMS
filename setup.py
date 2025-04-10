@@ -1,37 +1,19 @@
-from os.path import join as opj
-
 from setuptools import find_packages, setup
 
-packages = ['scm.plams'] + ['scm.plams.'+i for i in find_packages('.')]
-
-description = "PLAMS is a library providing powerful, flexible and easily extendable Python interface to molecular modeling programs. It takes care of input preparation, job execution, file management and output data extraction. It helps with building advanced data workflows that can be executed in parallel, either locally or by submitting to a resource manager queue.\n\nPlease check the project's GitHub page for more information: https://github.com/SCM-NV/PLAMS \n\nPLAMS is an Open Source project supported by `Software for Chemistry & Materials B.V. <https://www.scm.com>`_"
-
+# This minimal setup.py exists alongside the pyproject.toml for legacy reasons.
+# Currently, the "artificial" prefix "scm.plams" is added to the (sub)package names, which is not supported via the pyproject.toml.
+# ToDo: the package should be restructured with a directory structure that reflects this, then the setuptools package finding used.
+# See: https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 setup(
-    name             = 'plams',
-    version          = '1.5.1',
-    author           = 'Michał Handzlik',
-    author_email     = 'handzlik@scm.com',
-    url              = 'https://www.scm.com/doc/plams/',
-    download_url     = 'https://github.com/SCM-NV/PLAMS/zipball/release',
-    license          = 'LGPLv3',
-    description      = 'Python Library for Automating Molecular Simulations',
-    long_description = description,
-    classifiers      = [
-            'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
-            'Development Status :: 5 - Production/Stable',
-            'Intended Audience :: Science/Research',
-            'Operating System :: OS Independent',
-            'Programming Language :: Python :: 3.6',
-            'Topic :: Scientific/Engineering :: Chemistry',
-            'Topic :: Scientific/Engineering :: Physics',
-            'Topic :: Scientific/Engineering :: Bio-Informatics',
-            'Topic :: Software Development :: Libraries :: Python Modules',
-    ],
-    keywords         = ['molecular modeling', 'computational chemistry', 'workflow', 'python interface'],
-    python_requires  = '>=3.6',
-    install_requires = ['dill>=0.2.4', 'numpy', 'scipy', 'natsort'],
-    packages         = packages,
-    package_dir      = {'scm.plams': '.'},
-    package_data     = {'scm.plams' : ['.flake8', 'plams_defaults', 'examples/*', 'unit_tests/*', 'unit_tests/xyz/*']},
-    scripts          = [opj('scripts','plams')]
+    packages=["scm.plams"] + ["scm.plams." + i for i in find_packages(".")],
+    package_dir={"scm.plams": "."},
+    package_data={
+        "scm.plams": [
+            ".flake8",
+            "examples/*",
+            "examples/**/*",
+            "unit_tests/*",
+            "unit_tests/**/*",
+        ]
+    },
 )

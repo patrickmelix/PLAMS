@@ -1,12 +1,19 @@
 import math
 
 import numpy as np
+from typing import Iterable, Union, List, Tuple, TYPE_CHECKING, Sequence, Optional, Dict
 
 from scm.plams.core.settings import Settings
 from scm.plams.tools.periodic_table import PT
 from scm.plams.tools.units import Units
 
-__all__ = ['Atom']
+__all__ = ["Atom"]
+
+if TYPE_CHECKING:
+    from scm.plams.mol.bond import Bond
+    from scm.plams.mol.molecule import Molecule
+
+str_type = str  # To avoid type-hinting issues with str() method
 
 
 class Atom:
@@ -53,12 +60,26 @@ class Atom:
 
     Internally, atomic coordinates are always expressed in angstroms. Most of methods that read or modify atomic coordinates accept a keyword argument ``unit`` allowing to choose unit in which results and/or arguments are expressed (see |Units| for details). Throughout the entire code angstrom is the default length unit. If you don't specify ``unit`` parameter in any place of your script, all the automatic unit handling described above boils down to occasional multiplication/division by 1.0.
     """
-    def __init__(self, atnum=0, symbol=None, coords=None, unit='angstrom', bonds=None, mol=None, **other):
+
+    def __init__(
+        self,
+        atnum: int = 0,
+        symbol: Optional[str] = None,
+        coords: Optional[Sequence[float]] = None,
+        unit: str = "angstrom",
+        bonds: Optional[List["Bond"]] = None,
+        mol: Optional["Molecule"] = None,
+        **other,
+    ):
         if symbol is not None:
-            self.symbol = symbol
+            self.symbol = str(symbol)
         else:
-            self.atnum = atnum
-            if atnum == 0: self._dummysymbol = 'Xx'
+            try:
+                self.atnum = int(atnum)
+            except ValueError:
+                raise TypeError(f"Atomic number (atnum) must be convertable to an int, but was {type(atnum).__name__}")
+            if atnum == 0:
+                self._dummysymbol: Optional[str_type] = "Xx"
 
         self.mol = mol
         self.bonds = bonds or []
@@ -70,15 +91,23 @@ class Atom:
             tmp = []
             for i in coords:
                 try:
-                    i = Units.convert(float(i), unit, 'angstrom')
-                except ValueError: pass
+                    i = Units.convert(float(i), unit, "angstrom")
+                except ValueError:
+                    pass
                 tmp.append(i)
-            self.coords = tuple(tmp)
+            self.coords = tuple(tmp)  # type: ignore
         else:
-            raise TypeError('Atom: Invalid coordinates passed')
+            raise TypeError("Atom: Invalid coordinates passed")
 
-
-    def str(self, symbol=True, suffix='', suffix_dict={}, unit='angstrom', space=14, decimal=6):
+    def str(
+        self,
+        symbol: Union[bool, str] = True,
+        suffix: str = "",
+        suffix_dict: Optional[Dict] = None,
+        unit: str = "angstrom",
+        space: int = 14,
+        decimal: int = 6,
+    ) -> str:
         """Return a string representation of this atom.
 
         Returned string is a single line (no newline characters) that always contains atomic coordinates (and maybe more). Each atomic coordinate is printed using *space* characters, with *decimal* characters reserved for decimal digits. Coordinates values are expressed in *unit*.
@@ -105,122 +134,144 @@ class Atom:
                      C      1.000000      1.500000      2.000000 subsystem=membrane
 
         """
-        strformat = '{:>%is}'%space
-        numformat = '{:>%i.%if}'%(space,decimal)
-        f = lambda x: numformat.format(Units.convert(x, 'angstrom', unit)) if isinstance(x, (int,float)) else strformat.format(str(x))
+        suffix_dict = suffix_dict if suffix_dict is not None else {}
+        strformat = "{:>%is}" % space
+        numformat = "{:>%i.%if}" % (space, decimal)
+        f = lambda x: (
+            numformat.format(Units.convert(x, "angstrom", unit))
+            if isinstance(x, (int, float))
+            else strformat.format(str(x))
+        )
         if symbol is False:
-            return ('{0} {1} {2} '+suffix).format(*map(f,self.coords), **suffix_dict)
+            return ("{0} {1} {2} " + suffix).format(*map(f, self.coords), **suffix_dict).rstrip()
         if symbol is True:
             symbol = self.symbol
-        return ('{0:>10s} {1} {2} {3} '+suffix).format(symbol, *map(f,self.coords), **suffix_dict)
-
+        return ("{0:>10s} {1} {2} {3} " + suffix).format(symbol, *map(f, self.coords), **suffix_dict).rstrip()
 
     def __str__(self):
         """Return a string representation of this atom. Simplified version of :meth:`str` to work as a magic method."""
         return self.str()
 
-
     def __iter__(self):
         """Iteration through atom yields coordinates. Thanks to that instances of |Atom| can be passed to any method requiring as an argument a point or a vector in 3D space."""
         return iter(self.coords)
 
+    @property
+    def x(self) -> float:
+        return self.coords[0]
 
-    def _setx(self, value): self.coords = (value, self.coords[1], self.coords[2])
-    def _sety(self, value): self.coords = (self.coords[0], value, self.coords[2])
-    def _setz(self, value): self.coords = (self.coords[0], self.coords[1], value)
-    def _getx(self): return self.coords[0]
-    def _gety(self): return self.coords[1]
-    def _getz(self): return self.coords[2]
-    x = property(_getx, _setx)
-    y = property(_gety, _sety)
-    z = property(_getz, _setz)
+    @x.setter
+    def x(self, value: float) -> None:
+        self.coords = (value, self.coords[1], self.coords[2])
 
+    @property
+    def y(self) -> float:
+        return self.coords[1]
 
-    def _getsymbol(self):
+    @y.setter
+    def y(self, value: float) -> None:
+        self.coords = (self.coords[0], value, self.coords[2])
+
+    @property
+    def z(self) -> float:
+        return self.coords[2]
+
+    @z.setter
+    def z(self, value: float) -> None:
+        self.coords = (self.coords[0], self.coords[1], value)
+
+    @property
+    def symbol(self) -> str_type:
         if self.atnum == 0:
-            return self._dummysymbol
+            return self._dummysymbol  # type: ignore
         else:
             return PT.get_symbol(self.atnum)
-    def _setsymbol(self, symbol):
+
+    @symbol.setter
+    def symbol(self, symbol: str_type) -> None:
         if symbol.lower().capitalize() in PT.dummysymbols:
             self.atnum = 0
             self._dummysymbol = symbol.lower().capitalize()
         else:
             self.atnum = PT.get_atomic_number(symbol)
             self._dummysymbol = None
-    symbol = property(_getsymbol, _setsymbol)
 
-    def _getmass(self):
+    @property
+    def mass(self) -> float:
         return PT.get_mass(self.atnum)
-    mass = property(_getmass)
 
-    def _getradius(self):
+    @property
+    def radius(self) -> float:
         return PT.get_radius(self.atnum)
-    radius = property(_getradius)
 
-    def _getconnectors(self):
+    @property
+    def connectors(self) -> int:
         return PT.get_connectors(self.atnum)
-    connectors = property(_getconnectors)
 
-    def _ismetallic(self):
+    @property
+    def is_metallic(self) -> bool:
         return PT.get_metallic(self.atnum)
-    is_metallic = property(_ismetallic)
 
-    def _iselectronegative(self):
+    @property
+    def is_electronegative(self) -> bool:
         return PT.get_electronegative(self.atnum)
-    is_electronegative = property(_iselectronegative)
 
-
-
-    def translate(self, vector, unit='angstrom'):
+    def translate(self, vector: Iterable[float], unit: str_type = "angstrom") -> None:
         """Move this atom in space by *vector*, expressed in *unit*.
 
         *vector* should be an iterable container of length 3 (usually tuple, list or numpy array). *unit* describes unit of values stored in *vector*.
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
-        self.coords = tuple(i + j*ratio for i,j in zip(self, vector))
+        ratio = Units.conversion_ratio(unit, "angstrom")
+        self.coords = tuple(i + j * ratio for i, j in zip(self, vector))
 
-
-    def move_to(self, point, unit='angstrom'):
+    def move_to(self, point: Iterable[float], unit: str_type = "angstrom") -> None:
         """Move this atom to a given *point* in space, expressed in *unit*.
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*.
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
-        self.coords = tuple(i*ratio for i in point)
+        ratio = Units.conversion_ratio(unit, "angstrom")
+        self.coords = tuple(i * ratio for i in point)
 
-
-    def distance_to(self, point, unit='angstrom', result_unit='angstrom'):
+    def distance_to(
+        self, point: Iterable[float], unit: str_type = "angstrom", result_unit: str_type = "angstrom"
+    ) -> float:
         """Measure the distance between this atom and *point*.
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
+        ratio = Units.conversion_ratio(unit, "angstrom")
         res = 0.0
-        for i,j in zip(self,point):
-            res += (i - j*ratio)**2
-        return Units.convert(math.sqrt(res), 'angstrom', result_unit)
+        for i, j in zip(self, point):
+            res += (i - j * ratio) ** 2
+        return Units.convert(math.sqrt(res), "angstrom", result_unit)
 
-
-    def vector_to(self, point, unit='angstrom', result_unit='angstrom'):
+    def vector_to(
+        self, point: Iterable[float], unit: str_type = "angstrom", result_unit: str_type = "angstrom"
+    ) -> Tuple[float, float, float]:
         """Calculate a vector from this atom to *point*.
 
         *point* should be an iterable container of length 3 (for example: tuple, |Atom|, list, numpy array). *unit* describes unit of values stored in *point*. Returned value is expressed in *result_unit*.
 
         This method requires all atomic coordinates to be numerical values, :exc:`~exceptions.TypeError` is raised otherwise.
         """
-        ratio = Units.conversion_ratio(unit, 'angstrom')
-        resultratio = Units.conversion_ratio('angstrom', result_unit)
-        return tuple((i*ratio-j)*resultratio for i,j in zip(point, self))
+        ratio = Units.conversion_ratio(unit, "angstrom")
+        resultratio = Units.conversion_ratio("angstrom", result_unit)
+        return tuple((i * ratio - j) * resultratio for i, j in zip(point, self))
 
-
-    def angle(self, point1, point2, point1unit='angstrom', point2unit='angstrom',result_unit='radian'):
+    def angle(
+        self,
+        point1: Iterable[float],
+        point2: Iterable[float],
+        point1unit: str_type = "angstrom",
+        point2unit: str_type = "angstrom",
+        result_unit: str_type = "radian",
+    ) -> float:
         """Calculate an angle between vectors pointing from this atom to *point1* and *point2*.
 
         *point1* and *point2* should be iterable containers of length 3 (for example: tuple, |Atom|, list, numpy array). Values stored in them are expressed in, respectively, *point1unit* and *point2unit*. Returned value is expressed in *result_unit*.
@@ -229,10 +280,9 @@ class Atom:
         """
         num = np.dot(self.vector_to(point1, point1unit), self.vector_to(point2, point2unit))
         den = self.distance_to(point1, point1unit) * self.distance_to(point2, point2unit)
-        return Units.convert(math.acos(num/den), 'radian', result_unit)
+        return Units.convert(math.acos(num / den), "radian", result_unit)
 
-
-    def rotate(self, matrix):
+    def rotate(self, matrix: Union[Iterable[float], Iterable[Iterable[float]]]) -> None:
         """Rotate this atom according to a rotation *matrix*.
 
         *matrix* should be a container with 9 numerical values. It can be a list (tuple, numpy array etc.) listing matrix elements row-wise, either flat (``[1,2,3,4,5,6,7,8,9]``) or in two-level fashion (``[[1,2,3],[4,5,6],[7,8,9]]``).
@@ -241,9 +291,9 @@ class Atom:
 
             This method does not check if *matrix* is a proper rotation matrix.
         """
-        matrix = np.array(matrix).reshape(3,3)
+        matrix = np.array(matrix).reshape(3, 3)
         self.coords = tuple(np.dot(matrix, np.array(self.coords)))
 
-    def neighbors(self):
+    def neighbors(self) -> List["Bond"]:
         """Return a list of neighbors of this atom within the molecule. The list follows the same order as the ``bonds`` attribute."""
         return [b.other_end(self) for b in self.bonds]

@@ -20,7 +20,9 @@ In its simplest form, the input file indices.txt will contain only one or more e
 
    O C
 
-A more complicated file will contain specific atom indices. At the bottom of this page an example script (``get_water_indices.py``) is presented that creates such a file for all oxygen atoms that belong to a water molecule. 
+A more complicated file will contain specific atom indices. At the bottom of this page an example script (``get_water_indices.py``) is presented that creates such a file for all oxygen atoms that belong to a water molecule.
+
+Test with the example :download:`ams.rkf <../../../examples/BasicMDAnalysis/ams.rkf>` from a toy water MD simulation (or choose one of your own output files).
 
 The script ``get_hbonds.py``.
 

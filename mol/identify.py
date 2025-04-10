@@ -1,23 +1,18 @@
 from collections import OrderedDict
 from itertools import combinations
+from typing import Optional, Dict
 
 import numpy as np
 
-try:
-    import networkx
-    has_networkx = True
-except ImportError:
-    has_networkx = False
-
-from scm.plams.core.functions import add_to_class
+from scm.plams.core.functions import add_to_class, requires_optional_package
 from scm.plams.core.private import sha256
 from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.units import Units
 
-__all__ = ['label_atoms']
+__all__ = ["label_atoms"]
 
 
-possible_flags = ['BO', 'RS', 'EZ', 'DH', 'CO', 'H2']
+possible_flags = ["BO", "RS", "EZ", "DH", "CO", "H2"]
 
 
 def twist(v1, v2, v3, tolerance=None):
@@ -30,9 +25,9 @@ def twist(v1, v2, v3, tolerance=None):
     v1 /= np.linalg.norm(v1)
     v2 /= np.linalg.norm(v2)
     v3 /= np.linalg.norm(v3)
-    x = np.dot(v3, np.cross(v1,v2))
-    if abs(x) <= tolerance:  #v1, v2, v3 are coplanar
-        return 0, int(np.sign(np.dot(np.cross(v1,v2), np.cross(v2,v3))))
+    x = np.dot(v3, np.cross(v1, v2))
+    if abs(x) <= tolerance:  # v1, v2, v3 are coplanar
+        return 0, int(np.sign(np.dot(np.cross(v1, v2), np.cross(v2, v3))))
     return int(np.sign(x)), None
 
 
@@ -43,7 +38,7 @@ def bend(v1, v2, tolerance=None):
     tolerance = 7.5 if tolerance is None else tolerance
     v1 /= np.linalg.norm(v1)
     v2 /= np.linalg.norm(v2)
-    angle = Units.convert(abs(np.arccos(np.dot(v1,v2))), 'rad', 'deg')
+    angle = Units.convert(abs(np.arccos(np.dot(v1, v2))), "rad", "deg")
     if angle <= tolerance:
         return 1
     if abs(angle - 90.0) <= tolerance:
@@ -71,12 +66,14 @@ def initialize(molecule):
 def clear(molecule):
     """Remove ``IDname`` and ``IDdone`` attributes from all atoms in *molecule*."""
     for at in molecule:
-        if hasattr(at, 'IDname'): del at.IDname
-        if hasattr(at, 'IDdone'): del at.IDdone
+        if hasattr(at, "IDname"):
+            del at.IDname
+        if hasattr(at, "IDdone"):
+            del at.IDdone
 
 
 def iterate(molecule, flags):
-    """Perform one iteration of atom labeling alogrithm.
+    """Perform one iteration of atom labeling algorithm.
 
     First, mark all atoms that are unique and have only unique neighbors as "done". Then calculate new label for each atom that is not done. Return True if the number of different atom labels increased during this iteration.
     """
@@ -94,7 +91,7 @@ def iterate(molecule, flags):
             atom.IDname = atom.IDnew
 
     new_names = len(set(atom.IDname for atom in molecule))
-    return new_names > names #True means this iteration increased the number of distinct names
+    return new_names > names  # True means this iteration increased the number of distinct names
 
 
 def new_name(atom, flags):
@@ -105,34 +102,37 @@ def new_name(atom, flags):
 
     knocks = [knock(atom, bond, flags) for bond in atom.bonds]
     knocks.sort(key=lambda x: x[0])
-    labels = set(i[0] for i in knocks) #types of neighbors
+    labels = set(i[0] for i in knocks)  # types of neighbors
 
     more = []
-    if flags['RS'] and len(knocks) == 4 and len(labels) == 4: #4 different neighbors
+    if flags["RS"] and len(knocks) == 4 and len(labels) == 4:  # 4 different neighbors
         v1 = atom.vector_to(knocks[0][1])
         v2 = atom.vector_to(knocks[1][1])
         v3 = atom.vector_to(knocks[2][1])
-        more.append('RS'+str(twist(v1, v2, v3, flags.get('twist_tol'))))
+        more.append("RS" + str(twist(v1, v2, v3, flags.get("twist_tol"))))
 
-    if flags['CO'] and len(knocks) >= 4:
-        d = OrderedDict()
+    if flags["CO"] and len(knocks) >= 4:
+        d: OrderedDict = OrderedDict()
         for label, at in knocks:
             if label not in d:
                 d[label] = []
             d[label].append(at)
         for label in d:
             if len(d[label]) > 1:
-                angles = [bend(atom.vector_to(a), atom.vector_to(b), flags.get('bend_tol')) for a,b in combinations(d[label], 2)]
+                angles = [
+                    bend(atom.vector_to(a), atom.vector_to(b), flags.get("bend_tol"))
+                    for a, b in combinations(d[label], 2)
+                ]
                 angles.sort()
-            else: #len(d[label]) == 1
+            else:  # len(d[label]) == 1
                 v1 = atom.vector_to(d[label][0])
                 angles = []
                 for k in d:
                     if k != label:
-                        angles.append(sorted(bend(v1, atom.vector_to(a), flags.get('bend_tol')) for a in d[k]))
-            more.append('CO'+str(angles))
+                        angles.append(sorted(bend(v1, atom.vector_to(a), flags.get("bend_tol")) for a in d[k]))
+            more.append("CO" + str(angles))
 
-    return sha256('|'.join([atom.IDname] + [i[0] for i in knocks] + more))
+    return sha256("|".join([atom.IDname] + [i[0] for i in knocks] + more))
 
 
 def knock(A, bond, flags):
@@ -144,21 +144,21 @@ def knock(A, bond, flags):
     S = bond.other_end(A)
     ret = S.IDname
 
-    if flags['BO'] and bond.order != 1:
-        ret += 'BO' + str(bond.order)
+    if flags["BO"] and bond.order != 1:
+        ret += "BO" + str(bond.order)
 
-    if flags['H2']:
+    if flags["H2"]:
         S_nbors = S.neighbors()
         S_nbors.remove(A)
         if len(S_nbors) == 3 and len(unique_atoms(S_nbors)) == 3:
             S_nbors.sort(key=lambda x: x.IDname)
             v1, v2, v3 = [S.vector_to(i) for i in S_nbors]
-            t = twist(v1, v2, v3, flags.get('twist_tol'))
-            ret += 'H2' + str(t)
+            t = twist(v1, v2, v3, flags.get("twist_tol"))
+            ret += "H2" + str(t)
 
-    if flags['EZ'] or flags['DH']:
+    if flags["EZ"] or flags["DH"]:
         S_unique = unique_atoms(S.neighbors())
-        if A in S_unique: #*A* is a unique neighbor of *S*
+        if A in S_unique:  # *A* is a unique neighbor of *S*
             S_unique.remove(A)
             S_unique.sort(key=lambda x: x.IDname)
             for b in S.bonds:
@@ -173,12 +173,12 @@ def knock(A, bond, flags):
                         v1 = A.vector_to(S)
                         v2 = S.vector_to(N)
                         v3 = N.vector_to(F)
-                        t = twist(v1, v2, v3, flags.get('twist_tol'))
-                        if flags['DH']:
-                            ret += 'DH' + str(t)
-                        elif flags['EZ'] and b.order == 2 and t[0] == 0:
-                            #A-S=N-F are coplanar
-                            ret += 'EZ' + str(t[1])
+                        t = twist(v1, v2, v3, flags.get("twist_tol"))
+                        if flags["DH"]:
+                            ret += "DH" + str(t)
+                        elif flags["EZ"] and b.order == 2 and t[0] == 0:
+                            # A-S=N-F are coplanar
+                            ret += "EZ" + str(t[1])
                         break
 
     return (ret, S)
@@ -214,16 +214,16 @@ def molecule_name(molecule):
     """Compute the label of the whole *molecule* based on ``IDname`` attributes of all the atoms."""
     names = [atom.IDname for atom in molecule]
     names.sort()
-    return sha256(' '.join(names))
+    return sha256(" ".join(names))
 
 
 @add_to_class(Molecule)
-def label(self, level=1, keep_labels=False, flags=None):
+def label(self, level: int = 1, keep_labels: bool = False, flags: Optional[Dict[str, bool]] = None) -> str:
     """Compute the label of this molecule using chosen *level* of detail.
 
     Possible levels are:
 
-    *   **0**: does not pefrom any atom labeling, returns empirical formula (see :meth:`~scm.plams.mol.molecule.Molecule.get_formula`)
+    *   **0**: does not perform any atom labeling, returns empirical formula (see :meth:`~scm.plams.mol.molecule.Molecule.get_formula`)
     *   **1**: only direct connectivity is considered, without bond orders (in other words, treats all the bonds as single bonds)
     *   **2**: use connectivity and bond orders
     *   **3**: use connectivity, bond orders and some spatial information to distinguish R/S and E/Z isomers
@@ -240,7 +240,7 @@ def label(self, level=1, keep_labels=False, flags=None):
 
     .. note::
 
-        This method is a new PLAMS feature and its still somewhat experimental. The exact details of the algorithm can, and probably will, change in future. You are more than welcome to provide any feedback or feature requests.
+        This method is a new PLAMS feature and it's still somewhat experimental. The exact details of the algorithm can, and probably will, change in future. You are more than welcome to provide any feedback or feature requests.
 
     """
     if isinstance(level, (tuple, list)):
@@ -250,15 +250,15 @@ def label(self, level=1, keep_labels=False, flags=None):
         if level == 0:
             return self.get_formula()
 
-        flags = {i:False for i in possible_flags}
+        flags = {i: False for i in possible_flags}
         if level >= 2:
-            flags['BO'] = True
+            flags["BO"] = True
         if level >= 3:
-            flags['RS'] = True
-            flags['EZ'] = True
+            flags["RS"] = True
+            flags["EZ"] = True
         if level >= 4:
-            flags['DH'] = True
-            flags['CO'] = True
+            flags["DH"] = True
+            flags["CO"] = True
 
     if len(self.bonds) == 0:
         self.guess_bonds()
@@ -269,6 +269,7 @@ def label(self, level=1, keep_labels=False, flags=None):
     if not keep_labels:
         clear(self)
     return ret
+
 
 @add_to_class(Molecule)
 def set_local_labels(self, niter=2, flags=None):
@@ -281,88 +282,96 @@ def set_local_labels(self, niter=2, flags=None):
     If kept low (default niter), local structures over different molecules will have the same label.
     """
     if flags is None:
-        flags = {i:False for i in possible_flags}
+        flags = {i: False for i in possible_flags}
     initialize(self)
     for i in range(niter):
-        iterate(self,flags)
+        iterate(self, flags)
 
 
-if has_networkx:
+@requires_optional_package("networkx")
+def get_graph(mol, dic, level=1):
+    """
+    Create a networkx graph for this molecule that can be used to compare (all info is in the edge.weight attribute)
+    """
+    import networkx
 
-    def get_graph(mol, dic, level=1):
-        """
-        Create a networkx graph for this molecule that can be used to compare (all info is in the edge.weight attribute)
-        """
-        nats = len(mol)
-        mol = mol.copy()
-        if len(mol.bonds) == 0:
-            mol.guess_bonds()
-        if not hasattr(mol.atoms[0],'IDname'):
-            mol.label(level=1,keep_labels=True)
+    nats = len(mol)
+    mol = mol.copy()
+    if len(mol.bonds) == 0:
+        mol.guess_bonds()
+    if not hasattr(mol.atoms[0], "IDname"):
+        mol.label(level=1, keep_labels=True)
 
-        # Get the connectivigty matrix (remove bond orders)
-        matrix = mol.bond_matrix()
-        matrix[matrix>0] = 1
-        matrix = matrix.astype(np.int32)
+    # Get the connectivity matrix (remove bond orders)
+    matrix = mol.bond_matrix()
+    matrix[matrix > 0] = 1
+    matrix = matrix.astype(np.int32)
 
-        # Multilpy the graph entries with the unique labels for each atom
-        identifiers = np.array([dic[at.IDname] if at.IDname in dic.keys() else None for at in mol.atoms])
-        if None in identifiers:
-            return None
-        identifiers = identifiers.astype(np.int32)
-        matrix *= identifiers.reshape((1,nats))
-        matrix *= identifiers.reshape((nats,1))
+    # Multiply the graph entries with the unique labels for each atom
+    identifiers = np.array([dic[at.IDname] if at.IDname in dic.keys() else None for at in mol.atoms])
+    if None in identifiers:
+        return None
+    identifiers = identifiers.astype(np.int32)
+    matrix *= identifiers.reshape((1, nats))
+    matrix *= identifiers.reshape((nats, 1))
 
-        # Create the graph
-        graph = networkx.from_numpy_matrix(matrix)
+    # Create the graph
+    graph = networkx.from_numpy_array(matrix)
 
-        return graph
+    return graph
 
-    @add_to_class(Molecule)
-    def find_permutation(self, other, level=1):
-        """
-        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed.
-        """
-        # Get bonds and unique atomIDs if needed
-        if len(self.bonds) == 0:
-            self.guess_bonds()
-        if not hasattr(self.atoms[0],'IDname'):
-            self.label(level=1, keep_labels=True)
 
-        # Link atom IDs to integers
-        dic = {}
-        for at in self.atoms:
-            if not at.IDname in dic.keys():
-                dic[at.IDname] = max([v for v in dic.values()])+1 if len(dic)>0 else 1
+@add_to_class(Molecule)
+@requires_optional_package("networkx")
+def find_permutation(self, other, level=1):
+    """
+    Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is the applied permutation (as a list of integers) or ``None``, if no reordering was performed.
+    """
+    import networkx
 
-        # Create the graphs
-        graph = get_graph(self, dic, level=1)
-        graph2 = get_graph(other, dic, level=1)
-        if graph2 is None:
-            return None
+    # Get bonds and unique atomIDs if needed
+    if len(self.bonds) == 0:
+        self.guess_bonds()
+    if not hasattr(self.atoms[0], "IDname"):
+        self.label(level=1, keep_labels=True)
 
-        # Match
-        GM = networkx.isomorphism.GraphMatcher(graph, graph2, edge_match=networkx.isomorphism.categorical_edge_match('weight',1))
-        isomorphic = GM.is_isomorphic()
-        if not isomorphic:
-            return None
+    # Link atom IDs to integers
+    dic: Dict[str, int] = {}
+    for at in self.atoms:
+        if not at.IDname in dic.keys():
+            dic[at.IDname] = max([v for v in dic.values()]) + 1 if len(dic) > 0 else 1
 
-        # Invert the solution dictionary, to be able to reorder the first graph
-        dic = {}
-        for k,v in GM.mapping.items():
-            dic[v] = k
-        keys = sorted([key for key in dic.keys()])
-        indices = [dic[key] for key in keys]
+    # Create the graphs
+    graph = get_graph(self, dic, level=1)
+    graph2 = get_graph(other, dic, level=1)
+    if graph2 is None:
+        return None
 
-        return indices
+    # Match
+    GM = networkx.isomorphism.GraphMatcher(
+        graph, graph2, edge_match=networkx.isomorphism.categorical_edge_match("weight", 1)
+    )
+    isomorphic = GM.is_isomorphic()
+    if not isomorphic:
+        return None
 
-    @add_to_class(Molecule)
-    def reorder(self, other, level=1):
-        """
-        Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is a new ``Molecule`` object, or ``None`` if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
-        """
-        indices = self.find_permutation(other, level=level)
-        if indices is None:
-            return None
-        mol = self.get_fragment(indices)
-        return mol
+    # Invert the solution dictionary, to be able to reorder the first graph
+    dic = {}
+    for k, v in GM.mapping.items():
+        dic[v] = k
+    keys = sorted([key for key in dic.keys()])
+    indices = [dic[key] for key in keys]
+
+    return indices
+
+
+@add_to_class(Molecule)
+def reorder(self, other, level=1):
+    """
+    Reorder atoms in this molecule to match the order in some *other* molecule. The reordering is applied only if the perfect match is found. Returned value is a new ``Molecule`` object, or ``None`` if no reordering was performed. See also :func:`~scm.plams.mol.identify.find_permutation`.
+    """
+    indices = self.find_permutation(other, level=level)
+    if indices is None:
+        return None
+    mol = self.get_fragment(indices)
+    return mol

@@ -11,10 +11,14 @@ You can find more information about the AMS driver in the `corresponding part of
 Preparing input
 ~~~~~~~~~~~~~~~
 
-.. important::
+.. tip::
 
-    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
-    
+    Starting with AMS2024, you can also use `PISA <../../pisa/index.html>`_
+    (Python Input System for AMS) to specify the input to AMS.
+
+    However, almost all PLAMS examples still use the input description described
+    on this page.
+
 
 .. note::
 
@@ -240,7 +244,7 @@ or::
 A |Molecule| instance stored as the ``molecule`` attribute is automatically processed during the input file preparation and printed in the proper format (see `AMS manual <../../AMS/System.html>`_ for details).
 Various details of this process can be adjusted based on attributes of the supplied |Molecule|.
 If ``mol.lattice`` is nonempty, the information about periodicity vectors is printed to the ``lattice`` subblock of the ``system`` block.
-If the supplied lattice consists of 1 or 2 vectors that do not follow the convention requied by AMS (1D -- vector aligned with X axis; 2D -- vectors aligned with XY plane) the whole system is rotated to meet these criteria.
+If the supplied lattice consists of 1 or 2 vectors that do not follow the convention required by AMS (1D -- vector aligned with X axis; 2D -- vectors aligned with XY plane) the whole system is rotated to meet these criteria.
 If ``mol.properties.charge`` exists, it is used as the ``charge`` key in the ``system`` block.
 
 Moreover, each |Atom| present in the supplied |Molecule| has its own ``properties`` attribute that can be used to adjust the details of the line generated for this atom in the ``atoms`` block:
@@ -314,7 +318,7 @@ Finally, one could use the ``LoadSystem`` top-level key and point to an existing
 Multiple molecules
 ++++++++++++++++++
 
-The AMS driver allows multiple occurences of the ``system`` block in the input file.
+The AMS driver allows multiple occurrences of the ``system`` block in the input file.
 Different ``system`` blocks are distinguished by their names defined in the header of the block::
 
     system protein
@@ -335,7 +339,7 @@ Such a dictionary should have strings as keys and |Molecule| instances as values
 The main system should have ``''`` (an empty string) as a key.
 
 Other methods of providing the contents of the ``system`` block mentioned above can also be used to provide multiple ``system`` blocks.
-``myjob.settings.input.ams.system`` can be a list containg multiple |Settings| instances, one for each system.
+``myjob.settings.input.ams.system`` can be a list containing multiple |Settings| instances, one for each system.
 Each such instance can be have manually filled ``atoms`` block or use the ``geometryfile`` key.
 Special header ``_h`` key can be used to set headers and hence names of different ``system`` blocks.
 Multiple instances of the ``LoadSystem`` key (also provided as a list, also with ``_h`` headers) can also be used.

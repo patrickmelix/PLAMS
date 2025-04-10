@@ -1,4 +1,6 @@
+#!/usr/bin/env amspython
 # Workflow with PLAMS
+from scm.plams import AMSResults, Units, add_to_class, Settings, read_molecules, AMSJob
 
 # A couple of useful function for extracting results:
 
@@ -7,12 +9,8 @@
 def get_excitations(results):
     """Returns excitation energies (in eV) and oscillator strenghts (in Debye)."""
     if results.job.ok():
-        exci_energies_au = results.readrkf(
-            "Excitations SS A", "excenergies", file="engine"
-        )
-        oscillator_str_au = results.readrkf(
-            "Excitations SS A", "oscillator strengths", file="engine"
-        )
+        exci_energies_au = results.readrkf("Excitations SS A", "excenergies", file="engine")
+        oscillator_str_au = results.readrkf("Excitations SS A", "oscillator strengths", file="engine")
         # The results are stored in atomic units. Convert them to more convenient units:
         exci_energies = Units.convert(exci_energies_au, "au", "eV")
         oscillator_str = Units.convert(oscillator_str_au, "au", "Debye")
@@ -22,9 +20,7 @@ def get_excitations(results):
 
 
 @add_to_class(AMSResults)
-def has_good_excitations(
-    results, min_energy, max_energy, oscillator_str_threshold=1e-4
-):
+def has_good_excitations(results, min_energy, max_energy, oscillator_str_threshold=1e-4):
     """Returns True if there is at least one excitation with non-vanishing oscillator strenght
     in the energy range [min_energy, max_energy]. Unit for min_energy and max energy: eV.
     """

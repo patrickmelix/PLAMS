@@ -101,7 +101,7 @@ PLAMS automatically creates the indented structure of the previous example toget
 Notice that *CP2K* requires the explicit declaration of the basis set together with the charge and the name of the potential used for each one of the atoms.
 In the previous example the basis for the carbon is *DZVP-MOLOPT-SR-GTH*, while the potential is *GTH-PBE* and the charge *q4*.
 
-The input parser also allows for header values like in this example *&LOCALIZE T  &END* by using the ``<some_section>._h`` (for header) notation in the |Settings| instance (just like in |ADFJob|).
+The input parser also allows for header values like in this example *&LOCALIZE T  &END* by using the ``<some_section>._h`` (for header) notation in the |Settings| instance.
 
 Inclusion of external files by using the *@INCLUDE* notation of Cp2k is supported. Also the *@SET* and *@IF* keys can be used, just replace the *@* sign by ``at_`` in the definition of your |Settings|.
 If you need some files to be copied to the actual execution directory, pass them to the constructor using the ``copy=`` option. See the API below.

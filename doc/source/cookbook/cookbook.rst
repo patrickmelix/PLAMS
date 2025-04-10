@@ -18,6 +18,30 @@ The :func:`~scm.plams.init` function creates a unique folder. If there is anothe
     plams.init(folder=folder_path)
     real_absolute_folder_path = plams.config.default_jobmanager.workdir
 
+Load job results from a plams work dir
+--------------------------------------
+
+It is quite common that your script first makes and runs the jobs, followed by an analysis of the results. If you just want to change the analysis without rerunning the jobs this is a possible setup
+
+.. code-block:: python
+
+    import scm.plams as plams
+
+    # here goes some code that makes the jobs put in a dictionary jobs_to_run
+
+    if args.restart_folder:
+       print(f'loading job results from: {args.restart_folder}')
+       loaded_jobs=plams.load_all(args.restart_folder)
+       job_results={}
+       for dill_name,job in loaded_jobs.items():
+          job_results[job.name] = job.results
+
+    else:
+       print('running jobs')
+
+       job_results = { job_name: job.run() for job_name,job in jobs_to_run.items() }
+
+    # here comes code to analyze the results
 
 Settings and input
 ******************
@@ -108,6 +132,26 @@ will generate the following text input when used for an |AMSJob|:
       SomeOption 7
     End
 
+
+Create a "free" input block
+---------------------------
+
+These |Settings|
+
+.. code-block:: python
+
+    sett = Settings()
+    sett.input.ams.SomeInputBlock._1 = 'line 1'
+    sett.input.ams.SomeInputBlock._2 = 'line 2'
+
+will generate the following text input when used for an |AMSJob|:
+
+::
+
+    SomeInputBlock
+        line 1
+        line 2
+    End
 
 Convert an AMS text input into an AMS job
 -----------------------------------------
@@ -288,7 +332,7 @@ This is how one searches for the smallest set of rings in a molecule:
    dicyclopentadiene = from_smiles('C1C=CC2C1C3CC2C=C3')
    rdmol = to_rdmol(dicyclopentadiene)
 
-   # Calculate smalles set of rings
+   # Calculate smallest set of rings
    for atoms in Chem.GetSymmSSSR(rdmol):
         print ([atom_id for atom_id in atoms], len(atoms))
 
@@ -411,7 +455,7 @@ KFBrowser
 
    \
      | **1.** Open KFBrowser in the GUI via **SCM → KFBrowser**
-     | **2.** By default KFBrowser opens the `ams.rkf` file. Where neccessary, switch to **File → open → <engine>.rkf**
+     | **2.** By default KFBrowser opens the `ams.rkf` file. Where necessary, switch to **File → open → <engine>.rkf**
      | **3.** Press **ctrl + e** or select **File → Expert Mode** to display the stored file contents
      | **4.** Find the entry of interest. While this is a sometimes not trivial step, most often the required variable is found in either the ``Properties`` or ``AMSResults`` sections.
      | **5.** Once found, the names for `section` and `variable` listed in the rkf file directly corresponds to the `section`/`variable` pair to be used in the `readrkf` function as shown above.
@@ -713,7 +757,7 @@ The only change you should make is *not* to set the maximum number of jobs.
    The execution of the job is implemented as a Slurm job step, which may need to wait for free resources before actually starting.
    As Slurm is taking care of limiting the number of simultaneously executing jobs, we no longer need to do that through the PLAMS |JobRunner| and can therefore skip the ``maxjobs`` argument of its constructor.
 
-Furthermore you may need to wrap the call to the PLAMS :ref:`launch script <master-script>` in a job script, in which we recommend you ``cd`` to the directory from which the job was submitted.
+We recommend you ``cd`` to the directory from which the job was submitted.
 This makes sure you will find the PLAMS working directory in the normal location.
 (If ``$AMSBIN`` is not already in your environment, this is also the place to `set up the AMS environment <../../Installation/Installation.html#set-up-the-environment>`__.)
 
@@ -721,15 +765,15 @@ This makes sure you will find the PLAMS working directory in the normal location
 
    #!/bin/sh
    cd "$SLURM_SUBMIT_DIR"
-   $AMSBIN/plams myscript.plms
+   $AMSBIN/amspython myscript.py
 
 The above job script can then simply be submitted to the batch system::
 
    sbatch [...] myscript.sh
 
-Alternatively you can also skip the job script, and submit the PLAMS :ref:`launch script <master-script>` itself::
+Alternatively you can also skip the job script, and submit the ``amspython`` command directly::
 
-   sbatch [...] --chdir=. $AMSBIN/plams myscript.plms
+    sbatch [...] --chdir=. $AMSBIN/amspython myscript.py
 
 .. warning::
 

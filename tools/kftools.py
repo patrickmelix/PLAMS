@@ -4,26 +4,31 @@ import struct
 import subprocess
 from bisect import bisect
 from collections import OrderedDict
-from typing import Dict, Set
+from typing import Dict, Set, Union, List, Sequence, Iterator, Optional, Any
 
+import numpy as np
 from scm.plams.core.errors import FileError
 from scm.plams.core.functions import log
 from scm.plams.core.private import saferun
 import numpy
 
-__all__ = ['KFFile', 'KFReader', 'KFHistory']
+__all__ = ["KFFile", "KFReader", "KFHistory"]
+
+TMultiValue = Union[int, float, bool]
+TValue = Union[TMultiValue, str]
+TRead = Union[TValue, Sequence[TMultiValue]]
+TWrite = Union[TValue, Sequence[TValue]]
 
 
 def _run_kftool(*args, **kwargs):
     startupinfo = None
-    if os.name == 'nt':
+    if os.name == "nt":
         # Prevent unwanted console windows from popping up on Windows
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
+        startupinfo = subprocess.STARTUPINFO()  # type: ignore
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW  # type: ignore
+        startupinfo.wShowWindow = subprocess.SW_HIDE  # type: ignore
 
     return saferun(*args, **kwargs, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, startupinfo=startupinfo)
-
 
 
 class KFReader:
@@ -43,23 +48,22 @@ class KFReader:
 
     """
 
-    _sizes = {'s':1,'i':4,'d':8,'q':8}
+    _sizes = {"s": 1, "i": 4, "d": 8, "q": 8}
 
     def __init__(self, path, blocksize=4096, autodetect=True):
         if os.path.isfile(path):
             self.path = os.path.abspath(path)
         else:
-            raise FileError('File {} not present'.format(path))
+            raise FileError("File {} not present".format(path))
 
         self._blocksize = blocksize
-        self.endian = '<'   # endian: '<' = little, '>' = big
-        self.word = 'i'     # length of int: 'i' = 4 bits, 'q' = 8 bits
-        self._sections = None
+        self.endian = "<"  # endian: '<' = little, '>' = big
+        self.word = "i"  # length of int: 'i' = 4 bits, 'q' = 8 bits
+        self._sections: Optional[Dict] = None
         if autodetect:
             self._autodetect()
 
-
-    def read(self, section, variable):
+    def read(self, section: str, variable: str) -> TRead:  # type: ignore
         """Extract and return data for a *variable* located in a *section*.
 
         For single-value numerical or boolean variables returned value is a single number or bool. For longer variables this method returns a list of values. For string variables a single string is returned.
@@ -69,23 +73,23 @@ class KFReader:
             self._create_index()
 
         try:
-            tmp = self._sections[section]
+            tmp = self._sections[section]  # type: ignore
         except KeyError:
-            raise KeyError('Section {} not present in {}'.format(section, self.path))
+            raise KeyError("Section {} not present in {}".format(section, self.path))
         try:
             vtype, vlb, vstart, vlen = tmp[variable]
         except KeyError:
-            raise KeyError('Variable {} not present in section {} of {}'.format(variable, section, self.path))
+            raise KeyError("Variable {} not present in section {} of {}".format(variable, section, self.path))
 
         ret = []
         first = True
-        with open(self.path, 'rb') as f:
+        with open(self.path, "rb") as f:
             for i in KFReader._datablocks(self._data[section], vlb):
                 if first:
-                    ret = self._get_data(self._read_block(f,i), vtype)[vstart-1:]
+                    ret = self._get_data(self._read_block(f, i), vtype)[vstart - 1 :]
                     first = False
                 else:
-                    ret += self._get_data(self._read_block(f,i), vtype)
+                    ret += self._get_data(self._read_block(f, i), vtype)
                 if len(ret) >= vlen:
                     ret = ret[:vlen]
                     if isinstance(ret, bytes):
@@ -98,59 +102,71 @@ class KFReader:
                     else:
                         return ret
 
-
-    def variable_type(self, section, variable):
+    def variable_type(self, section: str, variable: str) -> int:
         """Return the integer code of the variable's type (int:1, float:2, string:3, bool:4)"""
+
+        if self._sections is None:
+            self._create_index()
+
         try:
-            vtype, vlb, vstart, vlen = self._sections[section][variable]
+            vtype, vlb, vstart, vlen = self._sections[section][variable]  # type: ignore
         except KeyError:
             raise KeyError(f"Section '{section}' or variable '{variable}' not present in '{self.path}'")
         return vtype
-
 
     def __iter__(self):
         """Iteration yields pairs of section name and variable name."""
         if self._sections is None:
             self._create_index()
-        for section in self._sections:
-            for variable in self._sections[section]:
+        for section in self._sections:  # type: ignore
+            for variable in self._sections[section]:  # type: ignore
                 yield section, variable
-
 
     def _autodetect(self):
         """Try to automatically detect the format (int size and endian) of this KF file."""
-        with open(self.path, 'rb') as f:
+        with open(self.path, "rb") as f:
             b = f.read(128)
 
-        blocksize = struct.unpack(b'i',b[28:32])[0]
+        blocksize = struct.unpack(b"i", b[28:32])[0]
         self._blocksize = 4096 if blocksize == 538976288 else blocksize
-        log('Block size of {} detected as {}'.format(self.path, self._blocksize), 7)
+        log("Block size of {} detected as {}".format(self.path, self._blocksize), 7)
 
         one = b[80:84]
 
-        if struct.unpack(b'32s',b[48:80])[0] == b'SUPERINDEX                      ':
-            self.word = 'i'
-        elif struct.unpack(b'32s',b[64:96])[0] == b'SUPERINDEX                      ':
-            self.word = 'q'
+        if struct.unpack(b"32s", b[48:80])[0] == b"SUPERINDEX                      ":
+            self.word = "i"
+        elif struct.unpack(b"32s", b[64:96])[0] == b"SUPERINDEX                      ":
+            self.word = "q"
             one = b[96:104]
         else:
-            log('WARNING: Unable to autodetect integer size and endian of {}. Using defaults (4 bytes and little endian)'.format(self.path), 3)
+            log(
+                "WARNING: Unable to autodetect integer size and endian of {}. Using defaults (4 bytes and little endian)".format(
+                    self.path
+                ),
+                3,
+            )
             return
 
-        for e in ['<', '>']:
-            if struct.unpack(str(e+self.word), one)[0] == 1:
+        for e in ["<", ">"]:
+            if struct.unpack(str(e + self.word), one)[0] == 1:
                 self.endian = e
-                d = {'q':'8 bytes','i':'4 bytes','<':'little endian','>':'big endian',}
-                log(('Format of {0} detected to {'+self.word+'} and {'+self.endian+'}').format(self.path, **d), 7)
-
+                d = {
+                    "q": "8 bytes",
+                    "i": "4 bytes",
+                    "<": "little endian",
+                    ">": "big endian",
+                }
+                log(
+                    ("Format of {0} detected to {" + self.word + "} and {" + self.endian + "}").format(self.path, **d),
+                    7,
+                )
 
     def _read_block(self, f, pos):
         """Read a single block of binary data from posistion *pos* in file *f*."""
-        f.seek((pos-1)*self._blocksize)
+        f.seek((pos - 1) * self._blocksize)
         return f.read(self._blocksize)
 
-
-    def _parse(self, block, format):   #format = [(32,'s'),(4,'i'),(2,'d')]
+    def _parse(self, block, format):  # format = [(32,'s'),(4,'i'),(2,'d')]
         """Translate a *block* of binary data into list of values in specified *format*.
 
         *format* should be a list of pairs *(a,t)* where *t* is one of the following characters: ``'s'`` for string (bytes), ``'i'`` for 32-bit integer, ``'q'`` for 64-bit integer and *a* is the number of occurrences (or length of a string).
@@ -159,7 +175,7 @@ class KFReader:
         """
         step = 0
         formatstring = self.endian
-        for a,t in format:
+        for a, t in format:
             step += a * self._sizes[t]
             formatstring += str(a) + t
 
@@ -169,28 +185,25 @@ class KFReader:
         else:
             return []
 
-
     def _get_data(self, datablock, vtype):
-        """Extract all data of a given type from a single data block. Returned value is a list of values (int, float, or bool) or a single "bytes" object.
-        """
+        """Extract all data of a given type from a single data block. Returned value is a list of values (int, float, or bool) or a single "bytes" object."""
         hlen = 4 * self._sizes[self.word]
-        i,d,s,b = self._parse(datablock[:hlen],[(4,self.word)])[0]
-        contents = self._parse(datablock[hlen:], zip((i,d,s,b),(self.word,'d','s',self.word)))
+        i, d, s, b = self._parse(datablock[:hlen], [(4, self.word)])[0]
+        contents = self._parse(datablock[hlen:], zip((i, d, s, b), (self.word, "d", "s", self.word)))
         if contents:
             contents = contents[0]  # there won't be more than one chunk of data in any data block
             if vtype == 1:
                 return list(contents[:i])
             elif vtype == 2:
-                return list(contents[i:i+d])
+                return list(contents[i : i + d])
             elif vtype == 3:
-                return contents[i+d]
+                return contents[i + d]
             elif vtype == 4:
-                return list(map(bool,contents[i+d+1:]))
+                return list(map(bool, contents[i + d + 1 :]))
             else:
-                raise KeyError('Unknown vtype')
+                raise KeyError("Unknown vtype")
         else:
             return []
-
 
     def _create_index(self):
         """Find and parse relevant index blocks of KFFile to extract the information about location of all sections and variables.
@@ -200,52 +213,60 @@ class KFReader:
         The second dictionary, ``_sections``, is used to locate each variable within its section. For each section, it contains another dictionary of each variable of this section. So ``_section[sec][var]`` contains all information needed to extract variable ``var`` from section ``sec``. This is a 4-tuple containing the following information: variable type, logic block in which the variable first occurs, position within this block where its data start and the length of the variable. Combining this information with mapping stored in ``_data`` allows to extract each single variable.
         """
 
-        hlen = 32 + 7 * self._sizes[self.word]   #length of index block header
+        hlen = 32 + 7 * self._sizes[self.word]  # length of index block header
 
-        with open(self.path, 'rb') as f:
-            superlist = self._parse(self._read_block(f, 1), [(32,'s'),(4,self.word)])
+        with open(self.path, "rb") as f:
+            superlist = self._parse(self._read_block(f, 1), [(32, "s"), (4, self.word)])
             nextsuper = superlist[0][4]
             while nextsuper != 1:
-                nsl = self._parse(self._read_block(f, nextsuper), [(32,'s'),(4,self.word)])
+                nsl = self._parse(self._read_block(f, nextsuper), [(32, "s"), (4, self.word)])
                 nextsuper = nsl[0][4]
                 superlist += nsl
 
-            self._data = {}   #list of triples to convert logical to physical block numbers
+            # list of triples to convert logical to physical block numbers
+            self._data: Dict[str, Any] = {}
             self._sections = {}
-            for key, pb, lb, le, ty in superlist:   #pb=physical block, lb=logical block, le=length, ty=type (3 for index, 4 for data)
+            for (
+                key,
+                pb,
+                lb,
+                le,
+                ty,
+            ) in superlist:  # pb=physical block, lb=logical block, le=length, ty=type (3 for index, 4 for data)
                 try:
                     key = key.decode()
                 except UnicodeDecodeError:
                     key = key.decode("Latin-1")
-                key = key.rstrip(' ')
-                if key in ['SUPERINDEX', 'EMPTY']: continue
-                if ty == 4:   #data block
+                key = key.rstrip(" ")
+                if key in ["SUPERINDEX", "EMPTY"]:
+                    continue
+                if ty == 4:  # data block
                     if key not in self._data:
                         self._data[key] = []
-                    self._data[key].append((lb, pb, pb+le))
-                elif ty == 3:   #index block
+                    self._data[key].append((lb, pb, pb + le))
+                elif ty == 3:  # index block
                     if key not in self._sections:
                         self._sections[key] = {}
                     for i in range(le):
-                        indexblock = self._read_block(f, pb+i)
-                        body = self._parse(indexblock[hlen:],[(32,'s'),(6,self.word)])
+                        indexblock = self._read_block(f, pb + i)
+                        body = self._parse(indexblock[hlen:], [(32, "s"), (6, self.word)])
                         for var, vlb, vstart, vlen, _xx1, vused, vtype in body:
                             try:
                                 var = var.decode()
                             except UnicodeDecodeError:
                                 var = var.decode("Latin-1")
-                            var = var.rstrip(' ')
-                            if var == 'EMPTY': continue
+                            var = var.rstrip(" ")
+                            if var == "EMPTY":
+                                continue
                             self._sections[key][var] = (vtype, vlb, vstart, vused)
 
-            for k,v in self._data.items():
+            for k, v in self._data.items():
                 lbs = []
                 pbs = []
                 for lb, first, last in sorted(v):
                     lbs.append(lb)
                     pbs.append((first, last))
                 self._data[k] = (lbs, pbs)
-
 
     @staticmethod
     def _datablocks(lst, n=1):
@@ -263,11 +284,9 @@ class KFReader:
                 ret, last = lst[1][i]
 
 
-
-#===========================================================================
-#===========================================================================
-#===========================================================================
-
+# ===========================================================================
+# ===========================================================================
+# ===========================================================================
 
 
 class KFFile:
@@ -297,11 +316,17 @@ class KFFile:
         mykf.write('Geometry','xyz', somevariable)
 
     """
-    _types = {int : (1, 8, lambda x:'%10i'%x),
-            float : (2, 3, lambda x:'%26.16e'%x),
-              str : (3, 80, lambda x: x.replace(chr(10),chr(255))), # in the ascii representation of a kf, '\n' (ascii #10) is concoded as 'ÿ' (ascii #255)
-             bool : (4, 80, lambda x: 'T' if x else 'F')}
 
+    _types = {
+        int: (1, 8, lambda x: "%10i" % x),
+        float: (2, 3, lambda x: "%26.16e" % x),
+        str: (
+            3,
+            80,
+            lambda x: x.replace(chr(10), chr(255)),
+        ),  # in the ascii representation of a kf, '\n' (ascii #10) is concoded as 'ÿ' (ascii #255)
+        bool: (4, 80, lambda x: "T" if x else "F"),
+    }
 
     def __init__(self, path, autosave=True):
         self.autosave = autosave
@@ -309,8 +334,7 @@ class KFFile:
         self.tmpdata = OrderedDict()
         self.reader = KFReader(self.path) if os.path.isfile(self.path) else None
 
-
-    def read(self, section, variable, return_as_list=False):
+    def read(self, section: str, variable: str, return_as_list: bool = False) -> TRead:
         """Extract and return data for a *variable* located in a *section*.
 
         By default, for single-value numerical or boolean variables returned value is a single number or bool. For longer variables this method returns a list of values. For string variables a single string is returned. This behavior can be changed by setting *return_as_list* parameter to ``True``. In that case the returned value is always a list of numbers (possibly of length 1) or a single string.
@@ -318,28 +342,34 @@ class KFFile:
         if section in self.tmpdata and variable in self.tmpdata[section]:
             ret = self.tmpdata[section][variable]
         else:
+            if self.reader is None:
+                raise FileError(f"Could not find file '{self.path}' to read")
             ret = self.reader.read(section, variable)
-        if return_as_list and isinstance(ret, (int,float,bool)):
+        if return_as_list and isinstance(ret, (int, float, bool)):
             ret = [ret]
         return ret
 
-
-    def write(self, section, variable, value, value_type=None):
+    def write(
+        self,
+        section: str,
+        variable: str,
+        value: TWrite,
+        value_type=None,
+    ) -> None:
         """Write a *variable* with a *value* in a *section* . If such a variable already exists in this section, the old value is overwritten."""
-        if not isinstance(value, (int,bool,float,str,list)):
-            raise ValueError('Trying to store improper value in KFFile')
-        trick_value=None
+        if not isinstance(value, (int, bool, float, str, list)):
+            raise ValueError("Trying to store improper value in KFFile")
+        trick_value = None
         if isinstance(value, list):
-            if len(value) == 0 and value_type==None:
-                raise ValueError('Cannot store empty lists in KFFile without a type')
-            if len(value) == 0 and  value_type !=None:
-                trick_value={}
-                trick_value['empty_list_type']=value_type
+            if len(value) == 0 and value_type is None:
+                raise ValueError("Cannot store empty lists in KFFile without a type")
+            if len(value) == 0 and value_type is not None:
+                trick_value = {"empty_list_type": value_type}
             else:
                 if any(not isinstance(i, type(value[0])) for i in value):
-                    raise ValueError('Lists stored in KFFile must have all elements of the same type')
-                if not isinstance(value[0], (int,bool,float,str)):
-                    raise ValueError('Only lists of int, float, str or bool can be stored in KFFile')
+                    raise ValueError("Lists stored in KFFile must have all elements of the same type")
+                if not isinstance(value[0], (int, bool, float, str)):
+                    raise ValueError("Only lists of int, float, str or bool can be stored in KFFile")
 
         if section not in self.tmpdata:
             self.tmpdata[section] = OrderedDict()
@@ -352,54 +382,48 @@ class KFFile:
         if self.autosave:
             self.save()
 
-
-    def save(self):
+    def save(self) -> None:
         """Save all changes stored in ``tmpdata`` to physical file on a disk."""
         if len(self.tmpdata) > 0 and any(len(i) > 0 for i in self.tmpdata.values()):
-            txt = ''
+            txt = ""
             newvars = []
             for section in self.tmpdata:
                 for variable in self.tmpdata[section]:
                     val = self.tmpdata[section][variable]
-                    txt += '{}\n{}\n{}\n'.format(section, variable, KFFile._str(val))
-                    newvars.append(section+'%'+variable)
+                    txt += "{}\n{}\n{}\n".format(section, variable, KFFile._str(val))
+                    newvars.append(section + "%" + variable)
             self.tmpdata = OrderedDict()
 
-            tmpfile = self.path+'.tmp' if self.reader else self.path
-            _run_kftool(['udmpkf', tmpfile], input=txt.encode('iso8859'))
+            tmpfile = self.path + ".tmp" if self.reader else self.path
+            _run_kftool(["udmpkf", tmpfile], input=txt.encode("iso8859"))
             if self.reader:
-                _run_kftool(['cpkf', tmpfile, self.path] + newvars)
+                _run_kftool(["cpkf", tmpfile, self.path] + newvars)
                 os.remove(tmpfile)
             self.reader = KFReader(self.path)
 
-
-    def delete_section(self, section):
+    def delete_section(self, section: str) -> None:
         """Delete the entire *section* from this KF file."""
         if section in self.tmpdata:
             del self.tmpdata[section]
         if self.reader:
             if not self.reader._sections:
                 self.reader._create_index()
-            if section in self.reader._sections:
-                tmpfile = self.path+'.tmp'
-                _run_kftool(['cpkf', self.path, tmpfile, '-rm', section])
+            if section in self.reader._sections:  # type: ignore
+                tmpfile = self.path + ".tmp"
+                _run_kftool(["cpkf", self.path, tmpfile, "-rm", section])
                 shutil.move(tmpfile, self.path)
                 self.reader = KFReader(self.path)
 
-
-    def sections(self):
+    def sections(self) -> List[str]:
         """Return a list with all section names, ordered alphabetically."""
         ret = set(self.tmpdata)
         if self.reader:
             if self.reader._sections is None:
                 self.reader._create_index()
-            ret |= set(self.reader._sections)
-        ret = list(ret)
-        ret.sort()
-        return ret
+            ret |= set(self.reader._sections)  # type: ignore
+        return sorted(ret)
 
-
-    def read_section(self, section):
+    def read_section(self, section: str) -> Dict[str, TRead]:
         """Return a dictionary with all variables from a given *section*.
 
         .. note::
@@ -412,11 +436,16 @@ class KFFile:
             if sec == section:
                 ret[var] = self.read(sec, var)
         if len(ret) == 0:
-            log("WARNING: Section '{}' not present in {} or present, but empty. Returning empty dictionary".format(section, self.path), 1)
+            log(
+                "WARNING: Section '{}' not present in {} or present, but empty. Returning empty dictionary".format(
+                    section, self.path
+                ),
+                1,
+            )
         return ret
 
     def keys(self) -> Set[str]:
-        """ Returns all sections in the current instance """
+        """Returns all sections in the current instance"""
         return set([sec for sec, var in self])
 
     def get_skeleton(self) -> Dict[str, Set[str]]:
@@ -424,104 +453,98 @@ class KFFile:
 
         Each key in that dictionary corresponds to a section name of the KF file
         with the value being a set of variable names."""
-        ret = {}
+        ret: Dict[str, Set[str]] = {}
         for sec, var in self:
             if sec not in ret:
                 ret[sec] = set()
             ret[sec].add(var)
         return ret
 
-
     def __getitem__(self, name):
         """Allow to use ``x = mykf['section%variable']`` or ``x = mykf[('section','variable')]`` instead of ``x = kf.read('section', 'variable')``."""
         section, variable = KFFile._split(name)
         return self.read(section, variable)
-
 
     def __setitem__(self, name, value):
         """Allow to use ``mykf['section%variable'] = value`` or ``mykf[('section','variable')] = value`` instead of ``kf.write('section', 'variable', value)``."""
         section, variable = KFFile._split(name)
         self.write(section, variable, value)
 
-
     def __iter__(self):
         """Iteration yields pairs of section name and variable name."""
-        ret = set()
+        ret_set = set()
         if self.reader:
-            for sec,var in self.reader:
-                ret.add((sec,var))
+            for sec, var in self.reader:
+                ret_set.add((sec, var))
         for sec in self.tmpdata:
             for var in self.tmpdata[sec]:
-                ret.add((sec,var))
-        ret = list(ret)
-        ret.sort(key=lambda x: x[0]+x[1])
+                ret_set.add((sec, var))
+        ret = list(ret_set)
+        ret.sort(key=lambda x: x[0] + x[1])
         for i in ret:
             yield i
-
 
     def __contains__(self, arg):
         """Implements Python ``in`` operator for KFFiles. *arg* can be a single string with a section name or a pair of strings (section, variable)."""
         if isinstance(arg, str):
             return arg in self.sections()
-        if isinstance(arg, tuple) and len(arg) == 2 and isinstance(arg[0],str) and isinstance(arg[1],str):
+        if isinstance(arg, tuple) and len(arg) == 2 and isinstance(arg[0], str) and isinstance(arg[1], str):
             try:
                 self.read(*arg)
                 return True
-            except (KeyError,AttributeError):
+            except (KeyError, AttributeError, FileError):
                 return False
         raise TypeError("'in <KFFile>' requires string of a pair of strings as left operand")
-
 
     @staticmethod
     def _split(name):
         """Ensure that a key used in bracket notation is of the form ``'section%variable'`` or ``('section','variable')``. If so, return a tuple ``('section','variable')``."""
         if isinstance(name, tuple) and len(name) == 2:
-                return name[0], name[1]
+            return name[0], name[1]
         if isinstance(name, str):
-            s = name.split('%')
+            s = name.split("%")
             if len(s) == 2:
                 return s[0], s[1]
-        raise ValueError('Improper key used in KFFile dictionary-like notation')
-
+        raise ValueError("Improper key used in KFFile dictionary-like notation")
 
     @staticmethod
     def _str(val):
         """Return a string representation of *val* in the form that can be understood by ``udmpkf``."""
 
-        if isinstance(val,dict):
-            valtype = val['empty_list_type']
-            val=[]
+        if isinstance(val, dict):
+            valtype = val["empty_list_type"]
+            val = []
         else:
-            if isinstance(val, (int,bool,float)):
+            if isinstance(val, (int, bool, float)):
                 val = [val]
-            if isinstance (val,str):
-                if len(val)==0:
-                    valtype=type('')
-            if len(val)>0:
+            if isinstance(val, str):
+                if len(val) == 0:
+                    valtype = type("")
+            if len(val) > 0:
                 valtype = type(val[0])
 
-        t,step,f = KFFile._types[valtype]
+        t, step, f = KFFile._types[valtype]
         l = len(val)
-        if (valtype == str and isinstance(val, list)):
-            #udmpkf reads 160 characters per variable, split over max. 80 per line, to make a string array
+        if valtype == str and isinstance(val, list):
+            # udmpkf reads 160 characters per variable, split over max. 80 per line, to make a string array
             l = l * 160
             step = 1
             splitstrings = [[s[0:80], s[80:160]] for s in val]
             val = [item for sublist in splitstrings for item in sublist]
 
-        ret = '%10i%10i%10i'%(l,l,t)
-        for i,el in enumerate(val):
-            if i%step == 0: ret += '\n'
+        ret = "%10i%10i%10i" % (l, l, t)
+        for i, el in enumerate(val):
+            if i % step == 0:
+                ret += "\n"
             ret += f(el)
         if len(val) == 0:
-            ret+='\n'
+            ret += "\n"
         return ret
 
 
-#===========================================================================
-#===========================================================================
-#===========================================================================
-
+# ===========================================================================
+# ===========================================================================
+# ===========================================================================
 
 
 class KFHistory:
@@ -531,7 +554,7 @@ class KFHistory:
 
     The constructor argument *kf* should be a |KFReader| instance attached to an existing KF file. The *section* argument then holds a name of the desired History-like section, such as "History" or "MDHistory".
 
-    The :meth:`~KFHistory.read_all` method can be used used to easily read all values of a particular history item into a single numpy array.
+    The :meth:`~KFHistory.read_all` method can be used to easily read all values of a particular history item into a single numpy array.
 
     To iterate over the frames in a history section, use :meth:`~KFHistory.iter` or :meth:`~KFHistory.iter_optional`. The former raises an exception if the selected variable is not present in the history, while the latter returns a given default value instead.
 
@@ -557,16 +580,23 @@ class KFHistory:
         else:
             self.nblocks = 0
 
-    def read_all(self, name):
+    def read_all(self, name: str) -> np.ndarray:
         """Return a numpy array containing the values of history item *name* from all frames."""
         if name not in self.shapes:
             self._init_shape(name)
         if name in self.blocked:
-            return numpy.concatenate([numpy.atleast_1d(self.kf.read(self.section, "{}({})".format(name, i))) for i in range(1, self.nblocks + 1)])
+            return numpy.concatenate(
+                [
+                    numpy.atleast_1d(self.kf.read(self.section, "{}({})".format(name, i)))
+                    for i in range(1, self.nblocks + 1)
+                ]
+            )
         else:
-            return numpy.asarray([self.kf.read(self.section, "{}({})".format(name, i)) for i in range(1, self.nsteps + 1)])
+            return numpy.asarray(
+                [self.kf.read(self.section, "{}({})".format(name, i)) for i in range(1, self.nsteps + 1)]
+            )
 
-    def iter(self, name):
+    def iter(self, name: str) -> Iterator[TRead]:
         """Iterate over the values of history item *name*."""
         if name not in self.shapes:
             self._init_shape(name)
@@ -582,7 +612,7 @@ class KFHistory:
             for i in range(1, self.nsteps + 1):
                 yield self.kf.read(self.section, "{}({})".format(name, i))
 
-    def iter_optional(self, name, default=None):
+    def iter_optional(self, name: str, default: Optional[TRead] = None) -> Iterator[Optional[TRead]]:
         """Iterate over the values of history item *name*, returning *default* if the item is not present."""
         if (self.section, name + "(1)") in self.kf:
             yield from self.iter(name)

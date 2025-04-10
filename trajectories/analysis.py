@@ -1,6 +1,7 @@
 import numpy as np
 
-__all__ = ['autocorrelation', 'power_spectrum']
+__all__ = ["autocorrelation", "power_spectrum"]
+
 
 def autocorrelation(np_data, max_dt=None, normalize=False):
     """
@@ -22,9 +23,9 @@ def autocorrelation(np_data, max_dt=None, normalize=False):
     C[0] = 1
     for dt in range(max_dt):
         try:
-            Va = np_data[:num_timesteps - dt, :] #the first num_timesteps-dt rows
-            Vb = np_data[dt:, :] # ignore the first dt rows
-            C[dt] = np.mean(Va*Vb)
+            Va = np_data[: num_timesteps - dt, :]  # the first num_timesteps-dt rows
+            Vb = np_data[dt:, :]  # ignore the first dt rows
+            C[dt] = np.mean(Va * Vb)
         except KeyboardInterrupt:
             print("Stopping at dt = {} of max_dt = {}".format(dt, max_dt))
             break
@@ -48,16 +49,18 @@ def power_spectrum(times, C, max_freq=None, number_of_points=None):
     Returns: a 2-tuple
         an (x, y) tuple where x = frequency in cm-1, and y = power spectrum as 1D numpy arrays only the real part of the power spectrum is returned
     """
-    speedoflight = 29979245800; # in cm/s
-    dt = (times[1]-times[0]) * 1e-15 # in seconds
+    speedoflight = 29979245800
+    # in cm/s
+    dt = (times[1] - times[0]) * 1e-15  # in seconds
     max_freq = max_freq or 5000
     if number_of_points is None:
-        number_of_points = int(1/(dt*speedoflight)) # the resulting spectrum_x will have points spaced by about 1 cm-1
+        number_of_points = int(
+            1 / (dt * speedoflight)
+        )  # the resulting spectrum_x will have points spaced by about 1 cm-1
         if number_of_points < C.size:
             number_of_points = C.size
     spectrum_y = np.fft.fft(C, number_of_points)
-    spectrum_x = np.arange(number_of_points) / (dt*speedoflight*number_of_points)
+    spectrum_x = np.arange(number_of_points) / (dt * speedoflight * number_of_points)
     spectrum_y = np.real(spectrum_y[spectrum_x < max_freq])
     spectrum_x = spectrum_x[spectrum_x < max_freq]
     return spectrum_x.ravel(), spectrum_y.ravel()
-

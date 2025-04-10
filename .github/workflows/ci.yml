@@ -1,0 +1,111 @@
+name: CI
+
+on:
+# Run on creating or updating a PR
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# And pushing to the trunk or fix branches
+  push:
+    branches:
+      - trunk
+      - 'fix*'
+
+# And pushing new version tags e.g. 2024.103
+    tags:
+      - '20[0-9]{2}\.[0-9]{3}'
+
+jobs:
+
+  unit-test:
+#   Run on ubuntu, mac and windows for python 3.8 (in AMS python stack) up to 3.12
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: 1
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build package
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+          python -m build
+
+      - name: Install package and dependencies
+        run: |
+          pip install dist/plams-*.whl
+          pip install ".[chem,ams,analysis,dev]"
+
+      - name: Run Unit Tests
+        run: |
+          coverage run --source='scm.plams' -m pytest unit_tests
+
+#     ToDo: Bump the fail-under threshold over time until acceptable level is reached
+      - name: Evaluate Coverage
+        run: |
+          coverage report --omit="*/unit_tests/*" -i --fail-under=35
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run Black
+        run: |
+          black --check -t py38 -l 120 .
+
+      - name: Run Flake8
+        run: |
+          flake8 --color never --count --config .flake8 .
+
+      - name: Run MyPy
+        run: |
+           mypy
+          
+
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[docs]"
+
+      - name: Build Sphinx Docs
+        working-directory: doc
+        env:
+          IGNORE_IMPORT_ERRORS: true
+        run: |
+          python build_plams_doc

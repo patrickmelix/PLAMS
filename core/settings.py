@@ -1,8 +1,26 @@
 import contextlib
 import textwrap
 from functools import wraps
+import threading
+import numbers
+from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type, Hashable, Any, Optional, Dict, Generator
+from collections.abc import Iterable as ColIterable
 
-__all__ = ['Settings']
+__all__ = [
+    "Settings",
+    "SafeRunSettings",
+    "LogSettings",
+    "RunScriptSettings",
+    "JobSettings",
+    "JobManagerSettings",
+    "ConfigSettings",
+]
+
+if TYPE_CHECKING:
+    from scm.plams.core.jobmanager import JobManager
+    from scm.plams.core.jobrunner import JobRunner
+
+TSelf = TypeVar("TSelf", bound="Settings")
 
 
 class Settings(dict):
@@ -37,17 +55,17 @@ class Settings(dict):
           2:    b2
 
     """
+
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
-        cls = type(self)
 
         for k, v in self.items():
-            if isinstance(v, dict) and type(v) is not cls:
-                self[k] = cls(v)
+            if isinstance(v, dict) and not isinstance(v, Settings):
+                self[k] = Settings(v)
             if isinstance(v, list):
-                self[k] = [cls(i) if (isinstance(i, dict) and type(i) is not cls) else i for i in v]
+                self[k] = [Settings(i) if (isinstance(i, dict) and not isinstance(i, Settings)) else i for i in v]
 
-    def copy(self):
+    def copy(self: TSelf) -> TSelf:
         """Return a new instance that is a copy of this one. Nested |Settings| instances are copied recursively, not linked.
 
         In practice this method works as a shallow copy: all "proper values" (leaf nodes) in the returned copy point to the same objects as the original instance (unless they are immutable, like ``int`` or ``tuple``). However, nested |Settings| instances (internal nodes) are copied in a deep-copy fashion. In other words, copying a |Settings| instance creates a brand new "tree skeleton" and populates its leaf nodes with values taken directly from the original instance.
@@ -90,9 +108,7 @@ class Settings(dict):
                 ret[name] = self[name]
         return ret
 
-
-
-    def soft_update(self, other):
+    def soft_update(self: TSelf, other: "Settings") -> TSelf:
         """Update this instance with data from *other*, but do not overwrite existing keys. Nested |Settings| instances are soft-updated recursively.
 
         In the following example ``s`` and ``o`` are previously prepared |Settings| instances::
@@ -133,9 +149,7 @@ class Settings(dict):
                 self[name] = other[name]
         return self
 
-
-
-    def update(self, other):
+    def update(self, other):  # type: ignore
         """Update this instance with data from *other*, overwriting existing keys. Nested |Settings| instances are updated recursively.
 
         In the following example ``s`` and ``o`` are previously prepared |Settings| instances::
@@ -173,9 +187,7 @@ class Settings(dict):
             else:
                 self[name] = other[name]
 
-
-
-    def merge(self, other):
+    def merge(self: TSelf, other: "Settings") -> TSelf:
         """Return new instance of |Settings| that is a copy of this instance soft-updated with *other*.
 
         Shortcut ``A + B`` can be used instead of ``A.merge(B)``.
@@ -184,11 +196,41 @@ class Settings(dict):
         ret.soft_update(other)
         return ret
 
-
-
-    def find_case(self, key):
-        """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*.
+    def remove(self, other: "Settings"):
         """
+        Update this instance removing keys from *other*. Nested |Settings| instances are updated recursively.
+
+        Shortcut ``A -= B`` can be used instead of ``A.remove(B)``.
+        """
+
+        def sort_key(t):
+            """
+            Sort tuples based on:
+            - Number of elements (fewest first), this prunes larger branches of the nested settings first
+            - Numeric values from highest to lowest, this ensures that popping on lists works as expected
+            - Everything else from the natural sort
+            """
+            elements = tuple((str(-el) if isinstance(el, numbers.Real) else str(el)) for el in t)
+            return len(t), elements
+
+        sorted_keys = sorted(other.flatten().keys(), key=sort_key)
+
+        for key in sorted_keys:
+            self.pop_nested(key)
+        return self
+
+    def difference(self: TSelf, other: "Settings") -> TSelf:
+        """
+        Return new instance of |Settings| that is a copy of this instance with keys of *other* removed.
+
+        Shortcut ``A - B`` can be used instead of ``A.difference(B)``.
+        """
+        ret = self.copy()
+        ret.remove(other)
+        return ret
+
+    def find_case(self, key: Hashable) -> Hashable:
+        """Check if this instance contains a key consisting of the same letters as *key*, but possibly with different case. If found, return such a key. If not, return *key*."""
         if not isinstance(key, str):
             return key
         lowkey = key.lower()
@@ -200,36 +242,29 @@ class Settings(dict):
                 pass
         return key
 
-
-    def get(self, key, default=None):
+    def get(self, key: Hashable, default: Optional[Any] = None) -> Optional[Any]:
         """Like regular ``get``, but ignore the case."""
         return dict.get(self, self.find_case(key), default)
 
-
-    def pop(self, key, *args):
+    def pop(self, key: Hashable, *args) -> Optional[Any]:
         """Like regular ``pop``, but ignore the case."""
         # A single positional argument can be supplied `*args`,
         # functioning as a default return value in case `key` is not present in this instance
         return dict.pop(self, self.find_case(key), *args)
 
-
-    def popitem(self, key):
+    def popitem(self) -> Any:
         """Like regular ``popitem``, but ignore the case."""
-        return dict.popitem(self, self.find_case(key))
+        return dict.popitem(self)
 
-
-    def setdefault(self, key, default=None):
+    def setdefault(self, key: Hashable, default: Optional[Any] = None):
         """Like regular ``setdefault``, but ignore the case and if the value is a dict, convert it to |Settings|."""
-        cls = type(self)
-        if isinstance(default, dict) and type(default) is not cls:
-            default = cls(default)
-        return dict.setdefault(self, self.find_case(key), default)
+        if isinstance(default, dict) and not isinstance(default, Settings):
+            default = Settings(default)
+        return dict.setdefault(self, self.find_case(key), default)  # type: ignore
 
-
-    def as_dict(self):
-        """Return a copy of this instance with all |Settings| replaced by regular Python dictionaries.
-        """
-        d = {}
+    def as_dict(self) -> Dict:
+        """Return a copy of this instance with all |Settings| replaced by regular Python dictionaries."""
+        d: Dict = {}
         for k, v in self.items():
             if isinstance(v, Settings):
                 d[k] = v.as_dict()
@@ -239,7 +274,6 @@ class Settings(dict):
                 d[k] = v
 
         return d
-
 
     @classmethod
     def suppress_missing(cls):
@@ -268,15 +302,64 @@ class Settings(dict):
         .. _`special method lookup`: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
 
         """
-        return SuppressMissing(cls)
+        return SuppressMissing(Settings)
 
+    def contains_nested(self, key_tuple: Tuple[Hashable, ...], suppress_missing: bool = False) -> bool:
+        """Check if a nested key is present by recursively iterating through this instance using the keys in *key_tuple*.
 
-    def get_nested(self, key_tuple, suppress_missing=False):
+        The get item method is called recursively on this instance until all keys in key_tuple are exhausted.
+
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = 1
+            >>> value = s.contains_nested(('a', 'b', 'c'))
+            >>> print(value)
+            True
+
+        """
+        # Allow a slightly wider definition for the key_tuple than the type-hint suggests for backwards-compatibility
+        if not isinstance(key_tuple, ColIterable) or isinstance(key_tuple, (str, bytes)):
+            raise TypeError(
+                f"Argument 'key_tuple' must be a non-string iterable but was type {type(key_tuple).__name__}"
+            )
+
+        s = self
+        for k in key_tuple:
+            if isinstance(s, Settings):
+                # Add explicit check for key and use get instead of getitem to avoid calling __missing__ and adding phantom entries to the settings
+                if k not in s:
+                    if suppress_missing:
+                        raise KeyError(f"Key '{k}' not present in the nested Settings object.")
+                    else:
+                        return False
+                else:
+                    s = s[k]
+            else:
+                try:
+                    s = s[k]
+                except (KeyError, TypeError) as e:
+                    if suppress_missing:
+                        raise KeyError(f"Cannot access key '{k}' in the nested Settings object. Error was: {str(e)}.")
+                    else:
+                        return False
+
+        return True
+
+    def get_nested(
+        self,
+        key_tuple: Tuple[Hashable, ...],
+        suppress_missing: bool = False,
+        default: Optional[Any] = None,
+    ) -> Optional[Any]:
         """Retrieve a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`.Settings.__getitem__` method is called recursively on this instance until all keys in key_tuple are exhausted.
+        The get item method is called recursively on this instance until all keys in key_tuple are exhausted.
 
-        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+        Otherwise, the default value will be returned.
 
         .. code:: python
 
@@ -286,21 +369,22 @@ class Settings(dict):
             >>> print(value)
             True
         """
+        if not self.contains_nested(key_tuple, suppress_missing):
+            return default
+
         s = self
-        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
-            for k in key_tuple:
-                s = s[k]
+        for k in key_tuple:
+            s = s[k]
+
         return s
 
-
-
-    def set_nested(self, key_tuple, value, suppress_missing=False):
+    def set_nested(self, key_tuple: Tuple[Hashable, ...], value: Optional[Any], suppress_missing: bool = False):
         """Set a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
-        The :meth:`.Settings.__getitem__` method is called recursively on this instance, followed by :meth:`.Settings.__setitem__`, until all keys in key_tuple are exhausted.
+        The get item method followed finally by set item is called recursively on this instance until all keys in key_tuple are exhausted.
 
-
-        Setting *suppress_missing* to ``True`` will internally open the :meth:`.Settings.suppress_missing` context manager, thus raising a :exc:`KeyError` if a key in *key_tuple* is absent from this instance.
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+        Otherwise, no set operation will be performed.
 
         .. code:: python
 
@@ -311,15 +395,148 @@ class Settings(dict):
               b:
                 c: 	True
         """
+        self.contains_nested(key_tuple[:-1], suppress_missing)
+
         s = self
-        with contextlib.suppress() if not suppress_missing else s.suppress_missing():
-            for k in key_tuple[:-1]:
-                s = s[k]
+        for k in key_tuple[:-1]:
+            s = s[k]
+
         s[key_tuple[-1]] = value
 
+    def pop_nested(
+        self,
+        key_tuple: Tuple[Hashable, ...],
+        suppress_missing: bool = False,
+        default: Optional[Any] = None,
+    ) -> Optional[Any]:
+        """
+        Pop a nested value by, recursively, iterating through this instance using the keys in *key_tuple*.
 
+        The get item method followed finally by pop item is called recursively on this instance until all keys in key_tuple are exhausted.
 
-    def flatten(self, flatten_list=True):
+        Setting *suppress_missing* to ``True`` will raise a :exc:`KeyError` if a key in *key_tuple* cannot be accessed in this instance,
+        Otherwise, the default value will be returned.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = s.pop_nested(('a', 'b', 'c'))
+            >>> print(value)
+            True
+            >>> print(s)
+            <empty Settings>
+        """
+        if not self.contains_nested(key_tuple, suppress_missing):
+            return default
+
+        s = self
+        for k in key_tuple[:-1]:
+            s = s[k]
+
+        return s.pop(key_tuple[-1])
+
+    def nested_keys(
+        self, flatten_list: bool = True, include_empty: bool = False
+    ) -> Generator[Tuple[Hashable, ...], None, None]:
+        """
+        Get the nested keys corresponding to all nodes in this instance, both 'branches' and 'leaves'.
+
+        If *flatten_list* is set to ``True``, all nested lists will be flattened and elements converted to nodes.
+
+        If *include_empty* is set to ``True``, nodes without values are also returned.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = list(s.nested_keys())
+            >>> print(value)
+            [('a',), ('a', 'b'), ('a', 'b', 'c')]
+
+        """
+
+        def iter_block(bk):
+            return bk.items() if isinstance(bk, Settings) else enumerate(bk)
+
+        block_keys = list(self.block_keys(flatten_list, include_empty))
+        for bk in block_keys:
+            yield bk
+            for k, v in iter_block(self.get_nested(bk)):
+                # Maintain ordering by skipping branch keys here
+                fk = bk + (k,)
+                if (include_empty or v) and fk not in block_keys:
+                    yield fk
+
+    def block_keys(
+        self, flatten_list: bool = True, include_empty: bool = False
+    ) -> Generator[Tuple[Hashable, ...], None, None]:
+        """
+        Get the nested keys corresponding to the internal nodes in this instance, also referred to as 'blocks' or 'branches'.
+        These internal nodes correspond to |Settings| objects.
+
+        If *flatten_list* is set to ``True``, all nested lists will be flattened and elements converted to internal nodes.
+
+        If *include_empty* is set to ``True``, nodes without values in the |Settings| are also returned.
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> s.a.b.c = True
+            >>> value = list(s.branch_keys())
+            >>> print(value)
+            [('a',), ('a', 'b')]
+
+        """
+        seen = set()
+        for k, v in self.flatten(flatten_list=flatten_list).items():
+            for i in range(len(k) - 1, 0, -1):
+                bk = k[:-i]
+                if bk not in seen:
+                    seen.add(bk)
+                    yield bk
+            if include_empty and isinstance(v, Settings) and not v:
+                yield k
+
+    def compare(self, other: "Settings") -> Dict[str, Union[Dict[Any, Any], Dict[Any, Tuple[Any, Any]]]]:
+        """
+        Compare this settings object to another to get the difference between them.
+
+        The result is a dictionary containing three entries:
+            - added: the flattened keys present in this settings object and not in the other, with their values
+            - removed: the flattened keys present in the other settings object and not in this, with their values
+            - modified: the flattened keys present in both settings objects, with both values in this and the other object
+
+        .. code:: python
+
+            >>> s = Settings()
+            >>> t = Settings()
+            >>> s.a.b = 1
+            >>> s.c.d = 2
+            >>> t.c.d = 3
+            >>> t.e.f = 4
+            >>> value = s.compare(t)
+            >>> print(value)
+            {'added': {('a', 'b'): 1}, 'modified': {('c', 'd'): (2, 3)}, 'removed': {('e', 'f'): 4}}
+        """
+        ref = self.flatten()
+        cs = other.flatten()
+
+        ref_keys = set(ref.keys())
+        cs_keys = set(cs.keys())
+
+        added_keys = ref_keys - cs_keys
+        removed_keys = cs_keys - ref_keys
+        modified_keys = ref_keys & cs_keys
+
+        # Iterate over dict keys and check in set to maintain original ordering
+        added = {k: ref[k] for k in ref.keys() if k in added_keys}
+        removed = {k: cs[k] for k in cs.keys() if k in removed_keys}
+        modified = {k: (ref[k], cs[k]) for k in ref.keys() if k in modified_keys and ref[k] != cs[k]}
+
+        return {"added": added, "removed": removed, "modified": modified}
+
+    def flatten(self, flatten_list: bool = True) -> "Settings":
         """Return a flattened copy of this instance.
 
         New keys are constructed by concatenating the (nested) keys of this instance into tuples.
@@ -342,7 +559,7 @@ class Settings(dict):
             ('a', 'b', 'c'): 	True
         """
         if flatten_list:
-            nested_type = (Settings, list)
+            nested_type: Union[Type, Tuple[Type, ...]] = (Settings, list)
             iter_type = lambda x: x.items() if isinstance(x, Settings) else enumerate(x)
         else:
             nested_type = Settings
@@ -350,22 +567,19 @@ class Settings(dict):
 
         def _concatenate(key_ret, sequence):
             # Switch from Settings.items() to enumerate() if a list is encountered
-            for k, v in iter_type(sequence):
-                k = key_ret + (k, )
+            for k, v in iter_type(sequence):  # type: ignore
+                k = key_ret + (k,)
                 if isinstance(v, nested_type) and v:  # Empty lists or Settings instances will return ``False``
                     _concatenate(k, v)
                 else:
                     ret[k] = v
 
         # Changes keys into tuples
-        cls = type(self)
-        ret = cls()
+        ret = Settings()
         _concatenate((), self)
         return ret
 
-
-
-    def unflatten(self, unflatten_list=True):
+    def unflatten(self, unflatten_list: bool = True) -> "Settings":
         """Return a nested copy of this instance.
 
         New keys are constructed by expanding the keys of this instance (*e.g.* tuples) into new nested |Settings| instances.
@@ -387,8 +601,7 @@ class Settings(dict):
               b:
                 c: 	True
         """
-        cls = type(self)
-        ret = cls()
+        ret = Settings()
         for key, value in self.items():
             s = ret
             for k1, k2 in zip(key[:-1], key[1:]):
@@ -396,23 +609,20 @@ class Settings(dict):
                     s = s[k1]
                     continue
 
-                if isinstance(k2, int) and not isinstance(s[k1], list):
-                    s[k1] = []
-                if isinstance(k1, int):  # Apply padding to s
-                    s += [Settings()] * (k1 - len(s) + 1)
+                if isinstance(k2, int):  # Apply padding to s
+                    if not isinstance(s[k1], list):
+                        s[k1] = []
+                    s[k1] += [Settings()] * (k2 - len(s[k1]) + 1)
                 s = s[k1]
             s[key[-1]] = value
 
         return ret
 
-
-    #=======================================================================
-
+    # =======================================================================
 
     def __iter__(self):
         """Iteration through keys follows lexicographical order. All keys are sorted as if they were strings."""
         return iter(sorted(self.keys(), key=str))
-
 
     def __missing__(self, name):
         """When requested key is not present, add it with an empty |Settings| instance as a value.
@@ -426,98 +636,553 @@ class Settings(dict):
 
         The behaviour of this method can be suppressed by initializing the :class:`.Settings.suppress_missing` context manager.
         """
-        cls = type(self)
-        self[name] = cls()
+        self[name] = Settings()
         return self[name]
-
 
     def __contains__(self, name):
         """Like regular ``__contains`__``, but ignore the case."""
         return dict.__contains__(self, self.find_case(name))
 
-
     def __getitem__(self, name):
         """Like regular ``__getitem__``, but ignore the case."""
         return dict.__getitem__(self, self.find_case(name))
 
-
     def __setitem__(self, name, value):
         """Like regular ``__setitem__``, but ignore the case and if the value is a dict, convert it to |Settings|."""
-        cls = type(self)
-        if isinstance(value, dict) and type(value) is not cls:
-            value = cls(value)
+        if isinstance(value, dict) and not isinstance(value, Settings):
+            value = Settings(value)
         dict.__setitem__(self, self.find_case(name), value)
-
 
     def __delitem__(self, name):
         """Like regular ``__detitem__``, but ignore the case."""
         return dict.__delitem__(self, self.find_case(name))
 
-
     def __getattr__(self, name):
-        """If name is not a magic method, redirect it to ``__getitem__``."""
-        if (name.startswith('__') and name.endswith('__')):
+        """If name is not a magic method, redirect it to ``__getattribute__``."""
+        if name.startswith("__") and name.endswith("__"):
             return dict.__getattribute__(self, name)
         return self[name]
 
-
     def __setattr__(self, name, value):
-        """If name is not a magic method, redirect it to ``__setitem__``."""
-        if name.startswith('__') and name.endswith('__'):
+        """If name is not a magic method, redirect it to ``__setattr__``."""
+        if name.startswith("__") and name.endswith("__"):
             dict.__setattr__(self, name, value)
         else:
             self[name] = value
 
-
     def __delattr__(self, name):
-        """If name is not a magic method, redirect it to ``__delitem__``."""
-        if name.startswith('__') and name.endswith('__'):
+        """If name is not a magic method, redirect it to ``__delattr__``."""
+        if name.startswith("__") and name.endswith("__"):
             dict.__delattr__(self, name)
         else:
             del self[name]
 
-
     def _str(self, indent):
         """Print contents with *indent* spaces of indentation. Recursively used for printing nested |Settings| instances with proper indentation."""
-        ret = ''
+        ret = ""
         for key, value in self.items():
-            ret += ' '*indent + str(key) + ': \t'
+            ret += " " * indent + str(key) + ": \t"
             if isinstance(value, Settings):
                 if len(value) == 0:
-                    ret += '<empty Settings>\n'
+                    ret += "<empty Settings>\n"
                 else:
-                    ret += '\n' + value._str(indent+len(str(key))+1)
+                    ret += "\n" + value._str(indent + len(str(key)) + 1)
             else:  # Apply consistent indentation at every '\n' character
-                indent_str = ' ' * (2 + indent + len(str(key))) + '\t'
-                ret += textwrap.indent(str(value), indent_str)[len(indent_str):] + '\n'
-        return ret if ret else '<empty Settings>'
-
+                indent_str = " " * (2 + indent + len(str(key))) + "\t"
+                ret += textwrap.indent(str(value), indent_str)[len(indent_str) :] + "\n"
+        return ret if ret else "<empty Settings>"
 
     def __str__(self):
         return self._str(0)
 
+    def __dir__(self):
+        """
+        Return standard attributes, plus dynamically added keys which can be accessed via dot notation.
+        """
+        return [x for x in super().__dir__()] + [k for k in self.keys() if isinstance(k, str) and k.isidentifier()]
+
     __repr__ = __str__
     __iadd__ = soft_update
     __add__ = merge
+    __isub__ = remove
+    __sub__ = difference
     __copy__ = copy
 
 
 class SuppressMissing(contextlib.AbstractContextManager):
     """A context manager for temporary disabling the :meth:`.Settings.__missing__` magic method. See :meth:`Settings.suppress_missing` for more details."""
+
     def __init__(self, obj: type):
         """Initialize the :class:`SuppressMissing` context manager."""
         # Ensure that obj is a class, not a class instance
         self.obj = obj if isinstance(obj, type) else type(obj)
-        self.missing = obj.__missing__
+        self.missing = obj.__missing__ if hasattr(obj, "__missing__") else None
 
     def __enter__(self):
         """Enter the :class:`SuppressMissing` context manager: delete :meth:`.Settings.__missing__` at the class level."""
-        @wraps(self.missing)
-        def __missing__(self, name): raise KeyError(name)
+
+        @wraps(self.missing)  # type: ignore
+        def __missing__(self, name):
+            raise KeyError(name)
 
         # The __missing__ method is replaced for as long as the context manager is open
-        setattr(self.obj, '__missing__', __missing__)
+        setattr(self.obj, "__missing__", __missing__)
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the :class:`SuppressMissing` context manager: reenable :meth:`.Settings.__missing__` at the class level."""
-        setattr(self.obj, '__missing__', self.missing)
+        setattr(self.obj, "__missing__", self.missing)
+
+
+class SafeRunSettings(Settings):
+    """
+    Safe run settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.repeat = 10
+        self.delay = 1
+
+    @property
+    def repeat(self) -> int:
+        """
+        Number of attempts for each run() call. Defaults to ``10``.
+        """
+        return self["repeat"]
+
+    @repeat.setter
+    def repeat(self, value: int) -> None:
+        self["repeat"] = value
+
+    @property
+    def delay(self) -> int:
+        """
+        Delay between attempts for each run() call. Defaults to ``1``.
+        """
+        return self["delay"]
+
+    @delay.setter
+    def delay(self, value: int) -> None:
+        self["delay"] = value
+
+
+class LogSettings(Settings):
+    """
+    Log settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.file = 5
+        self.stdout = 3
+        self.csv = 7
+        self.time = True
+        self.date = True
+
+    @property
+    def file(self) -> int:
+        """
+        Verbosity of the log printed to .log file in the main working folder. Defaults to ``5``.
+        """
+        return self["file"]
+
+    @file.setter
+    def file(self, value: int) -> None:
+        self["file"] = value
+
+    @property
+    def stdout(self) -> int:
+        """
+        Verbosity of the log printed to the standard output. Defaults to ``3``.
+        """
+        return self["stdout"]
+
+    @stdout.setter
+    def stdout(self, value: int) -> None:
+        self["stdout"] = value
+
+    @property
+    def csv(self) -> int:
+        """
+        Verbosity of the log printed to .csv job log file in the main working folder. Defaults to ``7``.
+        """
+        return self["csv"]
+
+    @csv.setter
+    def csv(self, value: int) -> None:
+        self["csv"] = value
+
+    @property
+    def time(self) -> bool:
+        """
+        When enabled, include write time for each log event. Defaults to ``True``.
+        """
+        return self["time"]
+
+    @time.setter
+    def time(self, value: bool) -> None:
+        self["time"] = value
+
+    @property
+    def date(self) -> bool:
+        """
+        When enabled, include write date for each log event. Defaults to ``True``.
+        """
+        return self["date"]
+
+    @date.setter
+    def date(self, value: bool) -> None:
+        self["date"] = value
+
+
+class RunScriptSettings(Settings):
+    """
+    Run script settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.shebang = "#!/bin/sh"
+        self.stdout_redirect = False
+
+    @property
+    def shebang(self) -> str:
+        """
+        First line of all produced runscripts. Defaults to ``#!/bin/sh``.
+        """
+        return self["shebang"]
+
+    @shebang.setter
+    def shebang(self, value: str) -> None:
+        self["shebang"] = value
+
+    @property
+    def stdout_redirect(self) -> bool:
+        """
+        When enabled, the standard output redirection is handled by the operating system (by using '>[jobname].out' in the runscript), instead of being handled by native Python mechanism.
+        Defaults to ``False``.
+        """
+        return self["stdout_redirect"]
+
+    @stdout_redirect.setter
+    def stdout_redirect(self, value: bool) -> None:
+        self["stdout_redirect"] = value
+
+
+class JobSettings(Settings):
+    """
+    Job settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.pickle = True
+        self.pickle_protocol = -1
+        self.keep = "all"
+        self.save = "all"
+        self.runscript = RunScriptSettings()
+        self.link_files = True
+
+    @property
+    def pickle(self) -> bool:
+        """
+        Enables pickle for the whole job object to [jobname].dill, after job execution is finished. Defaults to ``True``.
+        """
+        return self["pickle"]
+
+    @pickle.setter
+    def pickle(self, value: bool) -> None:
+        self["pickle"] = value
+
+    @property
+    def pickle_protocol(self) -> int:
+        """
+        Protocol used for pickling. Defaults to ``-1``.
+        """
+        return self["pickle_protocol"]
+
+    @pickle_protocol.setter
+    def pickle_protocol(self, value: int) -> None:
+        self["pickle_protocol"] = value
+
+    @property
+    def keep(self) -> str:
+        """
+        Defines which files should be kept on disk. Defaults to ``all``.
+        """
+        return self["keep"]
+
+    @keep.setter
+    def keep(self, value: str) -> None:
+        self["keep"] = value
+
+    @property
+    def save(self) -> str:
+        """
+        Defines which files should be kept on disk. Defaults to ``all``.
+        """
+        return self["save"]
+
+    @save.setter
+    def save(self, value: str) -> None:
+        self["save"] = value
+
+    @property
+    def runscript(self) -> RunScriptSettings:
+        """
+        See :class:`~scm.plams.core.settings.RunscriptSettings`.
+        """
+        return self["runscript"]
+
+    @runscript.setter
+    def runscript(self, value: RunScriptSettings) -> None:
+        self["runscript"] = value
+
+    @property
+    def link_files(self) -> bool:
+        """
+        When enabled, re-run files will be hardlinked instead of copied, unless on Windows when files are always copied.
+        Defaults to ``True``.
+        """
+        return self["link_files"]
+
+    @link_files.setter
+    def link_files(self, value: bool) -> None:
+        self["link_files"] = value
+
+
+class JobManagerSettings(Settings):
+    """
+    Job manager settings for global config.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.counter_len = 3
+        self.hashing = "input"
+        self.remove_empty_directories = True
+
+    @property
+    def counter_len(self) -> int:
+        """
+        Number of digits for the counter used when two or more jobs have the same name, when all the jobs apart from the first one are renamed to [jobname].002 ([jobname].003 etc.)
+        Defaults to ``3``.
+        """
+        return self["counter_len"]
+
+    @counter_len.setter
+    def counter_len(self, value: int) -> None:
+        self["counter_len"] = value
+
+    @property
+    def hashing(self) -> str:
+        """
+        Hashing method used for testing if some job was previously run. Defaults to ``input``.
+        """
+        return self["hashing"]
+
+    @hashing.setter
+    def hashing(self, value: str) -> None:
+        self["hashing"] = value
+
+    @property
+    def remove_empty_directories(self) -> bool:
+        """
+        When enabled, removes of all empty subdirectories in the main working folder at the end of the script.
+        Defaults to ``True``.
+        """
+        return self["remove_empty_directories"]
+
+    @remove_empty_directories.setter
+    def remove_empty_directories(self, value: bool) -> None:
+        self["remove_empty_directories"] = value
+
+
+class ConfigSettings(Settings):
+    """
+    Extends the default |Settings| with standard options which are required for global config.
+    The values for these options are initialised to default values.
+    The default |JobRunner| and |JobManager| are lazily initialised when first accessed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.init = False
+        self._explicit_init = False
+        self.preview = False
+        self.sleepstep = 5
+        self.ignore_failure = True
+        self.daemon_threads = True
+        self.erase_workdir = False
+        self.jobmanager = JobManagerSettings()
+        self.job = JobSettings()
+        self.log = LogSettings()
+        self.saferun = SafeRunSettings()
+
+        # Default job runner and job manager are lazily initialised on first access
+        # This is to allow users to change their settings before initialisation (due to side effects in init)
+        # Make sure to do the initialisation inside a lock to avoid race-conditions between multiple threads
+        self.__lazylock__ = threading.Lock()  # N.B. nomenclature used purely to avoid adding to settings dictionary
+        self.default_jobrunner = None
+        self.default_jobmanager = None
+
+    @property
+    def init(self) -> bool:
+        """
+        Whether config has been marked as fully initialized and jobs are ready to be run. Defaults to ``False``.
+        """
+        return self["init"]
+
+    @init.setter
+    def init(self, value: bool):
+        self["init"] = value
+
+    @property
+    def _explicit_init(self) -> bool:
+        """
+        Whether config has been explicitly initialized by the user by calling |init|. Defaults to ``False``.
+        """
+        return self["_explicit_init"]
+
+    @_explicit_init.setter
+    def _explicit_init(self, value: bool):
+        self["_explicit_init"] = value
+
+    @property
+    def preview(self) -> bool:
+        """
+        When enabled, no actual calculations are run, only inputs and runscripts are prepared. Defaults to ``False``.
+        """
+        return self["preview"]
+
+    @preview.setter
+    def preview(self, value: bool):
+        self["preview"] = value
+
+    @property
+    def sleepstep(self) -> int:
+        """
+        Unit of time which is used whenever some action needs to be repeated until a certain condition is met. Defaults to ``5``.
+        """
+        return self["sleepstep"]
+
+    @sleepstep.setter
+    def sleepstep(self, value: int) -> None:
+        self["sleepstep"] = value
+
+    @property
+    def ignore_failure(self) -> bool:
+        """
+        When enabled, accessing a failed/crashed job gives a log message instead of an error. Defaults to ``True``.
+        """
+        return self["ignore_failure"]
+
+    @ignore_failure.setter
+    def ignore_failure(self, value: bool) -> None:
+        self["ignore_failure"] = value
+
+    @property
+    def daemon_threads(self) -> bool:
+        """
+        When enabled, all threads started by JobRunner are daemon threads, which are terminated when the main thread finishes,
+        and hence allow immediate end of the parallel script when Ctrl-C is pressed. Defaults to ``True``.
+        """
+        return self["daemon_threads"]
+
+    @daemon_threads.setter
+    def daemon_threads(self, value: bool) -> None:
+        self["daemon_threads"] = value
+
+    @property
+    def erase_workdir(self) -> bool:
+        """
+        When enabled, the entire main working folder is deleted at the end of script. Defaults to ``False``.
+        :return:
+        """
+        return self["erase_workdir"]
+
+    @erase_workdir.setter
+    def erase_workdir(self, value: bool) -> None:
+        self["erase_workdir"] = value
+
+    @property
+    def jobmanager(self) -> JobManagerSettings:
+        """
+        See :class:`~scm.plams.core.settings.JobManagerSettings`.
+        """
+        return self["jobmanager"]
+
+    @jobmanager.setter
+    def jobmanager(self, value: JobManagerSettings) -> None:
+        self["jobmanager"] = value
+
+    @property
+    def job(self) -> JobSettings:
+        """
+        See :class:`~scm.plams.core.settings.JobSettings`.
+        """
+        return self["job"]
+
+    @job.setter
+    def job(self, value: JobSettings) -> None:
+        self["job"] = value
+
+    @property
+    def log(self) -> LogSettings:
+        """
+        See :class:`~scm.plams.core.settings.LogSettings`.
+        """
+        return self["log"]
+
+    @log.setter
+    def log(self, value: LogSettings) -> None:
+        self["log"] = value
+
+    @property
+    def saferun(self) -> SafeRunSettings:
+        """
+        See :class:`~scm.plams.core.settings.SafeRunSettings`.
+        """
+        return self["saferun"]
+
+    @saferun.setter
+    def saferun(self, value: SafeRunSettings) -> None:
+        self["saferun"] = value
+
+    @property
+    def default_jobrunner(self) -> "JobRunner":
+        """
+        Default |JobRunner| that will be used for running jobs, if an explicit runner is not provided.
+        """
+        from scm.plams.core.jobrunner import JobRunner
+
+        with self.__lazylock__:
+            if self["default_jobrunner"] is None:
+                self["default_jobrunner"] = JobRunner()
+            return self["default_jobrunner"]
+
+    @default_jobrunner.setter
+    def default_jobrunner(self, value: "JobRunner") -> None:
+        self["default_jobrunner"] = value
+
+    @property
+    def default_jobmanager(self) -> "JobManager":
+        """
+        Default |JobManager| that will be used when running jobs, if an explicit manager is not provided.
+        """
+        from scm.plams.core.jobmanager import JobManager
+
+        with self.__lazylock__:
+            if self["default_jobmanager"] is None:
+                self["default_jobmanager"] = JobManager(self.jobmanager)
+            return self["default_jobmanager"]
+
+    @default_jobmanager.setter
+    def default_jobmanager(self, value: "JobManager") -> None:
+        self["default_jobmanager"] = value

@@ -5,7 +5,7 @@ DFTB+
 
 .. currentmodule:: scm.plams.interfaces.thirdparty.dftbplus
 
-DFTB+ is a density-functional tight-binding implemenation.
+DFTB+ is a density-functional tight-binding implementation.
 More information about DFTB can be found on its `official website <http://www.dftb-plus.info>`_.
 
 PLAMS offers a simple and incomplete DFTB+ interface.
@@ -20,7 +20,7 @@ Preparing an instance of |DFTBPlusJob| follows the general principles for |Singl
 Information adjusting the input file is stored in the ``myjob.settings.input`` branch.
 The geometry of your system can be supplied via the class |Molecule|.
 If the Atomic Simulation Environment (`ASE <https://wiki.fysik.dtu.dk/ase/index.html>`_) is installed, the molecule is written using its engine.
-Otherwise this interface provies a basic routine.
+Otherwise this interface provides a basic routine.
 Note that the molecule is in this case transformed into the ``GenFormat`` with the ``C`` (cluster) or ``S`` (supercell) option, meaning the internal routine can handle clusters and supercell systems.
 The option ``F`` for fractional coordinates is not available! See `the manual <http://www.dftb-plus.info/documentation/>`_ for further information on the different geometry-input types.
 

@@ -1,8 +1,10 @@
+#!/usr/bin/env amspython
 import copy
 import multiprocessing
 
 import numpy as np
 from scm.input_classes import ADF, AMS
+from scm.plams import Settings, Results, MultiJob, JobRunner, config, Molecule, Atom, AMSJob
 
 
 class GammaResults(Results):
@@ -34,9 +36,7 @@ class GammaJob(MultiJob):
         charges = [self.charge - 1, self.charge, self.charge + 1]
         for charge, spin in zip(charges, self.spins):
             name = "{}_charge_{}".format(self.name, charge)
-            newjob = AMSJob(
-                name=name, molecule=self.molecule, settings=copy.deepcopy(self.settings)
-            )
+            newjob = AMSJob(name=name, molecule=self.molecule, settings=copy.deepcopy(self.settings))
             newjob.molecule.properties.charge = charge
             assert isinstance(newjob.settings.input, AMS)
             assert isinstance(newjob.settings.input.Engine, ADF)

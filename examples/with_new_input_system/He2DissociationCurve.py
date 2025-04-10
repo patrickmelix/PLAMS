@@ -1,5 +1,7 @@
+#!/usr/bin/env amspython
 import numpy as np
 from scm.input_classes import ADF, AMS
+from scm.plams import *
 
 # Calcualte bond energy of He dimers for a series of bond
 # distances using ADF

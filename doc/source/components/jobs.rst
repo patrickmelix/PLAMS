@@ -86,10 +86,6 @@ The nice thing is that all the unnecessary data present in job settings is simpl
 Contents of job settings
 ++++++++++++++++++++++++++
 
-.. important::
-
-    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
-
 The following keys and branches of job settings are meaningful for all kinds of jobs:
 
 *   ``myjob.settings.input`` is a branch storing settings regarding input file of a job.
@@ -373,12 +369,12 @@ The simplest application is just to use an instance of |MultiJob| as a container
     mj.run(...)
 
 Such a "container job" can further be customized with :ref:`prerun-postrun`.
-For example, |postrun| can be used to collect the relevant data from all children jobs and store it in an easily accessible way in mutlijob's |Results|.
+For example, |postrun| can be used to collect the relevant data from all children jobs and store it in an easily accessible way in multijob's |Results|.
 
 A more flexible way of using |MultiJob| is by creating your own subclasses of it.
 That way you can enclose several jobs that are conceptually similar in one convenient "unit", for example:
 
-*   |MultiJob| running a chain of single jobs: take a molecule, preoptimize its geometry using some approximate method, follow with a high-level geometry optimization and then use the optimized geoemtry for some properties calculation
+*   |MultiJob| running a chain of single jobs: take a molecule, preoptimize its geometry using some approximate method, follow with a high-level geometry optimization and then use the optimized geometry for some properties calculation
 *   |MultiJob| comparing different values of some parameter: run multiple single jobs with the same molecule and settings, but differing in one parameter (for example: XC functional, numerical accuracy, basis set etc.) for the sake of investigating the influence of that parameter on the final results
 *   |MultiJob| running different geometries of the same system to investigate some property of the potential energy surface.
     A classic example here would be numerical gradient or numerical hessian calculations.

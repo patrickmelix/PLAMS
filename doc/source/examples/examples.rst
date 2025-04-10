@@ -3,54 +3,72 @@
 Examples
 ========
 
-.. important::
+The PLAMS examples use the Amsterdam Modeling Suite. Get a license or free trial from www.scm.com.
 
-    The recommended way of programmatically preparing input for AMS is through  `PISA <../../pisa/index.html>`_.
+.. dropdown:: Note about $AMSBIN for external Python environments
 
-In this chapter we present example PLAMS scripts covering various applications, from very simple tasks (like running the same calculation for multiple molecules) to more advanced dynamic workflows.
+   If you run PLAMS with ``amspython`` (recommended), then you most likely
+   have already set the $AMSBIN environment correctly and can ignore the
+   rest of this message.
 
-The example scripts use computational engines from the Amsterdam Modeling Suite, and you will need a license to run them. Contact license@scm.com for further questions.
+   If you do not use ``amspython`` but a custom Python environment, make sure
+   that the ``AMSBIN`` environment variable is properly set. 
 
-In order to run the examples, the ``AMSBIN`` environment variable should be properly set. You can test this by typing ``$AMSBIN/plams -h`` in a terminal: this should print PLAMS' help message. If this is not the case (e.g. you get 'No such file or directory'), you need to set up the environmental variable ``$AMSBIN`` (see the `Linux Quickstart guide <../../Installation/Linux_Quickstart_Guide.html>`__ for details).
+   You can test this by typing ``$AMSBIN/amspython -h`` in a terminal: this
+   should print the help message. 
+
+   If this is not the case, see the `AMS Installation
+   documentation <../../Installation/index.html>`__ for details.
 
 Getting Started
 ----------------
 
 .. toctree::
+   :maxdepth: 1
  
-   WaterOptimization
-   Settings/AMSSettingsSystem
-   He2DissociationCurve
-   ManyJobsInParallel
+   WaterOptimization/WaterOptimization
+   AMSSettingsSystem/AMSSettingsSystem
+   AMSSettingsInput/AMSSettingsInput
+   He2DissociationCurve/He2DissociationCurve
+   ManyJobsInParallel/ManyJobsInParallel
+   Logging/Logging
+   JobAnalysis/JobAnalysis
 
 Molecule analysis
 ---------------------
 
 .. toctree::
+   :maxdepth: 1
 
+   MoleculeFormats/MoleculeFormats
    MoleculesFromRKFTrajectory
    MoleculesTable
-   MoleculeSubstitution/MoleculeSubstitutionExample
+   MoleculeSubstitution/MoleculeSubstitution
    ConvertToAMSRKFTrajectory
    PlotCorrelation/PlotCorrelation
    MapMoleculesAndConvertToDCD
    HydrogenBondsFromMD
+   PlotReaction2D/PlotReaction2D
 
 MD trajectory analysis
 ----------------------
 
 .. toctree::
+    :maxdepth: 1
 
-  IonicConductivityFromMD.rst
-  IRSpectrumFromMD
+    IonicConductivityFromMD.rst
+    ViscosityGreenKubo/ViscosityGreenKubo
+    IRSpectrumFromMD/IRSpectrumFromMD.rst
+    IRSpectrumFromMDH2ODimer.rst
 
 Benchmarks
 -----------------
 
 .. toctree::
+   :maxdepth: 1
 
-   BasisSetBenchmark
-   ReactionEnergyBenchmark
+   BasisSetBenchmark/BasisSetBenchmark
+   ReactionEnergyBenchmark/ReactionEnergyBenchmark
 
 Workflows
 ------------------
@@ -59,19 +77,21 @@ Workflows
    :maxdepth: 1
 
    RedoxPotential
-   ExcitationsWorkflow
+   ExcitationsWorkflow/ExcitationsWorkflow
    AMSTSWorkflow/AMSTSWorkflow
-   ChargeTransferIntegralsADF
-   gammascan
+   ChargeTransferIntegralsADF/ChargeTransferIntegralsADF
+   TuningRangeSeparation/TuningRangeSeparation
    ConformersGeneration/ConformersGeneration
+   ConformersMultipleMolecules/ConformersMultipleMolecules
    ReactionsDiscovery/ReactionsDiscovery
 
 COSMO-RS and property prediction
 -----------------------------------
 
-For more examples, see the `COSMO-RS documentation <../../COSMO-RS/Advanced_scripting.html>`__.
+For more examples, see the `COSMO-RS documentation <../../COSMO-RS/Python_Examples.html>`__.
 
 .. toctree::
+   :maxdepth: 1
 
    PropertyPrediction/PropertyPrediction
    ams_crs
@@ -80,36 +100,46 @@ Packmol and AMS-ASE interfaces
 -------------------------------
 
 .. toctree::
+   :maxdepth: 1
 
    PackMolExample/PackMolExample
    CustomASECalculator
    AMSCalculator/ASECalculator
-   AMSCalculator/ChargedAMSCalculator
+   ChargedAMSCalculator/ChargedAMSCalculator
    i-PI-AMS
    SellaTransitionStateSearch
 
-ParAMS and pyZacros
------------------------
+.. N.B. the ASE calculator example is linked to via an external site, so the path should not be updated (or a redirect needs to be added)
 
-See the `ParAMS <../../params/index.html>`__ and `pyZacros <../../pyzacros/index.html>`__ documentations.
+ParAMS, Simple Active Learning, and pyZacros
+---------------------------------------------------
+
+See the respective documentation pages:
+
+* `ParAMS <../../params/index.html>`__ 
+* `Simple Active Learning <../../Workflows/SimpleActiveLearning/SimpleActiveLearning.html>`__
+* `pyZacros <../../pyzacros/index.html>`__ 
 
 Other AMS calculations
 ------------------------
 
 .. toctree::
+   :maxdepth: 1
 
    BAND_NiO_HubbardU
    BandStructure/BandStructure
    AMSPlumedMD/AMSPlumedMD
    QE_AMS_AFM_HubbardU
-   BasicMDPostanalysis
-   UseLowestEnergy
-   M3GNet
+   BasicMDAnalysis/BasicMDAnalysis
+   UseLowestEnergy/UseLowestEnergy
+   M3GNet/M3GNet
+   ConstrainedGOAMSWorker/ConstrainedGOAMSWorker
 
 Pymatgen
 ----------------
 
 .. toctree::
+    :maxdepth: 1
     
     XRD/XRD
 
@@ -124,17 +154,17 @@ In other words, the code presented there is already included in PLAMS and (unlik
 The source code of ``recipes`` modules is presented here to demonstrate how easy it is to build on top of existing PLAMS elements and create your own fully customized job types.
 
 .. toctree::
+    :maxdepth: 2
 
-    ADFCOSMORSCompound
-    ADFCOSMORSConformers
+    COSMORSCompound/COSMORSCompound
+    COSMORSConformers/COSMORSConformers
     MDJobs
-    adffragment
-    ReorganizationEnergy
-    adfnbo
-    numgrad
-    numhess
-    global_minimum
+    ADFFrag/ADFFrag
+    ReorganizationEnergy/ReorganizationEnergy
+    ADFNBO/ADFNBO
+    NumGrad/NumGrad
+    NumHess/NumHess
     pyAHFCDOS
-    fcf_dos
-    ReuseForceFieldParams
+    ADFVibronicDOS/ADFVibronicDOS.rst
+    ReuseForceFieldParams/ReuseForceFieldParams
 
