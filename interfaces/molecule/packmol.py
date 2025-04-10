@@ -866,7 +866,7 @@ def _run_uff_md(
 
             my_packed = job.results.get_main_system()
             my_packed.remove_region("PACKMOL_thermostatted")
-        job_manager._clean()
+            job_manager._clean()
 
     return my_packed
 

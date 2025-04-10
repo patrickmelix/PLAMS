@@ -82,7 +82,9 @@ def config_overrides(overrides: Settings):
         _config_overrides.reset(token)
 
 
-def get_config(key: Union[Hashable, Tuple[Hashable,...]], default: Optional[Any] = None, init_lazy: bool = True) -> Any:
+def get_config(
+    key: Union[Hashable, Tuple[Hashable, ...]], default: Optional[Any] = None, init_lazy: bool = True
+) -> Any:
     """
     Gets a (nested) value for a given key in |ConfigSettings|, for the current execution context.
     This will be retrieved from the global |config| object, unless any context-specific overrides have been applied with :func:`config_overrides`.
@@ -106,6 +108,7 @@ def get_config(key: Union[Hashable, Tuple[Hashable,...]], default: Optional[Any]
         return context_config.default_jobmanager
     else:
         return context_config.get_nested(key_tuple, default=default)
+
 
 def log(message: str, level: int = 0) -> None:
     """
