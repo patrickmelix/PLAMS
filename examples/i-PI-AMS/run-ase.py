@@ -1,7 +1,7 @@
 #!/usr/bin/env amspython
 from ase.calculators.socketio import SocketClient
 from ase.io import read
-from scm.plams import Settings, finish, init
+from scm.plams import Settings
 from scm.plams.interfaces.adfsuite.ase_calculator import AMSCalculator
 
 """
@@ -29,7 +29,6 @@ To run this example,
 
 
 def main():
-    init()
 
     use_stress = False
     atoms = read("firstframe.xyz")
@@ -42,11 +41,9 @@ def main():
     sett.runscript.nproc = 1
 
     with AMSCalculator(settings=sett, amsworker=True) as calc:
-        atoms.set_calculator(calc)
+        atoms.calc = calc
         client = SocketClient(unixsocket="driver-irpmd-16")  # socket should match the one given in input.xml
         client.run(atoms, use_stress=use_stress)
-
-    finish()
 
 
 if __name__ == "__main__":

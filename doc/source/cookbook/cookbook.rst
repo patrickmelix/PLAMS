@@ -332,7 +332,7 @@ This is how one searches for the smallest set of rings in a molecule:
    dicyclopentadiene = from_smiles('C1C=CC2C1C3CC2C=C3')
    rdmol = to_rdmol(dicyclopentadiene)
 
-   # Calculate smalles set of rings
+   # Calculate smallest set of rings
    for atoms in Chem.GetSymmSSSR(rdmol):
         print ([atom_id for atom_id in atoms], len(atoms))
 
@@ -757,7 +757,7 @@ The only change you should make is *not* to set the maximum number of jobs.
    The execution of the job is implemented as a Slurm job step, which may need to wait for free resources before actually starting.
    As Slurm is taking care of limiting the number of simultaneously executing jobs, we no longer need to do that through the PLAMS |JobRunner| and can therefore skip the ``maxjobs`` argument of its constructor.
 
-Furthermore you may need to wrap the call to the PLAMS :ref:`launch script <master-script>` in a job script, in which we recommend you ``cd`` to the directory from which the job was submitted.
+We recommend you ``cd`` to the directory from which the job was submitted.
 This makes sure you will find the PLAMS working directory in the normal location.
 (If ``$AMSBIN`` is not already in your environment, this is also the place to `set up the AMS environment <../../Installation/Installation.html#set-up-the-environment>`__.)
 
@@ -765,15 +765,15 @@ This makes sure you will find the PLAMS working directory in the normal location
 
    #!/bin/sh
    cd "$SLURM_SUBMIT_DIR"
-   $AMSBIN/plams myscript.plms
+   $AMSBIN/amspython myscript.py
 
 The above job script can then simply be submitted to the batch system::
 
    sbatch [...] myscript.sh
 
-Alternatively you can also skip the job script, and submit the PLAMS :ref:`launch script <master-script>` itself::
+Alternatively you can also skip the job script, and submit the ``amspython`` command directly::
 
-   sbatch [...] --chdir=. $AMSBIN/plams myscript.plms
+    sbatch [...] --chdir=. $AMSBIN/amspython myscript.py
 
 .. warning::
 

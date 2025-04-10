@@ -54,6 +54,9 @@ def run_sella(molecule):
 
 def run_ams(molecule):
     """Run DFT transition state search but use initial hessian calculated with DFTB"""
+    # this line is not required in AMS2025+
+    init()
+
     s = adf_settings()
     s.input.ams.task = "TransitionStateSearch"
     s.input.ams.geometryoptimization.initialhessian.type = "CalculateWithFastEngine"
@@ -84,8 +87,10 @@ def get_molecule():
 
 
 def main():
-    os.environ["OMP_NUM_THREADS"] = "1"
+    # this line is not required in AMS2025+
     init()
+
+    os.environ["OMP_NUM_THREADS"] = "1"
     mol = get_molecule()
 
     start = time.time()
@@ -95,8 +100,6 @@ def main():
     start = time.time()
     run_ams(mol)
     print(f"AMS finished in {time.time()-start} seconds")
-
-    finish()
 
 
 if __name__ == "__main__":

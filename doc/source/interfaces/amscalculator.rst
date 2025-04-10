@@ -17,9 +17,6 @@ together with ASE.
 
     **Engine ASE**: Couple `external ASE calculators <../../ASE/index.html>`__ to the AMS Driver 
 
-.. important::
-
-    Before using an AMSCalculator, you must call the ``init()`` function from PLAMS. This is done automatically if you use the ``plams`` binary.
 
 AMS settings
 ~~~~~~~~~~~~~~~~

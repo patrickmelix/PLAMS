@@ -1,5 +1,6 @@
 import collections
 import math
+from typing import Dict
 
 from scm.plams.core.errors import UnitsError
 import numpy as np
@@ -53,6 +54,8 @@ class Units:
         -   ``kJ/mol``
         -   ``cm^-1``, ``cm-1``
         -   ``K``, ``Kelvin``
+        -   ``Hz``, ``Hertz``
+        -   ``THz``
 
     *   dipole moment:
 
@@ -145,6 +148,10 @@ class Units:
     energy["kcal/mol"] = energy["kJ/mol"] / 4.184
     energy["cm^-1"] = energy["cm-1"] = 219474.6313702  # http://physics.nist.gov/cgi-bin/cuu/Value?hrminv
     energy["K"] = energy["J"] / constants["k_B"]
+    energy["Hz"] = energy["Hertz"] = (
+        6.57968389898681e15  # https://physics.nist.gov/cgi-bin/cuu/Convert?exp=0&num=1&From=hr&To=hz&Action=Only+show+factor
+    )
+    energy["THz"] = energy["Hz"] / 1e12
 
     mass = {}
     mass["au"] = mass["a.u."] = mass["amu"] = 1.0
@@ -167,7 +174,7 @@ class Units:
     angle["circle"] = 1.0 / 360.0
 
     charge = {}
-    charge["a.u."] = charge["au"] = charge["e"] = 1
+    charge["a.u."] = charge["au"] = charge["e"] = 1.0
     charge["C"] = charge["coulomb"] = constants["e"]
 
     dipole = {}
@@ -231,7 +238,7 @@ class Units:
     dicts["molecular_polarizability"] = molecular_polarizability
 
     # Precomputed a dict mapping lowercased unit names to quantityName:conversionFactor pairs
-    quantities_for_unit = {}
+    quantities_for_unit: Dict[str, Dict[str, float]] = {}
     for quantity in dicts:
         for unit, factor in dicts[quantity].items():
             unit = unit.lower()
@@ -301,11 +308,11 @@ class Units:
         if isinstance(value, collections.abc.Iterable):
             t = type(value)
             if t == np.ndarray:
-                t = np.array
+                t = np.array  # type: ignore
             v = [cls.convert(i, inp, out) for i in value]
-            return t(v)
+            return t(v)  # type: ignore
         if isinstance(value, (int, float, np.generic)):
-            return value * cls.conversion_ratio(inp, out)
+            return value * cls.conversion_ratio(inp, out)  # type: ignore
         return value
 
     @classmethod

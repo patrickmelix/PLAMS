@@ -89,6 +89,7 @@ def _spinpol_settings(molecule, charge=0):
         unrestricted = "No"
     else:
         unrestricted = "Yes"
+        # sett.input.adf.OCCUPATIONS = "ElectronicTemperature=100"
     sett.input.adf.SpinPolarization = spinpol
     sett.input.adf.Unrestricted = unrestricted
     return sett
@@ -361,36 +362,40 @@ class AMSRedoxScreeningJob(AMSRedoxParentJob):
         # gencoskf_0
         s = self.settings.copy()
         s.update(_spinpol_settings(self.input_molecule, self.orig_charge))
-        s.input.ams.System.Charge = self.orig_charge
+        # s.input.ams.System.Charge = self.orig_charge
         gencoskf_0 = ADFCOSMORSCompoundJob(molecule=None, name="gencoskf_0", singlepoint=True, settings=s)
 
         @add_to_instance(gencoskf_0)
         def prerun(self):  # noqa F811
             self.input_molecule = dftb_go_0.results.get_main_molecule()  # will inherit the charge
+            assert isinstance(self.input_molecule, Molecule)
+            self.atomic_ion = len(self.input_molecule) == 1
 
         self.children["gencoskf_0"] = gencoskf_0
 
         if oxidation:
             sox = s.copy()
             sox.update(_spinpol_settings(self.input_molecule, self.ox_charge))
-            sox.input.ams.System.Charge = self.ox_charge
+            # sox.input.ams.System.Charge = self.ox_charge
             gencoskf_ox = ADFCOSMORSCompoundJob(molecule=None, name="gencoskf_ox", singlepoint=True, settings=sox)
 
             @add_to_instance(gencoskf_ox)
             def prerun(self):  # noqa F811
                 self.input_molecule = dftb_go_ox.results.get_main_molecule()
+                self.atomic_ion = len(self.input_molecule) == 1
 
             self.children["gencoskf_ox"] = gencoskf_ox
 
         if reduction:
             sred = s.copy()
             sred.update(_spinpol_settings(self.input_molecule, self.red_charge))
-            sred.input.ams.System.Charge = self.red_charge
+            # sred.input.ams.System.Charge = self.red_charge
             gencoskf_red = ADFCOSMORSCompoundJob(molecule=None, name="gencoskf_red", singlepoint=True, settings=sred)
 
             @add_to_instance(gencoskf_red)
             def prerun(self):  # noqa F811
                 self.input_molecule = dftb_go_red.results.get_main_molecule()
+                self.atomic_ion = len(self.input_molecule) == 1
 
             self.children["gencoskf_red"] = gencoskf_red
 

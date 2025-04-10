@@ -7,9 +7,9 @@ The |Settings| class provides a general purpose data container for various kinds
 Other PLAMS objects (like for example |Job|, |JobManager| or |GridRunner|) have their own |Settings| instances that store data defining and adjusting their behavior.
 The global scope |Settings| instance (``config``) is used for global settings.
 
-It should be stressed here that there are no different types of |Settings| in the sense that there are no special subclasses of |Settings| for job settings, global settings etc.
-Everything is stored in the same type of object and the role of a particular |Settings| instance is determined only by its content.
-
+Some settings which require well-defined structures have their own derived |Settings| classes.
+These still possess all the flexibility of the base class (in having dynamic custom attributes), but also contain a set of required fields with default values, and tool tips.
+Any derived settings class is interchangeable with the base |Settings| class of the same structure.
 
 
 Tree-like structure
@@ -158,28 +158,6 @@ Case sensitivity
     True
 
 
-
-Global settings
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Global settings are stored in a public |Settings| instance named ``config``.
-They contain variables adjusting general behavior of PLAMS as well as default settings for various objects (jobs, job manager etc.)
-The ``config`` instance is created during initialization of PLAMS environment (see |init|) and populated by executing ``plams_defaults`` file.
-It is visible in the main PLAMS namespace so every time you wish to adjust some settings you can simply type in your script, for example::
-
-    config.job.pickle = False
-    config.sleepstep = 10
-
-These changes are going to affect only the script they are called from.
-If you wish to permanently change some setting for all PLAMS executions, you can do it by editing ``plams_defaults``, which is located in the root folder of the package (``$AMSHOME/scripting/scm/plams``).
-
-.. note::
-
-    You can create multiple "profiles" of PLAMS behavior by creating multiple different copies of ``plams_defaults`` (also with different filenames).
-    If the environmental variable ``$PLAMSDEFAULTS`` is present and its value points to an existing file, this file is used instead of ``plams_defaults`` from the root folder.
-
-
-
 API
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -190,3 +168,38 @@ API
 
     Methods :meth:`~Settings.update` and :meth:`~Settings.soft_update` are complementary.
     Given two |Settings| instances ``A`` and ``B``, the command ``A.update(B)`` would result in ``A`` being exactly the same as ``B`` would be after ``B.soft_update(A)``.
+
+
+.. _global-settings:
+
+Global settings
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Global settings are stored in a public |ConfigSettings| instance named ``config``.
+They contain variables adjusting general behavior of PLAMS as well as default settings for various objects (jobs, job manager etc.)
+
+The default values are explained in the description of each property on ``config``.
+It is recommended to have a look at that these options, to give an overview of what behaviour can be configured.
+
+To change a setting for a script, just set the relevant option on the config to the preferred value, after the import statements.
+For example:
+
+.. code-block:: python
+
+    config.log.stdout = 1
+    config.job.pickle = False
+    config.default_jobrunner = JobRunner(parallel=True, maxjobs=8)
+
+The structure for the defined options on the nested settings objects are defined below.
+
+.. autoclass:: ConfigSettings
+
+.. autoclass:: JobSettings
+
+.. autoclass:: JobManagerSettings
+
+.. autoclass:: LogSettings
+
+.. autoclass:: RunScriptSettings
+
+.. autoclass:: SafeRunSettings

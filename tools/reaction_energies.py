@@ -3,6 +3,7 @@ import os
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 import numpy as np
 from scm.plams.mol.molecule import Molecule
+from scm.plams import ReactionEquation
 
 __all__ = ["get_stoichiometry", "balance_equation", "reaction_energy"]
 
@@ -31,6 +32,101 @@ def get_stoichiometry(job_or_molecule_or_path, as_dict=True):
         raise TypeError("expected type AMSJob or dict but received {}".format(type(r)))
 
     return d
+
+
+def balance_equation_new(reactants, products, normalization="r0", normalization_value=1.0):
+    """
+    Calculate stoichiometric coefficients (meant to replace balance_equation method)
+
+    reactants: a list of amsjobs, or a list of paths to ams.results folders or ams.rkf files or .xyz files, or a list of Molecules, or a list of stoichiometry dicts, or a list of Molecules
+        The reactants
+
+    products: a list of amsjobs, or a list of paths to ams.results folders or ams.rkf files, or a list of Molecules or .xyz files, or a list of stoichiometry dicts, or a list of Molecules
+        The products
+
+    Returns: a 2-tuple (coeffs_reactants, coeffs_products)
+        coeffs_reactants is a list with length == len(reactants)
+        coeffs_products is a list with length == len(products)
+
+    normalization: str
+        'r0' for the first reactant, 'r1' for the second reactant, etc.
+        'p0' for the first product, 'p1' for the second product, etc.
+        This normalizes the chemical equation such that the coefficient in front of the specified species is normalization_value
+
+    normalization_value: float or None
+        The value to which the compound defined with 'normalization' should be normalized
+        if None, whatever integer value the ReactionEquation object produces should be used.
+    """
+
+    def get_formulas(list_of_jobs):
+        """
+        Convert the list of molecules to a list of molecular formulas
+        """
+        formulas = []
+        for r in list_of_jobs:
+            d = get_stoichiometry(r)
+            formula = "".join(["%s%i" % (el, n) for el, n in d.items()])
+            formulas.append(formula)
+        return formulas
+
+    def get_normalization_index(normalization):
+        if normalization.startswith("r"):
+            normalization_index = int(normalization.split("r")[1])
+            if normalization_index >= num_reactants:
+                raise ValueError(
+                    "Reactant index {} specified, but max value allowed is {}".format(
+                        normalization_index, num_reactants - 1
+                    )
+                )
+        elif normalization.startswith("p"):
+            normalization_index = int(normalization.split("p")[1])
+            if normalization_index >= num_products:
+                raise ValueError(
+                    "Product index {} specified, but max value allowed is {}".format(
+                        normalization_index, num_products - 1
+                    )
+                )
+            normalization_index += num_reactants
+        else:
+            raise ValueError(
+                "Unknown normalization: {}. Should be r0, r1, r2, ... (for reactants), p0, p1, p2 ... (for products)"
+            )
+
+        return normalization_index
+
+    if len(reactants) == 0:
+        raise ValueError("The reactants list is empty.")
+    if len(products) == 0:
+        raise ValueError("The products list is empty.")
+
+    # Set up the input, which can be lists of formulas, or lists of PLAMS molecule objects
+    num_reactants = len(reactants)
+    reactants = get_formulas(reactants)
+    num_products = len(products)
+    products = get_formulas(products)
+
+    # Set up the minimal numbers of the coefficients
+    ind = get_normalization_index(normalization)
+    min_coeffs = np.zeros(num_reactants + len(products))
+    min_coeffs[ind] = 1
+
+    # Solve
+    reaction = ReactionEquation(reactants, products)
+    coeffs = reaction.balance(min_coeffs)
+
+    if coeffs is None:
+        strings = ["Something went wrong when solving the system of linear equations."]
+        strings += ["Verify that the chemical equation can be balanced at all."]
+        text = " ".join(strings)
+        raise RuntimeError(text)
+
+    # Normalize in the specified molecule
+    if normalization_value is not None:
+        coeffs = coeffs.astype(np.float64)
+        coeffs /= coeffs[ind]
+        coeffs *= normalization_value
+
+    return coeffs[:num_reactants], coeffs[num_reactants:]
 
 
 def balance_equation(reactants, products, normalization="r0", normalization_value=1.0):
@@ -136,17 +232,8 @@ def balance_equation(reactants, products, normalization="r0", normalization_valu
     # Al2(SO4)3 + Ca(OH)2 → Al(OH)3 + CaSO4
     # mat = np.array([[-2,-3,-12,0,0,0],[0,0,0,-1,-2,-2],[1,0,0,0,3,3],[0,1,4,1,0,0]]).T
 
-    mat = []
-    for e in elements:
-        row = []
-        for s in stoich_r:
-            row.append(-s.get(e, 0))
-        for s in stoich_p:
-            row.append(s.get(e, 0))
-        mat.append(row)
-    mat = np.array(mat)
+    mat = np.array([[-s.get(e, 0) for s in stoich_r] + [s.get(e, 0) for s in stoich_p] for e in elements])
 
-    coeffs = []
     if mat.shape[0] >= mat.shape[1]:
         u, s, vh = np.linalg.svd(mat)
         coeffs = np.compress(s <= 1e-12, vh, axis=0)
@@ -217,10 +304,8 @@ def reaction_energy(reactants, products, normalization="r0", unit="hartree"):
     my_reactants = [AMSJob.load_external(x) for x in reactants]
     my_products = [AMSJob.load_external(x) for x in products]
     coeffs_r, coeffs_p = balance_equation(my_reactants, my_products, normalization)
-    reaction_energy = None
 
-    energies = [job.results.get_energy(unit=unit) for job in my_reactants + my_products]
-    energies = np.array(energies)
+    energies = np.array([job.results.get_energy(unit=unit) for job in my_reactants + my_products])
 
     coeffs = np.concatenate(([-x for x in coeffs_r], coeffs_p))
     reaction_energy = np.dot(coeffs, energies)

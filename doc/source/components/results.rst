@@ -186,7 +186,7 @@ To picture this matter we will use the following script that performs geometry o
 
     go = AMSJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
     go.settings.input.ams.task = 'GeometryOptimization'
-    ... #other settings adjustments for geometry optimisation
+    ... #other settings adjustments for geometry optimization
     go_results = go.run()
 
     opt_geo = go_results.get_main_molecule()
@@ -213,7 +213,7 @@ We need to fix the script:
 
     go = AMSJob(name='GeomOpt', molecule=Molecule('geom.xyz'))
     go.settings.input.ams.task = 'GeometryOptimization'
-    ... #other settings adjustments for geometry optimisation
+    ... #other settings adjustments for geometry optimization
     go_results = go.run()
 
     freq = AMSJob(name='Freq')
@@ -266,7 +266,7 @@ This cleaning is intended for situations when your jobs produce large files that
 Running many of such jobs could deplete the disk space and cause the whole script to crash.
 If you wish to immediately get rid of some files produced by your jobs (without having a chance to do anything with them), use the first cleaning.
 
-In the majority of cases it is sufficient to use the second cleaning, which is performed at the end of your script, when |finish| method is called.
+In the majority of cases it is sufficient to use the second cleaning, which is performed at the end of your script, or when |finish| method is explicitly called.
 It is adjusted by ``myjob.settings.save``.
 You can use the second cleaning to remove files that you no longer need after you extracted relevant data earlier in your script.
 

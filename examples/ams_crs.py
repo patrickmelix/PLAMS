@@ -2,7 +2,7 @@
 import os
 
 import matplotlib.pyplot as plt
-from scm.plams import Settings, Units, from_smiles, CRSJob, init, finish
+from scm.plams import Settings, Units, from_smiles, CRSJob, init
 from scm.plams.recipes.adfcosmorscompound import ADFCOSMORSCompoundJob
 
 
@@ -35,7 +35,7 @@ def solubility():
     s.input.compound[0].frac1 = 1.0
 
     s.input.compound[1]._h = solute_coskf
-    s.input.compound[1].nring = 6 # number of ring atoms benzene
+    s.input.compound[1].nring = 6  # number of ring atoms benzene
     s.input.compound[1].meltingpoint = solute_properties["meltingpoint"]
     s.input.compound[1].hfusion = solute_properties["hfusion"] * Units.convert(
         1.0, "kJ/mol", "kcal/mol"
@@ -93,10 +93,10 @@ def plot_sigma_profile(results):
 
 
 def main():
+    # this line is not required in AMS2025+
+    init()
     solubility()
 
 
 if __name__ == "__main__":
-    init()
     main()
-    finish()

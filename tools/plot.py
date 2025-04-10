@@ -1,13 +1,32 @@
-from scm.plams.mol.molecule import Molecule
+from typing import List, Optional, Tuple, Union, TYPE_CHECKING
+
+import numpy as np
+from scm.plams.core.errors import MissingOptionalPackageError
+from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.ams import AMSJob
-from typing import Tuple, Union, List
+from scm.plams.mol.molecule import Molecule
 
-__all__ = ["plot_band_structure", "plot_molecule", "plot_correlation"]
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
+    from os import PathLike
+    from PIL import Image as PilImage
+
+__all__ = [
+    "plot_band_structure",
+    "plot_phonons_band_structure",
+    "plot_phonons_thermodynamic_properties",
+    "plot_molecule",
+    "plot_correlation",
+    "plot_msd",
+    "plot_work_function",
+    "plot_grid_molecules",
+]
 
 
-def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, show=False):
+@requires_optional_package("matplotlib")
+def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, ax=None):
     """
-    Plots an electronic band structure from DFTB or BAND with matplotlib.
+    Plots an electronic band structure from DFTB, BAND, or QuantumEspresso engines with matplotlib.
 
     To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
     manually outside this function.
@@ -30,11 +49,12 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
     zero: None or float or one of 'fermi', 'vbmax', 'cbmin'
         Shift the curves so that y=0 is at the specified value. If None, no shift is performed. 'fermi', 'vbmax', and 'cbmin' require that the ``fermi_energy`` is not None. Note: 'vbmax' and 'cbmin' calculate the zero as the highest (lowest) eigenvalue smaller (greater) than or equal to ``fermi_energy``. This is NOT necessarily equal to the valence band maximum or conduction band minimum as calculated by the compute engine.
 
-    show: bool
-        If True, call plt.show() at the end
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
     """
     import matplotlib.pyplot as plt
-    import numpy as np
 
     if zero is None:
         zero = 0
@@ -54,14 +74,25 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
 
     labels = labels or []
 
-    fig, ax = plt.subplots()
+    for i, label in enumerate(labels):
+        if label:
+            label = (
+                label.replace("GAMMA", "\\Gamma")
+                .replace("DELTA", "\\Delta")
+                .replace("LAMBDA", "\\Lambda")
+                .replace("SIGMA", "\\Sigma")
+            )
+            labels[i] = f"${label}$"
 
-    plt.plot(x, y_spin_up - zero, "-")
+    if ax is None:
+        _, ax = plt.subplots()
+
+    ax.plot(x, y_spin_up - zero, "-")
     if y_spin_down is not None:
-        plt.plot(x, y_spin_down - zero, "--")
+        ax.plot(x, y_spin_down - zero, "--")
 
-    tick_x = []
-    tick_labels = []
+    tick_x: List[float] = []
+    tick_labels: List[str] = []
     for xx, ll in zip(x, labels):
         if ll:
             if len(tick_x) == 0:
@@ -76,17 +107,180 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
                 tick_labels.append(ll)
 
     for xx in tick_x:
-        plt.axvline(xx)
+        ax.axvline(xx)
 
     if fermi_energy is not None:
-        plt.axhline(fermi_energy - zero, linestyle="--")
+        ax.axhline(fermi_energy - zero, linestyle="--")
 
-    plt.xticks(ticks=tick_x, labels=tick_labels)
+    ax.set_xticks(ticks=tick_x, labels=tick_labels)
 
-    if show:
-        plt.show()
+    return ax
 
 
+@requires_optional_package("matplotlib")
+def plot_phonons_band_structure(x, y, labels=None, zero=None, ax=None):
+    """
+    Plots a phonons band structure from DFTB, BAND or QuantumEspresso engines with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    x: list of float
+        Returned by AMSResults.get_phonons_band_structure()
+
+    y: 2D numpy array of float
+        Returned by AMSResults.get_phonons_band_structure()
+
+    labels: list of str
+        Returned by AMSResults.get_phonons_band_structure()
+
+    zero: None or float
+        Shift the curves so that y=0 is at the specified value. If None, no shift is performed.
+
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+    """
+    import matplotlib.pyplot as plt
+
+    if zero is None:
+        zero = 0
+
+    labels = labels or []
+
+    for i, label in enumerate(labels):
+        if label:
+            label = (
+                label.replace("GAMMA", "\\Gamma")
+                .replace("DELTA", "\\Delta")
+                .replace("LAMBDA", "\\Lambda")
+                .replace("SIGMA", "\\Sigma")
+            )
+            labels[i] = f"${label}$"
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    ax.plot(x, y - zero, "-")
+
+    tick_x: List[float] = []
+    tick_labels: List[str] = []
+    for xx, ll in zip(x, labels):
+        if ll:
+            if len(tick_x) == 0:
+                tick_x.append(xx)
+                tick_labels.append(ll)
+                continue
+            if np.isclose(xx, tick_x[-1]):
+                if ll != tick_labels[-1]:
+                    tick_labels[-1] += f",{ll}"
+            else:
+                tick_x.append(xx)
+                tick_labels.append(ll)
+
+    for xx in tick_x:
+        ax.axvline(xx, dashes=[2, 2], color="gray")
+
+    ax.set_xticks(ticks=tick_x, labels=tick_labels)
+
+    return ax
+
+
+@requires_optional_package("matplotlib")
+def plot_phonons_dos(energy, total_dos, dos_per_species, dos_per_atom, dos_type="total", ax=None):
+    """
+    Plots the phonons DOS from DFTB, BAND or QuantumEspresso engines with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    energy: list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    total_dos: list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    dos_per_species: dictionary of list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    dos_per_atom: dictionary of list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    dos_type: str
+        Specifies the kind of plot to show. Possible options:
+            - "total": Total DOS.
+            - "species": DOS decomposed by species.
+            - "atom": DOS decomposed by atom.
+
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+    """
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    if dos_type == "total":
+        ax.plot(energy, total_dos, color="black", label="Total DOS", linestyle="-", zorder=1)
+
+    elif dos_type == "species":
+        ax.plot(energy, total_dos, color="black", label="Total DOS", linestyle="-", zorder=-1)
+        for i, (l, v) in enumerate(dos_per_species.items()):
+            ax.plot(energy, v, label=f"pDOS {l}", dashes=[3, i + 1, 2], zorder=i)
+
+    elif dos_type == "atoms":
+        ax.plot(energy, total_dos, color="black", label="Total DOS", linestyle="-", zorder=-1)
+        for i, (l, v) in enumerate(dos_per_atom.items()):
+            ax.plot(energy, v, label=f"pDOS {l}", dashes=[3, i + 1, 2], zorder=i)
+
+    else:
+        raise ValueError("Invalid dos_type. Must be 'total', 'species', or 'atom'.")
+
+    plt.legend()
+
+    return ax
+
+
+@requires_optional_package("matplotlib")
+def plot_phonons_thermodynamic_properties(temperature, properties, units, ax=None):
+    """
+    Plots the phonons thermodynamic properties from DFTB, BAND or QuantumEspresso engines with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    temperature: list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    properties: dictionary of list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    units: dictionary of str
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+    """
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    for i, (label, prop) in enumerate(properties.items()):
+        ax.plot(temperature, prop, label=label + " (" + units[label] + ")", linestyle="-", lw=2, zorder=1)
+
+    plt.legend()
+
+    return ax
+
+
+@requires_optional_package("matplotlib")
+@requires_optional_package("ase")
 def plot_molecule(molecule, figsize=None, ax=None, keep_axis: bool = False, **kwargs):
     """Show a molecule in a Jupyter notebook"""
     import matplotlib.pyplot as plt
@@ -96,16 +290,79 @@ def plot_molecule(molecule, figsize=None, ax=None, keep_axis: bool = False, **kw
     if isinstance(molecule, Molecule):
         molecule = toASE(molecule)
 
-    if not ax:
-        plt.figure(figsize=figsize or (2, 2))
+    if ax is None:
+        _, ax = plt.subplots(figsize=figsize or (2, 2))
 
     plot_atoms(molecule, ax=ax, **kwargs)
 
     if not keep_axis:
-        if ax:
-            ax.axis("off")
-        else:
-            plt.axis("off")
+        ax.axis("off")
+
+    return ax
+
+
+@requires_optional_package("rdkit")
+def plot_grid_molecules(
+    molecules: List[Molecule],
+    legends: Optional[List[str]] = None,
+    molsPerRow: int = 2,
+    subImgSize: Tuple[int, int] = (200, 200),
+    ax: Optional["plt.Axes"] = None,
+    save_svg_path: Optional[Union[str, "PathLike"]] = None,
+    **kwargs,
+) -> Union["PilImage", "plt.Axes", str]:
+    """Plot series of molecules in a grid using RDKit
+
+    :param ax: if provided molecules are plotted in these axes, note that the quality of the image might reduce, defaults to None
+    :param save_svg_path: pathlike of the file, with formats .svg to save it as image, it returns the svg string, defaults to None
+    :return: an image of the molecules
+    :rtype: pil.Image or plt.Axes or string
+    """
+    from rdkit.Chem import Draw, rdchem
+    from rdkit.Chem.Draw import IPythonConsole
+    from scm.plams.interfaces.molecule.rdkit import _rdmol_for_image
+
+    # guess bonds, the bonds will be included in the RDKit molecule
+    for m in molecules:
+        if len(m.bonds) == 0:
+            m.guess_bonds()
+    molecules = [_rdmol_for_image(m, remove_hydrogens=False) for m in molecules]
+
+    if ax is not None or save_svg_path is not None:
+        if hasattr(rdchem.Mol, "_repr_svg_"):
+            IPythonConsole.UninstallIPythonRenderer()
+    else:
+        if not hasattr(rdchem.Mol, "_repr_svg_"):
+            IPythonConsole.InstallIPythonRenderer()
+        IPythonConsole.ipython_useSVG = True
+    if ax is not None:
+        IPythonConsole.ipython_useSVG = False
+        kwargs["useSVG"] = False
+    if save_svg_path is not None:
+        kwargs["useSVG"] = True
+
+    img = Draw.MolsToGridImage(
+        mols=molecules,
+        molsPerRow=molsPerRow,  # Number of molecules per row
+        subImgSize=subImgSize,  # Size of each individual image
+        legends=legends,
+        **kwargs,
+    )
+
+    if save_svg_path is not None:
+        if not isinstance(img, str):
+            raise TypeError(
+                f"{type(img)=} but expected str, most likely it is due to previously using ipy_useSVG=True in a notebook"
+            )
+        with open(save_svg_path, "w") as f:
+            f.write(img)
+        return img
+
+    if ax is not None and save_svg_path is None:
+        image_data = np.array(img, dtype=np.int32)
+        ax.imshow(image_data)
+        return ax
+    return img
 
 
 def get_correlation_xy(
@@ -113,13 +370,11 @@ def get_correlation_xy(
     job2: Union[AMSJob, List[AMSJob]],
     section: str,
     variable: str,
-    alt_section: str = None,
-    alt_variable: str = None,
+    alt_section: Optional[str] = None,
+    alt_variable: Optional[str] = None,
     file: str = "ams",
     multiplier: float = 1.0,
 ) -> Tuple:
-    import numpy as np
-
     def tolist(x):
         if isinstance(x, list):
             return x
@@ -149,30 +404,28 @@ def get_correlation_xy(
         data1.extend(list(d1))
         data2.extend(list(d2))
 
-    data1 = np.array(data1)
-    data2 = np.array(data2)
-
-    return data1, data2
+    return np.array(data1), np.array(data2)
 
 
+@requires_optional_package("matplotlib")
 def plot_correlation(
     job1: Union[AMSJob, List[AMSJob]],
     job2: Union[AMSJob, List[AMSJob]],
     section: str,
     variable: str,
-    alt_section: str = None,
-    alt_variable: str = None,
+    alt_section: Optional[str] = None,
+    alt_variable: Optional[str] = None,
     file: str = "ams",
     multiplier: float = 1.0,
-    unit: str = None,
-    save_txt: bool = None,
+    unit: Optional[str] = None,
+    save_txt: Optional[str] = None,
     ax=None,
     show_xy: bool = True,
     show_linear_fit: bool = True,
     show_mad: bool = True,
     show_rmsd: bool = True,
-    xlabel: str = None,
-    ylabel: str = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
 ):
     """
 
@@ -234,7 +487,6 @@ def plot_correlation(
     """
 
     import matplotlib.pyplot as plt
-    import numpy as np
 
     def tolist(x):
         if isinstance(x, list):
@@ -282,13 +534,16 @@ def plot_correlation(
 
     linear_fit_title = None
     if show_linear_fit:
-        from scipy.stats import linregress
+        try:
+            from scipy.stats import linregress
+        except ImportError:
+            raise MissingOptionalPackageError("scipy")
 
         result = linregress(data1, data2)
         min_max_linear_fit = result.slope * min_max + result.intercept
         r2 = result.rvalue**2
         ax.plot(min_max, min_max_linear_fit, "-")
-        legend.append(f"Fit")
+        legend.append("Fit")
         stats_title += f" R^2: {r2:.3f}"
         linear_fit_title = f"Linear fit slope={result.slope:.3f} intercept={result.intercept:.3f}"
 
@@ -326,6 +581,7 @@ def plot_correlation(
     return ax
 
 
+@requires_optional_package("matplotlib")
 def plot_msd(job, start_time_fit_fs=None, ax=None):
     """
     job: AMSMSDJob
@@ -354,5 +610,140 @@ def plot_msd(job, start_time_fit_fs=None, ax=None):
     ax.set_xlabel("Correlation time (fs)")
     ax.set_ylabel("Mean square displacement (ang^2)")
     ax.set_title("MSD: Diffusion coefficient = {:.2e} m^2/s".format(diffusion_coefficient))
+
+    return ax
+
+
+@requires_optional_package("matplotlib")
+def plot_work_function(
+    coordinate: np.ndarray,
+    planarAverage: np.ndarray,
+    macroscopicAverage: np.ndarray,
+    Efermi: float,
+    Vbulk: float,
+    Vvacuum: Tuple[float, float],
+    WF: Tuple[float, float],
+    ax=None,
+):
+    """
+    Plots an Electrostatic Potential Profile from AMS-QE with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    ``coordinate``: 1D array of float.
+        Returned by AMSResults.get_work_function_results().
+
+    ``planarAverage``: 1D array of float.
+        Returned by AMSResults.get_work_function_results().
+
+    ``macroscopicAverage``: 1D array of float.
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``Efermi``: float.
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``Vbulk``: float.
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``Vvacuum``: Tuple[float,float].
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    ``WF``: Tuple[float,float].
+        Returned by AMSResults.get_work_function_results(). Should have the same unit as ``planarAverage``.
+
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+
+    Returns: matplotlib axis
+    """
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    ax.set_xlabel("Length", fontsize=13)
+    ax.set_ylabel("Energy", fontsize=13)
+
+    x0 = min(coordinate)
+    y0 = min(planarAverage)
+    x1 = max(coordinate)
+
+    ax.plot(coordinate, planarAverage, color="red", linestyle="-.", lw=2, zorder=1)
+    ax.plot(coordinate, macroscopicAverage, color="blue", linestyle="-", lw=2, zorder=2)
+    ax.text(x0 + 0.8 * (x1 - x0), y0, "Planar\nAverage", fontsize=11, color="red")
+    ax.text(x0 + 0.0 * (x1 - x0), y0, "Macroscopic\nAverage", fontsize=11, color="blue")
+    ax.axhline(y=Efermi, color="black", linestyle="dashed", linewidth=1)
+    ax.text(x0 + 0.05 * (x1 - x0), Efermi + 0.1, "E. Fermi", fontsize=11, color="black")
+    ax.axhline(y=Vbulk, color="black", linestyle="dashed", linewidth=1)
+    ax.text(x0 + 0.05 * (x1 - x0), Vbulk + 0.1, "Pot. bulk", fontsize=11, color="black")
+
+    # If the material is symmetric:
+    if abs(Vvacuum[0] - Vvacuum[1]) < 1e-3 or abs(Vvacuum[0] - Vvacuum[1]) < 1e-3:
+        ax.axhline(y=Vvacuum[0], color="black", linestyle="dashed", linewidth=1)
+        ax.text(min(coordinate), Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+
+        head_length = 0.4
+        ax.arrow(
+            x0 + 1.0 * (x1 - x0),
+            Efermi,
+            0.0,
+            Vvacuum[1] - Efermi - head_length,
+            head_width=0.3,
+            head_length=head_length,
+            fc="black",
+            ec="black",
+        )
+        ax.text(
+            x0 + 0.98 * (x1 - x0),
+            (Vvacuum[1] + Efermi) / 2,
+            "WF=" + "%.1f" % WF[1] + " eV",
+            fontsize=11,
+            color="black",
+            horizontalalignment="right",
+        )
+
+    # Otherwise:
+    else:
+        ax.plot([x0, x0 + 0.3 * (x1 - x0)], [Vvacuum[0], Vvacuum[0]], color="black", linestyle="dashed", linewidth=1)
+        ax.text(x0, Vvacuum[0] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+
+        ax.plot([x1, x1 - 0.3 * (x1 - x0)], [Vvacuum[1], Vvacuum[1]], color="black", linestyle="dashed", linewidth=1)
+        ax.text(x1 - 0.3 * (x1 - x0), Vvacuum[1] + 0.1, "Pot. vacuum", fontsize=11, color="black")
+
+        head_length = 0.4
+        ax.arrow(
+            x0 + 0.0 * (x1 - x0),
+            Efermi,
+            0.0,
+            Vvacuum[0] - Efermi - head_length,
+            head_width=0.3,
+            head_length=head_length,
+            fc="black",
+            ec="black",
+        )
+        ax.text(
+            x0 + 0.02 * (x1 - x0), (Vvacuum[0] + Efermi) / 2, "WF=" + "%.1f" % WF[0] + " eV", fontsize=11, color="black"
+        )
+        ax.arrow(
+            x0 + 1.0 * (x1 - x0),
+            Efermi,
+            0.0,
+            Vvacuum[1] - Efermi - head_length,
+            head_width=0.3,
+            head_length=head_length,
+            fc="black",
+            ec="black",
+        )
+        ax.text(
+            x0 + 0.98 * (x1 - x0),
+            (Vvacuum[1] + Efermi) / 2,
+            "WF=" + "%.1f" % WF[1] + " eV",
+            fontsize=11,
+            color="black",
+            horizontalalignment="right",
+        )
 
     return ax

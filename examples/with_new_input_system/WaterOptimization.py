@@ -10,12 +10,9 @@
 
 # ## Initial imports
 #
-# These two lines are not needed if you run PLAMS using the ``$AMSBIN/plams`` program. They are only needed if you use ``$AMSBIN/amspython``.
+# These two lines are not needed if you run PLAMS using the ``$AMSBIN/amspython`` program. They are only needed if you use ``$AMSBIN/amspython``.
 
 from scm.plams import *
-
-init()
-
 
 # ## Initial structure
 
@@ -171,10 +168,3 @@ except KeyError:
 
 energy = job.results.readrkf("AMSResults", "Energy", file="engine")
 print(f"Energy from the engine .rkf file (in hartree): {energy}")
-
-
-# ## Finish PLAMS
-#
-# The ``finish()`` method is called automatically if you run the script with ``$AMSBIN/plams``. You should only call it if you use ``$AMSBIN/amspython`` to run the script.
-
-finish()

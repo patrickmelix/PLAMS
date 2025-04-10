@@ -5,8 +5,9 @@ from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.amsworker import AMSWorker
 from scm.plams.mol.molecule import Molecule
+from typing import Optional
 
-__all__ = ["preoptimize", "refine_density", "refine_lattice"]
+__all__ = ["preoptimize", "refine_density", "refine_lattice", "shakemd"]
 
 
 def preoptimize(
@@ -42,6 +43,68 @@ def preoptimize(
         return output_molecules[0]
     else:
         return output_molecules
+
+
+def shakemd(
+    molecule: Molecule,
+    density: Optional[float] = None,  # kg/m^3
+    nsteps: int = 4000,
+    model: str = "UFF",
+    settings: Optional[Settings] = None,
+    nproc: int = 1,
+) -> Molecule:
+    """
+    Performs SHAKE MD simulation with all bonds fixed. If ``density`` is specified, a lattice deformation will also be applied.
+
+    The temperature is 100 K and the time step 0.5 fs.
+
+    Returns: a Molecule corresponding to the final MD step.
+
+    molecule: Molecule
+        The initial structure
+    density: float, optional
+        If specified, the molecule must have a 3D lattice. Target density in kg/m^3   (1000x the density in g/cm^3)
+    nsteps: int
+        Number of MD steps.
+    model: str
+        e.g. 'UFF'
+    settings: Settings
+        Engine settings (overrides ``model``)
+    """
+    called_plams_init = _ensure_init()
+    s = _get_quick_settings(model, settings, nproc)
+    s.input.ams.Task = "MolecularDynamics"
+    s.input.ams.MolecularDynamics.NSteps = nsteps
+    s.input.ams.MolecularDynamics.Thermostat.Type = "Berendsen"
+    s.input.ams.MolecularDynamics.Thermostat.Tau = 100
+    s.input.ams.MolecularDynamics.Thermostat.Temperature = 100
+    s.input.ams.MolecularDynamics.TimeStep = 0.5
+    s.input.ams.MolecularDynamics.InitialVelocities.Temperature = 100
+    s.input.ams.MolecularDynamics.Shake.All = "bonds * *"
+    if density is not None:
+        temp_mol = molecule.copy()
+        temp_mol.set_density(density)
+        l = temp_mol.lattice
+        target_lattice_str = f"""
+            {l[0][0]} {l[0][1]} {l[0][2]}
+            {l[1][0]} {l[1][1]} {l[1][2]}
+            {l[2][0]} {l[2][1]} {l[2][2]}
+        """
+        s.input.ams.MolecularDynamics.Deformation.StartStep = max(nsteps - 3000, 1)
+        s.input.ams.MolecularDynamics.Deformation.StopStep = nsteps
+        s.input.ams.MolecularDynamics.Deformation.TargetLattice._1 = target_lattice_str
+
+    job = AMSJob(settings=s, molecule=molecule, name="shakemd")
+    job.run()
+
+    out = job.results.get_main_molecule()
+
+    delete_job(job)
+
+    if called_plams_init:
+        finish()
+
+    return out
 
 
 def refine_density(

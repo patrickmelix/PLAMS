@@ -8,11 +8,12 @@ import shutil
 import threading
 from os.path import join as opj
 from subprocess import PIPE
-from typing import List
+from typing import List, Dict
 
 from scm.plams.core.errors import FileError, ResultsError
 from scm.plams.core.functions import config, log
 from scm.plams.core.private import saferun
+from scm.plams.core.enums import JobStatus
 
 __all__ = ["Results"]
 
@@ -52,7 +53,7 @@ def _privileged_access():
 def _restrict(func):
     """Decorator that wraps methods of |Results| instances.
 
-    Whenever decorated method is called, the status of associated job is checked. Depending of its value access to the method is granted, refused or the calling thread is forced to wait for the right :ref:`event<event-objects>` to be set.
+    Whenever decorated method is called, the status of associated job is checked. Depending on its value access to the method is granted, refused or the calling thread is forced to wait for the right :ref:`event<event-objects>` to be set.
     """
 
     @functools.wraps(func)
@@ -60,10 +61,10 @@ def _restrict(func):
         if not self.job:
             raise ResultsError("Using Results not associated with any Job")
 
-        if self.job.status in ["successful", "copied"]:
+        if self.job.status in [JobStatus.SUCCESSFUL, JobStatus.COPIED]:
             return func(self, *args, **kwargs)
 
-        elif self.job.status in ["preview"]:
+        elif self.job.status == JobStatus.PREVIEW:
             if config.ignore_failure:
                 log(
                     "WARNING: Trying to obtain results of job {} run in a preview mode. Returned value is None".format(
@@ -75,14 +76,25 @@ def _restrict(func):
             else:
                 raise ResultsError("Using Results associated with job run in a preview mode")
 
-        elif self.job.status in ["deleted"]:
+        elif self.job.status == JobStatus.DELETED:
             raise ResultsError("Using Results associated with deleted job")
 
-        elif self.job.status in ["crashed", "failed"]:
-            if func.__name__ == "wait":  # waiting for crashed of failed job should not trigger any warnings/exceptions
+        elif self.job.status in [JobStatus.CRASHED, JobStatus.FAILED]:
+            # waiting for crashed of failed job should not trigger any warnings/exceptions
+            # and neither should checking the status from this job with 'ok', 'check' or 'get_errormsg'
+            suppress_errors = func.__name__ == "wait"
+            if not suppress_errors:
+                for frame in inspect.getouterframes(inspect.currentframe()):
+                    cal, arg = _caller_name_and_arg(frame[0])
+                    if arg == self.job and cal in ["ok", "check", "get_errormsg"]:
+                        suppress_errors = True
+                        break
+
+            if suppress_errors:
                 cal, arg = _caller_name_and_arg(inspect.currentframe())
                 if isinstance(arg, Results):
                     return func(self, *args, **kwargs)
+
             if config.ignore_failure:
                 log("WARNING: Trying to obtain results of crashed or failed job {}".format(self.job.name), 3)
                 try:
@@ -100,7 +112,7 @@ def _restrict(func):
             else:
                 raise ResultsError("Using Results associated with crashed or failed job")
 
-        elif self.job.status in ["created", "started", "registered", "running"]:
+        elif self.job.status in [JobStatus.CREATED, JobStatus.STARTED, JobStatus.REGISTERED, JobStatus.RUNNING]:
             log("Waiting for job {} to finish".format(self.job.name), 1)
             if _privileged_access():
                 self.finished.wait()
@@ -108,7 +120,7 @@ def _restrict(func):
                 self.done.wait()
             return func(self, *args, **kwargs)
 
-        elif self.job.status in ["finished"]:
+        elif self.job.status == JobStatus.FINISHED:
             if _privileged_access():
                 return func(self, *args, **kwargs)
             log("Waiting for job {} to finish".format(self.job.name), 1)
@@ -160,7 +172,7 @@ class Results(ApplyRestrict):
     Instance methods are automatically wrapped with the "access guardian" that ensures thread safety (see |parallel|).
     """
 
-    _rename_map = {}
+    _rename_map: Dict[str, str] = {}
 
     def __init__(self, job):
         self.job = job
@@ -356,14 +368,14 @@ class Results(ApplyRestrict):
     def recreate_molecule(self):
         """Recreate the input molecule for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
-        The definiton here serves as a deafult fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_molecule`.
+        The definiton here serves as a default fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_molecule`.
         """
         return None
 
     def recreate_settings(self):
         """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
 
-        The definiton here serves as a deafult fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_settings`.
+        The definiton here serves as a default fall-back template preventing |load_external| from crashing when a particular |Results| subclass does not define it's own :meth:`recreate_settings`.
         """
         return None
 
@@ -378,7 +390,9 @@ class Results(ApplyRestrict):
         absfiles = [opj(path, f) for f in self.files]
         childnames = [child.name for child in self.job] if hasattr(self.job, "children") else []
         if arg in ["none", [], None]:
-            [os.remove(f) for f in absfiles if os.path.isfile(f)]
+            for f in absfiles:
+                if os.path.isfile(f):
+                    os.remove(f)
 
         elif isinstance(arg, list):
             rev = False

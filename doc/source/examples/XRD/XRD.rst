@@ -1,4 +1,4 @@
-.. _XRD:
+.. _XRDExample:
 
 X-Ray Diffraction (XRD)
 =====================================
@@ -15,18 +15,6 @@ the `AMSinput GUI <../../../GUI/index.html>`__ using the **View → X-Ray Diffra
 
     See also the `pymatgen documentation for XRDCalculator <https://pymatgen.org/pymatgen.analysis.diffraction.html#module-pymatgen.analysis.diffraction.xrd>`__.
 
-
-To follow along, either
-
-* Download :download:`xrd.py` (run as ``$AMSBIN/amspython xrd.py``).
-* Download :download:`xrd.ipynb` (see also: how to install `Jupyterlab <../../../Scripting/Python_Stack/Python_Stack.html#install-and-run-jupyter-lab-jupyter-notebooks>`__ in AMS)
-
-
-.. include:: xrd.rst.include
-
-
-Complete Python code
-----------------------------
-
-.. literalinclude:: xrd.py
-    :language: python
+.. include:: XRD.common_header.rst
+.. include:: xrd.ipynb.rst
+.. include:: XRD.common_footer.rst

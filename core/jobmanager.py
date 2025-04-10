@@ -3,10 +3,18 @@ import re
 import shutil
 import threading
 from os.path import join as opj
+from typing import TYPE_CHECKING, Optional, List, Dict
 
 from scm.plams.core.basejob import MultiJob
+from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, PlamsError
-from scm.plams.core.functions import config, log
+from scm.plams.core.functions import config, get_logger, log
+from scm.plams.core.logging import Logger
+from scm.plams.core.formatters import JobCSVFormatter
+
+if TYPE_CHECKING:
+    from scm.plams.core.basejob import Job
+    from scm.plams.core.settings import Settings
 
 __all__ = ["JobManager"]
 
@@ -18,14 +26,15 @@ class JobManager:
 
     *   ``foldername`` -- the working folder name.
     *   ``workdir`` -- the absolute path to the working folder.
-    *   ``logfile`` -- the absolute path to the logfile.
+    *   ``logfile`` -- the absolute path to the text logfile.
+    *   ``job_logger`` -- the logger used to write job summaries.
     *   ``input`` -- the absolute path to the copy of the input file in the working folder.
     *   ``settings`` -- a |Settings| instance for this job manager (see below).
     *   ``jobs`` -- a list of all jobs managed with this instance (in order of |run| calls).
     *   ``names`` -- a dictionary with names of jobs. For each name an integer value is stored indicating how many jobs with that basename have already been run.
     *   ``hashes`` -- a dictionary working as a hash-table for jobs.
 
-    The *path* argument should be be a path to a directory inside which the main working folder will be created. If ``None``, the directory from where the whole script was executed is used.
+    The *path* argument should be a path to a directory inside which the main working folder will be created. If ``None``, the directory from where the whole script was executed is used.
 
     The ``foldername`` attribute is initially set to the *folder* argument. If such a folder already exists (and ``use_existing_folder`` is False), the suffix ``.002`` is appended to *folder* and the number is increased (``.003``, ``.004``...) until a non-existsing name is found. If *folder* is ``None``, the name ``plams_workdir`` is used, followed by the same procedure to find a unique ``foldername``.
 
@@ -37,18 +46,26 @@ class JobManager:
 
     """
 
-    def __init__(self, settings, path=None, folder=None, use_existing_folder=False):
+    def __init__(
+        self,
+        settings: "Settings",
+        path: Optional[str] = None,
+        folder: Optional[str] = None,
+        use_existing_folder: bool = False,
+        job_logger: Optional[Logger] = None,
+    ):
 
         self.settings = settings
-        self.jobs = []
-        self.names = {}
-        self.hashes = {}
+        self.jobs: List[Job] = []
+        self.names: Dict[str, int] = {}
+        self.hashes: Dict[str, Job] = {}
 
         self._register_lock = threading.RLock()
+        self._lazy_lock = threading.Lock()
 
         if path is None:
             ams_resultsdir = os.getenv("AMS_RESULTSDIR")
-            if not ams_resultsdir is None and os.path.isdir(ams_resultsdir):
+            if ams_resultsdir is not None and os.path.isdir(ams_resultsdir):
                 self.path = ams_resultsdir
             else:
                 self.path = os.getcwd()
@@ -66,12 +83,41 @@ class JobManager:
                 self.foldername = basename + "." + str(n).zfill(3)
                 n += 1
 
-        self.workdir = opj(self.path, self.foldername)
-        self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self.workdir, "logfile")
-        self.input = opj(self.workdir, "input")
+        self._workdir = opj(self.path, self.foldername)
+        self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self._workdir, "logfile")
+        self.input = opj(self._workdir, "input")
+        self._create_workdir = not (use_existing_folder and os.path.exists(self._workdir))
+        self._job_logger = job_logger
 
-        if not (use_existing_folder and os.path.exists(self.workdir)):
-            os.mkdir(self.workdir)
+    @property
+    def workdir(self) -> str:
+        """
+        Absolute path to the working directory
+        """
+        # Create the working directory only when first required
+        # Avoids creating working directory only for e.g. load_job
+        with self._lazy_lock:
+            if self._create_workdir:
+                os.mkdir(self._workdir)
+                self._create_workdir = False
+        return self._workdir
+
+    @property
+    def job_logger(self) -> Logger:
+        """
+        Logger used to write job summaries.
+        If not specified on initialization, defaults to a csv logger with file ``job_logfile.csv``.
+        """
+        if self._job_logger is None:
+            self._job_logger = get_logger(os.path.basename(self.workdir), fmt="csv")
+            self._job_logger.configure(
+                logfile_level=config.log.csv,
+                logfile_path=opj(self.workdir, "job_logfile.csv"),
+                csv_formatter=JobCSVFormatter,
+                include_date=True,
+                include_time=True,
+            )
+        return self._job_logger
 
     def load_job(self, filename):
         """Load previously saved job from *filename*.
@@ -135,7 +181,7 @@ class JobManager:
                     self.remove_job(otherjob)
             shutil.rmtree(job.path)
 
-    def _register(self, job):
+    def _register(self, job: "Job"):
         """Register the *job*. Register job's name (rename if needed) and create the job folder.
 
         If a job with the same name was already registered, *job* is renamed by appending consecutive integers. The number of digits in the appended number is defined by the ``counter_len`` value in ``settings``.
@@ -168,7 +214,7 @@ class JobManager:
             os.mkdir(job.path)
 
             self.jobs.append(job)
-            job.status = "registered"
+            job.status = JobStatus.REGISTERED
             log("Job {} registered".format(job.name), 7)
 
     def _check_hash(self, job):
@@ -192,10 +238,13 @@ class JobManager:
             job.results._clean(job.settings.save)
 
         if self.settings.remove_empty_directories:
-            for root, dirs, files in os.walk(self.workdir, topdown=False):
+            for root, dirs, files in os.walk(self._workdir, topdown=False):
                 for dirname in dirs:
                     fullname = opj(root, dirname)
                     if not os.listdir(fullname):
                         os.rmdir(fullname)
+
+        if self._job_logger is not None:
+            self._job_logger.close()
 
         log("Job manager cleaned", 7)

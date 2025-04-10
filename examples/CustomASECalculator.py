@@ -16,6 +16,7 @@ def get_calculator():
 
 
 def main():
+    # this line is not required in AMS2025+
     init()
 
     mol = from_smiles("O")
@@ -44,8 +45,6 @@ def main():
 
     energy = job.results.get_energy(unit="eV")
     print(f"AMS with custom ASE calculator (Engine ASE), EMT potential: final energy {energy:.3f} eV")
-
-    finish()
 
 
 if __name__ == "__main__":

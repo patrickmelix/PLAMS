@@ -1,5 +1,11 @@
+import os
+from typing import Dict, Union, Optional
+
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
+from scm.plams.core.functions import log
 
 __all__ = ["AMSAnalysisJob", "AMSAnalysisResults", "convert_to_unicode"]
 
@@ -29,9 +35,9 @@ class AMSAnalysisPlot:
         self.y = None
         self.y_units = None
         self.y_name = None
-        self.y_sigma = None  # stadard deviation for y_values
+        self.y_sigma = None  # standard deviation for y_values
 
-        self.properties = None
+        self.properties: Optional[Dict] = None
         self.name = None
         self.section = None
 
@@ -98,7 +104,8 @@ class AMSAnalysisPlot:
         """
         # Place property string
         parts = []
-        for propname, prop in self.properties.items():
+        properties = self.properties if self.properties is not None else {}
+        for propname, prop in properties.items():
             parts.append("%-30s %s\n" % (propname, prop))
 
         # Place the string with the column names
@@ -168,12 +175,11 @@ class AMSAnalysisResults(SCMResults):
             raise FileError("File {} not present in {}".format(self.job.name + self.__class__._kfext, self.job.path))
         if self._kf.reader._sections is None:
             self._kf.reader._create_index()
-        sections = self._kf.reader._sections.keys()
-        return sections
+        return self._kf.reader._sections.keys()  # type: ignore
 
     def get_xy(self, section="", i=1):
         """
-        Get the AMSAnalysitPlot object for a specific section of the plot KFFile
+        Get the AMSAnalysisPlot object for a specific section of the plot KFFile
         """
         task = self.job.settings.input.Task
         if section == "":
@@ -225,6 +231,44 @@ class AMSAnalysisResults(SCMResults):
         D_units = plot.y_units
         return D, D_units
 
+    def recreate_settings(self):
+        """Recreate the input |Settings| instance for the corresponding job based on files present in the job folder. This method is used by |load_external|.
+
+        Extract user input from the kf file and parse it back to a |Settings| instance using ``scm.libbase`` module. Remove the ``system`` branch from that instance.
+        """
+        user_input = self._kf.read("General", "user input")
+        try:
+            from scm.libbase import InputParser
+
+            inp = InputParser().to_settings("analysis", user_input)
+        except:
+            log(
+                "Failed to recreate input settings from {}".format(
+                    os.path.join(self.job.path, "".join([self.job.name, self.__class__._kfext]))
+                )
+            )
+            return None
+        s = Settings()
+        s.input = inp
+        return s
+
+    def recreate_molecule(self) -> Union[None, Molecule, Dict[str, Molecule]]:
+        """Recreate the input molecule(s) for the corresponding job based on files present in the job folder.
+
+        This method is used by |load_external|.
+        It extracts data from the ``InputMolecule`` and ``InputMolecule(*)`` sections.
+        """
+        from scm.plams import AMSJob
+
+        if "system" not in self.job.settings.input:
+            return None
+
+        self.job.settings.input.ams.system = self.job.settings.input.system
+        del self.job.settings.input.system
+        molecule = AMSJob.settings_to_mol(self.job.settings)
+        del self.job.settings.input.ams
+        return molecule
+
 
 class AMSAnalysisJob(SCMJob):
     """A class for analyzing molecular dynamics trajectories using the ``analysis`` program."""
@@ -237,10 +281,30 @@ class AMSAnalysisJob(SCMJob):
         SCMJob.__init__(self, **kwargs)
 
     def _serialize_mol(self):
-        pass
+        """
+        Use the method from AMSJob to move the molecule to the settings object
+        """
+        from scm.plams import AMSJob
+
+        systems = AMSJob._serialize_molecule(self)
+        if len(systems) > 0:
+            self.settings.input.system = systems
 
     def _remove_mol(self):
-        pass
+        """
+        Remove the molecule from the system block again
+        """
+        if "system" in self.settings.input:
+            del self.settings.input.system
+
+    @staticmethod
+    def _atom_suffix(atom):
+        """
+        Return the suffix of an atom.
+        """
+        from scm.plams import AMSJob
+
+        return AMSJob._atom_suffix(atom)
 
     def check(self):
         try:

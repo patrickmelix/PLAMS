@@ -1,4 +1,4 @@
-.. _conformers_multiplemols:
+.. _ConformersMultipleMoleculesExample:
 
 Conformers Generation with Multiple Molecules
 =============================================
@@ -6,30 +6,17 @@ Conformers Generation with Multiple Molecules
 .. image:: conformers_files/conformers_22_0.png
 
 .. seealso::
-   
+
    * :ref:`conformers_interface` PLAMS interface
 
-   * :ref:`conformers_example` PLAMS example
-     
+   * :ref:`ConformersGenerationExample` PLAMS example
+
    * :ref:`Conformers for COSMO-RS <ADFCOSMORSConformers>`
 
 Example illustrating how to generate conformers with AMS.
 
 **This example is only compatible with AMS2024**.
 
-To follow along, either
-
-* Download :download:`conformers.py` (run as ``$AMSBIN/amspython conformers.py``).
-* Download :download:`conformers.ipynb` (see also: how to install `Jupyterlab <../../../Scripting/Python_Stack/Python_Stack.html#install-and-run-jupyter-lab-jupyter-notebooks>`__ in AMS)
-
-.. note::
-
-    Conformers generation depends on random numbers. You are likely to get somewhat different results if you run this example!
-
-.. include:: conformers.rst.include
-
-Complete Python code
-----------------------------
-
-.. literalinclude:: conformers.py
-    :language: python
+.. include:: ConformersMultipleMolecules.common_header.rst
+.. include:: conformers.ipynb.rst
+.. include:: ConformersMultipleMolecules.common_footer.rst

@@ -1,5 +1,4 @@
-from scm.plams import Molecule, Settings, AMSNVTJob, AMSNVEJob, AMSAnalysisJob
-from scm.plams import init, finish
+from scm.plams import Molecule, Settings, AMSNVTJob, AMSNVEJob, AMSAnalysisJob, init
 
 text = """6
 
@@ -16,13 +15,13 @@ def main():
     """
     The main script
     """
+    # this line is not required in AMS2025+
+    init()
+
     # Write the XYZ file
     xyzfile = open("2h2o.xyz", "w")
     xyzfile.write(text)
     xyzfile.close()
-
-    # Initialize PLAMS
-    init()
 
     # Set up and run the equilibration at 300K
     mol = Molecule("2h2o.xyz")
@@ -51,9 +50,6 @@ def main():
     plots = anresults.get_all_plots()
     for xy in plots:
         xy.write("%s" % (xy.section + ".txt"))
-
-        # Finalize PLAMS
-        finish()
 
 
 if __name__ == "__main__":

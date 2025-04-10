@@ -244,8 +244,9 @@ def run_md():
     """
     Define the simulation box as mixture of H2/O2 and run a short NVE at high T
     """
-
+    # this line is not required in AMS2025+
     init()
+
     o2 = from_smiles("O=O")
     h2 = from_smiles("[HH]")
     mixture = packmol(molecules=[o2, h2], n_molecules=[4, 4], density=1.0)
@@ -259,7 +260,6 @@ def run_md():
 
     job = AMSJob(settings=s, molecule=mixture, name="md")
     job.run(watch=True)
-    finish()
 
     return job.results.rkfpath()
 
