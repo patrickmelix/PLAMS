@@ -7,12 +7,13 @@ import os
 from os.path import expandvars
 from pathlib import Path
 
-# make sure to source amsbashrc.sh before launching this example so that
-# the AMSHOME environment variable is set.
+# Make sure to source amsbashrc.sh before launching this example so that
+# the AMSHOME environment variable is set. Requires AMS2025+ to run this example.
 
 AMSHOME = os.environ["AMSHOME"]
 cif_file = f"{AMSHOME}/atomicdata/Molecules/IZA-Zeolites/ABW.cif"
 xyz_file = f"{AMSHOME}/scripting/scm/params/examples/benchmark/ISOL6/e_13.xyz"
+badxyz_file = f"{AMSHOME}/scripting/scm/plams/unit_tests/xyz/reactant2.xyz"
 
 assert Path(cif_file).exists(), f"{cif_file} does not exist."
 assert Path(xyz_file).exists(), f"{xyz_file} does not exist."
@@ -139,6 +140,7 @@ plot_molecule(mol)
 from scm.plams import toASE
 from ase import Atoms
 from ase.visualize.plot import plot_atoms
+import matplotlib.pyplot as plt
 
 print(f"{type(mol)=}")
 print(f"{mol.get_formula()=}")
@@ -147,7 +149,8 @@ ase_atoms: Atoms = toASE(mol)
 print(f"{type(ase_atoms)=}")
 print(f"{ase_atoms.get_chemical_formula()=}")
 
-plot_atoms(ase_atoms, rotation="-85x,5y,0z")
+_, ax = plt.subplots(figsize=(2, 2))
+plot_atoms(ase_atoms, rotation="-85x,5y,0z", ax=ax)
 
 
 # #### Convert ASE Atoms to PLAMS Molecule
@@ -190,6 +193,27 @@ print(f"{type(mol)=}")
 plot_molecule(mol)
 
 
+# #### Convert problematic PLAMS Molecule to RDKit Mol
+
+mol = Molecule(badxyz_file)
+mol.guess_bonds()
+plot_molecule(mol)
+
+
+# This molecule will fail to convert to an RDKit Mol object, because RDKit does not like the AMS assignment of double bonds.
+
+try:
+    rdkit_mol = to_rdmol(mol)
+except ValueError as exc:
+    print("Failed to convert")
+
+
+# The problem can be fixed by passing the argument `presanitize` to the `to_rdmol` function.
+
+rdkit_mol = to_rdmol(mol, presanitize=True)
+rdkit_mol
+
+
 # ### SCM libbase UnifiedChemicalSystem Python class
 #
 # #### Convert PLAMS Molecule to UnifiedChemicalSystem
@@ -217,6 +241,9 @@ plot_molecule(mol)
 
 
 # ### pymatgen Structure and Molecule Python classes
+
+# Note that for this part of the example, the `pymatgen` package needs to be installed. This can be done via `amspackages`.
+
 
 # #### Convert PLAMS Molecule to pymatgen Structure (periodic)
 #

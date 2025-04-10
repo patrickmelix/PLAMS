@@ -116,7 +116,7 @@ class AMSMDJob(AMSJob):
     default_equal = "None"
     default_constantvolume = "False"
 
-    default_checkpointfrequency = 1000000
+    default_checkpointfrequency = 1000
     default_writevelocities = "True"
     default_writebonds = "True"
     default_writecharges = "True"
@@ -135,6 +135,7 @@ class AMSMDJob(AMSJob):
         samplingfreq: int = None,
         nsteps: int = None,
         checkpointfrequency=None,
+        engineresultsfreq=None,
         writevelocities=None,
         writebonds=None,
         writemolecules=None,
@@ -172,6 +173,10 @@ class AMSMDJob(AMSJob):
 
         mdsett.TimeStep = timestep or mdsett.TimeStep or self.default_timestep
         mdsett.Trajectory.SamplingFreq = samplingfreq or mdsett.Trajectory.SamplingFreq or self.default_samplingfreq
+        if engineresultsfreq is not None:
+            # keyword was introduced in AMS2025, so avoid always setting this input option in order
+            # to be able to use the AMSMDJob class with older AMS versions.
+            mdsett.Trajectory.EngineResultsFreq = engineresultsfreq
         mdsett.NSteps = nsteps or mdsett.NSteps or self.default_nsteps
 
         mdsett.Trajectory.WriteVelocities = (

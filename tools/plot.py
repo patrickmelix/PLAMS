@@ -4,7 +4,6 @@ import numpy as np
 from scm.plams.core.errors import MissingOptionalPackageError
 from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.ams import AMSJob
-from scm.plams.interfaces.molecule.rdkit import to_rdmol
 from scm.plams.mol.molecule import Molecule
 
 if TYPE_CHECKING:
@@ -14,6 +13,8 @@ if TYPE_CHECKING:
 
 __all__ = [
     "plot_band_structure",
+    "plot_phonons_band_structure",
+    "plot_phonons_thermodynamic_properties",
     "plot_molecule",
     "plot_correlation",
     "plot_msd",
@@ -25,7 +26,7 @@ __all__ = [
 @requires_optional_package("matplotlib")
 def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energy=None, zero=None, ax=None):
     """
-    Plots an electronic band structure from DFTB or BAND with matplotlib.
+    Plots an electronic band structure from DFTB, BAND, or QuantumEspresso engines with matplotlib.
 
     To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
     manually outside this function.
@@ -73,6 +74,16 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
 
     labels = labels or []
 
+    for i, label in enumerate(labels):
+        if label:
+            label = (
+                label.replace("GAMMA", "\\Gamma")
+                .replace("DELTA", "\\Delta")
+                .replace("LAMBDA", "\\Lambda")
+                .replace("SIGMA", "\\Sigma")
+            )
+            labels[i] = f"${label}$"
+
     if ax is None:
         _, ax = plt.subplots()
 
@@ -102,6 +113,168 @@ def plot_band_structure(x, y_spin_up, y_spin_down=None, labels=None, fermi_energ
         ax.axhline(fermi_energy - zero, linestyle="--")
 
     ax.set_xticks(ticks=tick_x, labels=tick_labels)
+
+    return ax
+
+
+@requires_optional_package("matplotlib")
+def plot_phonons_band_structure(x, y, labels=None, zero=None, ax=None):
+    """
+    Plots a phonons band structure from DFTB, BAND or QuantumEspresso engines with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    x: list of float
+        Returned by AMSResults.get_phonons_band_structure()
+
+    y: 2D numpy array of float
+        Returned by AMSResults.get_phonons_band_structure()
+
+    labels: list of str
+        Returned by AMSResults.get_phonons_band_structure()
+
+    zero: None or float
+        Shift the curves so that y=0 is at the specified value. If None, no shift is performed.
+
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+    """
+    import matplotlib.pyplot as plt
+
+    if zero is None:
+        zero = 0
+
+    labels = labels or []
+
+    for i, label in enumerate(labels):
+        if label:
+            label = (
+                label.replace("GAMMA", "\\Gamma")
+                .replace("DELTA", "\\Delta")
+                .replace("LAMBDA", "\\Lambda")
+                .replace("SIGMA", "\\Sigma")
+            )
+            labels[i] = f"${label}$"
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    ax.plot(x, y - zero, "-")
+
+    tick_x: List[float] = []
+    tick_labels: List[str] = []
+    for xx, ll in zip(x, labels):
+        if ll:
+            if len(tick_x) == 0:
+                tick_x.append(xx)
+                tick_labels.append(ll)
+                continue
+            if np.isclose(xx, tick_x[-1]):
+                if ll != tick_labels[-1]:
+                    tick_labels[-1] += f",{ll}"
+            else:
+                tick_x.append(xx)
+                tick_labels.append(ll)
+
+    for xx in tick_x:
+        ax.axvline(xx, dashes=[2, 2], color="gray")
+
+    ax.set_xticks(ticks=tick_x, labels=tick_labels)
+
+    return ax
+
+
+@requires_optional_package("matplotlib")
+def plot_phonons_dos(energy, total_dos, dos_per_species, dos_per_atom, dos_type="total", ax=None):
+    """
+    Plots the phonons DOS from DFTB, BAND or QuantumEspresso engines with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    energy: list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    total_dos: list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    dos_per_species: dictionary of list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    dos_per_atom: dictionary of list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    dos_type: str
+        Specifies the kind of plot to show. Possible options:
+            - "total": Total DOS.
+            - "species": DOS decomposed by species.
+            - "atom": DOS decomposed by atom.
+
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+    """
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    if dos_type == "total":
+        ax.plot(energy, total_dos, color="black", label="Total DOS", linestyle="-", zorder=1)
+
+    elif dos_type == "species":
+        ax.plot(energy, total_dos, color="black", label="Total DOS", linestyle="-", zorder=-1)
+        for i, (l, v) in enumerate(dos_per_species.items()):
+            ax.plot(energy, v, label=f"pDOS {l}", dashes=[3, i + 1, 2], zorder=i)
+
+    elif dos_type == "atoms":
+        ax.plot(energy, total_dos, color="black", label="Total DOS", linestyle="-", zorder=-1)
+        for i, (l, v) in enumerate(dos_per_atom.items()):
+            ax.plot(energy, v, label=f"pDOS {l}", dashes=[3, i + 1, 2], zorder=i)
+
+    else:
+        raise ValueError("Invalid dos_type. Must be 'total', 'species', or 'atom'.")
+
+    plt.legend()
+
+    return ax
+
+
+@requires_optional_package("matplotlib")
+def plot_phonons_thermodynamic_properties(temperature, properties, units, ax=None):
+    """
+    Plots the phonons thermodynamic properties from DFTB, BAND or QuantumEspresso engines with matplotlib.
+
+    To control the appearance of the plot you need to call ``plt.ylim(bottom, top)``, ``plt.title(title)``, etc.
+    manually outside this function.
+
+    temperature: list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    properties: dictionary of list of float
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    units: dictionary of str
+        Returned by AMSResults.get_phonons_thermodynamic_properties()
+
+    Additional parameters:
+
+    ``ax``: matplotlib axis
+        The axis. If None, one will be created
+    """
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    for i, (label, prop) in enumerate(properties.items()):
+        ax.plot(temperature, prop, label=label + " (" + units[label] + ")", linestyle="-", lw=2, zorder=1)
+
+    plt.legend()
 
     return ax
 
@@ -147,10 +320,13 @@ def plot_grid_molecules(
     """
     from rdkit.Chem import Draw, rdchem
     from rdkit.Chem.Draw import IPythonConsole
+    from scm.plams.interfaces.molecule.rdkit import _rdmol_for_image
 
     # guess bonds, the bonds will be included in the RDKit molecule
-    [m.guess_bonds() for m in molecules]
-    molecules = [to_rdmol(m) for m in molecules]
+    for m in molecules:
+        if len(m.bonds) == 0:
+            m.guess_bonds()
+    molecules = [_rdmol_for_image(m, remove_hydrogens=False) for m in molecules]
 
     if ax is not None or save_svg_path is not None:
         if hasattr(rdchem.Mol, "_repr_svg_"):
@@ -199,7 +375,6 @@ def get_correlation_xy(
     file: str = "ams",
     multiplier: float = 1.0,
 ) -> Tuple:
-
     def tolist(x):
         if isinstance(x, list):
             return x

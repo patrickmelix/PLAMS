@@ -1,10 +1,50 @@
 #!/usr/bin/env amspython
-from scm.plams import Molecule, Settings, ReorganizationEnergyJob
+# coding: utf-8
 
-# Compute the neutral-anion reorganization energy of pyrrole
-# using ADF as computational engine
+# ## Initialization
 
-molecule = Molecule("pyrrole.xyz")
+#!/usr/bin/env amspython
+from scm.plams import Molecule, Settings, ReorganizationEnergyJob, init, AMSJob
+
+# this line is not required in AMS2025+
+init()
+
+
+# ## Define molecule
+#
+# Normally you would read it from an xyz file, but here is for convenience explicit code
+
+# molecule = Molecule("pyrrole.xyz")
+
+
+def get_molecule(input_string):
+    job = AMSJob.from_input(input_string)
+    return job.molecule[""]
+
+
+molecule = get_molecule(
+    """
+System
+    Atoms
+        C      -1.12843000       0.00000000      -0.35463200
+        C      -0.71293000       0.00000000       0.96463800
+        C       0.71293000       0.00000000       0.96463800
+        C       1.12843000       0.00000000      -0.35463200
+        N       0.00000000       0.00000000      -1.14563200
+        H       0.00000000       0.00000000      -2.15713200
+        H      -2.12074000       0.00000000      -0.79100200
+        H      -1.36515000       0.00000000       1.83237800
+        H       1.36515000       0.00000000       1.83237800
+        H       2.12074000       0.00000000      -0.79100200
+    End
+End
+"""
+)
+
+molecule.properties.name = "pyrrole"  # normally the name of the xyz file
+
+
+# ## Setup and run job
 
 # Generic settings of the calculation
 # (for quantitatively better results, use better settings)
@@ -28,7 +68,8 @@ job = ReorganizationEnergyJob(
 )
 job.run()
 
-# Fetch and print the results:
+
+# ## Fetch and print the results:
 
 energy_unit = "eV"
 energies = job.results.get_all_energies(energy_unit)

@@ -16,9 +16,37 @@ Then a solubility calculation is performed for benzene in water between 0 and
 using the property prediction tool, or the experimental numbers can be given
 (recommended).
 
-**Example usage**: (:download:`ams_crs.py <../../../examples/ams_crs.py>`)
+**Example usage**: AMS2023+ required (:download:`ams_crs.py <../../../examples/ams_crs.py>`)
 
+This script is built on the PLAMS. For more detailed useage of COSMO-RS with PLAMS, refer to the `documentation <../../COSMO-RS/PLAMS_COSMO-RS_scripting.html#python-scripting-for-cosmo-rs-with-plams>`__.
+
+.. raw:: html
+
+   <details>
+   <summary style="color:#008000;cursor:pointer">[show/hide code]</summary>
 .. literalinclude:: ../../../examples/ams_crs.py
+   :language: python
+
+.. raw:: html
+
+    </details>
+
+
+**pyCRS example usage**: AMS2024+ required (:download:`ams_pyCRS.py <../../../examples/ams_pyCRS.py>`)
+
+This script utilizes pyCRS, a convenient python wrapper built on PLAMS and SQL database for various thermodynamic calculations. For more detatils, refer to the `pyCRS Overview <../../COSMO-RS/pyCRS_Overview.html#overview>`__.
+
+.. raw:: html
+
+   <details>
+   <summary style="color:#008000;cursor:pointer">[show/hide code]</summary>
+.. literalinclude:: ../../../examples/ams_pyCRS.py
+   :language: python
+
+.. raw:: html
+
+    </details>
+
 
 **Results**
 
