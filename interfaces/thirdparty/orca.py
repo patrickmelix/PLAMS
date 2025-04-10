@@ -66,7 +66,7 @@ class ORCAResults(Results):
         # those that are '... done'
         s = self.grep_output(search)
         if filterDotDotDot:
-            s = [item for item in s if "..." not in item]
+            s = [item for item in s if "... done" not in item]
         s = s[index]
         if not isinstance(index, slice):
             return Units.convert(self._get_energy_correct_unit(s), "a.u.", unit)
