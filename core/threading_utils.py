@@ -1,4 +1,6 @@
 import threading
+from functools import cached_property
+from typing import Callable, TypeVar
 
 
 class LimitedSemaphore:
@@ -88,3 +90,38 @@ class LimitedSemaphore:
                 self._max_value = max_value
                 self._setter_waiting = False
                 self._condition.notify_all()
+
+
+T = TypeVar("T")
+
+
+class LazyWrapper:
+    """
+    Thread-safe wrapper for lazy initialization of objects
+    """
+
+    def __init__(self, factory: Callable[[], T]):
+        """
+        Initialize with a factory function, used to create the object instance on first access
+
+        :param factory: function returning a new instance of an object
+        """
+        self._factory = factory
+
+    @cached_property
+    def value(self) -> T:
+        """
+        Lazily initialized value. On first call, the value will be created from the factory. On subsequent calls, the same cached value will be returned.
+
+        :return: initialized value
+        """
+        return self._factory()
+
+    @property
+    def initialized(self) -> bool:
+        """
+        Check whether the lazy value has already been initialized.
+
+        :return: flag for whether the underlying lazy value is initialized
+        """
+        return "value" in self.__dict__
