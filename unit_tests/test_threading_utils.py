@@ -195,3 +195,10 @@ class TestLazyWrapper:
         # Then initialized only once and same object in all threads
         assert call_count == 1
         assert all([results[0] is r for r in results])
+
+    def test_lazy_wrapper_string_representation(self):
+        lazy_dict = LazyWrapper(lambda: {"foo": "bar"})
+
+        assert str(lazy_dict) == "Uninitialized LazyWrapper"
+        _ = lazy_dict.value
+        assert str(lazy_dict) == "Initialized LazyWrapper[dict]"

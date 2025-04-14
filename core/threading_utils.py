@@ -125,3 +125,11 @@ class LazyWrapper:
         :return: flag for whether the underlying lazy value is initialized
         """
         return "value" in self.__dict__
+
+    def __str__(self):
+        if self.initialized:
+            return f"Initialized LazyWrapper[{type(self.value).__name__}]"
+        else:
+            return "Uninitialized LazyWrapper"
+
+
