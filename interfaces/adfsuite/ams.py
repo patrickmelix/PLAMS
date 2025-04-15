@@ -2267,7 +2267,7 @@ class AMSResults(Results):
             s.input = inp
             if "system" in s.input.ams:
                 del s.input.ams.system
-            s.soft_update(get_config("job"))
+            s.soft_update(get_config().job)
             return s
         return None
 
@@ -2664,7 +2664,7 @@ class AMSJob(SingleJob):
         """
 
         if _has_watchdog and watch:
-            jobmanager = get_config("default_jobmanager")
+            jobmanager = get_config().default_jobmanager
             observer = Observer()
             event_handler = AMSJobLogTailHandler(self, jobmanager)
             observer.schedule(event_handler, jobmanager.workdir, recursive=True)
@@ -2711,7 +2711,7 @@ class AMSJob(SingleJob):
         """
         ret = "unset AMS_SWITCH_LOGFILE_AND_STDOUT\n"
         ret += "unset SCM_LOGFILE\n"
-        config_slurm = get_config("slurm")
+        config_slurm = get_config().slurm
         if "nnode" in self.settings.runscript and config_slurm:
             # Running as a SLURM job step and user specified the number of nodes explicitly.
             ret += f'export SCM_SRUN_OPTIONS="$SCM_SRUN_OPTIONS -N {self.settings.runscript.nnode}"\n'

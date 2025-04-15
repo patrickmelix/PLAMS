@@ -812,7 +812,7 @@ def _run_uff_md(
 
     Raises: PackmolError if something goes worng.
     """
-    from scm.plams.core.functions import get_config, config_overrides
+    from scm.plams.core.functions import config_context
 
     thermostatted_region = "PACKMOL_thermostatted"
     md_ucs = ucs.copy()
@@ -847,13 +847,12 @@ def _run_uff_md(
         s.input.ams.MolecularDynamics.Deformation.StopStep = (nsteps * 3) // 4
         s.input.ams.MolecularDynamics.Deformation.TargetLattice._1 = target_lattice_str
 
-    overrides = Settings()
-    overrides.job.pickle = False
-    overrides.log.stdout = 0
-    with config_overrides(overrides):
+    with config_context() as cfg:
+        cfg.job.pickle = False
+        cfg.log.stdout = 0
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            job_manager = JobManager(get_config("jobmanager"), path=tmp_dir)
+            job_manager = JobManager(cfg.jobmanager, path=tmp_dir)
             job = AMSJob(settings=s, molecule=md_ucs, name="shakemd")
             job.run(jobmanager=job_manager)
 

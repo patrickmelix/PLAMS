@@ -1,7 +1,7 @@
 from ase.calculators.calculator import Calculator, all_changes
 from scm.plams.interfaces.thirdparty.serenity import SerenitySettings, SerenityJob
 
-from scm.plams import finish, Units, config_overrides, Settings
+from scm.plams import finish, Units, config_context
 import os
 
 
@@ -14,10 +14,9 @@ class SerenityCalculator(Calculator):
         self.results = dict()
 
     def calculate(self, atoms=None, properties=["energy"], system_changes=all_changes):
-        overrides = Settings()
-        overrides.default_jobmanager.hashing = None
-        overrides.jobmanager.hashing = None
-        with config_overrides(overrides):
+        with config_context() as cfg:
+            cfg.default_jobmanager.hashing = None
+            cfg.jobmanager.hashing = None
             atoms.write("my_system.xyz")
             for sys in self.settings.input.system:
                 self.settings.input.system[sys].geometry = os.path.abspath("my_system.xyz")

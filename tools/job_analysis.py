@@ -12,7 +12,7 @@ from scm.plams.core.basejob import Job, SingleJob
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.core.errors import PlamsError
-from scm.plams.core.functions import requires_optional_package, load, config_overrides
+from scm.plams.core.functions import requires_optional_package, load, config_context
 from scm.plams.tools.table_formatter import format_in_table
 from scm.plams.interfaces.molecule.rdkit import to_smiles
 from scm.plams.mol.molecule import Molecule
@@ -349,10 +349,9 @@ class JobAnalysis:
             except Exception as e:
                 return f"ERROR: {str(e)}"
 
-        overrides = Settings()
-        overrides.log.stdout = 0
-        overrides.log.file = 0
-        with config_overrides(overrides):
+        with config_context() as cfg:
+            cfg.log.stdout = 0
+            cfg.log.file = 0
             return [safe_value(j) for j in self._jobs.values()]
 
     @requires_optional_package("pandas")

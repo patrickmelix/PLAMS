@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, List, Dict
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, PlamsError
-from scm.plams.core.functions import get_config, get_logger, log
+from scm.plams.core.functions import get_logger, log, config
 from scm.plams.core.logging import Logger
 from scm.plams.core.formatters import JobCSVFormatter
 
@@ -111,7 +111,7 @@ class JobManager:
         if self._job_logger is None:
             self._job_logger = get_logger(os.path.basename(self.workdir), fmt="csv")
             self._job_logger.configure(
-                logfile_level=get_config(("log", "csv")),
+                logfile_level=config.log.csv,
                 logfile_path=opj(self.workdir, "job_logfile.csv"),
                 csv_formatter=JobCSVFormatter,
                 include_date=True,
@@ -134,7 +134,7 @@ class JobManager:
         def setstate(job, path, parent=None):
             job.parent = parent
             job.jobmanager = self
-            job.default_settings = [get_config("job")]
+            job.default_settings = [config.job]
             job.path = path
             if isinstance(job, MultiJob):
                 job._lock = threading.Lock()

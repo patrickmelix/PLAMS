@@ -235,7 +235,7 @@ class AMSCalculator(Calculator):
         if self.atoms is None:
             raise ValueError("No atoms object was set.")
 
-        if not get_config("init"):
+        if not get_config().init:
             raise RuntimeError("Before AMSCalculator can calculate results you need to call plams.init()")
 
         molecule = fromASE(self.atoms, set_charge=True)

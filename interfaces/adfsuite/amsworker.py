@@ -82,7 +82,7 @@ def _restrict(func):
         if self.ok():
             return func(self, *args, **kwargs)
         else:
-            if get_config("ignore_failure"):
+            if get_config().ignore_failure:
                 log("WARNING: Trying to obtain results of a failed calculation {}".format(self.name), 3)
                 try:
                     ret = func(self, *args, **kwargs)

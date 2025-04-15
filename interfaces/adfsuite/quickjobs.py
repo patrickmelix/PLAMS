@@ -271,7 +271,7 @@ def refine_lattice(
 
 
 def _ensure_init():
-    if get_config("init"):
+    if get_config().init:
         called_plams_init = False
     else:
         s = Settings()

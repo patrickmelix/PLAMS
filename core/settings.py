@@ -6,6 +6,8 @@ import numbers
 from typing import TYPE_CHECKING, TypeVar, Union, Tuple, Type, Hashable, Any, Optional, Dict, Generator
 from collections.abc import Iterable as ColIterable
 
+from scm.plams.core.threading_utils import LazyWrapper
+
 __all__ = [
     "Settings",
     "SafeRunSettings",
@@ -1027,10 +1029,11 @@ class ConfigSettings(Settings):
 
         # Default job runner and job manager are lazily initialised on first access
         # This is to allow users to change their settings before initialisation (due to side effects in init)
+        # Values are held inside a lazy wrapper to allow lazy values to be copied between settings instances
         # Make sure to do the initialisation inside a lock to avoid race-conditions between multiple threads
         self.__lazylock__ = threading.Lock()  # N.B. nomenclature used purely to avoid adding to settings dictionary
-        self.default_jobrunner = None
-        self.default_jobmanager = None
+        self.default_jobrunner = LazyWrapper(factory=self._jobrunner_factory)
+        self.default_jobmanager = LazyWrapper(factory=self._jobmanager_factory)
 
     @property
     def init(self) -> bool:
@@ -1155,34 +1158,60 @@ class ConfigSettings(Settings):
     def saferun(self, value: SafeRunSettings) -> None:
         self["saferun"] = value
 
+    @staticmethod
+    def _jobrunner_factory():
+        from scm.plams.core.jobrunner import JobRunner
+
+        return JobRunner()
+
     @property
     def default_jobrunner(self) -> "JobRunner":
         """
         Default |JobRunner| that will be used for running jobs, if an explicit runner is not provided.
         """
-        from scm.plams.core.jobrunner import JobRunner
-
         with self.__lazylock__:
-            if self["default_jobrunner"] is None:
-                self["default_jobrunner"] = JobRunner()
-            return self["default_jobrunner"]
+            default_jobrunner = self["default_jobrunner"]
+            # Initialize lazy value (if not already done so) and replace wrapper with "real" value
+            if isinstance(default_jobrunner, LazyWrapper):
+                val = default_jobrunner.value
+                self["default_jobrunner"] = val
+        return self["default_jobrunner"]
 
     @default_jobrunner.setter
     def default_jobrunner(self, value: "JobRunner") -> None:
-        self["default_jobrunner"] = value
+        with self.__lazylock__:
+            self["default_jobrunner"] = value
+
+    def _jobmanager_factory(self):
+        from scm.plams.core.jobmanager import JobManager
+
+        return JobManager(self.jobmanager)
 
     @property
     def default_jobmanager(self) -> "JobManager":
         """
         Default |JobManager| that will be used when running jobs, if an explicit manager is not provided.
         """
-        from scm.plams.core.jobmanager import JobManager
-
         with self.__lazylock__:
-            if self["default_jobmanager"] is None:
-                self["default_jobmanager"] = JobManager(self.jobmanager)
-            return self["default_jobmanager"]
+            default_jobmanager = self["default_jobmanager"]
+            # Initialize lazy value (if not already done so) and replace wrapper with "real" value
+            if isinstance(default_jobmanager, LazyWrapper):
+                val = default_jobmanager.value
+                self["default_jobmanager"] = val
+        return self["default_jobmanager"]
 
     @default_jobmanager.setter
     def default_jobmanager(self, value: "JobManager") -> None:
-        self["default_jobmanager"] = value
+        with self.__lazylock__:
+            self["default_jobmanager"] = value
+
+    def _check_initialized(self, key: str) -> bool:
+        """
+        Check if the value of a given key is initialized i.e. the value is not ``None`` any lazy value is calculated.
+
+        :param key: key to check
+        :return: whether value is initialized
+        """
+        with self.__lazylock__:
+            val = self[key]
+            return val.initialized if isinstance(val, LazyWrapper) else val is not None

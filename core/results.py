@@ -61,11 +61,12 @@ def _restrict(func):
         if not self.job:
             raise ResultsError("Using Results not associated with any Job")
 
+        cfg = get_config()
         if self.job.status in [JobStatus.SUCCESSFUL, JobStatus.COPIED]:
             return func(self, *args, **kwargs)
 
         elif self.job.status == JobStatus.PREVIEW:
-            if get_config("ignore_failure"):
+            if cfg.ignore_failure:
                 log(
                     "WARNING: Trying to obtain results of job {} run in a preview mode. Returned value is None".format(
                         self.job.name
@@ -95,7 +96,7 @@ def _restrict(func):
                 if isinstance(arg, Results):
                     return func(self, *args, **kwargs)
 
-            if get_config("ignore_failure"):
+            if cfg.ignore_failure:
                 log("WARNING: Trying to obtain results of crashed or failed job {}".format(self.job.name), 3)
                 try:
                     ret = func(self, *args, **kwargs)

@@ -19,11 +19,13 @@ from scm.plams.core.functions import (
     add_to_instance,
     log,
     get_config,
-    config_overrides,
+    config_context,
 )
 from scm.plams.core.settings import Settings
 from scm.plams.core.errors import MissingOptionalPackageError
 from scm.plams.unit_tests.test_helpers import assert_config_as_expected, get_mock_open_function, temp_file_path
+from scm.plams.core.jobmanager import JobManager
+from scm.plams.core.threading_utils import ContextAwareThread
 
 
 class TestInitAndFinish:
@@ -389,6 +391,8 @@ config.default_jobrunner = GridRunner(grid=grid_config, sleepstep=30)
 
     @pytest.mark.parametrize("explicit_finish", [True, False])
     def test_finish_does_not_clean_uninitialised_default_jobmanager(self, explicit_finish, config):
+        from scm.plams.core.threading_utils import LazyWrapper
+
         # When call _finish or finish but without initialising the lazy default jobmanager
         if explicit_finish:
             finish()
@@ -396,7 +400,9 @@ config.default_jobrunner = GridRunner(grid=grid_config, sleepstep=30)
             _finish()
 
         # Then the default job manager is still uninitialised and so not cleaned
-        assert config["default_jobmanager"] is None
+        jm = config["default_jobmanager"]
+        assert isinstance(jm, LazyWrapper)
+        assert not jm.initialized
 
     @pytest.mark.parametrize("explicit_init", [True, False])
     def test_init_then_finish_as_expected(self, explicit_init, config, mock_jobmanager):
@@ -696,144 +702,212 @@ log with level 3
 
 class TestConfig:
 
-    def test_get_config_retrieves_values_from_global_config(self, config):
-        # Verify retrieves top-level and nested values, with default if the key does not exist
-        assert get_config("daemon_threads")
-        assert get_config(("saferun", "repeat")) == 10
-        assert get_config("doesnotexist") is None
-        assert get_config(("does", "not", "exist"), default="foo") == "foo"
+    def test_get_config_retrieves_global_config_when_no_context_var(self, config):
+        # Given no context
+        # When get config
+        cfg = get_config()
 
-        # Verify retrieves lazy job manager/runner, initializing them unless specified
-        assert get_config("default_jobrunner", init_lazy=False, default=1) is None
-        assert get_config("default_jobmanager", init_lazy=False, default=1) is None
-        jr = get_config("default_jobrunner", default=1)
-        jm = get_config("default_jobmanager", default=1)
-        assert jr is not None
-        assert jm is not None
-        assert jm == config.default_jobmanager
-        assert jr == config.default_jobrunner
+        # Then config is equal to the global config
+        assert config is cfg
+        assert cfg.daemon_threads
+        assert cfg.saferun.repeat == 10
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert not cfg._check_initialized("default_jobmanager")
+        assert not cfg._check_initialized("default_jobrunner")
 
-    def test_get_config_retrieves_values_from_overrides_in_preference_to_global_config(self, config):
-        overrides = Settings()
-        overrides.saferun.repeat = 20
-        overrides.not_in_global = True
-        overrides.also_not.in_global = True
+        # And changes in one are reflected in the other
+        config.daemon_threads = False
+        _ = config.default_jobrunner
+        cfg.saferun.repeat = 5
+        _ = cfg.default_jobmanager
 
-        with config_overrides(overrides):
-            assert get_config("daemon_threads")
-            assert get_config(("saferun", "repeat")) == 20
-            assert get_config("doesnotexist") is None
-            assert get_config(("does", "not", "exist"), default="foo") == "foo"
-            assert get_config("not_in_global")
-            assert get_config(("also_not", "in_global"))
+        assert config is cfg
+        assert not cfg.daemon_threads
+        assert cfg.saferun.repeat == 5
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert cfg._check_initialized("default_jobmanager")
+        assert cfg._check_initialized("default_jobrunner")
 
-        assert not get_config("not_in_global")
-        assert not get_config(("also_not", "in_global"))
+    def test_get_config_retrieves_values_from_context_var_when_available(self, config):
+        from scm.plams.core.functions import _config
 
-    def test_config_overrides_apply_to_nested_contexts_as_expected(self, config):
-        # Verify config in context is as expected, with overrides applied
-        def assert_context_config(expected_level, expected_name, expected_thread):
-            assert get_config(("context", "level")) == expected_level
-            assert get_config(("context", "name")) == expected_name
-            assert get_config("thread") == expected_thread
-            assert get_config("job") == config.job
-            assert get_config("log") == config.log
+        # Given context
+        token = _config.set(config.copy())
+
+        # When get config
+        cfg = get_config()
+
+        # Then config is not equal to the global config
+        assert config is not cfg
+        assert cfg.daemon_threads
+        assert cfg.saferun.repeat == 10
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert not cfg._check_initialized("default_jobmanager")
+        assert not cfg._check_initialized("default_jobrunner")
+
+        # And configs are shallow copies
+        config.daemon_threads = False
+        _ = config.default_jobrunner
+        cfg.saferun.repeat = 5
+        _ = cfg.default_jobmanager
+
+        assert config is not cfg
+        assert not config.daemon_threads
+        assert cfg.daemon_threads
+        assert config.saferun.repeat == 10
+        assert cfg.saferun.repeat == 5
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert cfg._check_initialized("default_jobmanager")
+        assert cfg._check_initialized("default_jobrunner")
+
+        _config.reset(token)
+
+    def test_config_context_applies_context_specific_changes(self, config):
+        mock_jm = MagicMock(spec=JobManager)
+
+        # Given config context
+        with config_context() as cfg:
+            # When change values
+            c = get_config()
+            cfg.saferun.repeat = 20
+            cfg.not_in_global = True
+            cfg.also_not.in_global = True
+            cfg.default_jobmanager = mock_jm
+            _ = cfg.default_jobrunner
+
+            # Then reflected in context
+            assert c is cfg
+            assert cfg.daemon_threads
+            assert cfg.saferun.repeat == 20
+            assert cfg.not_in_global
+            assert cfg.also_not.in_global
+            assert cfg.default_jobmanager == mock_jm
+
+        # And not reflected outside context (aside from lazy shallow-copied objects as required)
+        c = get_config()
+        assert c is config
+        assert config.daemon_threads
+        assert config.saferun.repeat == 10
+        assert not config.not_in_global
+        assert not config.also_not.in_global
+        assert config.default_jobmanager != mock_jm
+        assert config._check_initialized("default_jobrunner")
+
+    def test_nested_config_context_applies_context_specific_changes(self, config):
+        # Verify config in context is as expected
+        def assert_context_config(expected_in_context, expected_level, expected_name, expected_thread):
+            cfg = get_config()
+            assert cfg.in_context == expected_in_context
+            assert cfg.context.level == expected_level
+            assert cfg.context.name == expected_name
+            assert cfg.thread == expected_thread
+            assert cfg.job == config.job
+            assert cfg.log == config.log
 
         # Apply some updates to the global context
         config.context.level = 0
         config.context.name = "global"
         config.thread = "main"
 
-        # Set up overrides for outer context
-        overrides_outer = Settings()
-        overrides_outer.context.level = 1
-        overrides_outer.context.name = "outer"
-        overrides_outer.outer = True
-        with config_overrides(overrides_outer):
+        # Given nested contexts
+        with config_context() as cfg_outer:
+            # When modify outer context config
+            cfg_outer.in_context = True
+            cfg_outer.context.level = 1
+            cfg_outer.context.name = "outer"
+            cfg_outer.outer = True
 
-            # Set up overrides for inner context
-            overrides_inner = Settings()
-            overrides_inner.context.level = 2
-            overrides_inner.context.name = "inner"
-            overrides_inner.outer = False
-            overrides_inner.inner = True
-            with config_overrides(overrides_inner):
+            with config_context() as cfg_inner:
+                # When modify inner context config
+                cfg_inner.context.level = 2
+                cfg_inner.context.name = "inner"
+                cfg_inner.outer = False
+                cfg_inner.inner = True
 
-                # Verify outer and inner overrides applied, where inner take precedence over outer
-                assert_context_config(2, "inner", "main")
-                assert not get_config("outer")
-                assert get_config("inner")
+                # Then changes only reflected within inner context
+                assert_context_config(True, 2, "inner", "main")
+                assert not cfg_inner.outer
+                assert cfg_inner.inner
 
-            # Verify outer overrides applied, where inner take precedence over outer
-            assert_context_config(1, "outer", "main")
-            assert get_config("outer")
-            assert get_config("inner") is None
+            # Then changes only reflected within outer context
+            assert_context_config(True, 1, "outer", "main")
+            assert cfg_outer.outer
+            assert "inner" not in cfg_outer
 
-        # Verify overrides not applied
-        assert_context_config(0, "global", "main")
-        assert get_config("outer") is None
-        assert get_config("inner") is None
+        # Then no changes reflected in global config
+        assert_context_config(Settings(), 0, "global", "main")
+        assert "outer" not in config
+        assert "inner" not in config
 
-    def test_config_overrides_apply_to_threads_as_expected(self, config):
-        # Verify config in context is as expected, with overrides applied
-        def assert_context_config(expected_level, expected_name, expected_thread):
-            assert get_config(("context", "level")) == expected_level
-            assert get_config(("context", "name")) == expected_name
-            assert get_config("thread") == expected_thread
-            assert get_config("job") == config.job
-            assert get_config("log") == config.log
+    def test_config_context_with_threading(self, config):
+        # Apply some updates to the global context
+        config.context.name = "global"
+        config.thread = "main"
 
-        def assert_in_new_thread(expected_level, expected_name, expected_thread):
-            t = threading.Thread(assert_context_config(expected_level, expected_name, expected_thread))
+        errors = []
+
+        def in_context(func, name=None, thread=None):
+            # Run function in new context
+            with config_context() as cfg:
+                if name:
+                    cfg.context.name = name
+                if thread:
+                    cfg.thread = thread
+                func()
+
+        def in_thread(target, context_aware=False):
+            # Run function in new (context aware) thread
+            t = threading.Thread(target=target) if not context_aware else ContextAwareThread(target=target)
             t.start()
             t.join()
 
-        def assert_in_new_thread_in_new_context(level, name, thread):
-            overrides = Settings()
-            overrides.context.level = level
-            overrides.context.name = name
-            overrides.thread = thread
-            with config_overrides(overrides):
-                assert_in_new_thread(level, name, thread)
+        def verify_config(expected_name, expected_thread):
+            try:
+                cfg = get_config()
+                assert cfg.context.name == expected_name
+                assert cfg.thread == expected_thread
+            except Exception as e:
+                errors.append(e)
 
-        def assert_in_new_thread_in_new_contexts(levels, names, threads, depth=None):
-            depth = depth or len(levels)
-            depth -= 1
-            overrides = Settings()
-            overrides.context.level = levels[depth]
-            overrides.context.name = names[depth]
-            overrides.thread = threads[depth]
-            with config_overrides(overrides):
-                if depth == 0:
-                    assert_in_new_thread_in_new_context(levels[depth], names[depth], threads[depth])
-                else:
-                    assert_context_config(levels[depth], names[depth], threads[depth])
-                    assert_in_new_thread_in_new_contexts(levels[:-1], names[:-1], threads[:-1], depth)
+        # Given context
+        # When spawn new thread
+        # Then global config is used
+        in_context(lambda: in_thread(lambda: verify_config("global", "main")), name="context")
 
-        # Apply some updates to the global context
-        config.context.level = 0
-        config.context.name = "global"
-        config.thread = "main"
+        # Given context
+        # When spawn new context aware thread
+        # Then context config is used
+        in_context(lambda: in_thread(verify_config("context", "main"), context_aware=True), name="context")
 
-        # Verify global config is unchanged in new thread
-        assert_in_new_thread(0, "global", "main")
+        # Given thread
+        # When create new context
+        # Then context config is used
+        in_thread(lambda: in_context(lambda: verify_config("context", "thread"), name="context", thread="thread"))
 
-        # Verify config overrides applied just to context in new thread
-        assert_in_new_thread_in_new_context(1, "cxt", "t1")
+        # Given context aware thread
+        # When create new context
+        # Then context config is used
+        in_thread(
+            lambda: in_context(lambda: verify_config("context", "ca thread"), name="context", thread="ca thread"),
+            context_aware=True,
+        )
 
-        # Verify config overrides applied just to nested contexts in new threads
-        assert_in_new_thread_in_new_contexts([1, 2, 3], ["outer", "inner", "inner2"], ["t1", "t2", "t3"])
+        # Given nested contexts
+        # When run in nested context aware threads
+        # Then context config is updated
+        in_context(
+            lambda: in_thread(
+                lambda: in_context(
+                    lambda: in_thread(
+                        lambda: in_context(lambda: verify_config("inner", "t2"), thread="t2"), context_aware=True
+                    ),
+                    name="inner",
+                    thread="t1",
+                ),
+                context_aware=True,
+            ),
+            name="outer",
+        )
 
-        # Set up overrides for outer context
-        overrides_outer = Settings()
-        overrides_outer.context.level = 1
-        overrides_outer.context.name = "outer"
-        with config_overrides(overrides_outer):
-            # Verify config overrides applied just to nested contexts in new threads
-            assert_in_new_thread_in_new_contexts([2, 3, 4], ["inner", "inner2", "inner3"], ["t1", "t2", "t3"])
-
-            # Verify config unchanged in main thread in outer context
-            assert_context_config(1, "outer", "main")
-
-        # Verify config unchanged in main thread
-        assert_context_config(0, "global", "main")
+        if errors:
+            raise errors[0]
