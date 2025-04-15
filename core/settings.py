@@ -1173,8 +1173,7 @@ class ConfigSettings(Settings):
             default_jobrunner = self["default_jobrunner"]
             # Initialize lazy value (if not already done so) and replace wrapper with "real" value
             if isinstance(default_jobrunner, LazyWrapper):
-                val = default_jobrunner.value
-                self["default_jobrunner"] = val
+                self["default_jobrunner"] = default_jobrunner.value
         return self["default_jobrunner"]
 
     @default_jobrunner.setter
@@ -1196,8 +1195,7 @@ class ConfigSettings(Settings):
             default_jobmanager = self["default_jobmanager"]
             # Initialize lazy value (if not already done so) and replace wrapper with "real" value
             if isinstance(default_jobmanager, LazyWrapper):
-                val = default_jobmanager.value
-                self["default_jobmanager"] = val
+                self["default_jobmanager"] = default_jobmanager.value
         return self["default_jobmanager"]
 
     @default_jobmanager.setter
@@ -1207,11 +1205,14 @@ class ConfigSettings(Settings):
 
     def _check_initialized(self, key: str) -> bool:
         """
-        Check if the value of a given key is initialized i.e. the value is not ``None`` any lazy value is calculated.
+        Check if the value of a given key is initialized i.e. the key is present, the value is not ``None`` any lazy value is calculated.
 
         :param key: key to check
         :return: whether value is initialized
         """
         with self.__lazylock__:
-            val = self[key]
-            return val.initialized if isinstance(val, LazyWrapper) else val is not None
+            if key in self:
+                val = self[key]
+                return val.initialized if isinstance(val, LazyWrapper) else val is not None
+            else:
+                return False

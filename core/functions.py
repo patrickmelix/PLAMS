@@ -110,7 +110,7 @@ def log(message: str, level: int = 0) -> None:
     All logging activity is thread safe.
     """
     cfg = get_config()
-    if cfg.init and cfg.log:
+    if cfg.init and cfg._check_initialized("log"):
         logfile = cfg.default_jobmanager.logfile if cfg._check_initialized("default_jobmanager") else None
         _logger.configure(cfg.log.stdout, cfg.log.file, logfile, cfg.log.date, cfg.log.time)
     else:
@@ -162,7 +162,7 @@ def _load_defaults_file() -> Optional[str]:
         defaults = opj(dirname(dirname(__file__)), "plams_defaults")
     if isfile(defaults):
         with open(defaults) as f:
-            config = get_config()
+            config = get_config()  # noqa: F841
             exec(compile(f.read(), defaults, "exec"))
         return defaults
     else:
