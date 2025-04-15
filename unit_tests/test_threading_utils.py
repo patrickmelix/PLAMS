@@ -3,8 +3,9 @@ import time
 import pytest
 from datetime import datetime, timedelta
 import threading
+import contextvars
 
-from scm.plams.core.threading_utils import LimitedSemaphore, LazyWrapper
+from scm.plams.core.threading_utils import LimitedSemaphore, LazyWrapper, ContextAwareThread
 
 
 class TestLimitedSemaphore:
@@ -202,3 +203,30 @@ class TestLazyWrapper:
         assert str(lazy_dict) == "Uninitialized LazyWrapper"
         _ = lazy_dict.value
         assert str(lazy_dict) == "Initialized LazyWrapper[dict]"
+
+
+test_context_var = contextvars.ContextVar("test_value", default=-1)
+
+
+class TestContextAwareThread:
+
+    def test_context_aware_thread_copies_parent_context(self):
+        # Given context var in parent thread
+        test_context_var.set(42)
+
+        errors = []
+
+        def verify_context_var():
+            try:
+                assert test_context_var.get() == 42
+            except Exception as e:
+                errors.append(e)
+
+        # When create context aware thread
+        t = ContextAwareThread(target=verify_context_var)
+        t.start()
+        t.join()
+
+        # Then parent context vars can be accessed without errors
+        if errors:
+            raise errors[0]

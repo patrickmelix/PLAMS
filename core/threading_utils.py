@@ -1,5 +1,6 @@
 import threading
 from functools import cached_property
+from contextvars import copy_context
 from typing import Callable, TypeVar
 
 
@@ -133,3 +134,17 @@ class LazyWrapper:
             return "Uninitialized LazyWrapper"
 
 
+class ContextAwareThread(threading.Thread):
+    """
+    Thread which runs in a context copied from parent thread
+    """
+
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=None):
+        self._context = copy_context()
+        super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+
+    def run(self):
+        """
+        Run thread target in the context copied from the parent thread
+        """
+        self._context.run(super().run)
