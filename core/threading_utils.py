@@ -1,7 +1,7 @@
 import threading
 from functools import cached_property
 from contextvars import copy_context
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Generic
 
 
 class LimitedSemaphore:
@@ -96,7 +96,7 @@ class LimitedSemaphore:
 T = TypeVar("T")
 
 
-class LazyWrapper:
+class LazyWrapper(Generic[T]):
     """
     Thread-safe wrapper for lazy initialization of objects
     """
@@ -107,7 +107,7 @@ class LazyWrapper:
 
         :param factory: function returning a new instance of an object
         """
-        self._factory = factory
+        self._factory: Callable[[], T] = factory
 
     @cached_property
     def value(self) -> T:

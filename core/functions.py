@@ -7,11 +7,11 @@ import threading
 import types
 from os.path import dirname, expandvars, isdir, isfile
 from os.path import join as opj
-from typing import Dict, Iterable, Optional, ContextManager, TYPE_CHECKING
+from typing import Dict, Iterable, Optional, Generator, TYPE_CHECKING
 import atexit
 from importlib.util import find_spec
 import functools
-import contextvars
+from contextvars import ContextVar
 from contextlib import contextmanager
 
 from scm.plams.core.logging import get_logger
@@ -29,11 +29,11 @@ if TYPE_CHECKING:
 # For backwards compatibility, config must always refer to the global top-level context object,
 # and 'get_context' should be used whenever the context-specific config is required.
 config = ConfigSettings()
-_config = contextvars.ContextVar("_config")
+_config: ContextVar[ConfigSettings] = ContextVar("_config")
 
 
 @contextmanager
-def config_context() -> ContextManager[ConfigSettings]:
+def config_context() -> Generator[ConfigSettings, None, None]:
     """
     Enter a context with a |config| specific only to the current context.
 
@@ -55,7 +55,7 @@ def config_context() -> ContextManager[ConfigSettings]:
 
     :return: copy of the global |config| instance in a new |ConfigSettings|
     """
-    cfg = get_config().copy()
+    cfg: ConfigSettings = get_config().copy()
     token = _config.set(cfg)
     try:
         yield cfg
