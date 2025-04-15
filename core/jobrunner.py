@@ -9,7 +9,7 @@ from scm.plams.core.errors import PlamsError
 from scm.plams.core.functions import get_config, log
 from scm.plams.core.private import saferun
 from scm.plams.core.settings import Settings
-from scm.plams.core.threading_utils import LimitedSemaphore
+from scm.plams.core.threading_utils import LimitedSemaphore, ContextAwareThread
 
 __all__ = ["JobRunner", "GridRunner"]
 
@@ -20,7 +20,7 @@ def _in_thread(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.parallel:
-            t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
+            t = ContextAwareThread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
             t.daemon = get_config().daemon_threads
             t.start()
         else:
@@ -35,7 +35,7 @@ def _in_limited_thread(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         if self.parallel:
-            t = threading.Thread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
+            t = ContextAwareThread(name="plamsthread", target=func, args=(self,) + args, kwargs=kwargs)
             t.daemon = get_config().daemon_threads
             if self._jobthread_limit:
                 self._jobthread_limit.acquire()
