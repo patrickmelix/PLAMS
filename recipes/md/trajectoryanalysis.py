@@ -1,9 +1,11 @@
 from collections import OrderedDict, defaultdict
+from collections.abc import Iterable
 from typing import List
 
 import numpy as np
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.results import Results
+from scm.plams.core.settings import Settings
 from scm.plams.core.functions import requires_optional_package
 from scm.plams.interfaces.adfsuite.amsanalysis import AMSAnalysisJob, AMSAnalysisResults
 from scm.plams.tools.units import Units
@@ -13,7 +15,9 @@ __all__ = ["AMSRDFJob", "AMSMSDJob", "AMSMSDResults", "AMSVACFJob", "AMSVACFResu
 
 
 class AMSConvenientAnalysisJob(AMSAnalysisJob):
-    def __init__(self, previous_job, atom_indices=None, **kwargs):  # needs to be finished
+    _task = "None"
+
+    def __init__(self, previous_job=None, atom_indices=None, **kwargs):  # needs to be finished
         """
         previous_job: AMSJob
             An AMSJob with an MD trajectory. Note that the trajectory should have been equilibrated before it starts.
@@ -22,6 +26,8 @@ class AMSConvenientAnalysisJob(AMSAnalysisJob):
 
         """
         AMSAnalysisJob.__init__(self, **kwargs)
+        if not self._has_settings_entry(self.settings.input, "Task"):
+            self.settings.input.Task = self._task
 
         self.previous_job = previous_job
         self.atom_indices = atom_indices
@@ -30,19 +36,109 @@ class AMSConvenientAnalysisJob(AMSAnalysisJob):
         if max_correlation_time_fs is None:
             return None
 
-        historylength = self.previous_job.results.readrkf("History", "nEntries")
-        max_dt_frames = int(max_correlation_time_fs / self.previous_job.results.get_time_step())
+        # Adjust for multiple previous_jobs
+        prevjobs = self.previous_job
+        if not isinstance(prevjobs, list):
+            prevjobs = [prevjobs]
+
+        # Read history and time step
+        # FIXME: Does not account for the presence of Range of StepSize (which the user may have provided)
+        historylength = 0
+        for prevjob in prevjobs:
+            historylength += prevjob.results.readrkf("History", "nEntries")
+        timestep = prevjobs[0].results.get_time_step()
+        max_dt_frames = int(max_correlation_time_fs / timestep)
         max_dt_frames = min(max_dt_frames, historylength // 2)
         return max_dt_frames
 
-    def _parent_prerun(self, section):
-
-        # use previously run previous_job
-        assert self.previous_job.status != JobStatus.CREATED, "You can only pass in a finished AMSJob"
-
-        self.settings.input.TrajectoryInfo.Trajectory.KFFileName = self.previous_job.results.rkfpath()
+    def get_input(self):
+        """
+        Generate the input file
+        """
+        self._settings_to_list()
         if self.atom_indices and self._parent_write_atoms:
-            self.settings.input[section].Atoms.Atom = self.atom_indices
+            section = getattr(self.settings.input, self._task)
+            for entry in section:
+                found = self._has_settings_entry(entry, "Atoms")
+                if found:
+                    found = self._has_settings_entry(entry.Atoms, "Atom")
+                if not found:
+                    # In case of PISA object
+                    if not isinstance(entry, Settings):
+                        for i, iat in enumerate(self.atom_indices):
+                            entry.Atoms.Atom[i] = self.atom_indices[i]
+                    else:
+                        entry.Atoms.Atom = self.atom_indices
+        return super().get_input()
+
+    def _settings_to_list(self):
+        """
+        Convert the main settings object for this Task to a list of settings objects
+        """
+        if isinstance(self.settings.input, Settings):
+            # This is not a PISA object
+            if self._task in self.settings.input:
+                if not isinstance(self.settings.input[self._task], Iterable):
+                    self.settings.input[self._task] = [self.settings.input[self._task]]
+            else:
+                self.settings.input[self._task] = [Settings()]
+        else:
+            # If this PISA object has some updated values, but length 0, I have to change that
+            # This seems to be a PISA bug
+            block = getattr(self.settings.input, self._task)
+            if len(block) == 0:
+                if block.value_changed:
+                    s = self.settings.input.__class__.from_text(str(block))
+                    block[0] = getattr(s, self._task)
+                else:
+                    # I need there to be a single entry
+                    s = block[0]
+
+    @staticmethod
+    def _has_settings_entry(settings, entry):
+        """
+        Check if this Settings or Pisa object contains this entry already
+        """
+        if isinstance(settings, Settings):
+            return entry in settings
+        else:
+            return getattr(settings, entry).value_changed
+
+    def _parent_prerun(self):
+        """
+        Possibly wait for previous job to finish before adding path
+        """
+        prevjobs = self.previous_job
+        if not isinstance(prevjobs, list):
+            prevjobs = [prevjobs]
+
+        # Check for existing Trajectory settings
+        found = self._has_settings_entry(self.settings.input, "TrajectoryInfo")
+        if found:
+            found = self._has_settings_entry(self.settings.input.TrajectoryInfo, "Trajectory")
+        if not found:
+            if isinstance(self.settings.input, Settings):
+                # This is not a PISA object
+                self.settings.input.TrajectoryInfo.Trajectory = [Settings() for i in range(len(prevjobs))]
+        else:
+            trajec_section = self.settings.input.TrajectoryInfo.Trajectory
+            if not isinstance(trajec_section, Iterable):
+                # This is not a PISA object
+                trajec_section = [trajec_section]
+            if not isinstance(self.settings.input, Settings):
+                # Workaround for PISA bug
+                if trajec_section.value_changed and len(trajec_section) == 0:
+                    text = str(self.settings.input.TrajectoryInfo)
+                    s = self.settings.input.__class__.from_text(text)
+                    trajec_section[0] = s.TrajectoryInfo.Trajectory[0]
+            nblocks = len(trajec_section)
+            msg = "Number of Trajectory blocks must match number of previous_jobs"
+            assert nblocks == len(prevjobs) or nblocks == 0, msg
+
+        # Overwrite KFFilename with that of previous_job
+        for i, prevjob in enumerate(prevjobs):
+            assert prevjob.status != JobStatus.CREATED, "You can only pass in a finished AMSJob"
+            self.settings.input.TrajectoryInfo.Trajectory[i].KFFilename = prevjob.results.rkfpath()
 
 
 class AMSMSDResults(AMSAnalysisResults):
@@ -102,10 +198,11 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
 
     _result_type = AMSMSDResults
     _parent_write_atoms = True
+    _task = "MeanSquareDisplacement"
 
     def __init__(
         self,
-        previous_job,  # needs to be finished
+        previous_job=None,  # needs to be finished
         max_correlation_time_fs: float = 10000,
         start_time_fit_fs: float = 2000,
         atom_indices: List[int] = None,
@@ -133,16 +230,30 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         self.max_correlation_time_fs = max_correlation_time_fs
         self.start_time_fit_fs = start_time_fit_fs
 
+    def get_input(self):
+        """
+        Generate the input file
+        """
+        self._settings_to_list()
+
+        for settings in self.settings.input.MeanSquareDisplacement:
+            if not self._has_settings_entry(settings, "Property"):
+                settings.Property = "DiffusionCoefficient"
+            if not self._has_settings_entry(settings, "StartTimeSlope"):
+                settings.StartTimeSlope = self.start_time_fit_fs
+        return super().get_input()
+
     def prerun(self):  # noqa F811
         """
         Constructs the final settings
         """
-        self._parent_prerun("MeanSquareDisplacement")  # trajectory and atom_indices handled
-        max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
-        self.settings.input.Task = "MeanSquareDisplacement"
-        self.settings.input.MeanSquareDisplacement.Property = "DiffusionCoefficient"
-        self.settings.input.MeanSquareDisplacement.StartTimeSlope = self.start_time_fit_fs
-        self.settings.input.MeanSquareDisplacement.MaxFrame = max_dt_frames
+        self._parent_prerun()  # trajectory and atom_indices handled
+        self._settings_to_list()
+
+        for settings in self.settings.input.MeanSquareDisplacement:
+            if not self._has_settings_entry(settings, "MaxFrame"):
+                max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
+                settings.MaxFrame = max_dt_frames
 
     def postrun(self):
         """
@@ -220,10 +331,11 @@ class AMSViscosityFromBinLogJob(AMSConvenientAnalysisJob):
 
     _result_type = AMSViscosityFromBinLogResults
     _parent_write_atoms = False
+    _task = "AutoCorrelation"
 
     def __init__(
         self,
-        previous_job,  # needs to be finished
+        previous_job=None,  # needs to be finished
         **kwargs,
     ):
         """
@@ -236,13 +348,21 @@ class AMSViscosityFromBinLogJob(AMSConvenientAnalysisJob):
         """
         AMSConvenientAnalysisJob.__init__(self, previous_job=previous_job, **kwargs)
 
+    def get_input(self):
+        """
+        Generate the input file
+        """
+        self._settings_to_list()
+
+        for settings in self.settings.input.AutoCorrelation:
+            settings.Property = "ViscosityFromBinLog"
+        return super().get_input()
+
     def prerun(self):  # noqa F811
         """
         Constructs the final settings
         """
-        self._parent_prerun("AutoCorrelation")  # trajectory and atom_indices handled
-        self.settings.input.Task = "AutoCorrelation"
-        self.settings.input.AutoCorrelation.Property = "ViscosityFromBinLog"
+        self._parent_prerun()  # trajectory and atom_indices handled
 
     def postrun(self):
         """
@@ -310,10 +430,11 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
 
     _result_type = AMSVACFResults
     _parent_write_atoms = True
+    _task = "AutoCorrelation"
 
     def __init__(
         self,
-        previous_job,  # needs to be finished
+        previous_job=None,  # needs to be finished
         max_correlation_time_fs=5000,  # fs
         max_freq=5000,  # cm^-1
         atom_indices=None,
@@ -338,15 +459,27 @@ class AMSVACFJob(AMSConvenientAnalysisJob):
         self.max_correlation_time_fs = max_correlation_time_fs
         self.max_freq = max_freq
 
+    def get_input(self):
+        """
+        Generate the input file
+        """
+        self.settings_to_list()
+
+        for settings in self.settings.input.AutoCorrelation:
+            settings.Property = "Velocities"
+        return super().get_input()
+
     def prerun(self):  # noqa F811
         """
         Creates final settings
         """
-        self._parent_prerun("AutoCorrelation")  # trajectory and atom_indices handled
-        max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
-        self.settings.input.Task = "AutoCorrelation"
-        self.settings.input.AutoCorrelation.Property = "Velocities"
-        self.settings.input.AutoCorrelation.MaxFrame = max_dt_frames
+        self._parent_prerun()  # trajectory and atom_indices handled
+        self.settings_to_list()
+
+        for settings in self.settings.input.AutoCorrelation:
+            if not self._has_settings_entry(settings, "MaxFrame"):
+                max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
+                settings.MaxFrame = max_dt_frames
 
     def postrun(self):
         """
@@ -398,10 +531,11 @@ class AMSDipoleDerivativeACFJob(AMSConvenientAnalysisJob):
 
     _result_type = AMSDipoleDerivativeACFResults
     _parent_write_atoms = True
+    _task = "AutoCorrelation"
 
     def __init__(
         self,
-        previous_job,  # needs to be finished
+        previous_job=None,  # needs to be finished
         max_correlation_time_fs=5000,  # fs
         max_freq=5000,  # cm^-1
         atom_indices=None,
@@ -426,15 +560,27 @@ class AMSDipoleDerivativeACFJob(AMSConvenientAnalysisJob):
         self.max_correlation_time_fs = max_correlation_time_fs
         self.max_freq = max_freq
 
+    def get_input(self):
+        """
+        Generate the input file
+        """
+        self.settings_to_list()
+
+        for settings in self.settings.input.AutoCorrelation:
+            settings.Property = "DipoleDerivativeFromCharges"
+        return super().get_input()
+
     def prerun(self):  # noqa F811
         """
         Creates final settings
         """
-        self._parent_prerun("AutoCorrelation")  # trajectory and atom_indices handled
-        max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
-        self.settings.input.Task = "AutoCorrelation"
-        self.settings.input.AutoCorrelation.Property = "DipoleDerivativeFromCharges"
-        self.settings.input.AutoCorrelation.MaxFrame = max_dt_frames
+        self._parent_prerun()  # trajectory and atom_indices handled
+        self.settings_to_list()
+
+        for settings in self.settings.input.AutoCorrelation:
+            if not self._has_settings_entry(settings, "MaxFrame"):
+                max_dt_frames = self._get_max_dt_frames(self.max_correlation_time_fs)
+                settings.MaxFrame = max_dt_frames
 
     def postrun(self):
         """
@@ -476,8 +622,11 @@ class AMSRDFResults(AMSAnalysisResults):
 class AMSRDFJob(AMSConvenientAnalysisJob):
     _result_type = AMSRDFResults
     _parent_write_atoms = False
+    _task = "RadialDistribution"
 
-    def __init__(self, previous_job, atom_indices=None, atom_indices_to=None, rmin=0.5, rmax=6.0, rstep=0.1, **kwargs):
+    def __init__(
+        self, previous_job=None, atom_indices=None, atom_indices_to=None, rmin=0.5, rmax=6.0, rstep=0.1, **kwargs
+    ):
         """
         previous_job: AMSJob
             AMSJob with finished MD trajectory.
@@ -504,20 +653,40 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
         self.rmax = rmax
         self.rstep = rstep
 
+    def get_input(self):
+        """
+        Generate the input file
+        """
+        self._settings_to_list()
+
+        for settings in self.settings.input.RadialDistribution:
+            if not self._has_settings_entry(settings, "AtomsFrom"):
+                if self.atom_indices:
+                    settings.AtomsFrom.Atom = self.atom_indices
+            if not self._has_settings_entry(settings, "AtomsTo"):
+                if self.atom_indices_to:
+                    settings.Atom = self.atom_indices_to
+            if not self._has_settings_entry(settings, "Range"):
+                settings.Range = f"{self.rmin} {self.rmax} {self.rstep}"
+        return super().get_input()
+
     def prerun(self):  # noqa F811
         """
         Creates the final settings. Do not call or override this method.
         """
-        self._parent_prerun("RadialDistribution")
-        self.settings.input.Task = "RadialDistribution"
-        main_mol = self.previous_job.results.get_main_molecule()
+        self._parent_prerun()
+        self._settings_to_list()
+
+        prevjobs = self.previous_jobs
+        if not isinstance(prevjobs, list):
+            prevjobs = [prevjobs]
+        main_mol = prevjobs[0].results.get_main_molecule()
+
         if not self.atom_indices:
             self.atom_indices = list(range(1, len(main_mol) + 1))
         if not self.atom_indices_to:
             self.atom_indices_to = list(range(1, len(main_mol) + 1))
-        self.settings.input.RadialDistribution.AtomsFrom.Atom = self.atom_indices
-        self.settings.input.RadialDistribution.AtomsTo.Atom = self.atom_indices_to
-        self.settings.input.RadialDistribution.Range = f"{self.rmin} {self.rmax} {self.rstep}"
+        # Settings will be adjusted when get_input is called (again).
 
     def postrun(self):
         """

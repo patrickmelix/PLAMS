@@ -9,6 +9,13 @@ from scm.plams.core.functions import log
 
 __all__ = ["AMSAnalysisJob", "AMSAnalysisResults", "convert_to_unicode"]
 
+try:
+    from scm.pisa.block import DriverBlock
+
+    _has_scm_pisa = True
+except ImportError:
+    _has_scm_pisa = False
+
 
 class AMSAnalysisPlot:
     """
@@ -181,7 +188,10 @@ class AMSAnalysisResults(SCMResults):
         """
         Get the AMSAnalysisPlot object for a specific section of the plot KFFile
         """
-        task = self.job.settings.input.Task
+        if _has_scm_pisa and isinstance(self.job.settings.input, DriverBlock):
+            task = self.job.settings.input.Task.val
+        else:
+            task = self.job.settings.input.Task
         if section == "":
             section = task
 
@@ -288,14 +298,19 @@ class AMSAnalysisJob(SCMJob):
 
         systems = AMSJob._serialize_molecule(self)
         if len(systems) > 0:
-            self.settings.input.system = systems
+            if _has_scm_pisa and isinstance(self.settings.input, DriverBlock):
+                self.settings.system = systems
+            else:
+                self.settings.input.system = systems
 
     def _remove_mol(self):
         """
         Remove the molecule from the system block again
         """
-        if "system" in self.settings.input:
+        if hasattr(self.settings.input, "system"):
             del self.settings.input.system
+        elif "system" in self.settings:
+            del self.settings.system
 
     @staticmethod
     def _atom_suffix(atom):
