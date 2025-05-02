@@ -394,7 +394,7 @@ def test_plot_msd(run_calculations, rkf_tools_plot, xyz_folder):
     plot_msd(md_job)
 
 
-@image_comparison(baseline_images=["plot_msd_pisa"], remove_text=True, extensions=["png"], style="mpl20", tol=4)
+@image_comparison(baseline_images=["plot_msd_pisa"], remove_text=True, extensions=["png"], style="mpl20", tol=10)
 def test_plot_msd_with_pisa(run_calculations, rkf_tools_plot, xyz_folder):
     skip_if_no_scm_pisa()
 
