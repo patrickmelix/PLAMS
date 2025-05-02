@@ -11,6 +11,9 @@ This changelog is effective from the 2025 releases.
 
 ## [Unreleased]
 
+### Added
+* The `AMSAnalysisJobs` now have Pisa support, accept multiple AMSJobs as input, and no longer overwrite user supplied input settings.
+
 ## 2025.102
 
 ## 2025.101
