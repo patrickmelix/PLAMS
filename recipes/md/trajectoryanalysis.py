@@ -1,3 +1,4 @@
+import copy
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterable
 from typing import List
@@ -55,54 +56,62 @@ class AMSConvenientAnalysisJob(AMSAnalysisJob):
         """
         Generate the input file
         """
-        self._settings_to_list()
+        self._settings_to_list(self.settings.input, self._task)
         if self.atom_indices and self._parent_write_atoms:
             section = getattr(self.settings.input, self._task)
             for entry in section:
-                found = self._has_settings_entry(entry, "Atoms")
-                if found:
-                    found = self._has_settings_entry(entry.Atoms, "Atom")
-                if not found:
-                    # In case of PISA object
-                    if not isinstance(entry, Settings):
-                        for i, iat in enumerate(self.atom_indices):
-                            entry.Atoms.Atom[i] = self.atom_indices[i]
-                    else:
-                        entry.Atoms.Atom = self.atom_indices
+                if not (self._has_settings_entry(entry, "Atoms") and self._has_settings_entry(entry.Atoms, "Atom")):
+                    self._add_nonunique_settings_entries(entry.Atoms.Atom, self.atom_indices)
         return super().get_input()
 
-    def _settings_to_list(self):
+    @staticmethod
+    def _settings_to_list(settings, entry, nentries=1):
         """
         Convert the main settings object for this Task to a list of settings objects
         """
-        if isinstance(self.settings.input, Settings):
+        if isinstance(settings, Settings):
             # This is not a PISA object
-            if self._task in self.settings.input:
-                if not isinstance(self.settings.input[self._task], Iterable):
-                    self.settings.input[self._task] = [self.settings.input[self._task]]
+            if AMSConvenientAnalysisJob._has_settings_entry(settings, entry):
+                # If this is not a list-type object, make it into one
+                if isinstance(settings[entry], dict) or not (isinstance(settings[entry], Iterable)):
+                    settings[entry] = [settings[entry]]
             else:
-                self.settings.input[self._task] = [Settings()]
+                settings[entry] = [Settings() for i in range(nentries)]
         else:
-            # If this PISA object has some updated values, but length 0, I have to change that
-            # This seems to be a PISA bug
-            block = getattr(self.settings.input, self._task)
+            # Workaround for a PISA bug, where the object can have updated values but length 0
+            block = getattr(settings, entry)
             if len(block) == 0:
                 if block.value_changed:
-                    s = self.settings.input.__class__.from_text(str(block))
-                    block[0] = getattr(s, self._task)
+                    s = copy.deepcopy(block)
+                    block[0] = s
                 else:
                     # I need there to be a single entry
-                    s = block[0]
+                    for i in range(nentries):
+                        s = block[i]
 
     @staticmethod
     def _has_settings_entry(settings, entry):
         """
-        Check if this Settings or Pisa object contains this entry already
+        Check if this Settings or PISA object contains this entry already
         """
         if isinstance(settings, Settings):
             return entry in settings
         else:
             return getattr(settings, entry).value_changed
+
+    @staticmethod
+    def _add_nonunique_settings_entries(settings, entries):
+        """
+        For non-default entries, multiple entries can be supplied
+
+        * ``settings`` -- Settings or PISA object to which the entries should be added
+        * ``entries`` -- Iterator for multiple settings entries
+        """
+        if not isinstance(settings, Settings):
+            for i, entry in enumerate(entries):
+                settings[i] = entry
+        else:
+            settings = entries
 
     def _parent_prerun(self):
         """
@@ -112,28 +121,13 @@ class AMSConvenientAnalysisJob(AMSAnalysisJob):
         if not isinstance(prevjobs, list):
             prevjobs = [prevjobs]
 
-        # Check for existing Trajectory settings
-        found = self._has_settings_entry(self.settings.input, "TrajectoryInfo")
-        if found:
-            found = self._has_settings_entry(self.settings.input.TrajectoryInfo, "Trajectory")
-        if not found:
-            if isinstance(self.settings.input, Settings):
-                # This is not a PISA object
-                self.settings.input.TrajectoryInfo.Trajectory = [Settings() for i in range(len(prevjobs))]
-        else:
-            trajec_section = self.settings.input.TrajectoryInfo.Trajectory
-            if not isinstance(trajec_section, Iterable):
-                # This is not a PISA object
-                trajec_section = [trajec_section]
-            if not isinstance(self.settings.input, Settings):
-                # Workaround for PISA bug
-                if trajec_section.value_changed and len(trajec_section) == 0:
-                    text = str(self.settings.input.TrajectoryInfo)
-                    s = self.settings.input.__class__.from_text(text)
-                    trajec_section[0] = s.TrajectoryInfo.Trajectory[0]
-            nblocks = len(trajec_section)
-            msg = "Number of Trajectory blocks must match number of previous_jobs"
-            assert nblocks == len(prevjobs) or nblocks == 0, msg
+        # Turn trajectory settings into a list,
+        # If no entries yet exist, it will be a list of empty entries
+        self._settings_to_list(self.settings.input.TrajectoryInfo, "Trajectory", nentries=len(prevjobs))
+
+        nblocks = len(self.settings.input.TrajectoryInfo.Trajectory)
+        msg = "Number of Trajectory blocks must match number of previous_jobs"
+        assert nblocks == len(prevjobs) or nblocks == 0, msg
 
         # Overwrite KFFilename with that of previous_job
         for i, prevjob in enumerate(prevjobs):
@@ -234,7 +228,7 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         """
         Generate the input file
         """
-        self._settings_to_list()
+        self._settings_to_list(self.settings.input, self._task)
 
         for settings in self.settings.input.MeanSquareDisplacement:
             if not self._has_settings_entry(settings, "Property"):
@@ -248,7 +242,7 @@ class AMSMSDJob(AMSConvenientAnalysisJob):
         Constructs the final settings
         """
         self._parent_prerun()  # trajectory and atom_indices handled
-        self._settings_to_list()
+        self._settings_to_list(self.settings.input, self._task)
 
         for settings in self.settings.input.MeanSquareDisplacement:
             if not self._has_settings_entry(settings, "MaxFrame"):
@@ -352,7 +346,7 @@ class AMSViscosityFromBinLogJob(AMSConvenientAnalysisJob):
         """
         Generate the input file
         """
-        self._settings_to_list()
+        self._settings_to_list(self.settings.input, self._task)
 
         for settings in self.settings.input.AutoCorrelation:
             settings.Property = "ViscosityFromBinLog"
@@ -657,7 +651,7 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
         """
         Generate the input file
         """
-        self._settings_to_list()
+        self._settings_to_list(self.settings.input, self._task)
 
         for settings in self.settings.input.RadialDistribution:
             if not self._has_settings_entry(settings, "AtomsFrom"):
@@ -675,7 +669,7 @@ class AMSRDFJob(AMSConvenientAnalysisJob):
         Creates the final settings. Do not call or override this method.
         """
         self._parent_prerun()
-        self._settings_to_list()
+        self._settings_to_list(self.settings.input, self._task)
 
         prevjobs = self.previous_jobs
         if not isinstance(prevjobs, list):

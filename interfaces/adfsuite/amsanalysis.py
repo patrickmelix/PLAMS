@@ -188,10 +188,10 @@ class AMSAnalysisResults(SCMResults):
         """
         Get the AMSAnalysisPlot object for a specific section of the plot KFFile
         """
-        if _has_scm_pisa and isinstance(self.job.settings.input, DriverBlock):
-            task = self.job.settings.input.Task.val
-        else:
+        if isinstance(self.job.settings.input, Settings):
             task = self.job.settings.input.Task
+        else:
+            task = self.job.settings.input.Task.val
         if section == "":
             section = task
 
