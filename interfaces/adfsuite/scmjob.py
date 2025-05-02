@@ -14,6 +14,13 @@ from scm.plams.mol.molecule import Molecule
 from scm.plams.tools.kftools import KFFile
 from scm.plams.tools.units import Units
 
+try:
+    from scm.pisa.block import DriverBlock
+
+    _has_scm_pisa = True
+except ImportError:
+    _has_scm_pisa = False
+
 
 class SCMResults(Results):
     """Abstract class gathering common mechanisms for results of ADF Suite programs."""
@@ -303,14 +310,28 @@ class SCMJob(SingleJob):
         if use_molecule:
             self._serialize_mol()
 
-        inp = ""
-        for item in self._top:
-            item = self.settings.input.find_case(item)
-            if item in self.settings.input:
-                inp += serialize(item, self.settings.input[item], 0) + "\n"
-        for item in self.settings.input:
-            if item.lower() not in self._top:
-                inp += serialize(item, self.settings.input[item], 0) + "\n"
+        if _has_scm_pisa and isinstance(self.settings.input, DriverBlock):
+            # Generate initial input text
+            input_class: DriverBlock = self.settings.input
+            inp = input_class.get_input_string()
+
+            # Add any systems using the input molecules
+            has_input_systems = hasattr(input_class, "System") and input_class.System.value_changed
+            if not has_input_systems:
+                if use_molecule:
+                    for system in self.settings.system:
+                        inp += "\n" + system
+                    del self.settings.system
+
+        else:
+            inp = ""
+            for item in self._top:
+                item = self.settings.input.find_case(item)
+                if item in self.settings.input:
+                    inp += serialize(item, self.settings.input[item], 0) + "\n"
+            for item in self.settings.input:
+                if item.lower() not in self._top:
+                    inp += serialize(item, self.settings.input[item], 0) + "\n"
 
         if use_molecule:
             self._remove_mol()
