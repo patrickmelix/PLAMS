@@ -4,7 +4,10 @@ from importlib import reload
 from threading import Thread
 
 from scm.plams.core.settings import Settings
+from scm.plams.mol.molecule import Molecule
+from scm.plams.mol.atom import Atom
 from scm.plams.unit_tests.test_helpers import get_mock_import_function, skip_if_no_ams_installation
+from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 
 
 @pytest.fixture
@@ -83,7 +86,7 @@ End
 @pytest.fixture
 def system_text_inputs():
     """
-    Set of example system input texts and the corresponding expected settings objects.
+    Set of example system input texts and the corresponding expected settings and molecule objects.
     """
 
     water_system_input = """
@@ -105,8 +108,13 @@ End
     water_system_settings = Settings()
     water_system_settings.System = [water_settings]
 
+    water_mol = Molecule()
+    water_mol.add_atom(Atom(symbol="O", coords=(0.0, 0.0, 0.0)))
+    water_mol.add_atom(Atom(symbol="H", coords=(1.0, 0.0, 0.0)))
+    water_mol.add_atom(Atom(symbol="H", coords=(0.0, 1.0, 0.0)))
+
     graphene_system_input = """
-System
+System Substrate
    Atoms
       C   -1.2300000000000000 -2.1304224999999999  0.0000000000000000
       C   -1.2300000000000000 -0.7101408299999999  0.0000000000000000
@@ -132,10 +140,21 @@ End
         "0.0000000000000000   4.2608449999999998   0.0000000000000000",
         "0.0000000000000000   0.0000000000000000  80.0000000000000000",
     ]
+    graphene_settings._h = "Substrate"
     graphene_system_settings = Settings()
     graphene_system_settings.System = [graphene_settings]
 
-    yield [(water_system_input, water_system_settings), (graphene_system_input, graphene_system_settings)]
+    graphene_mol = Molecule()
+    graphene_mol.add_atom(Atom(symbol="C", coords=(-1.2300000000000000, -2.1304224999999999, 0.0)))
+    graphene_mol.add_atom(Atom(symbol="C", coords=(-1.2300000000000000, -0.7101408299999999, 0.0)))
+    graphene_mol.add_atom(Atom(symbol="C", coords=(0.0, 0.0, 0.0)))
+    graphene_mol.add_atom(Atom(symbol="C", coords=(0.0, 1.4202816700000001, 0.0)))
+    graphene_mol.lattice = [(2.46, 0.0, 0.0), (0.0, 4.2608449999999998, 0.0), (0.0, 0.0, 80.0)]
+
+    yield [
+        (water_system_input, water_system_settings, water_mol),
+        (graphene_system_input, graphene_system_settings, graphene_mol),
+    ]
 
     # Tear-down: reload module without the patched import function
     import scm.plams.interfaces.adfsuite.inputparser as inputparser
@@ -164,14 +183,19 @@ End
     return large_system_input
 
 
-def test_to_settings_without_scmlibbase_succeeds(ams_text_inputs, monkeypatch):
+def test_input_to_settings_without_scmlibbase_succeeds(ams_text_inputs, monkeypatch):
     input_parser = get_monkeypatched_input_parser(monkeypatch)
-    to_settings_succeeds(ams_text_inputs, input_parser)
+    input_to_settings_succeeds(ams_text_inputs, input_parser)
 
 
-def test_to_settings_with_scmlibbase_succeeds(ams_text_inputs):
+def test_input_to_settings_with_scmlibbase_succeeds(ams_text_inputs):
     input_parser = get_input_parser_or_skip()
-    to_settings_succeeds(ams_text_inputs, input_parser)
+    input_to_settings_succeeds(ams_text_inputs, input_parser)
+
+
+def test_input_to_settings_using_default_parser_succeeds(ams_text_inputs):
+    skip_if_no_ams_installation()
+    input_to_settings_succeeds(ams_text_inputs, None)
 
 
 def test_to_dict_without_scmlibbase_succeeds(system_text_inputs, monkeypatch):
@@ -182,6 +206,31 @@ def test_to_dict_without_scmlibbase_succeeds(system_text_inputs, monkeypatch):
 def test_to_dict_with_scmlibbase_succeeds(system_text_inputs):
     input_parser = get_input_parser_or_skip()
     to_dict_succeeds(system_text_inputs, input_parser)
+
+
+def test_get_system_blocks_from_input_as_molecules(system_text_inputs):
+    # If there is no AMS installation the input file will not be present so skip test with a warning
+    skip_if_no_ams_installation()
+
+    from scm.plams.interfaces.adfsuite.inputparser import get_system_blocks_as_molecules_from_input
+    from scm.libbase import InputFile
+
+    # Combine system blocks into one text
+    text_input = "\n".join([s[0] for s in system_text_inputs])
+    expected = {s[1].System[0]._h or "": s[2] for s in system_text_inputs}
+
+    # Given input file
+    input_file = InputFile(program="ams", text_input=text_input)
+
+    # When get system blocks as molecules
+    actual = get_system_blocks_as_molecules_from_input(input_file)
+
+    # Then molecules are under key corresponding to header of the block
+    # and match the expected geometry
+    assert list(actual.keys()) == ["", "Substrate"]
+    for k, v in actual.items():
+        assert v.lattice == expected[k].lattice
+        assert v.label(4) == expected[k].label(4)
 
 
 def get_monkeypatched_input_parser(monkeypatch):
@@ -224,14 +273,14 @@ def get_input_parser_or_skip():
         pytest.skip("Skipping test because optional 'scm.libbase' package is not available")
 
 
-def to_settings_succeeds(input_texts, input_parser):
+def input_to_settings_succeeds(input_texts, input_parser):
     for input_text, expected_settings in input_texts:
-        actual_settings = input_parser.to_settings("ams", input_text)
+        actual_settings = input_to_settings(input_text, parser=input_parser)
         assert actual_settings == expected_settings
 
 
 def to_dict_succeeds(input_texts, input_parser):
-    for input_text, expected_settings in input_texts:
+    for input_text, expected_settings, _ in input_texts:
         actual_dict = input_parser.to_dict("ams", input_text)
         assert actual_dict == expected_settings.as_dict()
 
@@ -256,7 +305,7 @@ def test_thread_safe(large_system_input):
     def parse():
         try:
             input_parser = get_input_parser_or_skip()
-            input_parser.to_settings("ams", large_system_input)
+            input_to_settings(large_system_input, parser=input_parser)
         except Exception as e:
             errors.append(e)
 

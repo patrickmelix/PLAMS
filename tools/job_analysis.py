@@ -16,7 +16,7 @@ from scm.plams.core.functions import requires_optional_package, load, config_con
 from scm.plams.tools.table_formatter import format_in_table
 from scm.plams.interfaces.molecule.rdkit import to_smiles
 from scm.plams.mol.molecule import Molecule
-from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
+from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 
 try:
     from scm.libbase import UnifiedChemicalSystem as ChemicalSystem
@@ -1503,9 +1503,7 @@ class JobAnalysis:
                 if hasattr(job.settings, "input") and isinstance(job.settings.input, DriverBlock):
                     # Note use own input parser facade here to use caching
                     program = self._pisa_programs[job.settings.input.name].name.split(".")[0]
-                    settings.input = InputParserFacade().to_settings(
-                        program=program, text_input=job.settings.input.get_input_string()
-                    )
+                    settings.input = input_to_settings(job.settings.input.get_input_string(), program=program)
         return settings
 
     def add_settings_input_fields(self, include_system_block: bool = False, flatten_list: bool = True) -> "JobAnalysis":

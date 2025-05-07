@@ -58,6 +58,7 @@ from scm.plams.interfaces.adfsuite.forcefieldparams import (
     ForceFieldPatch,
     forcefield_params_from_kf,
 )
+from scm.plams.interfaces.adfsuite.inputparser import get_system_blocks_as_molecules_from_input, input_to_settings
 from scm.plams.interfaces.adfsuite.quickjobs import (
     preoptimize,
     refine_density,
@@ -249,6 +250,8 @@ __all__ = [
     "MissingOptionalPackageError",
     "ForceFieldPatch",
     "forcefield_params_from_kf",
+    "get_system_blocks_as_molecules_from_input",
+    "input_to_settings",
     "AMSWorker",
     "AMSWorkerResults",
     "AMSWorkerError",

@@ -2257,9 +2257,9 @@ class AMSResults(Results):
         if "ams" in self.rkfs:
             user_input = self.readrkf("General", "user input")
             try:
-                from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
+                from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 
-                inp = InputParserFacade().to_settings("ams", user_input)
+                inp = input_to_settings(user_input)
             except:
                 log("Failed to recreate input settings from {}".format(self.rkfs["ams"].path))
                 return None
@@ -3070,9 +3070,9 @@ class AMSJob(SingleJob):
     @staticmethod
     def _serialize_single_molecule(name: str, mol: Union[Molecule, "ChemicalSystem"]) -> Settings:
         def serialize_unichemsys_to_settings(mol: "ChemicalSystem") -> Settings:
-            from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
+            from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 
-            sett = InputParserFacade().to_settings(AMSJob._command, str(mol))
+            sett = input_to_settings(str(mol), program=AMSJob._command)
             return sett.ams.system[0]
 
         def serialize_molecule_to_settings(mol: Molecule, name: Optional[str] = None) -> Settings:
@@ -3366,10 +3366,10 @@ class AMSJob(SingleJob):
 
             If *settings* is included in the keyword arguments to this method, the |Settings| created from the *text_input* will be soft updated with the settings from the keyword argument. In other word, the *text_input* takes precedence over the *settings* keyword argument.
         """
-        from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
+        from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 
         sett = Settings()
-        sett.input = InputParserFacade().to_settings(cls._command, text_input)
+        sett.input = input_to_settings(text_input, program=cls._command)
         mol = cls.settings_to_mol(sett)
         if mol:
             if "molecule" in kwargs:

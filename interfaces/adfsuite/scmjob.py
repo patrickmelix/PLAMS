@@ -363,13 +363,13 @@ class SCMJob(SingleJob):
         on the heredoc delimiter (see *heredoc_delimit*).
 
         """
-        from scm.plams.interfaces.adfsuite.inputparser import InputParserFacade
+        from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 
         s = Settings()
         with open(filename, "r") as f:
             inp_file = parse_heredoc(f.read(), heredoc_delimit)
 
-        s.input = InputParserFacade().to_settings(cls._json_definitions or cls._command, inp_file)
+        s.input = input_to_settings(inp_file, program=cls._json_definitions or cls._command)
         if not s.input:
             raise JobError(f"from_inputfile: failed to parse '{filename}'")
 
