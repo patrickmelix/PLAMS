@@ -233,11 +233,9 @@ class Optimizer:
         # with AMSWorkerPool(settings, jobrunner=self.jobrunner) as job_pool :
         # maxjobs = self.jobrunner.maxjobs if self.jobrunner.parallel else 0
         # job_pool = AMSWorkerPool(settings, jobrunner=self.jobrunner)
-        from scm.plams import config
+        from scm.plams.core.functions import get_config
 
-        if not "default_jobmanager" in config:
-            raise PlamsError("No default jobmanager found.")
-        jobmanager = config.default_jobmanager
+        jobmanager = get_config().default_jobmanager
         settings.runscript.nproc = int(self.jobrunner.maxjobs / min(self.jobrunner.maxjobs, len(molecules)))
         nproc = min(self.jobrunner.maxjobs, len(molecules))
         job_pool = AMSWorkerPool(settings, nproc, workerdir_root=jobmanager.workdir)

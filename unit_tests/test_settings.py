@@ -936,8 +936,8 @@ Fe:
    properties: 	['common']
 _explicit_init: 	False
 daemon_threads: 	True
-default_jobmanager: 	None
-default_jobrunner: 	None
+default_jobmanager: 	Uninitialized LazyWrapper
+default_jobrunner: 	Uninitialized LazyWrapper
 elements: 	
          Fe: 	
             common_isotopes: 	[name: 	Fe54
@@ -1050,15 +1050,46 @@ sleepstep: 	5
 
         assert not mock_jobrunner.called
         assert not mock_jobmanager.called
+        assert not config._check_initialized("default_jobrunner")
+        assert not config._check_initialized("default_jobmanager")
 
         # Force initialisation
         _ = config.default_jobrunner
         _ = config.default_jobmanager
 
         # Verify that the components are called with the default arguments
-        assert mock_jobrunner.called
-        assert mock_jobmanager.called
+        assert mock_jobrunner.call_count == 1
+        assert mock_jobmanager.call_count == 1
         assert mock_jobrunner.call_args.args == ()
         assert mock_jobmanager.call_args.args == (
             {"counter_len": 3, "hashing": "input", "remove_empty_directories": True},
         )
+        assert config._check_initialized("default_jobrunner")
+        assert config._check_initialized("default_jobmanager")
+
+    def test_copy_shallow_copies_lazy_components(self, mock_job_runner_and_manager):
+        # Verify initially that the job runner/manager are not called in original or copy
+        mock_jobrunner, mock_jobmanager = mock_job_runner_and_manager
+        config1 = ConfigSettings()
+        config2 = config1.copy()
+
+        assert not mock_jobrunner.called
+        assert not mock_jobmanager.called
+        assert not config1._check_initialized("default_jobrunner")
+        assert not config1._check_initialized("default_jobmanager")
+        assert not config2._check_initialized("default_jobrunner")
+        assert not config2._check_initialized("default_jobmanager")
+
+        # Force initialization in one of original and copy
+        jr1 = config1.default_jobrunner
+        jm2 = config2.default_jobmanager
+
+        # Verify that components can be accessed in both settings but were initialized just once
+        assert config1._check_initialized("default_jobrunner")
+        assert config1._check_initialized("default_jobmanager")
+        assert config2._check_initialized("default_jobrunner")
+        assert config2._check_initialized("default_jobmanager")
+        assert jr1 is config2.default_jobrunner
+        assert jm2 is config1.default_jobmanager
+        assert mock_jobrunner.call_count == 1
+        assert mock_jobmanager.call_count == 1

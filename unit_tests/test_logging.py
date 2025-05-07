@@ -645,7 +645,7 @@ bar,buzz
 
 class TestJobCSVFormatter:
 
-    def test_formatter_populates_job_fields(self):
+    def test_formatter_populates_job_fields(self, config):
         with temp_file_path(suffix=".csv") as temp_log_file:
 
             job1 = DummySingleJob(name="test_job_csv_formatter")
@@ -675,9 +675,8 @@ class TestJobCSVFormatter:
             delete_job(job1)
             logger.log(job1, 3)
 
-            dir = os.getcwd()
-            path1 = os.path.join(dir, "plams_workdir", "test_job_csv_formatter")
-            path2 = os.path.join(dir, "plams_workdir", "test_job_csv_formatter.002")
+            path1 = os.path.join(config.default_jobmanager.workdir, "test_job_csv_formatter")
+            path2 = os.path.join(config.default_jobmanager.workdir, "test_job_csv_formatter.002")
 
             with open(temp_log_file) as tf:
                 reader = csv.reader(tf)

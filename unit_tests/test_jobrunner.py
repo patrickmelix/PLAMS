@@ -215,3 +215,29 @@ class TestJobRunner:
 
         # Then number of jobs running in parallel is within limit
         assert max_parallel_jobs == limit
+
+    @pytest.mark.parametrize("parallel", [True, False])
+    def test_parent_thread_config_context_available_to_jobs(self, parallel, config):
+        from scm.plams.core.functions import config_context, get_config
+
+        class DummySingleJobWithConfig(DummySingleJob):
+
+            def _execute(self, jobrunner) -> None:
+                self.execute_config = get_config()
+                super()._execute(jobrunner)
+
+        jobrunner = LoggedJobRunner(parallel=parallel)
+        configs = []
+
+        def get_job_config():
+            job = DummySingleJobWithConfig()
+            jobrunner._run_job(job, config.default_jobmanager)
+            job.results.wait()
+            configs.append(job.execute_config)
+
+        with config_context() as cfg:
+            cfg.in_context = True
+            get_job_config()
+
+        assert len(configs) == 1
+        assert configs[0].in_context

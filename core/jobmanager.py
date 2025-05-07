@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, List, Dict
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, PlamsError
-from scm.plams.core.functions import config, get_logger, log
+from scm.plams.core.functions import get_logger, log, config
 from scm.plams.core.logging import Logger
 from scm.plams.core.formatters import JobCSVFormatter
 

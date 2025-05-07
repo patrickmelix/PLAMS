@@ -1,4 +1,7 @@
 import threading
+from functools import cached_property
+from contextvars import copy_context
+from typing import Callable, TypeVar, Generic
 
 
 class LimitedSemaphore:
@@ -88,3 +91,60 @@ class LimitedSemaphore:
                 self._max_value = max_value
                 self._setter_waiting = False
                 self._condition.notify_all()
+
+
+T = TypeVar("T")
+
+
+class LazyWrapper(Generic[T]):
+    """
+    Thread-safe wrapper for lazy initialization of objects
+    """
+
+    def __init__(self, factory: Callable[[], T]):
+        """
+        Initialize with a factory function, used to create the object instance on first access
+
+        :param factory: function returning a new instance of an object
+        """
+        self._factory: Callable[[], T] = factory
+
+    @cached_property
+    def value(self) -> T:
+        """
+        Lazily initialized value. On first call, the value will be created from the factory. On subsequent calls, the same cached value will be returned.
+
+        :return: initialized value
+        """
+        return self._factory()
+
+    @property
+    def initialized(self) -> bool:
+        """
+        Check whether the lazy value has already been initialized.
+
+        :return: flag for whether the underlying lazy value is initialized
+        """
+        return "value" in self.__dict__
+
+    def __str__(self):
+        if self.initialized:
+            return f"Initialized LazyWrapper[{type(self.value).__name__}]"
+        else:
+            return "Uninitialized LazyWrapper"
+
+
+class ContextAwareThread(threading.Thread):
+    """
+    Thread which runs in a context copied from parent thread
+    """
+
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, *, daemon=None):
+        self._context = copy_context()
+        super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+
+    def run(self):
+        """
+        Run thread target in the context copied from the parent thread
+        """
+        self._context.run(super().run)

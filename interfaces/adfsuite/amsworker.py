@@ -14,13 +14,14 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from scm.plams.core.errors import JobError, PlamsError, ResultsError
-from scm.plams.core.functions import config, log
+from scm.plams.core.functions import get_config, log
 from scm.plams.core.private import retry
 from scm.plams.core.functions import requires_optional_package
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.molecule.ase import toASE
 from scm.plams.tools.units import Units
+from scm.plams.core.threading_utils import ContextAwareThread
 
 TMPDIR = os.environ["SCM_TMPDIR"] if "SCM_TMPDIR" in os.environ else None
 
@@ -82,7 +83,7 @@ def _restrict(func):
         if self.ok():
             return func(self, *args, **kwargs)
         else:
-            if config.ignore_failure:
+            if get_config().ignore_failure:
                 log("WARNING: Trying to obtain results of a failed calculation {}".format(self.name), 3)
                 try:
                     ret = func(self, *args, **kwargs)
@@ -542,7 +543,7 @@ class AMSWorker:
 
         # Start a dedicated watcher thread to rescue us in case the worker never opens its end of the pipes.
         self._stop_watcher = threading.Event()
-        self._watcher = threading.Thread(target=self._startup_watcher, args=[self.workerdir], daemon=True)
+        self._watcher = ContextAwareThread(target=self._startup_watcher, args=[self.workerdir], daemon=True)
         try:
             self._watcher.start()
 
@@ -1309,7 +1310,7 @@ class AMSWorkerPool:
         else:
             # Spawn all workers from separate threads to overlap the ams.exe startup latency
             threads = [
-                threading.Thread(
+                ContextAwareThread(
                     target=AMSWorkerPool._spawn_worker,
                     args=(self.workers, settings, i, workerdir_root, workerdir_prefix, keep_crashed_workerdir),
                 )
@@ -1351,7 +1352,7 @@ class AMSWorkerPool:
                 "num_jobs": len(items),
                 "num_done": 0,
             }
-            pmt = threading.Thread(target=AMSWorkerPool._progress_monitor, args=(progress_data, watch_interval))
+            pmt = ContextAwareThread(target=AMSWorkerPool._progress_monitor, args=(progress_data, watch_interval))
             if all(s.input.ams.task.lower() == "singlepoint" for _, _, s in items):
                 tasks = "single point calculations"
             elif all(s.input.ams.task.lower() == "geometryoptimization" for _, _, s in items):
@@ -1371,13 +1372,15 @@ class AMSWorkerPool:
                 if watch and progress_data is not None:
                     progress_data["num_done"] += 1
 
-        else:  # Build a queue of things to do and spawn threads that grab from from the queue in parallel
+        else:  # Build a queue of things to do and spawn threads that grab from the queue in parallel
 
             results = [None] * len(items)
             q: queue.Queue = queue.Queue()
 
             threads = [
-                threading.Thread(target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results, progress_data))
+                ContextAwareThread(
+                    target=AMSWorkerPool._execute_queue, args=(self.workers[i], q, results, progress_data)
+                )
                 for i in range(len(self.workers))
             ]
             for t in threads:

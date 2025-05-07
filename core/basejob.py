@@ -11,7 +11,7 @@ import traceback
 
 from scm.plams.core.enums import JobStatus, JobStatusType
 from scm.plams.core.errors import FileError, JobError, PlamsError, ResultsError
-from scm.plams.core.functions import config, log
+from scm.plams.core.functions import get_config, log
 from scm.plams.core.private import sha256
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
@@ -103,7 +103,7 @@ class Job(ABC):
         self.jobmanager = None
         self.parent = None
         self.settings = Settings()
-        self.default_settings = [config.job]
+        self.default_settings = [get_config().job]
         self.depend = depend or []
         self._dont_pickle: List[str] = []
         self._error_msg: Optional[str] = None
@@ -168,16 +168,8 @@ class Job(ABC):
 
         self.settings.run.soft_update(Settings(kwargs))
 
-        if jobrunner is None:
-            if "default_jobrunner" in config:
-                jobrunner = config.default_jobrunner
-            else:
-                raise PlamsError("No default jobrunner found.")
-        if jobmanager is None:
-            if "default_jobmanager" in config:
-                jobmanager = config.default_jobmanager
-            else:
-                raise PlamsError("No default jobmanager found.")
+        jobrunner = jobrunner or get_config().default_jobrunner
+        jobmanager = jobmanager or get_config().default_jobmanager
 
         jobrunner._run_job(self, jobmanager)
         return self.results
@@ -196,7 +188,7 @@ class Job(ABC):
 
         with open(filename, "wb") as f:
             try:
-                pickle.dump(self, f, config.job.pickle_protocol)
+                pickle.dump(self, f, get_config().job.pickle_protocol)
             except:
                 log("Pickling of {} failed".format(self.name), 1)
 
@@ -257,7 +249,7 @@ class Job(ABC):
         log("Starting {}._prepare()".format(self.name), 7)
 
         log("Resolving {}.depend".format(self.name), 7)
-        if config.preview is False:
+        if not get_config().preview:
             for j in self.depend:
                 j.results.wait()
         log("{}.depend resolved".format(self.name), 7)
@@ -308,7 +300,7 @@ class Job(ABC):
         """Gather the results of the job execution and organize them. This method collects steps 9-12 from :ref:`job-life-cycle`. Should not be overridden."""
         log("Starting {}._finalize()".format(self.name), 7)
 
-        if config.preview is False:
+        if not get_config().preview:
             log("Collecting results of {}".format(self.name), 7)
             self.results.collect()
             self.results.finished.set()
@@ -430,7 +422,7 @@ class SingleJob(Job):
         if self.jobmanager:
             mode = self.jobmanager.settings.hashing
         else:
-            mode = config.jobmanager.hashing
+            mode = get_config().jobmanager.hashing
 
         if not mode:
             return None
@@ -490,7 +482,7 @@ class SingleJob(Job):
         If preview mode is on, this method does nothing.
         """
         log("Starting {}._execute()".format(self.name), 7)
-        if config.preview is False:
+        if not get_config().preview:
             o = self._filename("out") if not self.settings.runscript.stdout_redirect else None
             retcode = jobrunner.call(
                 runscript=self._filename("run"),
@@ -536,7 +528,8 @@ class SingleJob(Job):
             else:
                 raise FileError(f"No '.dill' file present in '{path}'. You might try `load_external()` instead.")
 
-        jobmanager = jobmanager or (config.default_jobmanager if config.init else None)
+        cfg = get_config()
+        jobmanager = jobmanager or (cfg.default_jobmanager if cfg.init else None)
         if jobmanager:
             job = jobmanager.load_job(path)
         else:
@@ -608,7 +601,7 @@ class SingleJob(Job):
             else:
                 log("The default {} file {} not present in {}".format(t, fullname, job.path), 5)
 
-        job.settings = settings or job.results.recreate_settings() or config.job.copy()
+        job.settings = settings or job.results.recreate_settings() or get_config().job.copy()
         job.molecule = molecule or job.results.recreate_molecule()
 
         if finalize:
@@ -755,6 +748,7 @@ class MultiJob(Job):
 
             new = self.new_children()
 
+        sleep_step = get_config().sleepstep
         while self._active_children > 0:
-            time.sleep(config.sleepstep)
+            time.sleep(sleep_step)
         log("{}._execute() finished".format(self.name), 7)

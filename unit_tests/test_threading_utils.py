@@ -3,8 +3,9 @@ import time
 import pytest
 from datetime import datetime, timedelta
 import threading
+import contextvars
 
-from scm.plams.core.threading_utils import LimitedSemaphore
+from scm.plams.core.threading_utils import LimitedSemaphore, LazyWrapper, ContextAwareThread
 
 
 class TestLimitedSemaphore:
@@ -139,3 +140,93 @@ class TestLimitedSemaphore:
     def set_max_value_and_log(semaphore, n, key, log_values):
         semaphore.max_value = n
         log_values[key] = datetime.utcnow()
+
+
+class TestLazyWrapper:
+
+    def test_lazy_wrapper_is_lazy(self):
+        call_count = 0
+
+        def factory():
+            nonlocal call_count
+            call_count += 1
+            return {"foo": "bar"}
+
+        # Given lazily wrapped object
+        lazy_dict = LazyWrapper(factory)
+
+        # When value not called
+        # Then not initialized
+        assert not lazy_dict.initialized
+        assert call_count == 0
+
+        # When value called
+        v1 = lazy_dict.value
+
+        # Then initialized
+        assert lazy_dict.initialized
+        assert call_count == 1
+
+        # When value called again
+        v2 = lazy_dict.value
+
+        # Then same value it returned
+        assert v1 is v2
+        assert call_count == 1
+
+    def test_lazy_wrapper_is_thread_safe(self):
+        call_count = 0
+
+        def factory():
+            nonlocal call_count
+            call_count += 1
+            return {"foo": "bar"}
+
+        # Given lazily wrapped object
+        lazy_dict = LazyWrapper(factory)
+
+        # When access values in different threads
+        results = []
+        threads = [threading.Thread(target=lambda: results.append(lazy_dict.value)) for _ in range(10)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        # Then initialized only once and same object in all threads
+        assert call_count == 1
+        assert all([results[0] is r for r in results])
+
+    def test_lazy_wrapper_string_representation(self):
+        lazy_dict = LazyWrapper(lambda: {"foo": "bar"})
+
+        assert str(lazy_dict) == "Uninitialized LazyWrapper"
+        _ = lazy_dict.value
+        assert str(lazy_dict) == "Initialized LazyWrapper[dict]"
+
+
+test_context_var = contextvars.ContextVar("test_value", default=-1)
+
+
+class TestContextAwareThread:
+
+    def test_context_aware_thread_copies_parent_context(self):
+        # Given context var in parent thread
+        test_context_var.set(42)
+
+        errors = []
+
+        def verify_context_var():
+            try:
+                assert test_context_var.get() == 42
+            except Exception as e:
+                errors.append(e)
+
+        # When create context aware thread
+        t = ContextAwareThread(target=verify_context_var)
+        t.start()
+        t.join()
+
+        # Then parent context vars can be accessed without errors
+        if errors:
+            raise errors[0]
