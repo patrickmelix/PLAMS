@@ -157,7 +157,7 @@ def get_system_blocks_as_molecules_from_input(input_file: "InputFileLibbase") ->
 
 def input_to_settings(
     text_input: str,
-    program: Optional[str] = "ams",
+    program: str = "ams",
     string_leafs: bool = True,
     parser: Optional[Union["InputParserLibbase", InputParser, InputParserFacade]] = None,
 ) -> "Settings":
@@ -174,7 +174,7 @@ def input_to_settings(
     :param parser: use specific parser or defaults to internal parser if ``None``
     :return: |Settings| object with the structure of the parsed AMS input
     """
-    input_parser: Union["InputParserLibbase", InputParser, InputParserFacade] = parser or InputParserFacade()
+    input_parser = parser or InputParserFacade()
     if program in ["ams", "acerxn"]:
         # Settings for the program are special:
         # * Root level input needs to go under settings.input.ams.
