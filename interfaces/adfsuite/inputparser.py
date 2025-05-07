@@ -58,7 +58,7 @@ class InputParser:
             raise ValueError(f"Input parsing failed. {exc.get_errormsg()}") from exc
         return json.loads(json_input)
 
-    # For alignment with the libbase InputParser and yet to maintain backwards compatibility
+    # Renamed for alignment with the libbase InputParser and yet to maintain backwards compatibility
     _run = to_dict
 
     def to_settings(self, program, text_input):
