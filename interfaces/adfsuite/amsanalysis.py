@@ -3,6 +3,7 @@ from typing import Dict, Union, Optional
 
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 from scm.plams.core.settings import Settings
 from scm.plams.mol.molecule import Molecule
 from scm.plams.core.functions import log
@@ -248,9 +249,7 @@ class AMSAnalysisResults(SCMResults):
         """
         user_input = self._kf.read("General", "user input")
         try:
-            from scm.libbase import InputParser
-
-            inp = InputParser().to_settings("analysis", user_input)
+            inp = input_to_settings(user_input, program="analysis")
         except:
             log(
                 "Failed to recreate input settings from {}".format(
