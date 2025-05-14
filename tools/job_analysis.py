@@ -89,23 +89,17 @@ class JobAnalysis:
         ),
         "CPUTime": _Field(
             key="CPUTime",
-            value_extractor=lambda j: (
-                j.results.readrkf("General", "CPUTime") if isinstance(j, AMSJob) and j.results is not None else None
-            ),
+            value_extractor=lambda j: JobAnalysis._read_rkf(j, "General", "CPUTime"),
             fmt=".6f",
         ),
         "SysTime": _Field(
             key="SysTime",
-            value_extractor=lambda j: (
-                j.results.readrkf("General", "SysTime") if isinstance(j, AMSJob) and j.results is not None else None
-            ),
+            value_extractor=lambda j: JobAnalysis._read_rkf(j, "General", "SysTime"),
             fmt=".6f",
         ),
         "ElapsedTime": _Field(
             key="ElapsedTime",
-            value_extractor=lambda j: (
-                j.results.readrkf("General", "ElapsedTime") if isinstance(j, AMSJob) and j.results is not None else None
-            ),
+            value_extractor=lambda j: JobAnalysis._read_rkf(j, "General", "ElapsedTime"),
             fmt=".6f",
         ),
     }
@@ -1600,6 +1594,52 @@ class JobAnalysis:
                 if field_key not in cpy._fields:
                     cpy._fields[field_key] = field
         return cpy
+
+    @staticmethod
+    def _read_rkf(job: Job, section: str, variable: str, file: str = "ams"):
+        if isinstance(job, AMSJob) and job.results is not None:
+            return job.results.readrkf(section=section, variable=variable, file=file)
+        else:
+            return None
+
+    def add_rkf_field(
+        self,
+        section: str,
+        variable: str,
+        file="ams",
+        display_name: Optional[str] = None,
+        fmt: Optional[str] = None,
+        expansion_depth: int = 0,
+    ) -> "JobAnalysis":
+        """
+        Add a field for given variable in a section of an rkf file.
+        The key of the fields will be of the form ``file:section%variable`` e.g. ``ams:General%task``.
+
+        .. code:: python
+
+            >>> ja.add_rkf_field("General", "task")
+
+            | Name  | ams:General%task |
+            |-------|------------------|
+            | job_1 | singlepoint      |
+            | job_2 | singlepoint      |
+
+        :param section: section of the rkf file to read
+        :param variable: variable in the section of the rkf file to read
+        :param file: rkf file to use (without the .rkf extension)
+        :param display_name: name which will appear for the field when displayed in table
+        :param fmt: string format for how field values are displayed in table
+        :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
+        :return: copy of |JobAnalysis| with the additional field
+        """
+        key = f"{file}:{section}%{variable}"
+        return self.add_field(
+            key,
+            lambda j: JobAnalysis._read_rkf(job=j, section=section, variable=variable, file=file),
+            display_name=display_name,
+            fmt=fmt,
+            expansion_depth=expansion_depth,
+        )
 
     def _get_job_settings(self, job: Job) -> Settings:
         """

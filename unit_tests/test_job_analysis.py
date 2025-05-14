@@ -4,8 +4,10 @@ import pytest
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from scm.plams.interfaces.molecule.rdkit import from_smiles
+from scm.plams.interfaces.adfsuite.ams import AMSJob, AMSResults
 from scm.plams.core.jobmanager import JobManager
 from scm.plams.core.enums import JobStatus
 from scm.plams.unit_tests.test_basejob import DummySingleJob
@@ -259,6 +261,30 @@ class TestJobAnalysis:
 | C6H14   |
 | C4H10O  |
 | None    |"""
+        )
+
+    def test_add_fields_with_closure(self, dummy_single_jobs):
+        ja = JobAnalysis(jobs=dummy_single_jobs, standard_fields=[])
+        for s in ["OK", "Check", "Formula"]:
+            ja = ja.add_standard_field(s)
+        for m in [1, 10, 100]:
+            ja = ja.add_field(f"Wait{m}", lambda j, mul=m: j.wait * mul, fmt=".2f")
+
+        assert (
+            ja.to_table()
+            == """\
+| OK   | Check | Formula | Wait1 | Wait10 | Wait100 |
+|------|-------|---------|-------|--------|---------|
+| True | True  | C2H6    | 0.00  | 0.00   | 0.00    |
+| True | True  | CH4     | 0.01  | 0.10   | 1.00    |
+| True | True  | H2O     | 0.02  | 0.20   | 2.00    |
+| True | True  | CH4O    | 0.03  | 0.30   | 3.00    |
+| True | True  | C3H8    | 0.04  | 0.40   | 4.00    |
+| True | True  | C4H10   | 0.05  | 0.50   | 5.00    |
+| True | True  | C3H8O   | 0.06  | 0.60   | 6.00    |
+| True | True  | C6H14   | 0.07  | 0.70   | 7.00    |
+| True | True  | C4H10O  | 0.08  | 0.80   | 8.00    |
+| True | True  | None    | 0.09  | 0.90   | 9.00    |"""
         )
 
     def test_format_field(self, dummy_single_jobs):
@@ -1048,6 +1074,33 @@ class TestJobAnalysis:
 | dummyjob.008 | True | True  | None     | C6H14   | CCCCCC | None              | GeometryOptimization | True                          | None          | None                                                  | None                                                  |
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None              | SinglePoint          | True                          | None          | None                                                  | None                                                  |
 | dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
+        )
+
+    def test_rkf_fields(self):
+        ams_job = MagicMock(spec=AMSJob)
+        ams_job.path = "my/ams/job"
+        ams_results = MagicMock(spec=AMSResults)
+        ams_job.results = ams_results
+        ams_job.results.readrkf.side_effect = lambda section, variable, file: (file, section, variable)
+        job = MagicMock(spec=DummySingleJob)
+        job.results = MagicMock()
+        job.path = "my/job"
+
+        ja = JobAnalysis(jobs=[ams_job, job], standard_fields=[])
+        for f in ["ams", "dftb"]:
+            for s in ["Foo", "Bar"]:
+                for v in ["Var1", "Var2"]:
+                    ja = ja.add_rkf_field(
+                        s, v, f, display_name="Var1" if v == "Var1" and s == "Foo" and f == "ams" else None
+                    )
+
+        assert (
+            ja.to_table()
+            == """\
+| Var1                   | ams:Foo%Var2           | ams:Bar%Var1           | ams:Bar%Var2           | dftb:Foo%Var1           | dftb:Foo%Var2           | dftb:Bar%Var1           | dftb:Bar%Var2           |
+|------------------------|------------------------|------------------------|------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
+| ('ams', 'Foo', 'Var1') | ('ams', 'Foo', 'Var2') | ('ams', 'Bar', 'Var1') | ('ams', 'Bar', 'Var2') | ('dftb', 'Foo', 'Var1') | ('dftb', 'Foo', 'Var2') | ('dftb', 'Bar', 'Var1') | ('dftb', 'Bar', 'Var2') |
+| None                   | None                   | None                   | None                   | None                    | None                    | None                    | None                    |"""
         )
 
     def test_get_set_del_item(self, dummy_single_jobs):
