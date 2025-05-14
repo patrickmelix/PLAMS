@@ -16,6 +16,10 @@ This changelog is effective from the 2025 releases.
 * `context_config` and `get_context` methods to allow context-based override of global `config` settings
 * `input_to_settings` method to convert AMS text input to a settings object
 * `get_system_blocks_as_molecules_from_input` method to extract molecules from AMS text input
+* `Job.Analysis.add_rkf_field` method to simplify adding values from an rkf to the analysis
+
+### Changed
+* `JobAnalysis` returns an updated copy on modification instead of performing the operation in-place
 
 ## 2025.102
 
