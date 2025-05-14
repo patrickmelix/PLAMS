@@ -95,10 +95,8 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None           | None    | None    | None        |"""
         )
 
-        (
-            ja.remove_fields(["CPUTime", "SysTime", "ElapsedTime", "GyrationRadius"]).add_standard_fields(
-                ["ParentPath", "ParentName"]
-            )
+        ja = ja.remove_fields(["CPUTime", "SysTime", "ElapsedTime", "GyrationRadius"]).add_standard_fields(
+            ["ParentPath", "ParentName"]
         )
 
         assert (
@@ -118,7 +116,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None       | None       |"""
         )
 
-        ja.remove_fields(["ParentPath", "ParentName", "Smiles", "Formula", "ErrorMsg", "Check", "OK"])
+        ja = ja.remove_fields(["ParentPath", "ParentName", "Smiles", "Formula", "ErrorMsg", "Check", "OK"])
 
         assert (
             ja.to_table()
@@ -171,7 +169,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None | None    | None   | None    | None    | None        | 0.09 | Dummy  | None  |"""
         )
 
-        ja.remove_empty_fields()
+        ja = ja.remove_empty_fields()
 
         assert (
             ja.to_table()
@@ -190,7 +188,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None    | None   | 0.09 | Dummy  |"""
         )
 
-        ja.remove_uniform_fields()
+        ja = ja.remove_uniform_fields()
 
         assert (
             ja.to_table()
@@ -209,7 +207,7 @@ class TestJobAnalysis:
 | dummyjob.010 | None    | None   | 0.09 |"""
         )
 
-        ja.remove_uniform_fields(tol=0.1, ignore_empty=True).filter_fields(
+        ja = ja.remove_uniform_fields(tol=0.1, ignore_empty=True).filter_fields(
             lambda vals: all([not v or "H" in v for v in vals])
         )
 
@@ -230,19 +228,21 @@ class TestJobAnalysis:
 | None    |"""
         )
 
-        ja.add_field(
-            "MultiValue",
-            lambda _: [[np.array([i if i != 1 else None for i in range(3)]) for _ in range(4)] for _ in range(5)],
+        ja = (
+            ja.add_field(
+                "MultiValue",
+                lambda _: [[np.array([i if i != 1 else None for i in range(3)]) for _ in range(4)] for _ in range(5)],
+            )
+            .add_field(
+                "Dict",
+                lambda j: (
+                    {"a": (1, 2), "b": None, "c": {"d": [1, 2, 3], "e": None}}
+                    if j.wait < 0.05
+                    else {"b": "f", "c": {"e": "g", "d": [1, 2, 3]}, "a": (1, 2)}
+                ),
+            )
+            .remove_uniform_fields(ignore_empty=True)
         )
-        ja.add_field(
-            "Dict",
-            lambda j: (
-                {"a": (1, 2), "b": None, "c": {"d": [1, 2, 3], "e": None}}
-                if j.wait < 0.05
-                else {"b": "f", "c": {"e": "g", "d": [1, 2, 3]}, "a": (1, 2)}
-            ),
-        )
-        ja.remove_uniform_fields(ignore_empty=True)
 
         assert (
             ja.to_table()
@@ -403,7 +403,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | [[['w0', 'w1', 'w2', 'w3']]] |"""
         )
 
-        ja.expand_field("MultiValue")
+        ja = ja.expand_field("MultiValue")
 
         assert (
             ja.to_table(max_rows=1000)
@@ -507,7 +507,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | [['w0', 'w1', 'w2', 'w3']] |"""
         )
 
-        ja.expand_field("MultiValue", depth=2)
+        ja = ja.expand_field("MultiValue", depth=2)
 
         assert (
             ja.to_table(max_rows=1000)
@@ -611,7 +611,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | ['w0', 'w1', 'w2', 'w3'] |"""
         )
 
-        ja.expand_field("MultiValue", depth=100)
+        ja = ja.expand_field("MultiValue", depth=100)
 
         assert (
             ja.to_table(max_rows=1000)
@@ -725,7 +725,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable | w3         |"""
         )
 
-        ja.collapse_field("Atoms")
+        ja = ja.collapse_field("Atoms")
 
         assert (
             ja.to_table(max_rows=1000)
@@ -754,7 +754,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | ERROR: 'NoneType' object is not iterable                                                             | w3         |"""
         )
 
-        ja.collapse_field("MultiValue")
+        ja = ja.collapse_field("MultiValue")
 
         assert (
             ja.to_table(max_rows=1000)
@@ -776,7 +776,7 @@ class TestJobAnalysis:
     def test_add_job(self, dummy_single_jobs):
         ja = JobAnalysis()
         for j in dummy_single_jobs:
-            ja.add_job(j)
+            ja = ja.add_job(j)
         assert len(ja.jobs) == 10
 
     @pytest.mark.parametrize("use_custom_loader", [False, True])
@@ -796,10 +796,10 @@ class TestJobAnalysis:
                 calls.append(p)
                 return job
 
-            ja.load_job(job.path, loaders=[loader])
+            ja = ja.load_job(job.path, loaders=[loader])
             assert calls == [job.path]
         else:
-            ja.load_job(job.path)
+            ja = ja.load_job(job.path)
 
         assert len(ja.jobs) == 11
 
@@ -899,7 +899,7 @@ class TestJobAnalysis:
             "Wait",
         ]
 
-        ja.reorder_fields(["Name", "Wait"])
+        ja = ja.reorder_fields(["Name", "Wait"])
 
         assert ja.field_keys == [
             "Name",
@@ -915,7 +915,7 @@ class TestJobAnalysis:
             "ElapsedTime",
         ]
 
-        ja.sort_fields(lambda k: str(k))
+        ja = ja.sort_fields(lambda k: str(k))
 
         assert ja.field_keys == [
             "CPUTime",
@@ -931,7 +931,7 @@ class TestJobAnalysis:
             "Wait",
         ]
 
-        ja.sort_fields(lambda k: len(k), reverse=True)
+        ja = ja.sort_fields(lambda k: len(k), reverse=True)
 
         assert ja.field_keys == [
             "ElapsedTime",
@@ -974,7 +974,7 @@ class TestJobAnalysis:
             "dummyjob.010",
         ]
 
-        ja.sort_jobs(field_keys=["OK", "Wait"], reverse=True)
+        ja = ja.sort_jobs(field_keys=["OK", "Wait"], reverse=True)
 
         assert [(j.name, j.wait) for j in ja.jobs.values()] == [
             ("dummyjob.010", 0.09),
@@ -989,7 +989,7 @@ class TestJobAnalysis:
             ("dummyjob", 0.0),
         ]
 
-        ja.sort_jobs(sort_key=lambda data: data["Wait"] * 100 % 5)
+        ja = ja.sort_jobs(sort_key=lambda data: data["Wait"] * 100 % 5)
 
         assert [(j.name, int(j.wait * 100 % 5)) for j in ja.jobs.values()] == [
             ("dummyjob.006", 0.0),
@@ -1031,7 +1031,7 @@ class TestJobAnalysis:
 | dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | #!/bin/sh        |"""
         )
 
-        ja.remove_settings_fields().add_settings_input_fields(include_system_block=True)
+        ja = ja.remove_settings_fields().add_settings_input_fields(include_system_block=True)
 
         assert (
             ja.to_table()
@@ -1077,7 +1077,7 @@ class TestJobAnalysis:
         with pytest.raises(KeyError):
             del ja["Bar"]
 
-        ja.filter_jobs(lambda data: data["Smiles"] in ("C", "CC", "CO")).add_field(
+        ja = ja.filter_jobs(lambda data: data["Smiles"] in ("C", "CC", "CO")).add_field(
             "Atoms", lambda j: [at.symbol for at in j.molecule]
         )
 
@@ -1088,7 +1088,7 @@ class TestJobAnalysis:
             ["C", "O", "H", "H", "H", "H"],
         ]
 
-        ja.expand_field("Atoms")
+        ja = ja.expand_field("Atoms")
         assert ja["Smiles"] == [
             "CC",
             "CC",
@@ -1300,7 +1300,7 @@ dummyjob.010,,,False
 
         # Add single job that takes seconds to run
         job_s = get_job_with_statuses("tls", JobStatus.SUCCESSFUL, start, timedelta(seconds=0.1), timedelta(seconds=3))
-        ja.add_job(job_s)
+        ja = ja.add_job(job_s)
         timeline = ja.get_timeline()
         assert (
             timeline
@@ -1314,7 +1314,7 @@ dummyjob.010,,,False
 
         # Add single job that takes minutes to run
         job_m = get_job_with_statuses("tlm", JobStatus.FAILED, start, timedelta(seconds=2), timedelta(minutes=2))
-        ja.add_job(job_m)
+        ja = ja.add_job(job_m)
         timeline = ja.get_timeline()
         assert (
             timeline
@@ -1329,7 +1329,7 @@ dummyjob.010,,,False
 
         # Add single job that takes hours to run
         job_m = get_job_with_statuses("tlh", JobStatus.CRASHED, start, timedelta(seconds=10), timedelta(hours=2))
-        ja.add_job(job_m)
+        ja = ja.add_job(job_m)
         timeline = ja.get_timeline()
         assert (
             timeline
@@ -1351,8 +1351,8 @@ dummyjob.010,,,False
             "tldm", JobStatus.SUCCESSFUL, start + timedelta(hours=1), timedelta(minutes=2), timedelta(minutes=10)
         )
 
-        ja.add_job(job_ds)
-        ja.add_job(job_dm)
+        ja = ja.add_job(job_ds)
+        ja = ja.add_job(job_dm)
         timeline = ja.get_timeline(max_intervals=5)
         assert (
             timeline
@@ -1376,8 +1376,8 @@ dummyjob.010,,,False
             "tldpm", JobStatus.SUCCESSFUL, start + timedelta(hours=1), timedelta(minutes=12), timedelta(minutes=10)
         )
 
-        ja.add_job(job_dps)
-        ja.add_job(job_dpm)
+        ja = ja.add_job(job_dps)
+        ja = ja.add_job(job_dpm)
         timeline = ja.get_timeline(max_intervals=10)
         assert (
             timeline
@@ -1406,8 +1406,8 @@ dummyjob.010,,,False
         job_e.results.wait()
         job_e._status_log = []
 
-        ja.add_job(job_n)
-        ja.add_job(job_e)
+        ja = ja.add_job(job_n)
+        ja = ja.add_job(job_e)
         timeline = ja.get_timeline()
         assert (
             timeline
@@ -1526,7 +1526,7 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
 | dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | #!/bin/sh        |"""
         )
 
-        ja.remove_settings_fields().add_settings_input_fields(include_system_block=True)
+        ja = ja.remove_settings_fields().add_settings_input_fields(include_system_block=True)
 
         # N.B. small discrepancy in system block atoms column name
         assert (
@@ -1545,6 +1545,19 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None              | SinglePoint          | True                          | None          | None                                                  | None                                                  |
 | dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
         )
+
+    def test_copy(self, dummy_single_jobs):
+        ja1 = JobAnalysis(jobs=dummy_single_jobs, standard_fields=["OK", "Smiles"])
+        ja2 = ja1.copy()
+
+        assert ja1.get_analysis() == ja2.get_analysis()
+        assert ja1.jobs == ja2.jobs
+
+        ja1._jobs.pop(dummy_single_jobs[0].path)
+        ja1._fields.pop("OK")
+
+        assert ja1.jobs != ja2.jobs
+        assert ja1.field_keys != ja2.field_keys
 
 
 class TestJobAnalysisWithChemicalSystem(TestJobAnalysis):

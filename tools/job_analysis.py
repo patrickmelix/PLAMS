@@ -200,17 +200,17 @@ class JobAnalysis:
 
         if jobs:
             for j in jobs:
-                self.add_job(j)
+                self._add_job(j)
                 if await_results:
                     j.results.wait()
 
         if paths:
             for p in paths:
-                self.load_job(p, loaders)
+                self._load_job(p, loaders)
 
         if standard_fields:
             for sf in standard_fields:
-                self.add_standard_field(sf)
+                self._add_standard_field(sf)
 
     def copy(self) -> "JobAnalysis":
         """
@@ -683,6 +683,16 @@ class JobAnalysis:
             table = "\n".join([f"    {row}" for row in table.split("\n")])
             display(Markdown(table))
 
+    def _add_job(self, job: Job):
+        """
+        Add a job to this |JobAnalysis| instance.
+
+        :param job: |Job| to add to the analysis
+        """
+        if job.path in self._jobs:
+            raise KeyError(f"Job with path '{job.path}' has already been added to the analysis.")
+        self._jobs[job.path] = job
+
     def add_job(self, job: Job) -> "JobAnalysis":
         """
         Add a job to the analysis. This adds a row to the analysis data.
@@ -698,13 +708,11 @@ class JobAnalysis:
             | job_3 | True |
 
         :param job: |Job| to add to the analysis
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the additional job
         """
-        if job.path in self._jobs:
-            raise KeyError(f"Job with path '{job.path}' has already been added to the analysis.")
-
-        self._jobs[job.path] = job
-        return self
+        cpy = self.copy()
+        cpy._add_job(job)
+        return cpy
 
     def remove_job(self, job: Union[str, os.PathLike, Job]) -> "JobAnalysis":
         """
@@ -719,35 +727,23 @@ class JobAnalysis:
             | job_1 | True |
 
         :param job: |Job| or path to a job to remove from the analysis
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the job removed
         """
         path = job.path if isinstance(job, Job) else str(os.path.abspath(job))
         if path not in self._jobs:
             raise KeyError(f"Job with path '{path}' is not part of the analysis.")
 
-        self._jobs.pop(path)
-        return self
+        cpy = self.copy()
+        cpy._jobs.pop(path)
+        return cpy
 
-    def load_job(
-        self, path: Union[str, os.PathLike], loaders: Optional[Sequence[Callable[[str], Job]]] = None
-    ) -> "JobAnalysis":
+    def _load_job(self, path: Union[str, os.PathLike], loaders: Optional[Sequence[Callable[[str], Job]]] = None):
         """
-        Add job to the analysis by loading from a given path to the job folder.
+        Add job to this |JobAnalysis| instance by loading from a given path to the job folder.
         If no dill file is present in that location, or the dill unpickling fails, the loaders will be used to load the given job from the folder.
-
-        .. code:: python
-
-            >>> ja.load_job("path/job3")
-
-            | Name  | OK   |
-            |-------|------|
-            | job_1 | True |
-            | job_2 | True |
-            | job_3 | True |
 
         :param path: path to folder from which to load the job
         :param loaders: functions to try and load jobs, defaults to :meth:`~scm.plams.interfaces.adfsuite.ams.AMSJob.load_external` followed by |load_external|
-        :return: updated instance of |JobAnalysis|
         """
         path = Path(path)
 
@@ -784,7 +780,32 @@ class JobAnalysis:
         if not job:
             raise PlamsError(f"Could not load job from path '{path}'")
 
-        return self.add_job(job)
+        self._add_job(job)
+
+    def load_job(
+        self, path: Union[str, os.PathLike], loaders: Optional[Sequence[Callable[[str], Job]]] = None
+    ) -> "JobAnalysis":
+        """
+        Add job to the analysis by loading from a given path to the job folder.
+        If no dill file is present in that location, or the dill unpickling fails, the loaders will be used to load the given job from the folder.
+
+        .. code:: python
+
+            >>> ja.load_job("path/job3")
+
+            | Name  | OK   |
+            |-------|------|
+            | job_1 | True |
+            | job_2 | True |
+            | job_3 | True |
+
+        :param path: path to folder from which to load the job
+        :param loaders: functions to try and load jobs, defaults to :meth:`~scm.plams.interfaces.adfsuite.ams.AMSJob.load_external` followed by |load_external|
+        :return: copy of |JobAnalysis| with the additional loaded job
+        """
+        cpy = self.copy()
+        cpy._load_job(path, loaders)
+        return cpy
 
     def filter_jobs(self, predicate: Callable[[Dict[str, Any]], bool]) -> "JobAnalysis":
         """
@@ -808,15 +829,16 @@ class JobAnalysis:
             | job_3 | False |
 
         :param predicate: filter function which takes a dictionary of field keys and their values and evaluates to ``True``/``False``
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the job filter applied
         """
         # Need to make sure a path is associated with job row(s) as this is the job key
-        requires_path = "Path" not in self
+        cpy = self.copy()
+        requires_path = "Path" not in cpy
         try:
             if requires_path:
-                self.add_standard_field("Path")
+                cpy = cpy.add_standard_field("Path")
 
-            analysis = self.get_analysis()
+            analysis = cpy.get_analysis()
             jobs_to_remove = set()
             for i, p in enumerate(analysis["Path"]):
                 data = {k: v[i] for k, v in analysis.items()}
@@ -824,12 +846,12 @@ class JobAnalysis:
                     jobs_to_remove.add(p)
 
             for j in jobs_to_remove:
-                self.remove_job(j)
+                cpy = cpy.remove_job(j)
         finally:
             if requires_path:
-                self.remove_field("Path")
+                cpy = cpy.remove_field("Path")
 
-        return self
+        return cpy
 
     def sort_jobs(
         self,
@@ -856,19 +878,48 @@ class JobAnalysis:
         :param field_keys: field keys to sort by,
         :param sort_key: sorting function which takes a dictionary of field keys and their values
         :param reverse: reverse sort order, defaults to ``False``
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the job sorted
         """
-        analysis = self.get_analysis()
+        cpy = self.copy()
+        analysis = cpy.get_analysis()
         sort_key = sort_key if sort_key else lambda data: tuple([str(v) for v in data.values()])
-        key_set = set(field_keys) if field_keys else set(self.field_keys)
+        key_set = set(field_keys) if field_keys else set(cpy.field_keys)
 
         def key(ik):
             i, _ = ik
             return sort_key({k: v[i] for k, v in analysis.items() if k in key_set})
 
-        sorted_keys = sorted(enumerate(self._jobs.keys()), key=key, reverse=reverse)
-        self._jobs = {k: self._jobs[k] for _, k in sorted_keys}
-        return self
+        sorted_keys = sorted(enumerate(cpy._jobs.keys()), key=key, reverse=reverse)
+        cpy._jobs = {k: cpy._jobs[k] for _, k in sorted_keys}
+        return cpy
+
+    def _add_field(
+        self,
+        key: str,
+        value_extractor: Callable[[Job], Any],
+        display_name: Optional[str] = None,
+        fmt: Optional[str] = None,
+        expansion_depth: int = 0,
+    ):
+        """
+        Add a new field to this |JobAnalysis| instance. This adds a column to the analysis data.
+
+        :param key: unique identifier for the field
+        :param value_extractor: callable to extract the value for the field from a job
+        :param display_name: name which will appear for the field when displayed in table
+        :param fmt: string format for how field values are displayed in table
+        :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
+        """
+        if key in self._fields:
+            raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
+
+        self._set_field(
+            key=key,
+            value_extractor=value_extractor,
+            display_name=display_name,
+            fmt=fmt,
+            expansion_depth=expansion_depth,
+        )
 
     def add_field(
         self,
@@ -895,12 +946,45 @@ class JobAnalysis:
         :param display_name: name which will appear for the field when displayed in table
         :param fmt: string format for how field values are displayed in table
         :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the additional field
         """
-        if key in self._fields:
-            raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
+        cpy = self.copy()
+        cpy._add_field(
+            key=key,
+            value_extractor=value_extractor,
+            display_name=display_name,
+            fmt=fmt,
+            expansion_depth=expansion_depth,
+        )
+        return cpy
 
-        return self.set_field(
+    def _set_field(
+        self,
+        key: str,
+        value_extractor: Callable[[Job], Any],
+        display_name: Optional[str] = None,
+        fmt: Optional[str] = None,
+        expansion_depth: int = 0,
+    ):
+        """
+        Set a field in this |JobAnalysis| instance. This adds or modifies a column in the analysis data.
+
+        .. code:: python
+
+            >>> ja.set_field("N", lambda j: len(j.molecule), display_name="Num Atoms")
+
+            | Name  | OK    | Num Atoms |
+            |-------|-------|-----------|
+            | job_1 | True  | 4         |
+            | job_2 | True  | 6         |
+
+        :param key: unique identifier for the field
+        :param value_extractor: callable to extract the value for the field from a job
+        :param display_name: name which will appear for the field when displayed in table
+        :param fmt: string format for how field values are displayed in table
+        :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
+        """
+        self._fields[key] = self._Field(
             key=key,
             value_extractor=value_extractor,
             display_name=display_name,
@@ -917,7 +1001,7 @@ class JobAnalysis:
         expansion_depth: int = 0,
     ) -> "JobAnalysis":
         """
-        Set a field in the analysis. This adds or modifies a column to the analysis data.
+        Set a field in the analysis. This adds or modifies a column in the analysis data.
 
         .. code:: python
 
@@ -933,16 +1017,17 @@ class JobAnalysis:
         :param display_name: name which will appear for the field when displayed in table
         :param fmt: string format for how field values are displayed in table
         :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the column set
         """
-        self._fields[key] = self._Field(
+        cpy = self.copy()
+        cpy._set_field(
             key=key,
             value_extractor=value_extractor,
             display_name=display_name,
             fmt=fmt,
             expansion_depth=expansion_depth,
         )
-        return self
+        return cpy
 
     def format_field(self, key: str, fmt: Optional[str] = None) -> "JobAnalysis":
         """
@@ -959,12 +1044,14 @@ class JobAnalysis:
 
         :param key: unique identifier of the field
         :param fmt: string format of the field e.g. ``.2f``
+        :return: copy of |JobAnalysis| with field formatting applied
         """
         if key not in self._fields:
             raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        self._fields[key] = replace(self._fields[key], fmt=fmt)
-        return self
+        cpy = self.copy()
+        cpy._fields[key] = replace(cpy._fields[key], fmt=fmt)
+        return cpy
 
     def rename_field(self, key: str, display_name: str) -> "JobAnalysis":
         """
@@ -981,14 +1068,15 @@ class JobAnalysis:
 
         :param key: unique identifier for the field
         :param display_name: name of the field
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the renamed field
         """
 
         if key not in self._fields:
             raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        self._fields[key] = replace(self._fields[key], display_name=display_name)
-        return self
+        cpy = self.copy()
+        cpy._fields[key] = replace(cpy._fields[key], display_name=display_name)
+        return cpy
 
     def expand_field(self, key: str, depth: int = 1) -> "JobAnalysis":
         """
@@ -1020,13 +1108,14 @@ class JobAnalysis:
 
         :param key: unique identifier of field to expand
         :param depth: depth of recursive expansion, defaults to 1
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the field expanded
         """
         if key not in self._fields:
             raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        self._fields[key].expansion_depth = depth
-        return self
+        cpy = self.copy()
+        cpy._fields[key].expansion_depth = depth
+        return cpy
 
     def collapse_field(self, key: str) -> "JobAnalysis":
         """
@@ -1054,13 +1143,14 @@ class JobAnalysis:
             | job_2 | True  | [1, 2]    | [84.5, 112.2]      |
 
         :param key: unique identifier of field to collapse
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the field collapsed applied
         """
         if key not in self._fields:
             raise KeyError(f"Field with key '{key}' is not part of the analysis.")
 
-        self._fields[key].expansion_depth = 0
-        return self
+        cpy = self.copy()
+        cpy._fields[key].expansion_depth = 0
+        return cpy
 
     def reorder_fields(self, order: Sequence[str]) -> "JobAnalysis":
         """
@@ -1081,7 +1171,7 @@ class JobAnalysis:
             | job_2 | 1    | True  | 112.2  |
 
         :param order: sequence of fields to be placed at the start of the field ordering
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the fields reordered
         """
 
         def key(field_key):
@@ -1110,11 +1200,23 @@ class JobAnalysis:
 
         :param sort_key: sorting function which accepts the field key
         :param reverse: reverse sort order, defaults to ``False``
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the fields sorted
         """
-        sorted_keys = sorted(self._fields.keys(), key=sort_key, reverse=reverse)
-        self._fields = {k: self._fields[k] for k in sorted_keys}
-        return self
+        cpy = self.copy()
+        sorted_keys = sorted(cpy._fields.keys(), key=sort_key, reverse=reverse)
+        cpy._fields = {k: cpy._fields[k] for k in sorted_keys}
+        return cpy
+
+    def _remove_field(self, key: str):
+        """
+        Remove a field from this |JobAnalysis| instance. This removes a column from the analysis data.
+
+        :param key: unique identifier of the field
+        """
+        if key not in self._fields:
+            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
+
+        self._fields.pop(key)
 
     def remove_field(self, key: str) -> "JobAnalysis":
         """
@@ -1130,13 +1232,11 @@ class JobAnalysis:
             | job_2 | True |
 
         :param key: unique identifier of the field
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the field removed
         """
-        if key not in self._fields:
-            raise KeyError(f"Field with key '{key}' is not part of the analysis.")
-
-        self._fields.pop(key)
-        return self
+        cpy = self.copy()
+        cpy._remove_field(key)
+        return cpy
 
     def remove_fields(self, keys: Sequence[str]) -> "JobAnalysis":
         """
@@ -1152,11 +1252,12 @@ class JobAnalysis:
             | job_2 |
 
         :param keys: unique identifiers of the fields
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the fields removed
         """
+        cpy = self.copy()
         for key in keys:
-            self.remove_field(key)
-        return self
+            cpy._remove_field(key)
+        return cpy
 
     def filter_fields(self, predicate: Callable[[List[Any]], bool]) -> "JobAnalysis":
         """
@@ -1186,16 +1287,14 @@ class JobAnalysis:
             | job_2 | 84.5   |
             | job_2 | 112.2  |
 
-        :param key: unique identifier of the field
-        :return: updated instance of |JobAnalysis|
-
         :param predicate: filter function which takes values and evaluates to ``True``/``False``
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the field filter applied
         """
-        for n, vals in self.get_analysis().items():
+        cpy = self.copy()
+        for n, vals in cpy.get_analysis().items():
             if not predicate(vals):
-                self.remove_field(n)
-        return self
+                cpy._remove_field(n)
+        return cpy
 
     def remove_empty_fields(self) -> "JobAnalysis":
         """
@@ -1218,7 +1317,7 @@ class JobAnalysis:
             | job_1 | True  |
             | job_2 | True  |
 
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with empty fields removed
         """
         return self.filter_fields(lambda vals: any([not self._is_empty_value(v) for v in vals]))
 
@@ -1270,7 +1369,7 @@ class JobAnalysis:
 
         :param tol: absolute tolerance for numeric value comparison, all values must fall within this range
         :param ignore_empty: when ``True`` ignore ``None`` values and empty containers in comparison, defaults to ``False``
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with uniform fields removed
         """
 
         def is_uniform(vals: List[Any]):
@@ -1355,11 +1454,26 @@ class JobAnalysis:
             | job_2 | /path/job_2 | C=C    |
 
         :param keys: sequence of keys for the analysis fields
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the standard fields added
         """
+        cpy = self.copy()
         for key in keys:
-            self.add_standard_field(key)
-        return self
+            cpy._add_standard_field(key)
+        return cpy
+
+    def _add_standard_field(self, key: "JobAnalysis.StandardField"):
+        """
+        Adds a standard field to this |JobAnalysis| instance.
+
+        :param key: key for the analysis field
+        """
+        if key not in self._standard_fields:
+            raise KeyError(f"'{key}' is not one of the standard fields: {', '.join(self._standard_fields)}.")
+
+        if key in self._fields:
+            raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
+
+        self._fields[key] = replace(self._standard_fields[key])
 
     def add_standard_field(self, key: "JobAnalysis.StandardField") -> "JobAnalysis":
         """
@@ -1398,16 +1512,11 @@ class JobAnalysis:
             | job_2 | /path/job_2 |
 
         :param key: key for the analysis field
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the additional standard field
         """
-        if key not in self._standard_fields:
-            raise KeyError(f"'{key}' is not one of the standard fields: {', '.join(self._standard_fields)}.")
-
-        if key in self._fields:
-            raise KeyError(f"Field with key '{key}' has already been added to the analysis.")
-
-        self._fields[key] = replace(self._standard_fields[key])
-        return self
+        cpy = self.copy()
+        cpy._add_standard_field(key)
+        return cpy
 
     def add_settings_field(
         self,
@@ -1433,18 +1542,19 @@ class JobAnalysis:
         :param display_name: name which will appear for the field when displayed in table
         :param fmt: string format for how field values are displayed in table
         :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the settings fields added
         """
         key = "".join([str(k).title() for k in key_tuple])
-        self.add_field(
+        cpy = self.copy()
+        cpy = cpy.add_field(
             key,
-            lambda j, k=key_tuple: self._get_job_settings(j).get_nested(k),  # type: ignore
+            lambda j, k=key_tuple: cpy._get_job_settings(j).get_nested(k),  # type: ignore
             display_name=display_name,
             fmt=fmt,
             expansion_depth=expansion_depth,
         )
-        self._fields[key].from_settings = True
-        return self
+        cpy._fields[key].from_settings = True
+        return cpy
 
     def add_settings_fields(
         self,
@@ -1466,13 +1576,14 @@ class JobAnalysis:
 
         :param predicate: optional predicate which evaluates to ``True`` or ``False`` given a nested key, by default will be ``True`` for every key
         :param flatten_list: whether to flatten lists in settings objects
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with settings fields added
         """
 
         all_blocks: Set[Tuple[Hashable, ...]] = set()
         all_keys: Dict[Tuple[Hashable, ...], None] = {}  # Use dict as a sorted set for keys
-        for job in self._jobs.values():
-            settings = self._get_job_settings(job)
+        cpy = self.copy()
+        for job in cpy._jobs.values():
+            settings = cpy._get_job_settings(job)
             blocks = set(settings.block_keys(flatten_list=flatten_list))
             keys = {k: None for k in settings.nested_keys(flatten_list=flatten_list)}
             all_blocks = all_blocks.union(blocks)
@@ -1483,12 +1594,12 @@ class JobAnalysis:
             # Take only final nested keys i.e. those which are not block keys and satisfy the predicate
             if key not in all_blocks and predicate(key):
                 field_key = "".join([str(k).title() for k in key])
-                field = self._Field(
-                    key=field_key, value_extractor=lambda j, k=key: self._get_job_settings(j).get_nested(k), from_settings=True  # type: ignore
+                field = cpy._Field(
+                    key=field_key, value_extractor=lambda j, k=key: cpy._get_job_settings(j).get_nested(k), from_settings=True  # type: ignore
                 )
-                if field_key not in self._fields:
-                    self._fields[field_key] = field
-        return self
+                if field_key not in cpy._fields:
+                    cpy._fields[field_key] = field
+        return cpy
 
     def _get_job_settings(self, job: Job) -> Settings:
         """
@@ -1521,7 +1632,7 @@ class JobAnalysis:
 
         :param include_system_block: whether to include keys for the system block, defaults to ``False``
         :param flatten_list: whether to flatten lists in settings objects
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with the settings input fields added
         """
 
         def predicate(key_tuple: Tuple[Hashable, ...]):
@@ -1550,12 +1661,13 @@ class JobAnalysis:
             | job_1 |
             | job_2 |
 
-        :return: updated instance of |JobAnalysis|
+        :return: copy of |JobAnalysis| with settings input fields removed
         """
-        keys = [k for k, f in self._fields.items() if f.from_settings]
+        cpy = self.copy()
+        keys = [k for k, f in cpy._fields.items() if f.from_settings]
         for k in keys:
-            self.remove_field(k)
-        return self
+            cpy = cpy.remove_field(k)
+        return cpy
 
     def __str__(self) -> str:
         """
@@ -1636,7 +1748,7 @@ class JobAnalysis:
         if key in self._fields:
             self._fields[key] = replace(self._fields[key], value_extractor=value)
         else:
-            self.add_field(key=key, value_extractor=value)
+            self._add_field(key=key, value_extractor=value)
 
     def __delitem__(self, key: str) -> None:
         """
@@ -1654,7 +1766,7 @@ class JobAnalysis:
 
         :param key: unique identifier for the field
         """
-        self.remove_field(key)
+        self._remove_field(key)
 
     def __getattr__(self, key: str) -> List[Any]:
         """
