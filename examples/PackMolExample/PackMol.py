@@ -8,9 +8,9 @@ from scm.plams.interfaces.molecule.packmol import packmol
 from ase.visualize.plot import plot_atoms
 from ase.build import fcc111, bulk
 import matplotlib.pyplot as plt
-import importlib.metadata
+from scm.version import release
 
-AMS2025 = importlib.metadata.version("scm") >= "2024.201"
+AMS2025 = release >= "2024.201"
 if AMS2025:
     from scm.plams import packmol_around
 
