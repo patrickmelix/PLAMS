@@ -16,7 +16,7 @@ Initial Imports
 
 ::
 
-   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir.002
+   PLAMS working folder: /path/plams/examples/BasisSetBenchmark/plams_workdir
 
 Set Up Job Runner
 ~~~~~~~~~~~~~~~~~

@@ -247,6 +247,6 @@ except ImportError:
 #
 # For example, the `get_timeline` and `display_timeline` methods show pictorially when jobs started, how long they took to run and what their status is.
 #
-# This can be useful for visualising the dependencies of jobs. Here you can see that the first 8 jobs started running in parallel, due to the `maxthreads` constraint, and the remaining jobs waited before starting. Also that the penultimate job failed.
+# This can be useful for visualizing the dependencies of jobs. Here you can see that the first 8 jobs started running in parallel, due to the `maxthreads` constraint, and the remaining jobs waited before starting. Also that the penultimate job failed.
 
 ja.display_timeline(fmt="rst")

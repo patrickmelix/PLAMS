@@ -124,10 +124,6 @@ Jobs can be loaded by passing job objects directly, or loading from a path.
 
    from scm.plams import JobAnalysis
 
-::
-
-   [15.05|09:44:48] JOB neb.002 RUNNING
-
 .. code:: ipython3
 
    ja = JobAnalysis(jobs=jobs[:10], paths=[j.path for j in jobs[10:-2]])
@@ -161,36 +157,36 @@ Jobs can also be added or removed after initialization.
    ja = ja.add_job(jobs[-2]).load_job(jobs[-1].path)
    ja.display_table()
 
-=========================================================== ======== ===== ===== =================================
-Path                                                                                               Name     OK    Check ErrorMsg
-=========================================================== ======== ===== ===== =================================
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb     dftb     True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf      adf      True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.002  adf.002  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb.002 dftb.002 True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.003  adf.003  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.004  adf.004  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb.003 dftb.003 True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.005  adf.005  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.006  adf.006  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb.004 dftb.004 True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.007  adf.007  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.008  adf.008  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb.005 dftb.005 True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.009  adf.009  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.010  adf.010  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb.006 dftb.006 True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.011  adf.011  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.012  adf.012  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb.007 dftb.007 True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.013  adf.013  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.014  adf.014  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/dftb.008 dftb.008 True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.015  adf.015  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/adf.016  adf.016  True  True  None
-/path/plams/examples/JobAnalysis/plams_workdir.003/neb      neb      False False NEB optimization did NOT converge
-/path/plams/examples/JobAnalysis/plams_workdir.003/neb.002  neb.002  True  True  None
-=========================================================== ======== ===== ===== =================================
+======================================================= ======== ===== ===== =================================
+Path                                                    Name     OK    Check ErrorMsg
+======================================================= ======== ===== ===== =================================
+/path/plams/examples/JobAnalysis/plams_workdir/dftb     dftb     True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf      adf      True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.002  adf.002  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/dftb.002 dftb.002 True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.003  adf.003  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.004  adf.004  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/dftb.003 dftb.003 True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.005  adf.005  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.006  adf.006  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/dftb.004 dftb.004 True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.007  adf.007  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.008  adf.008  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/dftb.005 dftb.005 True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.009  adf.009  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.010  adf.010  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/dftb.006 dftb.006 True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.011  adf.011  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.012  adf.012  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/dftb.007 dftb.007 True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.013  adf.013  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.014  adf.014  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/dftb.008 dftb.008 True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.015  adf.015  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/adf.016  adf.016  True  True  None
+/path/plams/examples/JobAnalysis/plams_workdir/neb      neb      False False NEB optimization did NOT converge
+/path/plams/examples/JobAnalysis/plams_workdir/neb.002  neb.002  True  True  None
+======================================================= ======== ===== ===== =================================
 
 Adding and Removing Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -452,7 +448,7 @@ The ``JobAnalysis`` class does have some additional built in methods to aid with
 
 For example, the ``get_timeline`` and ``display_timeline`` methods show pictorially when jobs started, how long they took to run and what their status is.
 
-This can be useful for visualising the dependencies of jobs. Here you can see that the first 8 jobs started running in parallel, due to the ``maxthreads`` constraint, and the remaining jobs waited before starting. Also that the penultimate job failed.
+This can be useful for visualizing the dependencies of jobs. Here you can see that the first 8 jobs started running in parallel, due to the ``maxthreads`` constraint, and the remaining jobs waited before starting. Also that the penultimate job failed.
 
 .. code:: ipython3
 
