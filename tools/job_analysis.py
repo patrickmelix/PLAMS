@@ -1512,6 +1512,23 @@ class JobAnalysis:
         cpy._add_standard_field(key)
         return cpy
 
+    @staticmethod
+    def get_settings_field_key(key_tuple: Tuple[Hashable, ...]) -> str:
+        """
+        Gets the key for a |JobAnalysis| settings field corresponding to a given nested |Settings| key.
+        This will be a Pascal-case string of the settings nested key path e.g.``("input", "ams", "task")`` will give the key ``InputAmsTask``.
+
+        .. code:: python
+
+            >>> JobAnalysis.get_settings_field_key(("input", "ams", "task"))
+
+            InputAmsTask
+
+        :param key_tuple: nested tuple of keys in the |Settings| object
+        :return: corresponding key used for the |JobAnalysis| field
+        """
+        return "".join([str(k).title() for k in key_tuple])
+
     def add_settings_field(
         self,
         key_tuple: Tuple[Hashable, ...],
@@ -1538,7 +1555,7 @@ class JobAnalysis:
         :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
         :return: copy of |JobAnalysis| with the settings fields added
         """
-        key = "".join([str(k).title() for k in key_tuple])
+        key = JobAnalysis.get_settings_field_key(key_tuple)
         cpy = self.copy()
         cpy = cpy.add_field(
             key,
@@ -1602,6 +1619,29 @@ class JobAnalysis:
         else:
             return None
 
+    @staticmethod
+    def get_rkf_field_key(
+        section: str,
+        variable: str,
+        file="ams",
+    ) -> str:
+        """
+        Gets the key for a |JobAnalysis| rkf field corresponding to a given file, section and varible.
+        This will be a Pascal-case string of the file, section and varible e.g. ``AmsGeneralTask``.
+
+        .. code:: python
+
+            >>> JobAnalysis.get_rkf_field_key("General", "task")
+
+            AmsGeneralTask
+
+        :param section: section of the rkf file to read
+        :param variable: variable in the section of the rkf file to read
+        :param file: rkf file to use (without the .rkf extension)
+        :return: corresponding key used for the |JobAnalysis| field
+        """
+        return JobAnalysis.get_settings_field_key((file, section, variable))
+
     def add_rkf_field(
         self,
         section: str,
@@ -1612,7 +1652,7 @@ class JobAnalysis:
         expansion_depth: int = 0,
     ) -> "JobAnalysis":
         """
-        Add a field for given variable in a section of an rkf file.
+        Add a field for given variable in a section of a rkf file.
         The key of the fields will be a Pascal-case string of the file, section and varible e.g. ``AmsGeneralTask``
 
         .. code:: python
@@ -1632,7 +1672,7 @@ class JobAnalysis:
         :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
         :return: copy of |JobAnalysis| with the additional field
         """
-        key = "".join([str(k).title() for k in (file, section, variable)])
+        key = JobAnalysis.get_rkf_field_key(section, variable, file)
         return self.add_field(
             key,
             lambda j: JobAnalysis._read_rkf(job=j, section=section, variable=variable, file=file),

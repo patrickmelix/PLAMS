@@ -1103,6 +1103,9 @@ class TestJobAnalysis:
 | None                   | None                   | None                   | None                   | None                    | None                    | None                    | None                    |"""
         )
 
+        key = ja.get_rkf_field_key("foo", "var2")
+        assert ja[key] == [("ams", "Foo", "Var2"), None]
+
     def test_get_set_del_item(self, dummy_single_jobs):
         ja = JobAnalysis(jobs=dummy_single_jobs).add_standard_field("Formula").add_standard_field("Smiles")
         del ja["Path"]
@@ -1598,6 +1601,20 @@ class TestJobAnalysisWithPisa(TestJobAnalysis):
 | dummyjob.009 | True | True  | None     | C4H10O  | CCCOC  | None              | SinglePoint          | True                          | None          | None                                                  | None                                                  |
 | dummyjob.010 | True | True  | None     | None    | None   | None              | GeometryOptimization | False                         | None          | Ar 0.0000000000       0.0000000000       0.0000000000 | Ar 1.6050000000       0.9266471820       2.6050000000 |"""
         )
+
+        key = ja.get_settings_field_key(("input", "ams", "task"))
+        assert ja[key] == [
+            "SinglePoint",
+            "GeometryOptimization",
+            "SinglePoint",
+            "GeometryOptimization",
+            "SinglePoint",
+            "GeometryOptimization",
+            "SinglePoint",
+            "GeometryOptimization",
+            "SinglePoint",
+            "GeometryOptimization",
+        ]
 
     def test_copy(self, dummy_single_jobs):
         ja1 = JobAnalysis(jobs=dummy_single_jobs, standard_fields=["OK", "Smiles"])
