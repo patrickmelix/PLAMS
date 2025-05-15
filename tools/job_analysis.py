@@ -1613,7 +1613,7 @@ class JobAnalysis:
     ) -> "JobAnalysis":
         """
         Add a field for given variable in a section of an rkf file.
-        The key of the fields will be of the form ``file:section%variable`` e.g. ``ams:General%task``.
+        The key of the fields will be a Pascal-case string of the file, section and varible e.g. ``AmsGeneralTask``
 
         .. code:: python
 
@@ -1632,7 +1632,7 @@ class JobAnalysis:
         :param expansion_depth: whether to expand field of multiple values into multiple rows, and recursively to what depth
         :return: copy of |JobAnalysis| with the additional field
         """
-        key = f"{file}:{section}%{variable}"
+        key = "".join([str(k).title() for k in (file, section, variable)])
         return self.add_field(
             key,
             lambda j: JobAnalysis._read_rkf(job=j, section=section, variable=variable, file=file),

@@ -1097,7 +1097,7 @@ class TestJobAnalysis:
         assert (
             ja.to_table()
             == """\
-| Var1                   | ams:Foo%Var2           | ams:Bar%Var1           | ams:Bar%Var2           | dftb:Foo%Var1           | dftb:Foo%Var2           | dftb:Bar%Var1           | dftb:Bar%Var2           |
+| Var1                   | AmsFooVar2             | AmsBarVar1             | AmsBarVar2             | DftbFooVar1             | DftbFooVar2             | DftbBarVar1             | DftbBarVar2             |
 |------------------------|------------------------|------------------------|------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
 | ('ams', 'Foo', 'Var1') | ('ams', 'Foo', 'Var2') | ('ams', 'Bar', 'Var1') | ('ams', 'Bar', 'Var2') | ('dftb', 'Foo', 'Var1') | ('dftb', 'Foo', 'Var2') | ('dftb', 'Bar', 'Var1') | ('dftb', 'Bar', 'Var2') |
 | None                   | None                   | None                   | None                   | None                    | None                    | None                    | None                    |"""
