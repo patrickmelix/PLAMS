@@ -15,7 +15,7 @@ Conformers Generation with Multiple Molecules
 
 Example illustrating how to generate conformers with AMS.
 
-**This example is only compatible with AMS2024**.
+**This example is compatible with AMS2024+**.
 
 .. include:: ConformersMultipleMolecules.common_header.rst
 .. include:: conformers.ipynb.rst
