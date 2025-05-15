@@ -1623,7 +1623,7 @@ class JobAnalysis:
     def get_rkf_field_key(
         section: str,
         variable: str,
-        file="ams",
+        file: str = "ams",
     ) -> str:
         """
         Gets the key for a |JobAnalysis| rkf field corresponding to a given file, section and varible.
@@ -1646,7 +1646,7 @@ class JobAnalysis:
         self,
         section: str,
         variable: str,
-        file="ams",
+        file: str = "ams",
         display_name: Optional[str] = None,
         fmt: Optional[str] = None,
         expansion_depth: int = 0,
