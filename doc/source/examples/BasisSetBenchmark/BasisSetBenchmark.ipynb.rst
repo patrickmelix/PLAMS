@@ -133,16 +133,16 @@ Run Calculations
 
 ::
 
-   [25.02|15:23:48] JOB Methane_QZ4P STARTED
-   [25.02|15:23:48] JOB Ethane_QZ4P STARTED
-   [25.02|15:23:48] JOB Ethylene_QZ4P STARTED
-   [25.02|15:23:48] JOB Acetylene_QZ4P STARTED
-   [25.02|15:23:48] JOB Methane_TZ2P STARTED
-   [25.02|15:23:48] JOB Ethane_TZ2P STARTED
-   [25.02|15:23:48] JOB Ethylene_TZ2P STARTED
-   [25.02|15:23:48] JOB Acetylene_TZ2P STARTED
-   [25.02|15:23:48] JOB Methane_TZP STARTED
-   [25.02|15:23:48] JOB Ethane_TZP STARTED
+   [15.05|09:57:04] JOB Methane_QZ4P STARTED
+   [15.05|09:57:04] JOB Ethane_QZ4P STARTED
+   [15.05|09:57:04] JOB Ethylene_QZ4P STARTED
+   [15.05|09:57:04] JOB Acetylene_QZ4P STARTED
+   [15.05|09:57:04] JOB Methane_TZ2P STARTED
+   [15.05|09:57:04] JOB Ethane_TZ2P STARTED
+   [15.05|09:57:04] JOB Methane_QZ4P RUNNING
+   [15.05|09:57:04] JOB Ethylene_TZ2P STARTED
+   [15.05|09:57:04] JOB Ethane_QZ4P RUNNING
+   [15.05|09:57:04] JOB Acetylene_TZ2P STARTED
    ... (PLAMS log lines truncated) ...
 
 Results
@@ -166,7 +166,7 @@ Extract the energy from each calculation. Calculate the average absolute error i
            .sort_jobs(["NAtoms", "Energy"])
        )
 
-       ref_ja = ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
+       ref_ja = ja.filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
 
        ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
 
@@ -175,7 +175,7 @@ Extract the energy from each calculation. Calculate the average absolute error i
                job.molecule
            )
 
-       ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
+       ja = ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
 
        # Pretty-print if running in a notebook
        if "ipykernel" in sys.modules:
@@ -198,21 +198,21 @@ Extract the energy from each calculation. Calculate the average absolute error i
 
 ::
 
-   [25.02|15:23:48] Waiting for job Methane_QZ4P to finish
-   [25.02|15:23:48] JOB Ethylene_TZ2P RUNNING
-   [25.02|15:23:48] JOB Acetylene_TZ2P RUNNING
-   [25.02|15:23:48] JOB Ethane_TZ2P RUNNING
-   [25.02|15:23:48] JOB Acetylene_TZP RUNNING
-   [25.02|15:23:48] JOB Acetylene_DZ RUNNING
-   [25.02|15:23:48] JOB Ethane_DZP RUNNING
-   [25.02|15:23:48] JOB Ethylene_DZP RUNNING
-   [25.02|15:23:48] JOB Methane_DZP RUNNING
-   [25.02|15:23:48] JOB Methane_SZ RUNNING
-   [25.02|15:23:48] JOB Ethane_TZP RUNNING
+   [15.05|09:57:04] Waiting for job Methane_QZ4P to finish
+   [15.05|09:57:04] JOB Methane_TZP RUNNING
+   [15.05|09:57:04] JOB Ethylene_TZP RUNNING
+   [15.05|09:57:04] JOB Ethane_TZP RUNNING
+   [15.05|09:57:04] JOB Ethylene_DZP RUNNING
+   [15.05|09:57:04] JOB Methane_DZP RUNNING
+   [15.05|09:57:04] JOB Ethane_SZ RUNNING
+   [15.05|09:57:04] JOB Acetylene_TZP RUNNING
+   [15.05|09:57:04] JOB Ethane_DZP RUNNING
+   [15.05|09:57:04] JOB Acetylene_DZP RUNNING
+   [15.05|09:57:04] JOB Ethane_DZ RUNNING
    ... (PLAMS log lines truncated) ...
-   [25.02|15:23:50] Waiting for job Ethane_QZ4P to finish
-   [25.02|15:23:52] Waiting for job Methane_TZP to finish
-   [25.02|15:23:54] Waiting for job Ethane_DZP to finish
+   [15.05|09:57:07] Waiting for job Ethane_QZ4P to finish
+   [15.05|09:57:09] Waiting for job Acetylene_TZP to finish
+   [15.05|09:57:10] Waiting for job Ethylene_DZ to finish
 
 ======= ====== ===== ====== ================= ========================
 Formula Smiles Basis NAtoms Energy [kcal/mol] Average Error [kcal/mol]
@@ -250,7 +250,7 @@ C2H6    CC     QZ4P  8      -973.02           0.00
    for bas in basis:
        if bas != reference_basis:
            if ja:
-               av = np.average(ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
+               av = np.average(ja.filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
            else:
                av = average_errors[bas]
            print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, av))

@@ -33,7 +33,7 @@ For example, the following snippet will add two jobs to the |JobAnalysis| and th
     ja = (JobAnalysis(jobs=[job1, job2])
           .load_job("path/to/job3", loaders=[ParAMSJob.load_external]))
 
-This also illustrates one of the design features of |JobAnalysis|, each operation returns the in-place modified instance, allowing the use of fluent syntax to chain methods.
+This also illustrates one of the design features of |JobAnalysis|, each operation returns an updated copy of the |JobAnalysis|, allowing the use of fluent syntax to chain methods.
 
 Adding Analysis Fields
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -56,7 +56,7 @@ For example, the following snippet will add the ``Formula`` field to the |JobAna
 
 .. code-block:: python
 
-    (ja
+    ja = (ja
      .add_standard_field("Formula")
      .add_field("NAtoms", lambda j: len(j.molecule))
      .add_settings_input_fields())
@@ -83,7 +83,7 @@ For example, the following snippet will retain only jobs which did not succeed:
 
 .. code-block:: python
 
-    (ja
+    ja = (ja
      .filter_field(lambda vals: all([v is not None for v in vals]))
      .filter_jobs(lambda data: not data["OK"]))
 
@@ -95,7 +95,7 @@ For example:
 
 .. code-block:: python
 
-    (ja
+    ja = (ja
      .rename_field("InputAmsTask", "Task")
      .format_field("Energy", ".4f")
      .sort_fields(["Name", "Formula", "Energy"])
@@ -124,4 +124,4 @@ API
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: JobAnalysis
-    :exclude-members: __weakref__, _Field, _get_field_analysis, _is_empty_value, _get_job_settings, _repr_html_, __dir__
+    :exclude-members: __weakref__, _Field, _get_field_analysis, _is_empty_value, _get_job_settings, _add_job, _load_job, _add_field, _set_field, _remove_field, _add_standard_field, _read_rkf, _repr_html_, __dir__, _

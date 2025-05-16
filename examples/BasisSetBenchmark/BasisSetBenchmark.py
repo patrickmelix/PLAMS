@@ -74,7 +74,7 @@ try:
         .sort_jobs(["NAtoms", "Energy"])
     )
 
-    ref_ja = ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
+    ref_ja = ja.filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
 
     ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
 
@@ -83,7 +83,7 @@ try:
             job.molecule
         )
 
-    ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
+    ja = ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
 
     # Pretty-print if running in a notebook
     if "ipykernel" in sys.modules:
@@ -110,7 +110,7 @@ print("Average absolute error in bond energy per atom")
 for bas in basis:
     if bas != reference_basis:
         if ja:
-            av = np.average(ja.copy().filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
+            av = np.average(ja.filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
         else:
             av = average_errors[bas]
         print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, av))
