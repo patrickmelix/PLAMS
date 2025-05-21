@@ -15,7 +15,7 @@ from scm.plams.core.basejob import SingleJob, MultiJob
 from scm.plams.core.errors import PlamsError, FileError, ResultsError
 from scm.plams.core.jobrunner import JobRunner
 from scm.plams.core.jobmanager import JobManager
-from scm.plams.core.functions import add_to_instance
+from scm.plams.core.functions import add_to_instance, use_subdir
 from scm.plams.core.enums import JobStatus
 
 LogEntry = namedtuple("LogEntry", ["method", "args", "kwargs", "start", "end"])
@@ -353,6 +353,29 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         assert "RuntimeError" in job1.get_errormsg()
         assert job2.get_errormsg() is None
 
+    def test_run_multiple_independent_jobs_with_use_subdir_in_parallel(self):
+        # Given parallel job runner
+        runner = JobRunner(parallel=True, maxjobs=4)
+
+        # When run jobs in subdir
+        jobs = []
+        with use_subdir("results"):
+            for outer in ["A", "B", "C"]:
+                with use_subdir(outer):
+                    for inner1 in ["X", "Y", "Z"]:
+                        with use_subdir(inner1):
+                            for inner2 in range(2):
+                                job = DummySingleJob(name=f"{outer}_{inner1}_{inner2}")
+                                job.run(runner)
+                                jobs.append(job)
+
+        # Then jobs are located in the correct subdirectory
+        assert len(jobs) == 18
+        assert all(j.ok() for j in jobs)
+        for j in jobs:
+            o, i1, i2 = j.name.split("_")
+            assert j.path.endswith(f"results/{o}/{i1}/{j.name}")
+
     def test_ok_waits_on_results_and_checks_status(self):
         # Given job and a copy
         job1 = DummySingleJob(wait=0.1)
@@ -673,3 +696,33 @@ class TestMultiJob:
             JobStatus.CRASHED,
             JobStatus.SUCCESSFUL,
         ]
+
+    def test_run_multijobs_with_use_subdir_in_parallel(self, config):
+        # Given parallel job runner
+        runner = JobRunner(parallel=True, maxjobs=4)
+
+        # When run multi jobs in subdir
+        outer_multi_jobs = []
+        with use_subdir("results"):
+            for mj in ["A", "B", "C"]:
+                with use_subdir(mj):
+                    jobs = [[DummySingleJob(name=f"dummy_{i}_{j}") for i in range(3)] for j in range(3)]
+                    inner_multi_jobs = [MultiJob(children=js, name=f"multi_inner_{i}") for i, js in enumerate(jobs)]
+                    multi_job = MultiJob(children=inner_multi_jobs, name=f"multi_outer_{mj}")
+                    multi_job.run(runner=runner)
+                    outer_multi_jobs.append(multi_job)
+
+        # Then top-level multi-jobs are located in the correct subdirectory
+        for mj_outer in outer_multi_jobs:
+            assert mj_outer.ok()
+
+            outer = mj_outer.name.split("_")[-1]
+            assert mj_outer.path.endswith(f"results/{outer}/{mj_outer.name}")
+
+            for mj_inner in mj_outer.children:
+                assert mj_inner.ok()
+                assert mj_inner.path.endswith(f"results/{outer}/{mj_outer.name}/{mj_inner.name}")
+
+                for j in mj_inner.children:
+                    assert j.ok()
+                    assert j.path.endswith(f"results/{outer}/{mj_outer.name}/{mj_inner.name}/{j.name}")
