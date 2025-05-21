@@ -345,7 +345,7 @@ class Job(ABC):
 
     def _full_name(self) -> str:
         if self.parent:
-            return "/".join([self.parent._full_name(), self.name])
+            return opj(self.parent._full_name(), self.name)
         return self.name
 
 

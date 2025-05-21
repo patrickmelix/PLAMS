@@ -144,7 +144,11 @@ class TestJobManager:
         verify_job_registration(job3, base_name, expected_subdir="foo")
         verify_job_registration(job4, base_name, expected_subdir="foo/bar")
         assert job_manager.jobs == jobs
-        assert job_manager.names == {"foo/bar/test_jobreg": 1, "foo/test_jobreg": 1, "test_jobreg": 2}
+        assert job_manager.names == {
+            f"foo{os.path.sep}bar{os.path.sep}test_jobreg": 1,
+            f"foo{os.path.sep}test_jobreg": 1,
+            "test_jobreg": 2,
+        }
 
         job_manager._clean()
         if os.path.exists(job_manager.workdir):

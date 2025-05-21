@@ -201,14 +201,14 @@ class JobManager:
 
             # subdirectory is used if it has been set through the context manager and job is not a multi-job (as then the parent dir should be used)
             subdir = _get_subdir()
-            use_subdir = subdir and not job.parent
+            use_subdir = subdir is not None and not job.parent
             if use_subdir:
                 os.makedirs(opj(self.workdir, subdir), exist_ok=True)
 
             def get_job_full_name():
                 # Inject the subdirectory into the job name
                 # This is only used to detect if a job of the same name was already added
-                return f"{subdir}/{job._full_name()}" if use_subdir else job._full_name()
+                return opj(subdir, job._full_name()) if use_subdir else job._full_name()
 
             # If the name ends with the counting suffix, e.g. ".002", remove it.
             # The suffix is just not part of a legitimate job name and users will have to live with it potentially changing.

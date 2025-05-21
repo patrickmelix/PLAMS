@@ -7,7 +7,8 @@ import threading
 import types
 from os.path import dirname, expandvars, isdir, isfile
 from os.path import join as opj
-from typing import Dict, Iterable, Optional, Generator, TYPE_CHECKING
+from pathlib import Path
+from typing import Dict, Iterable, Optional, Generator, Union, TYPE_CHECKING
 import atexit
 from importlib.util import find_spec
 import functools
@@ -637,7 +638,7 @@ _subdir: ContextVar[Optional[str]] = ContextVar("_subdir", default=None)
 
 
 @contextmanager
-def use_subdir(subdir: str):
+def use_subdir(subdir: Union[str, os.PathLike]):
     """
     Enter a context which uses the given subdirectory within the ``workdir`` of the |JobManager| for calculations.
 
@@ -658,12 +659,15 @@ def use_subdir(subdir: str):
     .. note::
         Starting a new thread creates a new context, so the context configuration will not automatically be used in the new thread.
         To copy over the parent thread context to the new thread, instead use :class:`~scm.plams.core.threading_utils.ContextAwareThread`
+
+    :param subdir: path of the subdirectory relative to the ``workdir`` of the |JobManager|
     """
 
     current_subdir = _subdir.get()
+    subdir = Path(subdir)
     if current_subdir:
-        subdir = f"{current_subdir}{os.path.sep}{subdir}"
-    token = _subdir.set(subdir)
+        subdir = Path(current_subdir, subdir)
+    token = _subdir.set(str(subdir))
     try:
         yield
     finally:

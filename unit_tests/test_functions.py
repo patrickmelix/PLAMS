@@ -922,10 +922,13 @@ class TestUseSubDir:
         with use_subdir("foo"):
             assert _get_subdir() == "foo"
             with use_subdir("bar"):
-                assert _get_subdir() == "foo/bar"
+                assert _get_subdir() == str(Path("foo/bar"))
             with use_subdir("fizz/buzz"):
-                assert _get_subdir() == "foo/fizz/buzz"
-            assert _get_subdir() == "foo"
+                assert _get_subdir() == str(Path("foo/fizz/buzz"))
+        with use_subdir(Path("bar")):
+            with use_subdir(Path("fizz/buzz")):
+                assert _get_subdir() == str(Path("bar/fizz/buzz"))
+            assert _get_subdir() == "bar"
         assert _get_subdir() is None
 
     def test_use_subdir_with_context_aware_thread(self):
@@ -945,7 +948,7 @@ class TestUseSubDir:
         with use_subdir("foo"):
             in_thread(lambda: verify_subdir("foo"))
             with use_subdir("bar"):
-                in_thread(lambda: verify_subdir("foo/bar"))
+                in_thread(lambda: verify_subdir(str(Path("foo/bar"))))
         assert _get_subdir() is None
 
         if errors:
