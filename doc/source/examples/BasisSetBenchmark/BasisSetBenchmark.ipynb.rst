@@ -134,16 +134,16 @@ Run Calculations
 
 ::
 
-   [21.05|11:11:44] JOB Methane_QZ4P STARTED
-   [21.05|11:11:44] JOB Ethane_QZ4P STARTED
-   [21.05|11:11:44] JOB Ethylene_QZ4P STARTED
-   [21.05|11:11:44] JOB Acetylene_QZ4P STARTED
-   [21.05|11:11:44] JOB Methane_TZ2P STARTED
-   [21.05|11:11:44] JOB Ethane_TZ2P STARTED
-   [21.05|11:11:44] JOB Ethylene_TZ2P STARTED
-   [21.05|11:11:44] JOB Acetylene_TZ2P STARTED
-   [21.05|11:11:44] JOB Methane_TZP STARTED
-   [21.05|11:11:44] JOB Ethane_TZP STARTED
+   [21.05|14:11:48] JOB Methane_QZ4P STARTED
+   [21.05|14:11:48] JOB Ethane_QZ4P STARTED
+   [21.05|14:11:48] JOB Ethylene_QZ4P STARTED
+   [21.05|14:11:48] JOB Acetylene_QZ4P STARTED
+   [21.05|14:11:48] JOB Methane_TZ2P STARTED
+   [21.05|14:11:48] JOB Methane_QZ4P RUNNING
+   [21.05|14:11:48] JOB Ethane_TZ2P STARTED
+   [21.05|14:11:48] JOB Ethylene_TZ2P STARTED
+   [21.05|14:11:48] JOB Acetylene_TZ2P STARTED
+   [21.05|14:11:48] JOB Methane_TZP STARTED
    ... (PLAMS log lines truncated) ...
 
 Results
@@ -199,21 +199,21 @@ Extract the energy from each calculation. Calculate the average absolute error i
 
 ::
 
-   [21.05|11:11:44] Waiting for job Methane_QZ4P to finish
-   [21.05|11:11:44] JOB Methane_TZ2P RUNNING
-   [21.05|11:11:44] JOB Ethane_TZ2P RUNNING
-   [21.05|11:11:44] JOB Ethylene_TZ2P RUNNING
-   [21.05|11:11:44] JOB Acetylene_TZ2P RUNNING
-   [21.05|11:11:44] JOB Methane_TZP RUNNING
-   [21.05|11:11:44] JOB Ethane_TZP RUNNING
-   [21.05|11:11:44] JOB Ethylene_TZP RUNNING
-   [21.05|11:11:44] JOB Ethylene_SZ RUNNING
-   [21.05|11:11:44] JOB Ethylene_DZ RUNNING
-   [21.05|11:11:44] JOB Acetylene_TZP RUNNING
+   [21.05|14:11:48] Waiting for job Methane_QZ4P to finish
+   [21.05|14:11:48] JOB Ethane_QZ4P RUNNING
+   [21.05|14:11:48] JOB Methane_TZ2P RUNNING
+   [21.05|14:11:48] JOB Ethane_TZ2P RUNNING
+   [21.05|14:11:48] JOB Ethylene_TZ2P RUNNING
+   [21.05|14:11:48] JOB Acetylene_TZ2P RUNNING
+   [21.05|14:11:48] JOB Ethane_TZP RUNNING
+   [21.05|14:11:48] JOB Methane_TZP RUNNING
+   [21.05|14:11:48] JOB Ethylene_TZP RUNNING
+   [21.05|14:11:48] JOB Acetylene_TZP RUNNING
+   [21.05|14:11:48] JOB Ethylene_DZP RUNNING
    ... (PLAMS log lines truncated) ...
-   [21.05|11:11:48] Waiting for job Ethane_QZ4P to finish
-   [21.05|11:11:50] Waiting for job Acetylene_TZP to finish
-   [21.05|11:11:51] Waiting for job Ethane_DZP to finish
+   [21.05|14:11:50] Waiting for job Ethane_QZ4P to finish
+   [21.05|14:11:53] Waiting for job Methane_DZP to finish
+   [21.05|14:11:53] Waiting for job Ethane_DZP to finish
 
 ======= ====== ===== ====== ================= ========================
 Formula Smiles Basis NAtoms Energy [kcal/mol] Average Error [kcal/mol]
