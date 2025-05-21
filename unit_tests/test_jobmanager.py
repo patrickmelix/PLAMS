@@ -105,12 +105,12 @@ class TestJobManager:
         if os.path.exists(path):
             os.rmdir(path)
 
-    def test_job_registration_load_deletion(self):
+    def test_register(self):
         # Given job manager
         folder = str(uuid.uuid4())
         job_manager = JobManager(settings=JobManagerSettings(), folder=folder)
 
-        # When register jobs (implicitly when running)
+        # When register jobs
         base_name = "test_jobreg"
         job1 = DummySingleJob(name=base_name)
         job2 = DummySingleJob(name=base_name)
@@ -125,9 +125,9 @@ class TestJobManager:
                 job_manager._register(job4)
 
         # Then jobs registered as expected
-        def verify_job_registration(job, jm, expected_name, expected_subdir=None):
+        def verify_job_registration(job, expected_name, expected_subdir=None):
             # Verify job manager set on job
-            assert job.jobmanager == jm
+            assert job.jobmanager == job_manager
             # Verify job name has postfix if duplicate run
             assert job.name == expected_name
             # Verify job path in workdir/subdir/job
@@ -138,32 +138,68 @@ class TestJobManager:
             # Verify job status is registered
             assert job.status == "registered"
 
-        verify_job_registration(job1, job_manager, base_name)
-        verify_job_registration(job2, job_manager, f"{base_name}.002")
-        verify_job_registration(job3, job_manager, base_name, expected_subdir="foo")
-        verify_job_registration(job4, job_manager, base_name, expected_subdir="foo/bar")
+        verify_job_registration(job1, base_name)
+        verify_job_registration(job2, f"{base_name}.002")
+        verify_job_registration(job3, base_name, expected_subdir="foo")
+        verify_job_registration(job4, base_name, expected_subdir="foo/bar")
         assert job_manager.jobs == jobs
         assert job_manager.names == {"foo/bar/test_jobreg": 1, "foo/test_jobreg": 1, "test_jobreg": 2}
 
+        job_manager._clean()
+        if os.path.exists(job_manager.workdir):
+            os.rmdir(job_manager.workdir)
+
+    def test_check_hash(self):
+        # Given job manager
+        folder = str(uuid.uuid4())
+        job_manager = JobManager(settings=JobManagerSettings(), folder=folder)
+
+        # When check_hash of jobs
+        base_name = "test_jobreg"
+        job1 = DummySingleJob(name=base_name)
+        job2 = DummySingleJob(name=base_name, inp="foo")
+        job3 = DummySingleJob(name=base_name, inp="foo")
+        job4 = DummySingleJob(name=base_name, inp="foo2")
+        jobs = [job1, job2, job3, job4]
+        for job in jobs:
+            job_manager._check_hash(job)
+
+        assert len(job_manager.hashes) == 3
+
+    def test_load_and_remove(self):
         # Given job manager and saved jobs
-        folder2 = str(uuid.uuid4())
-        job_manager2 = JobManager(settings=JobManagerSettings(), folder=folder2)
+        folder = str(uuid.uuid4())
+        job_manager = JobManager(settings=JobManagerSettings(), folder=folder)
+
+        base_name = "test_jobreg"
+        job1 = DummySingleJob(name=base_name)
+        job2 = DummySingleJob(name=base_name)
+        job3 = DummySingleJob(name=base_name)
+        job4 = DummySingleJob(name=base_name)
+        jobs = [job1, job2, job3, job4]
+        job_manager._register(job1)
+        job_manager._register(job2)
+        with use_subdir("foo"):
+            job_manager._register(job3)
+            with use_subdir("bar"):
+                job_manager._register(job4)
         for job in jobs:
             job.pickle()
 
         # When load jobs
-        loaded_jobs = []
+        folder2 = str(uuid.uuid4())
+        job_manager2 = JobManager(settings=JobManagerSettings(), folder=folder2)
+
         for job in jobs:
-            loaded_jobs.append(job_manager2.load_job(f"{job.path}/{job.name}.dill"))
+            loaded_job = job_manager2.load_job(f"{job.path}/{job.name}.dill")
 
-        # Then jobs loaded correctly
-        verify_job_registration(loaded_jobs[0], job_manager2, base_name)
-        verify_job_registration(loaded_jobs[1], job_manager2, f"{base_name}.002")
-        verify_job_registration(loaded_jobs[2], job_manager2, base_name, expected_subdir="foo")
-        verify_job_registration(loaded_jobs[3], job_manager2, base_name, expected_subdir="foo/bar")
+            # Then loaded job is the same as the saved job
+            assert loaded_job.path == job.path
+            assert loaded_job.name == job.name
+            assert loaded_job.status == job.status
+            assert loaded_job.hash() == job.hash()
 
-        # Given same jobs
-        # When removed
+        # When remove jobs
         for job in jobs:
             job_manager.remove_job(job)
 
