@@ -20,6 +20,8 @@ from scm.plams.core.functions import (
     log,
     get_config,
     config_context,
+    use_subdir,
+    _get_subdir,
 )
 from scm.plams.core.settings import Settings
 from scm.plams.core.errors import MissingOptionalPackageError
@@ -908,6 +910,43 @@ class TestConfig:
             ),
             name="outer",
         )
+
+        if errors:
+            raise errors[0]
+
+
+class TestUseSubDir:
+
+    def test_use_subdir_sets_subdir_for_context(self):
+        assert _get_subdir() is None
+        with use_subdir("foo"):
+            assert _get_subdir() == "foo"
+            with use_subdir("bar"):
+                assert _get_subdir() == "foo/bar"
+            with use_subdir("fizz/buzz"):
+                assert _get_subdir() == "foo/fizz/buzz"
+            assert _get_subdir() == "foo"
+        assert _get_subdir() is None
+
+    def test_use_subdir_with_context_aware_thread(self):
+        errors = []
+
+        def verify_subdir(expected):
+            try:
+                assert _get_subdir() == expected
+            except Exception as e:
+                errors.append(e)
+
+        def in_thread(target):
+            t = ContextAwareThread(target=target)
+            t.start()
+            t.join()
+
+        with use_subdir("foo"):
+            in_thread(lambda: verify_subdir("foo"))
+            with use_subdir("bar"):
+                in_thread(lambda: verify_subdir("foo/bar"))
+        assert _get_subdir() is None
 
         if errors:
             raise errors[0]

@@ -92,6 +92,7 @@ __all__ = [
     "config_context",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
+    "use_subdir"
 ]
 
 # ===========================================================================
@@ -628,3 +629,49 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
     # Grab heredoced block and parse it
     _, ret = bash_input[i:j].split("\n", maxsplit=1)
     return ret
+
+
+# ===========================================================================
+
+_subdir: ContextVar[Optional[str]] = ContextVar("_subdir", default=None)
+@contextmanager
+def use_subdir(subdir: str):
+    """
+    Enter a context which uses the given subdirectory within the ``workdir`` of the |JobManager| for calculations.
+
+    A |Job| run within this context will have its input and results files within the job directory in this subdirectory.
+    Note that this will only apply to the parent directory a |MultiJob|.
+
+    .. code:: python
+         >>> with use_subdir("GeometryOptimization"):
+         >>>     with use_subdir("DFTB"):
+         >>>        job1.run()
+         >>>     with use_subdir("ML/M3GNet"):
+         >>>        job2.run()
+         >>>     print(job1.path)
+         >>>     print(job2.path)
+            path/GeometryOptimization/DFTB/job1
+            path/GeometryOptimization/ML/M3GNet/job2
+
+    .. note::
+        Starting a new thread creates a new context, so the context configuration will not automatically be used in the new thread.
+        To copy over the parent thread context to the new thread, instead use :class:`~scm.plams.core.threading_utils.ContextAwareThread`
+    """
+
+    current_subdir = _subdir.get()
+    if current_subdir:
+        subdir = f"{current_subdir}/{subdir}"
+    token = _subdir.set(subdir)
+    try:
+        yield
+    finally:
+        _subdir.reset(token)
+
+
+def _get_subdir() -> Optional[str]:
+    """
+    Gets the current subdirectory, if set. This is assumed to be relative the ``workdir`` of the |JobManager|.
+
+    :return: path of current subdirectory, or ``None`` if not set
+    """
+    return _subdir.get()
