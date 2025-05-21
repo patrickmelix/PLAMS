@@ -1,6 +1,7 @@
 import pytest
 import os
 import uuid
+from pathlib import Path
 
 from scm.plams.core.jobmanager import JobManager
 from scm.plams.core.settings import JobManagerSettings
@@ -132,9 +133,9 @@ class TestJobManager:
             assert job.name == expected_name
             # Verify job path in workdir/subdir/job
             if expected_subdir:
-                assert job.path == f"{job_manager.workdir}/{expected_subdir}/{expected_name}"
+                assert Path(job.path) == Path(job_manager.workdir, expected_subdir, expected_name)
             else:
-                assert job.path == f"{job_manager.workdir}/{expected_name}"
+                assert Path(job.path) == Path(job_manager.workdir, expected_name)
             # Verify job status is registered
             assert job.status == "registered"
 
@@ -191,7 +192,7 @@ class TestJobManager:
         job_manager2 = JobManager(settings=JobManagerSettings(), folder=folder2)
 
         for job in jobs:
-            loaded_job = job_manager2.load_job(f"{job.path}/{job.name}.dill")
+            loaded_job = job_manager2.load_job(f"{job.path}{os.path.sep}{job.name}.dill")
 
             # Then loaded job is the same as the saved job
             assert loaded_job.path == job.path

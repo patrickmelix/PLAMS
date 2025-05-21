@@ -9,6 +9,7 @@ from io import StringIO
 import csv
 from functools import wraps
 import time
+from pathlib import Path
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob, MultiJob
@@ -353,7 +354,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         assert "RuntimeError" in job1.get_errormsg()
         assert job2.get_errormsg() is None
 
-    def test_run_multiple_independent_jobs_with_use_subdir_in_parallel(self):
+    def test_run_multiple_independent_jobs_with_use_subdir_in_parallel(self, config):
         # Given parallel job runner
         runner = JobRunner(parallel=True, maxjobs=4)
 
@@ -374,7 +375,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         assert all(j.ok() for j in jobs)
         for j in jobs:
             o, i1, i2 = j.name.split("_")
-            assert j.path.endswith(f"results/{o}/{i1}/{j.name}")
+            assert Path(j.path) == Path(config.default_jobmanager.workdir, "results", o, i1, j.name)
 
     def test_ok_waits_on_results_and_checks_status(self):
         # Given job and a copy
@@ -713,16 +714,23 @@ class TestMultiJob:
                     outer_multi_jobs.append(multi_job)
 
         # Then top-level multi-jobs are located in the correct subdirectory
+        workdir = config.default_jobmanager.workdir
         for mj_outer in outer_multi_jobs:
             assert mj_outer.ok()
 
             outer = mj_outer.name.split("_")[-1]
-            assert mj_outer.path.endswith(f"results/{outer}/{mj_outer.name}")
+            assert Path(mj_outer.path) == Path(workdir, "results", outer, mj_outer.name)
 
             for mj_inner in mj_outer.children:
                 assert mj_inner.ok()
-                assert mj_inner.path.endswith(f"results/{outer}/{mj_outer.name}/{mj_inner.name}")
+                assert Path(mj_inner.path) == Path(
+                    workdir,
+                    "results",
+                    outer,
+                    mj_outer.name,
+                    mj_inner.name,
+                )
 
                 for j in mj_inner.children:
                     assert j.ok()
-                    assert j.path.endswith(f"results/{outer}/{mj_outer.name}/{mj_inner.name}/{j.name}")
+                    assert Path(j.path) == Path(workdir, "results", outer, mj_outer.name, mj_inner.name, j.name)

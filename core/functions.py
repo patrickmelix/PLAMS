@@ -642,7 +642,7 @@ def use_subdir(subdir: str):
     Enter a context which uses the given subdirectory within the ``workdir`` of the |JobManager| for calculations.
 
     A |Job| run within this context will have its input and results files within the job directory in this subdirectory.
-    Note that this will only apply to the parent directory a |MultiJob|.
+    Note that for a |MultiJob|, this will apply to the job directory of the top-most parent |MultiJob|.
 
     .. code:: python
          >>> with use_subdir("GeometryOptimization"):
@@ -662,7 +662,7 @@ def use_subdir(subdir: str):
 
     current_subdir = _subdir.get()
     if current_subdir:
-        subdir = f"{current_subdir}/{subdir}"
+        subdir = f"{current_subdir}{os.path.sep}{subdir}"
     token = _subdir.set(subdir)
     try:
         yield
