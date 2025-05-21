@@ -92,7 +92,7 @@ __all__ = [
     "config_context",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
-    "use_subdir"
+    "use_subdir",
 ]
 
 # ===========================================================================
@@ -634,6 +634,8 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
 # ===========================================================================
 
 _subdir: ContextVar[Optional[str]] = ContextVar("_subdir", default=None)
+
+
 @contextmanager
 def use_subdir(subdir: str):
     """
