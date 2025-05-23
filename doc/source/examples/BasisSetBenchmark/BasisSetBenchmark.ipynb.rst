@@ -8,7 +8,7 @@ Initial Imports
 
    import sys
    import multiprocessing
-   from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init, use_subdir
+   from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init, JobAnalysis, use_subdir
    import numpy as np
 
    # this line is not required in AMS2025+
@@ -134,16 +134,16 @@ Run Calculations
 
 ::
 
-   [21.05|14:11:48] JOB Methane_QZ4P STARTED
-   [21.05|14:11:48] JOB Ethane_QZ4P STARTED
-   [21.05|14:11:48] JOB Ethylene_QZ4P STARTED
-   [21.05|14:11:48] JOB Acetylene_QZ4P STARTED
-   [21.05|14:11:48] JOB Methane_TZ2P STARTED
-   [21.05|14:11:48] JOB Methane_QZ4P RUNNING
-   [21.05|14:11:48] JOB Ethane_TZ2P STARTED
-   [21.05|14:11:48] JOB Ethylene_TZ2P STARTED
-   [21.05|14:11:48] JOB Acetylene_TZ2P STARTED
-   [21.05|14:11:48] JOB Methane_TZP STARTED
+   [23.05|09:27:53] JOB Methane_QZ4P STARTED
+   [23.05|09:27:53] JOB Ethane_QZ4P STARTED
+   [23.05|09:27:53] JOB Ethylene_QZ4P STARTED
+   [23.05|09:27:53] JOB Acetylene_QZ4P STARTED
+   [23.05|09:27:53] JOB Methane_TZ2P STARTED
+   [23.05|09:27:53] JOB Ethane_TZ2P STARTED
+   [23.05|09:27:53] JOB Methane_QZ4P RUNNING
+   [23.05|09:27:53] JOB Ethylene_TZ2P STARTED
+   [23.05|09:27:53] JOB Acetylene_TZ2P STARTED
+   [23.05|09:27:53] JOB Methane_TZP STARTED
    ... (PLAMS log lines truncated) ...
 
 Results
@@ -153,67 +153,52 @@ Extract the energy from each calculation. Calculate the average absolute error i
 
 .. code:: ipython3
 
-   try:
-       # For AMS2025+ can use JobAnalysis class to perform results analysis
-       from scm.plams import JobAnalysis
+   # For AMS2025+ can use JobAnalysis class to perform results analysis
+   from scm.plams import JobAnalysis
 
-       ja = (
-           JobAnalysis(jobs=jobs, standard_fields=["Formula", "Smiles"])
-           .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
-           .add_field("NAtoms", lambda j: len(j.molecule))
-           .add_field(
-               "Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="Energy [kcal/mol]", fmt=".2f"
-           )
-           .sort_jobs(["NAtoms", "Energy"])
-       )
+   ja = (
+       JobAnalysis(jobs=jobs, standard_fields=["Formula", "Smiles"])
+       .add_settings_field(("Input", "ADF", "Basis", "Type"), display_name="Basis")
+       .add_field("NAtoms", lambda j: len(j.molecule))
+       .add_field("Energy", lambda j: j.results.get_energy(unit="kcal/mol"), display_name="Energy [kcal/mol]", fmt=".2f")
+       .sort_jobs(["NAtoms", "Energy"])
+   )
 
-       ref_ja = ja.filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
+   ref_ja = ja.filter_jobs(lambda data: data["InputAdfBasisType"] == "QZ4P")
 
-       ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
+   ref_energies = {f: e for f, e in zip(ref_ja.Formula, ref_ja.Energy)}
 
-       def get_average_error(job):
-           return abs(job.results.get_energy(unit="kcal/mol") - ref_energies[job.molecule.get_formula()]) / len(
-               job.molecule
-           )
 
-       ja = ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
+   def get_average_error(job):
+       return abs(job.results.get_energy(unit="kcal/mol") - ref_energies[job.molecule.get_formula()]) / len(job.molecule)
 
-       # Pretty-print if running in a notebook
-       if "ipykernel" in sys.modules:
-           ja.display_table()
-       else:
-           print(ja.to_table())
 
-   except ImportError:
+   ja = ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
 
-       average_errors = {}
-       for bas in basis:
-           if bas != reference_basis:
-               errors = []
-               for name, molecule in molecules.items():
-                   reference_energy = results[(name, reference_basis)].get_energy(unit="kcal/mol")
-                   energy = results[(name, bas)].get_energy(unit="kcal/mol")
-                   errors.append(abs(energy - reference_energy) / len(molecule))
-                   print("Energy for {} using {} basis set: {} [kcal/mol]".format(name, bas, energy))
-               average_errors[bas] = sum(errors) / len(errors)
+   # Pretty-print if running in a notebook
+   if "ipykernel" in sys.modules:
+       ja.display_table()
+   else:
+       print(ja.to_table())
 
 ::
 
-   [21.05|14:11:48] Waiting for job Methane_QZ4P to finish
-   [21.05|14:11:48] JOB Ethane_QZ4P RUNNING
-   [21.05|14:11:48] JOB Methane_TZ2P RUNNING
-   [21.05|14:11:48] JOB Ethane_TZ2P RUNNING
-   [21.05|14:11:48] JOB Ethylene_TZ2P RUNNING
-   [21.05|14:11:48] JOB Acetylene_TZ2P RUNNING
-   [21.05|14:11:48] JOB Ethane_TZP RUNNING
-   [21.05|14:11:48] JOB Methane_TZP RUNNING
-   [21.05|14:11:48] JOB Ethylene_TZP RUNNING
-   [21.05|14:11:48] JOB Acetylene_TZP RUNNING
-   [21.05|14:11:48] JOB Ethylene_DZP RUNNING
+   [23.05|09:27:53] Waiting for job Methane_QZ4P to finish
+   [23.05|09:27:53] JOB Methane_TZ2P RUNNING
+   [23.05|09:27:53] JOB Ethane_QZ4P RUNNING
+   [23.05|09:27:53] JOB Ethane_TZ2P RUNNING
+   [23.05|09:27:53] JOB Ethylene_TZ2P RUNNING
+   [23.05|09:27:53] JOB Methane_TZP RUNNING
+   [23.05|09:27:53] JOB Acetylene_TZ2P RUNNING
+   [23.05|09:27:53] JOB Ethylene_TZP RUNNING
+   [23.05|09:27:53] JOB Methane_SZ RUNNING
+   [23.05|09:27:53] JOB Ethane_DZP RUNNING
+   [23.05|09:27:53] JOB Ethylene_DZP RUNNING
    ... (PLAMS log lines truncated) ...
-   [21.05|14:11:50] Waiting for job Ethane_QZ4P to finish
-   [21.05|14:11:53] Waiting for job Methane_DZP to finish
-   [21.05|14:11:53] Waiting for job Ethane_DZP to finish
+   [23.05|09:27:56] Waiting for job Ethane_QZ4P to finish
+   [23.05|09:27:58] Waiting for job Ethane_TZP to finish
+   [23.05|09:27:59] Waiting for job Methane_DZP to finish
+   [23.05|09:27:59] Waiting for job Ethane_SZ to finish
 
 ======= ====== ===== ====== ================= ========================
 Formula Smiles Basis NAtoms Energy [kcal/mol] Average Error [kcal/mol]
@@ -250,10 +235,7 @@ C2H6    CC     QZ4P  8      -973.02           0.00
    print("Average absolute error in bond energy per atom")
    for bas in basis:
        if bas != reference_basis:
-           if ja:
-               av = np.average(ja.filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
-           else:
-               av = average_errors[bas]
+           av = np.average(ja.filter_jobs(lambda data: data["InputAdfBasisType"] == bas).AvErr)
            print("Error for basis set {:<4}: {:>10.3f} [kcal/mol]".format(bas, av))
 
 ::
