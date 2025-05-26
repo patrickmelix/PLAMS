@@ -79,8 +79,12 @@ class PackMolStructure:
         """
         self.molecule = molecule
         if fixed:
-            assert n_molecules is None or n_molecules == 1
-            assert density is None
+            if n_molecules is not None and n_molecules != 1:
+                raise ValueError(
+                    f"For a fixed PackMol structure, n_molecules must be 1 if specified, but was {n_molecules}"
+                )
+            if density is not None:
+                raise ValueError(f"For a fixed PackMol structure, density cannot be set, but was {density}")
             self.n_molecules = 1
             if molecule.lattice and len(molecule.lattice) == 3:
                 vecs = np.array(molecule.lattice)
@@ -89,30 +93,30 @@ class PackMolStructure:
                 minxyz = np.sum(vecs * negative_mask, axis=0)
                 maxxyz = np.sum(vecs * positive_mask, axis=0)
                 self.box_bounds = minxyz.tolist() + maxxyz.tolist()
-                # self.box_bounds = [
-                #     0.0,
-                #     0.0,
-                #     0.0,
-                #     molecule.lattice[0][0],
-                #     molecule.lattice[1][1],
-                #     molecule.lattice[2][2],
-                # ]
             else:
                 self.box_bounds = None
             self.fixed = True
             self.sphere = False
         else:
+            # Check there are exactly two of box_bounds, density and n_molecules/n_atoms
+            constraint_count = (
+                int(box_bounds is not None)
+                + int(density is not None)
+                + int((n_molecules is not None or n_atoms is not None))
+            )
+            if constraint_count != 2:
+                raise ValueError(
+                    f"""For a PackMol structure, exactly two of box_bounds, density and n_molecules/n_atoms must be set. 
+                But was:
+                    {box_bounds=:}
+                    {density=:}
+                    {n_molecules=:} / {n_atoms=:}"""
+                )
+
             if box_bounds and density:
-                if n_molecules or n_atoms:
-                    raise ValueError("Cannot set all n_molecules or n_atoms together with (box_bounds AND density)")
                 n_molecules = self._get_n_molecules_from_density_and_box_bounds(self.molecule, box_bounds, density)
-            assert n_molecules is not None or n_atoms is not None
-            if n_molecules is None:
-                assert n_atoms is not None
-                self.n_molecules = self._get_n_molecules(self.molecule, n_atoms)
-            else:
-                self.n_molecules = n_molecules
-            assert box_bounds or density
+
+            self.n_molecules = n_molecules or self._get_n_molecules(self.molecule, n_atoms)
             self.box_bounds = box_bounds or self._get_box_bounds(self.molecule, self.n_molecules, density)
             self.fixed = False
             self.sphere = sphere
@@ -148,31 +152,30 @@ class PackMolStructure:
         if self.n_molecules == 0 and not self.fixed:
             return ""
         if self.fixed:
-            ret = f"""
-            structure {fname}
-            number 1
-            fixed 0. 0. 0. 0. 0. 0.
-            avoid_overlap yes
-            end structure
-            """
+            ret = f"""\
+structure {fname}
+  number 1
+  fixed 0. 0. 0. 0. 0. 0.
+  avoid_overlap yes
+end structure
+"""
         elif self.sphere:
             vol = self.get_volume()
             radius = np.cbrt(3 * vol / (4 * np.pi))
-            ret = f"""
-            structure {fname}
-              number {self.n_molecules}
-              inside sphere 0. 0. 0. {radius}
-            end structure
-            """
+            ret = f"""\
+structure {fname}
+  number {self.n_molecules}
+  inside sphere 0. 0. 0. {radius}
+end structure
+"""
         else:
             box_string = f"{self.box_bounds[0]+tolerance/2} {self.box_bounds[1]+tolerance/2} {self.box_bounds[2]+tolerance/2} {self.box_bounds[3]-tolerance/2} {self.box_bounds[4]-tolerance/2} {self.box_bounds[5]-tolerance/2}"
-            ret = f"""
-            structure {fname}
-              number {self.n_molecules}
-              inside box {box_string}
-            end structure
-
-        """
+            ret = f"""\
+structure {fname}
+  number {self.n_molecules}
+  inside box {box_string}
+end structure
+"""
         return ret
 
 
