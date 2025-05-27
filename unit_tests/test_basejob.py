@@ -529,7 +529,7 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         logger.close()
 
     def test_full_name(self):
-        job = DummySingleJob(name=f"dummy_job")
+        job = DummySingleJob(name="dummy_job")
         job.run()
 
         assert job.ok()
@@ -744,9 +744,9 @@ class TestMultiJob:
                     assert Path(j.path) == Path(workdir, "results", outer, mj_outer.name, mj_inner.name, j.name)
 
     def test_full_name(self):
-        job = DummySingleJob(name=f"dummy_job")
-        inner_multi_job = MultiJob(children=[job], name=f"multi_inner_job")
-        multi_job = MultiJob(children=[inner_multi_job], name=f"multi_outer")
+        job = DummySingleJob(name="dummy_job")
+        inner_multi_job = MultiJob(children=[job], name="multi_inner_job")
+        multi_job = MultiJob(children=[inner_multi_job], name="multi_outer")
         multi_job.run()
 
         assert multi_job.ok()

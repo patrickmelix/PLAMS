@@ -164,8 +164,8 @@ class TestJobManager:
         verify_job_registration(job4, base_name, expected_subdir="foo/bar")
         assert job_manager.jobs == jobs
         assert job_manager.names == {
-            f"foo{os.path.sep}bar{os.path.sep}test_jobreg": 1,
-            f"foo{os.path.sep}test_jobreg": 1,
+            f"foo/bar/test_jobreg": 1,
+            f"foo/test_jobreg": 1,
             "test_jobreg": 2,
         }
 
