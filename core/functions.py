@@ -638,7 +638,7 @@ _rundir: ContextVar[Optional[Path]] = ContextVar("_rundir", default=None)
 
 
 @contextmanager
-def run_directory(path: Union[str, os.PathLike]) -> Path:
+def run_directory(path: Union[str, os.PathLike]) -> Generator[Path, None, None]:
     """
     Enter a context which uses the given run directory within the :attr:`~scm.plams.core.jobmanager.JobManager.workdir` for new Jobs.
 

@@ -217,7 +217,7 @@ class JobManager:
             # get current run directory and create it if required
             # run directory should be used unless job is within a multi-job (as then the parent job directory should be used)
             rundir = self.current_rundir
-            rel_rundir = rundir.relative_to(self.workdir)
+            rel_rundir: Optional[Path] = rundir.relative_to(self.workdir)
             rel_rundir = rel_rundir if rel_rundir != Path(".") else None
             if rel_rundir and not job.parent:
                 os.makedirs(rundir, exist_ok=True)
