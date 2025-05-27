@@ -18,7 +18,7 @@ This changelog is effective from the 2025 releases.
 * `get_system_blocks_as_molecules_from_input` method to extract molecules from AMS text input
 * `JobAnalysis.add_rkf_field` method to simplify adding values from an rkf to the analysis
 * `JobAnalysis.get_settings_field_key` and `JobAnalysis.get_rkf_field_key` methods to simplify getting the correct keys for analysis fields
-* `use_subdir` context manager which allows jobs to be run in a subdirectory of the job manager working directory
+* `run_directory` context manager which allows jobs to be run in a subdirectory of the job manager working directory
 
 ### Changed
 * `JobAnalysis` returns an updated copy on modification instead of performing the operation in-place
