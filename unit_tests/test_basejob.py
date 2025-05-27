@@ -16,7 +16,7 @@ from scm.plams.core.basejob import SingleJob, MultiJob
 from scm.plams.core.errors import PlamsError, FileError, ResultsError
 from scm.plams.core.jobrunner import JobRunner
 from scm.plams.core.jobmanager import JobManager
-from scm.plams.core.functions import add_to_instance, use_subdir
+from scm.plams.core.functions import add_to_instance, run_directory
 from scm.plams.core.enums import JobStatus
 
 LogEntry = namedtuple("LogEntry", ["method", "args", "kwargs", "start", "end"])
@@ -360,11 +360,11 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         # When run jobs in subdir
         jobs = []
-        with use_subdir("results"):
+        with run_directory("results"):
             for outer in ["A", "B", "C"]:
-                with use_subdir(outer):
+                with run_directory(outer):
                     for inner1 in ["X", "Y", "Z"]:
-                        with use_subdir(inner1):
+                        with run_directory(inner1):
                             for inner2 in range(2):
                                 job = DummySingleJob(name=f"{outer}_{inner1}_{inner2}")
                                 job.run(runner)
@@ -527,6 +527,14 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
                     re.DOTALL,
                 )
         logger.close()
+
+    def test_full_name(self):
+        job = DummySingleJob(name=f"dummy_job")
+        job.run()
+
+        assert job.ok()
+        assert job._full_name() == "dummy_job"
+        assert job._full_name("some/rundir") == "some/rundir/dummy_job"
 
 
 class TestMultiJob:
@@ -704,9 +712,9 @@ class TestMultiJob:
 
         # When run multi jobs in subdir
         outer_multi_jobs = []
-        with use_subdir("results"):
+        with run_directory("results"):
             for mj in ["A", "B", "C"]:
-                with use_subdir(mj):
+                with run_directory(mj):
                     jobs = [[DummySingleJob(name=f"dummy_{i}_{j}") for i in range(3)] for j in range(3)]
                     inner_multi_jobs = [MultiJob(children=js, name=f"multi_inner_{i}") for i, js in enumerate(jobs)]
                     multi_job = MultiJob(children=inner_multi_jobs, name=f"multi_outer_{mj}")
@@ -734,3 +742,17 @@ class TestMultiJob:
                 for j in mj_inner.children:
                     assert j.ok()
                     assert Path(j.path) == Path(workdir, "results", outer, mj_outer.name, mj_inner.name, j.name)
+
+    def test_full_name(self):
+        job = DummySingleJob(name=f"dummy_job")
+        inner_multi_job = MultiJob(children=[job], name=f"multi_inner_job")
+        multi_job = MultiJob(children=[inner_multi_job], name=f"multi_outer")
+        multi_job.run()
+
+        assert multi_job.ok()
+        assert multi_job._full_name() == "multi_outer"
+        assert multi_job._full_name("some/rundir") == "some/rundir/multi_outer"
+        assert inner_multi_job._full_name() == "multi_outer/multi_inner_job"
+        assert inner_multi_job._full_name("some/rundir") == "some/rundir/multi_outer/multi_inner_job"
+        assert job._full_name() == "multi_outer/multi_inner_job/dummy_job"
+        assert job._full_name("some/rundir") == "some/rundir/multi_outer/multi_inner_job/dummy_job"

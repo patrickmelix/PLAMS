@@ -6,7 +6,7 @@ from pathlib import Path
 from scm.plams.core.jobmanager import JobManager
 from scm.plams.core.settings import JobManagerSettings
 from scm.plams.core.errors import PlamsError
-from scm.plams.core.functions import use_subdir
+from scm.plams.core.functions import run_directory
 from scm.plams.unit_tests.test_basejob import DummySingleJob
 
 
@@ -106,6 +106,25 @@ class TestJobManager:
         if os.path.exists(path):
             os.rmdir(path)
 
+    def test_current_rundir_location(self):
+        # Given job manager
+        folder = str(uuid.uuid4())
+        job_manager = JobManager(settings=JobManagerSettings(), folder=folder)
+
+        # When get the run dir inside and outside context
+        rundir1 = job_manager.current_rundir
+        with run_directory("foo"):
+            with run_directory("bar"):
+                rundir2 = job_manager.current_rundir
+        rundir3 = job_manager.current_rundir
+
+        # Then run dir is the workdir outside the context, and the run dir inside the context
+        assert rundir1 == Path(job_manager.workdir)
+        assert rundir2 == Path(job_manager.workdir) / "foo" / "bar"
+        assert rundir3 == Path(job_manager.workdir)
+
+        os.rmdir(job_manager.workdir)
+
     def test_register(self):
         # Given job manager
         folder = str(uuid.uuid4())
@@ -120,9 +139,9 @@ class TestJobManager:
         jobs = [job1, job2, job3, job4]
         job_manager._register(job1)
         job_manager._register(job2)
-        with use_subdir("foo"):
+        with run_directory("foo"):
             job_manager._register(job3)
-            with use_subdir("bar"):
+            with run_directory("bar"):
                 job_manager._register(job4)
 
         # Then jobs registered as expected
@@ -184,9 +203,9 @@ class TestJobManager:
         jobs = [job1, job2, job3, job4]
         job_manager._register(job1)
         job_manager._register(job2)
-        with use_subdir("foo"):
+        with run_directory("foo"):
             job_manager._register(job3)
-            with use_subdir("bar"):
+            with run_directory("bar"):
                 job_manager._register(job4)
         for job in jobs:
             job.pickle()

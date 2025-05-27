@@ -5,6 +5,7 @@ import threading
 import datetime
 import time
 from os.path import join as opj
+from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Optional, Union, Tuple
 from abc import ABC, abstractmethod
 import traceback
@@ -343,10 +344,16 @@ class Job(ABC):
         """Log the status of this instance on a chosen log *level*. The message is uppercased to clearly stand out among other log entries."""
         log("JOB {} {}".format(self._full_name(), self.status.upper()), level)
 
-    def _full_name(self) -> str:
+    def _full_name(self, rundir: Optional[Union[str, os.PathLike]] = None) -> str:
+        """
+        Get the full name of the job, which will be of the form: ``<rundir>/<parent.name>/<name>``
+        """
+        path = Path(self.name)
         if self.parent:
-            return opj(self.parent._full_name(), self.name)
-        return self.name
+            path = self.parent._full_name(rundir) / path
+        elif rundir:
+            path = rundir / path
+        return str(path.as_posix())
 
 
 # ===========================================================================

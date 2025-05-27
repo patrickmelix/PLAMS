@@ -93,7 +93,7 @@ __all__ = [
     "config_context",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
-    "use_subdir",
+    "run_directory",
 ]
 
 # ===========================================================================
@@ -634,50 +634,52 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
 
 # ===========================================================================
 
-_subdir: ContextVar[Optional[str]] = ContextVar("_subdir", default=None)
+_rundir: ContextVar[Optional[Path]] = ContextVar("_rundir", default=None)
 
 
 @contextmanager
-def use_subdir(subdir: Union[str, os.PathLike]):
+def run_directory(path: Union[str, os.PathLike]) -> Path:
     """
-    Enter a context which uses the given subdirectory within the ``workdir`` of the |JobManager| for calculations.
+    Enter a context which uses the given run directory within the :attr:`~scm.plams.core.jobmanager.JobManager.workdir` for new Jobs.
 
-    A |Job| run within this context will have its input and results files within the job directory in this subdirectory.
+    A |Job| run within this context will have its input and results files stored within the job directory in this run directory.
     Note that for a |MultiJob|, this will apply to the job directory of the top-most parent |MultiJob|.
 
+    The run directory is not created until a job is run in that context.
+
     .. code:: python
-         >>> with use_subdir("GeometryOptimization"):
-         >>>     with use_subdir("DFTB"):
+         >>> with run_directory("GeometryOptimization"):
+         >>>     with run_directory("DFTB"):
          >>>        job1.run()
-         >>>     with use_subdir("ML/M3GNet"):
+         >>>     with run_directory("ML/M3GNet"):
          >>>        job2.run()
          >>>     print(job1.path)
          >>>     print(job2.path)
-            path/GeometryOptimization/DFTB/job1
-            path/GeometryOptimization/ML/M3GNet/job2
+            path/plams_workdir/GeometryOptimization/DFTB/job1
+            path/plams_workdir/GeometryOptimization/ML/M3GNet/job2
 
     .. note::
         Starting a new thread creates a new context, so the context configuration will not automatically be used in the new thread.
         To copy over the parent thread context to the new thread, instead use :class:`~scm.plams.core.threading_utils.ContextAwareThread`
 
-    :param subdir: path of the subdirectory relative to the ``workdir`` of the |JobManager|
+    :param path: path of the run directory relative to the :attr:`~scm.plams.core.jobmanager.JobManager.workdir`
+    :returns: absolute path of the run directory, assuming the default |JobManager| is used
     """
-
-    current_subdir = _subdir.get()
-    subdir = Path(subdir)
-    if current_subdir:
-        subdir = Path(current_subdir, subdir)
-    token = _subdir.set(str(subdir))
+    current_rundir = _get_rundir()
+    rundir = Path(path)
+    if current_rundir:
+        rundir = current_rundir / rundir
+    token = _rundir.set(rundir)
     try:
-        yield
+        yield get_config().default_jobmanager.current_rundir
     finally:
-        _subdir.reset(token)
+        _rundir.reset(token)
 
 
-def _get_subdir() -> Optional[str]:
+def _get_rundir() -> Optional[Path]:
     """
-    Gets the current subdirectory, if set. This is assumed to be relative the ``workdir`` of the |JobManager|.
+    Gets the current run directory, if set. This is assumed to be relative the ``workdir`` of the |JobManager|.
 
-    :return: path of current subdirectory, or ``None`` if not set
+    :return: relative path of current run directory, or ``None`` if not set
     """
-    return _subdir.get()
+    return _rundir.get()
