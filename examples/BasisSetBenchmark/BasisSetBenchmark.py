@@ -5,7 +5,7 @@
 
 import sys
 import multiprocessing
-from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init, JobAnalysis, use_subdir
+from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init, JobAnalysis, run_directory
 import numpy as np
 
 # this line is not required in AMS2025+
@@ -50,7 +50,7 @@ results = {}
 jobs = []
 for bas in basis:
     for name, molecule in molecules.items():
-        with use_subdir(name):
+        with run_directory(name):
             settings = common_settings.copy()
             settings.input.adf.Basis.Type = bas
             job = AMSJob(name=f"{name}_{bas}", molecule=molecule, settings=settings)
@@ -82,6 +82,7 @@ def get_average_error(job):
 
 
 ja = ja.add_field("AvErr", get_average_error, display_name="Average Error [kcal/mol]", fmt=".2f")
+
 
 # Pretty-print if running in a notebook
 if "ipykernel" in sys.modules:
