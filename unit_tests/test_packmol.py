@@ -172,6 +172,14 @@ structure pm
 end structure
 """,
         ),
+        TestCase(
+            water,
+            n_molecules=0,
+            box_bounds=[0, 0, 0, 5, 5, 5],
+            expected_n_molecules=0,
+            expected_box_bounds=[0, 0, 0, 5, 5, 5],
+            expected_input="",
+        ),
         # Unhappy
         TestCase(water, fixed=True, n_molecules=2, expected_error="n_molecules must be 1"),
         TestCase(water, fixed=True, density=42, expected_error="density cannot be set"),
@@ -260,7 +268,7 @@ class TestPackMol:
         density: Optional[float] = None
         n_atoms: Optional[int] = None
         box_bounds: Optional[List[float]] = None
-        n_molecules: Union[List[int], int, None] = None
+        n_molecules: Optional[Union[List[Optional[int]], int]] = None
         sphere: bool = False
         fix_first: bool = False
         region_names: Union[List[str], str, None] = None
@@ -292,6 +300,18 @@ class TestPackMol:
             box_bounds=[0, 0, 0, 5, 5, 5],
             density=0.9,
             expected_error="n_molecules, box_bounds and density specified at the same time",
+        ),
+        UnhappyTestCase(
+            molecules=water,
+            n_molecules=100,
+            box_bounds=[0, 0, 0],
+            expected_error=r"box_bounds must be a list of the form \[xmin, ymin, zmin, xmax, ymax, zmax\]",
+        ),
+        UnhappyTestCase(
+            molecules=water,
+            n_molecules=100,
+            box_bounds=[0, 0, 0, 5, 5, None],
+            expected_error=r"box_bounds must be a list of the form \[xmin, ymin, zmin, xmax, ymax, zmax\]",
         ),
         UnhappyTestCase(
             molecules=[water, acetonitrile],
@@ -370,6 +390,23 @@ class TestPackMol:
         ),
         UnhappyTestCase(
             molecules=[water, acetonitrile],
+            n_molecules=[20, None],
+            expected_error="n_molecules cannot have a None value if box_bounds and density are not specified",
+        ),
+        UnhappyTestCase(
+            molecules=[water, acetonitrile],
+            n_molecules=[2000, None],
+            density=0.9,
+            box_bounds=[0, 0, 0, 10, 10, 10],
+            expected_error="calculated value for missing n_molecules value is negative",
+        ),
+        UnhappyTestCase(
+            molecules=[water, acetonitrile],
+            n_molecules=[None, None],
+            expected_error="multiple values of n_molecules are None",
+        ),
+        UnhappyTestCase(
+            molecules=[water, acetonitrile],
             density=0.9,
             mole_fractions=[0, 0],
             expected_error="The sum of mole fractions is 0, which is very close to 0",
@@ -383,8 +420,40 @@ class TestPackMol:
         UnhappyTestCase(
             molecules=[water, acetonitrile],
             density=0.9,
+            mole_fractions=[1.0, None],
+            expected_error="one or more values of mole_fractions is None",
+        ),
+        UnhappyTestCase(
+            molecules=[water, acetonitrile],
+            density=0.9,
             mole_fractions=[0.5, 0.5],
-            expected_error="Illegal combination of arguments: n_atoms=None, n_molecules=None, box_bounds=None, density=0.9",
+            expected_error="n_atoms=None, n_molecules=None, box_bounds=None, density=0.9",
+        ),
+        UnhappyTestCase(
+            molecules=[water, ammonium, chloride],
+            n_molecules=[None, None, 5],
+            density=0.9,
+            box_bounds=[10, 10, 10],
+            expected_error="n_molecules, box_bounds and density specified at the same time",
+        ),
+        UnhappyTestCase(
+            molecules=[water, ammonium, chloride],
+            n_molecules=[None, None, 5],
+            density=0.9,
+            expected_error="multiple values of n_molecules are None",
+        ),
+        UnhappyTestCase(
+            molecules=[water, ammonium, chloride],
+            n_molecules=[None, 5, 5],
+            density=0.9,
+            expected_error="n_molecules cannot have a None value if box_bounds and density are not specified",
+        ),
+        UnhappyTestCase(
+            molecules=[water, ammonium, chloride],
+            n_molecules=[None, 30, 5],
+            density=0.9,
+            box_bounds=[0, 0, 0, 10, 10, 10],
+            expected_error="calculated value for missing n_molecules value is negative",
         ),
     ]
 
@@ -416,7 +485,7 @@ class TestPackMol:
         density: Optional[float] = None
         n_atoms: Optional[int] = None
         box_bounds: Optional[List[float]] = None
-        n_molecules: Optional[Union[List[int], int]] = None
+        n_molecules: Optional[Union[List[Optional[int]], int]] = None
         sphere: bool = False
         fix_first: bool = False
         keep_bonds: bool = True
@@ -583,6 +652,82 @@ class TestPackMol:
             expected_density=0.92,
             expected_region_names=["water", "acetonitrile"],
         ),
+        HappyTestCase(
+            [water],
+            n_molecules=[None],
+            density=1.0,
+            box_bounds=[0.0, 0.0, 0.0, 8.0, 12.0, 14.0],
+            expected_n_atoms=135,
+            expected_n_molecules=[45],
+            expected_mole_fractions=[1.0],
+            expected_volume=1344,
+            expected_density=1.0016253039797856,
+        ),
+        HappyTestCase(
+            [water, acetonitrile],
+            n_molecules=[33, None],
+            density=0.92,
+            box_bounds=[0, 0, 0, 10, 10, 23.32],
+            expected_n_atoms=201,
+            expected_n_molecules=[33, 17],
+            expected_mole_fractions=[0.66, 0.34],
+            expected_volume=2332,
+            expected_density=0.9202681231843521,
+        ),
+        HappyTestCase(
+            [water, acetonitrile],
+            n_molecules=[None, 17],
+            density=0.92,
+            box_bounds=[0, 0, 0, 10, 10, 23.32],
+            expected_n_atoms=201,
+            expected_n_molecules=[33, 17],
+            expected_mole_fractions=[0.66, 0.34],
+            expected_volume=2332,
+            expected_density=0.9202681231843521,
+        ),
+        HappyTestCase(
+            molecules=[water, ammonium, chloride],
+            density=0.4,
+            box_bounds=[0, 0, 0, 5, 5, 5],
+            expected_n_atoms=0,
+            expected_n_molecules=[0, 0, 0],
+            expected_mole_fractions=[0.0, 0.0, 0.0],
+            expected_volume=125,
+            expected_density=0.0,
+        ),
+        HappyTestCase(
+            molecules=[water, ammonium, chloride],
+            n_molecules=[None, 2, 2],
+            density=0.38,
+            box_bounds=[0, 0, 0, 20, 20, 20],
+            expected_n_atoms=300,
+            expected_n_molecules=[96, 2, 2],
+            expected_mole_fractions=[0.96, 0.02, 0.02],
+            expected_volume=8000,
+            expected_density=0.3811881797008519,
+        ),
+        HappyTestCase(
+            molecules=[water, ammonium, chloride],
+            n_molecules=[96, None, 2],
+            density=0.38,
+            box_bounds=[0, 0, 0, 20, 20, 20],
+            expected_n_atoms=300,
+            expected_n_molecules=[96, 2, 2],
+            expected_mole_fractions=[0.96, 0.02, 0.02],
+            expected_volume=8000,
+            expected_density=0.3811881797008519,
+        ),
+        HappyTestCase(
+            molecules=[water, ammonium, chloride],
+            n_molecules=[96, 2, None],
+            density=0.38,
+            box_bounds=[0, 0, 0, 20, 20, 20],
+            expected_n_atoms=300,
+            expected_n_molecules=[96, 2, 2],
+            expected_mole_fractions=[0.96, 0.02, 0.02],
+            expected_volume=8000,
+            expected_density=0.3811881797008519,
+        ),
     ]
 
     @pytest.mark.parametrize("test_case", happy_test_cases)
@@ -648,7 +793,7 @@ class TestPackMol:
                 mols[f][1] += 1
 
         if test_case.keep_bonds:
-            assert [c for _, c in mols.values()] == test_case.expected_n_molecules
+            assert [c for _, c in mols.values()] == [n for n in test_case.expected_n_molecules if n > 0]
             for m, _ in mols.values():
                 if len(m) > 1:
                     assert m.bonds
