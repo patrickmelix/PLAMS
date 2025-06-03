@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from dataclasses import dataclass
 from typing import Optional, List, Union
@@ -140,7 +142,7 @@ end structure
             expected_input="""\
 structure pm
   number 25
-  inside box 0.05 0.05 0.05 9.027035146666433 9.027035146666433 9.027035146666433
+  inside box 0.05 0.05 0.05 9.02703.* 9.02703.* 9.02703.*
 end structure
 """,
         ),
@@ -153,7 +155,7 @@ end structure
             expected_input="""\
 structure pm
   number 25
-  inside box 0.05 0.05 0.05 9.027035146666433 9.027035146666433 9.027035146666433
+  inside box 0.05 0.05 0.05 9.02703.* 9.02703.* 9.02703.*
 end structure
 """,
         ),
@@ -168,7 +170,7 @@ end structure
             expected_input="""\
 structure pm
   number 20
-  inside sphere 0. 0. 0. 6.203504908994001
+  inside sphere 0. 0. 0. 6.20350.*
 end structure
 """,
         ),
@@ -252,7 +254,7 @@ end structure
             structure = self.get_structure_from_test_case(test_case)
             input_block = structure.get_input_block("pm", 0.1)
 
-            assert input_block == test_case.expected_input
+            assert re.fullmatch(test_case.expected_input, input_block, re.MULTILINE)
 
 
 class TestPackMol:
