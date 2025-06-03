@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from scm.version import release
 
 AMS2025 = release >= "2024.201"
+AMS2026 = release >= "2025.201"
 if AMS2025:
     from scm.plams import packmol_around
 
@@ -172,6 +173,23 @@ if AMS2025:
     print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
     out = packmol([water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], n_atoms=100)
     print(f"Guessed density: {out.get_density():.2f} kg/m^3")
+    plot_molecule(out)
+
+
+# ## Sodium Chloride Solution (solvent with 1 or more solutes)
+
+# For dilute solutions, it can also be useful to specify the number of solute species in a given box size.
+# The required number of solvent molecules are then added to fill up the box to the target overall density.
+
+if AMS2026:
+    print(
+        "Sodium chloride solution from approximate density (in g/cm^3) and box bounds, and a given number of solute molecules"
+    )
+    sodium = from_smiles("[Na+]")
+    chloride = from_smiles("[Cl-]")
+    out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], density=1.029, box_bounds=[0, 0, 0, 19, 19, 19])
+    printsummary(out)
+    out.write("sodium-chloride-solution.xyz")
     plot_molecule(out)
 
 
