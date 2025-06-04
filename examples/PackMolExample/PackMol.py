@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from scm.version import release
 
 AMS2025 = release >= "2024.201"
+AMS2026 = release >= "2025.201"
 if AMS2025:
     from scm.plams import packmol_around
 
@@ -172,6 +173,48 @@ if AMS2025:
     print("Note: This density is meant to be equilibrated with NPT MD. It can be very inaccurate!")
     out = packmol([water, acetonitrile], mole_fractions=[x_water, x_acetonitrile], n_atoms=100)
     print(f"Guessed density: {out.get_density():.2f} kg/m^3")
+    plot_molecule(out)
+
+
+# ## NaCl solution (solvent with 1 or more solutes)
+
+sodium = from_smiles("[Na+]")
+chloride = from_smiles("[Cl-]")
+
+
+# For dilute solutions, it can be useful to specify the number of solute species, and fill up the rest of the box with solvent.
+#
+# The required number of solvent molecules are then added to fill up the box to the target overall density or number of atoms.
+#
+# This feature can be used if exactly **one** of the elements of the ``n_molecules`` list is None.
+
+if AMS2026:
+    print(
+        "NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solvent molecules"
+    )
+    out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], density=1.029, box_bounds=[0, 0, 0, 19, 19, 19])
+    printsummary(out)
+    out.write("sodium-chloride-solution-1.xyz")
+    plot_molecule(out)
+
+
+# Specify the total number of atoms instead of box bounds, and auto-determine a cubic box:
+
+if AMS2026:
+    print("NaCl solution from approximate number of atoms and density:")
+    out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], density=1.029, n_atoms=500)
+    printsummary(out)
+    out.write("sodium-chloride-solution-2.xyz")
+    plot_molecule(out)
+
+
+# Specify the total number of atoms instead of the density (less useful option):
+
+if AMS2026:
+    print("NaCl solution from approximate number of atoms and box_bounds:")
+    out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], n_atoms=500, box_bounds=[0, 0, 0, 12, 18, 24])
+    printsummary(out)
+    out.write("sodium-chloride-solution-3.xyz")
     plot_molecule(out)
 
 
