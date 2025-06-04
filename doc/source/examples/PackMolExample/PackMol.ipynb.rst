@@ -125,8 +125,7 @@ First, create the gasphase molecule:
    water-5.xyz: pure liquid in non-orthorhombic box (requires AMS2025 or later)
    NOTE: Non-orthorhombic boxes may yield inaccurate results, always carefully check the output
 
-
-.. figure:: PackMol_files/PackMol_10_2.png
+.. figure:: PackMol_files/PackMol_10_1.png
 
 .. code:: ipython3
 
@@ -303,30 +302,73 @@ The ``details`` is a dictionary as follows:
 
 .. figure:: PackMol_files/PackMol_23_1.png
 
-Sodium Chloride Solution (solvent with 1 or more solutes)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+NaCl solution (solvent with 1 or more solutes)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For dilute solutions, it can also be useful to specify the number of solute species in a given box size. The required number of solvent molecules are then added to fill up the box to the target overall density.
+.. code:: ipython3
+
+   sodium = from_smiles("[Na+]")
+   chloride = from_smiles("[Cl-]")
+
+For dilute solutions, it can be useful to specify the number of solute species, and fill up the rest of the box with solvent.
+
+The required number of solvent molecules are then added to fill up the box to the target overall density or number of atoms.
+
+This feature can be used if exactly **one** of the elements of the ``n_molecules`` list is None.
 
 .. code:: ipython3
 
    if AMS2026:
        print(
-           "Sodium chloride solution from approximate density (in g/cm^3) and box bounds, and a given number of solute molecules"
+           "NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solute molecules"
        )
-       sodium = from_smiles("[Na+]")
-       chloride = from_smiles("[Cl-]")
        out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], density=1.029, box_bounds=[0, 0, 0, 19, 19, 19])
        printsummary(out)
-       out.write("sodium-chloride-solution.xyz")
+       out.write("sodium-chloride-solution-1.xyz")
        plot_molecule(out);
 
 ::
 
-   Sodium chloride solution from approximate density (in g/cm^3) and box bounds, and a given number of solute molecules
+   NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solute molecules
    670 atoms, density = 1.030 g/cm^3, box = 19.000, 19.000, 19.000, formula = Cl5H440Na5O220
 
-.. figure:: PackMol_files/PackMol_26_1.png
+.. figure:: PackMol_files/PackMol_27_1.png
+
+Specify the total number of atoms instead of box bounds, and auto-determine a cubic box:
+
+.. code:: ipython3
+
+   if AMS2026:
+       print("NaCl solution from approximate number of atoms and density:")
+       out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], density=1.029, n_atoms=500)
+       printsummary(out)
+       out.write("sodium-chloride-solution-2.xyz")
+       plot_molecule(out);
+
+::
+
+   NaCl solution from approximate number of atoms and density:
+   499 atoms, density = 1.029 g/cm^3, box = 17.336, 17.336, 17.336, formula = Cl5H326Na5O163
+
+.. figure:: PackMol_files/PackMol_29_1.png
+
+Specify the total number of atoms instead of the density (less useful option):
+
+.. code:: ipython3
+
+   if AMS2026:
+       print("NaCl solution from approximate number of atoms and box_bounds:")
+       out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], n_atoms=500, box_bounds=[0, 0, 0, 12, 18, 24])
+       printsummary(out)
+       out.write("sodium-chloride-solution-3.xyz")
+       plot_molecule(out);
+
+::
+
+   NaCl solution from approximate number of atoms and box_bounds:
+   499 atoms, density = 1.034 g/cm^3, box = 12.000, 18.000, 24.000, formula = Cl5H326Na5O163
+
+.. figure:: PackMol_files/PackMol_31_1.png
 
 Pack inside sphere
 ~~~~~~~~~~~~~~~~~~
@@ -349,9 +391,9 @@ Set ``sphere=True`` to pack in a sphere (non-periodic) instead of in a periodic 
    300 atoms, density = 1.000 g/cm^3, formula = H200O100
    #added molecules per species: [100], mole fractions: [1.0]
    Radius  of sphere: 8.939 ang.
-   Center of mass xyz (ang): (-0.21908023422077602, -0.8337181732893262, 0.06244955222878686)
+   Center of mass xyz (ang): (-0.04777197101664364, -0.030191900619893214, -0.34815603638028864)
 
-.. figure:: PackMol_files/PackMol_28_1.png
+.. figure:: PackMol_files/PackMol_33_1.png
 
 .. code:: ipython3
 
@@ -377,7 +419,7 @@ Set ``sphere=True`` to pack in a sphere (non-periodic) instead of in a periodic 
    501 atoms, density = 0.920 g/cm^3, formula = C84H292N42O83
    #added molecules per species: [83, 42], mole fractions: [0.664, 0.336]
 
-.. figure:: PackMol_files/PackMol_29_1.png
+.. figure:: PackMol_files/PackMol_34_1.png
 
 Packing ions, total system charge
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -410,7 +452,7 @@ In PLAMS, ``molecule.properties.charge`` specifies the charge:
    Chloride: -1
    Total charge of packmol-generated system: 2
 
-.. figure:: PackMol_files/PackMol_31_1.png
+.. figure:: PackMol_files/PackMol_36_1.png
 
 Microsolvation
 ~~~~~~~~~~~~~~
@@ -431,9 +473,9 @@ Microsolvation
 
 ::
 
-   Microsolvated structure: 78 atoms.
+   Microsolvated structure: 87 atoms.
 
-.. figure:: PackMol_files/PackMol_33_1.png
+.. figure:: PackMol_files/PackMol_38_1.png
 
 Solid-liquid or solid-gas interfaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -449,7 +491,7 @@ First, create a slab using the ASE ``fcc111`` function
    slab = fromASE(fcc111("Al", size=(4, 6, 3), vacuum=15.0, orthogonal=True, periodic=True))
    plot_molecule(slab, figsize=figsize, rotation=rotation);
 
-.. figure:: PackMol_files/PackMol_35_0.png
+.. figure:: PackMol_files/PackMol_40_0.png
 
 .. code:: ipython3
 
@@ -465,7 +507,7 @@ First, create a slab using the ASE ``fcc111`` function
    water surrounding an Al slab, from an approximate density
    546 atoms, density = 1.345 g/cm^3, box = 11.455, 14.881, 34.677, formula = Al72H316O158
 
-.. figure:: PackMol_files/PackMol_36_1.png
+.. figure:: PackMol_files/PackMol_41_1.png
 
 .. code:: ipython3
 
@@ -481,7 +523,7 @@ First, create a slab using the ASE ``fcc111`` function
    2-1 water-acetonitrile mixture surrounding an Al slab, from mole fractions and an approximate density
    480 atoms, density = 1.282 g/cm^3, box = 11.455, 14.881, 34.677, formula = C68H238Al72N34O68
 
-.. figure:: PackMol_files/PackMol_37_1.png
+.. figure:: PackMol_files/PackMol_42_1.png
 
 .. code:: ipython3
 
@@ -504,7 +546,7 @@ First, create a slab using the ASE ``fcc111`` function
    NOTE: non-orthorhombic cell, results are approximate, requires AMS2025
    out.lattice=[(9.1231573482, 0.0, 0.0), (3.6492629392999993, 4.4694160692, 0.0), (0.0, 0.0, 31.161091638)]
 
-.. figure:: PackMol_files/PackMol_38_1.png
+.. figure:: PackMol_files/PackMol_43_1.png
 
 Pack inside voids in crystals
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -520,7 +562,7 @@ Use the ``packmol_around`` function. You can decrease ``tolerance`` if you need 
    rotation = "-85x,5y,0z"
    plot_molecule(bulk_Al, rotation=rotation, radii=0.4);
 
-.. figure:: PackMol_files/PackMol_40_0.png
+.. figure:: PackMol_files/PackMol_45_0.png
 
 .. code:: ipython3
 
@@ -539,7 +581,7 @@ Use the ``packmol_around`` function. You can decrease ``tolerance`` if you need 
 
    178 atoms, density = 2.819 g/cm^3, box = 12.150, 12.150, 12.150, formula = Al108H50He20
 
-.. figure:: PackMol_files/PackMol_41_2.png
+.. figure:: PackMol_files/PackMol_46_1.png
 
 Bonds, atom properties (force field types, regions, …)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -576,14 +618,14 @@ The bonds and atom properties are easiest to see by printing the System block fo
 
    System
      Atoms
-                 O       4.4818150000       4.3185600000       1.6395410000 region=mol0,oxygen_atom
-                 H       3.8346900000       4.9531180000       1.2661180000 mass=2.014 region=mol0
-                 H       4.0434440000       3.6208640000       2.1736450000 region=mol0
-                 O       3.7963130000       0.9750030000       1.8915970000 region=mol0,oxygen_atom
-                 H       4.1332510000       1.3335420000       2.7394180000 mass=2.014 region=mol0
-                 H       4.4702070000       1.0263090000       1.1792410000 region=mol0
-                 N       1.0093870000       3.9724790000       4.6444900000 region=mol1
-                 N       1.3199650000       4.9559370000       4.2340370000 region=mol1
+                 O       3.7660310000       3.3983840000       4.3403080000 region=mol0,oxygen_atom
+                 H       4.5198280000       3.4632050000       4.9635810000 mass=2.014 region=mol0
+                 H       2.9157090000       3.6388090000       4.7685170000 region=mol0
+                 O       4.8762820000       2.0538520000       1.8072290000 region=mol0,oxygen_atom
+                 H       4.9701970000       1.4369680000       1.0512440000 mass=2.014 region=mol0
+                 H       4.8134060000       2.9880390000       1.5113300000 region=mol0
+                 N       1.6017160000       1.3744550000       4.9594910000 region=mol1
+                 N       1.0164760000       1.5473340000       4.0322770000 region=mol1
      End
      BondOrders
         1 3 1.0
@@ -613,14 +655,14 @@ By default, the ``packmol()`` function assigns regions called ``mol0``, ``mol1``
 
    System
      Atoms
-                 O       4.0230520000       3.6664210000       4.2979370000 region=oxygen_atom,water
-                 H       4.6240520000       3.2715530000       4.9640880000 mass=2.014 region=water
-                 H       3.9210990000       4.6346660000       4.4256980000 region=water
-                 O       1.5458110000       1.8150040000       4.1677380000 region=oxygen_atom,water
-                 H       1.0019260000       2.6163020000       4.0161170000 mass=2.014 region=water
-                 H       0.9981940000       1.0002620000       4.1907180000 region=water
-                 N       4.7501880000       4.9673150000       1.1041910000 region=nitrogen_molecule
-                 N       4.4631950000       3.9341100000       1.3909680000 region=nitrogen_molecule
+                 O       2.4367250000       2.2695530000       3.2750680000 region=oxygen_atom,water
+                 H       3.1954260000       1.7076790000       3.0113460000 mass=2.014 region=water
+                 H       1.7073630000       1.7399050000       3.6645780000 region=water
+                 O       3.2567700000       4.2231970000       2.1055050000 region=oxygen_atom,water
+                 H       4.0587100000       4.2010300000       2.6687790000 mass=2.014 region=water
+                 H       3.4814130000       4.2342850000       1.1496660000 region=water
+                 N       4.8122720000       2.0014530000       1.2233970000 region=nitrogen_molecule
+                 N       4.3551130000       1.0018270000       1.3779060000 region=nitrogen_molecule
      End
      BondOrders
         1 3 1.0
@@ -645,14 +687,14 @@ Below, we also set ``keep_atom_properties=False``, this will remove the previous
 
    System
      Atoms
-                 O       1.5208150000       4.5464630000       2.5588650000 region=mol0
-                 H       1.5813480000       3.5694350000       2.5075810000 region=mol0
-                 H       2.4077720000       4.9668790000       2.5866710000 region=mol0
-                 O       3.7314980000       3.8594470000       4.4000180000 region=mol0
-                 H       4.3015880000       3.2439230000       4.9069760000 region=mol0
-                 H       3.3540520000       4.5630450000       4.9715930000 region=mol0
-                 N       1.2527840000       4.9637720000       4.9289650000 region=mol1
-                 N       1.0108100000       3.8811300000       4.9670870000 region=mol1
+                 O       2.2716770000       3.4963920000       1.9122410000 region=mol0
+                 H       2.6197540000       3.3031500000       1.0164850000 region=mol0
+                 H       2.3066730000       4.4556610000       2.1191110000 region=mol0
+                 O       1.4051960000       2.0605200000       4.5106580000 region=mol0
+                 H       1.2668680000       2.5386790000       3.6662010000 region=mol0
+                 H       2.3414080000       2.1000140000       4.8041900000 region=mol0
+                 N       4.5455110000       1.7877730000       4.1794230000 region=mol1
+                 N       4.6157800000       0.9819850000       4.9396120000 region=mol1
      End
      BondOrders
         1 3 1.0
@@ -684,14 +726,14 @@ Below, we also set ``keep_atom_properties=False``, this will remove the previous
 
    System
      Atoms
-                 O       3.1436500000       4.4446300000       1.0926630000 region=water
-                 H       3.9471380000       5.0052900000       1.1234430000 region=water
-                 H       2.3367960000       4.9481120000       1.3370150000 region=water
-                 O       4.4531650000       2.6732110000       2.0755090000 region=water
-                 H       4.9975650000       3.4591950000       2.2916940000 region=water
-                 H       4.9312130000       2.0472880000       1.4890750000 region=water
-                 N       1.5441170000       1.0033440000       1.5265190000 region=nitrogen_molecule
-                 N       1.2972190000       1.9526710000       1.0069620000 region=nitrogen_molecule
+                 O       2.5824720000       2.1245010000       4.8366390000 region=water
+                 H       2.9968610000       1.2389120000       4.9065860000 region=water
+                 H       3.2481930000       2.8446730000       4.8854560000 region=water
+                 O       1.9064530000       4.6118440000       4.9794740000 region=water
+                 H       1.1072780000       4.0443700000       4.9663660000 region=water
+                 H       2.0509790000       5.0599500000       4.1177730000 region=water
+                 N       1.4646800000       3.9945190000       1.4249570000 region=nitrogen_molecule
+                 N       1.0002070000       4.9091770000       1.0009450000 region=nitrogen_molecule
      End
      Lattice
             5.9692549746     0.0000000000     0.0000000000

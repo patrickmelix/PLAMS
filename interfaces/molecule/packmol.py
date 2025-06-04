@@ -452,8 +452,8 @@ def packmol(
     box_bounds: list of float (length 6)
         The box in which to pack the molecules. The box is orthorhombic and should be specified as [xmin, ymin, zmin, xmax, ymax, zmax]. The minimum values should all be set to 0, i.e. set box_bounds=[0., 0., 0., xmax, ymax, zmax]. If not specified, a cubic box of appropriate dimensions will be used.
 
-    n_molecules : int or list of int
-        The (exact) number of molecules for each component (in the same order as ``molecules``). Cannot be combined with ``mole_fractions``.
+    n_molecules : int, or list of int, or list of int with exactly one value of None
+        The (exact) number of molecules for each component (in the same order as ``molecules``). Cannot be combined with ``mole_fractions``. Exactly one value may be given as None, in which case a suitable number will be determined.
 
     sphere: bool
         Whether the molecules should be packed in a sphere. The radius is determined by getting the volume from the box bounds!
@@ -505,6 +505,8 @@ def packmol(
 
     * ``n_molecules``, ``box_bounds``: Create a mixture with the given number of molecules inside the given box
 
+    * ``n_molecules=[1, None]``, ``box_bounds=[0, 0, 0, 10, 10, 10]``, ``density=1.0``: Fill the box with 1 solute and an automatically determined number of solvent molecules to match the given total density. To specify only the solvent density, see ``packmol_around``.
+
     Example:
 
     .. code-block:: python
@@ -523,8 +525,6 @@ def packmol(
     # Let's try to check that the specified combination makes sense ...
     if n_atoms is None and n_molecules is None and density is None:
         raise ValueError("Illegal combination of arguments: must specify either n_atoms, n_molecules or density")
-    if n_atoms is not None and n_molecules is not None:
-        raise ValueError("Illegal combination of arguments: n_atoms and n_molecules are mutually exclusive")
     if n_atoms is not None and box_bounds is not None and density is not None:
         raise ValueError("Illegal combination of arguments: n_atoms, box_bounds and density specified at the same time")
     # Detect the special case when 1 molecule is not specified e.g. the solvent for a few specified solute molecules
@@ -533,10 +533,15 @@ def packmol(
         raise ValueError(
             "Illegal combination of arguments: n_molecules, box_bounds and density specified at the same time. This is not permitted unless one of n_molecules is None."
         )
-    if one_n_molecules_missing and (box_bounds is None or density is None):
-        raise ValueError(
-            "Illegal combination of arguments: n_molecules cannot have a None value if box_bounds and density are not specified."
-        )
+    if one_n_molecules_missing:
+        constraint_count = sum(int(x is not None) for x in (box_bounds, density, n_atoms))
+        if constraint_count != 2:
+            raise ValueError(
+                "Illegal combination of arguments: the n_molecules list can contain a None value only "
+                "if exactly two of box_bounds, density, and n_atoms are specified. "
+                f"Got: {n_molecules=}, {n_atoms=}, {box_bounds=}, {density=}"
+            )
+
     if mole_fractions is not None and n_molecules is not None:
         raise ValueError("Illegal combination of arguments: mole_fractions and n_molecules are mutually exclusive")
     if fix_first:
@@ -571,6 +576,23 @@ def packmol(
             raise ValueError("Illegal combination of arguments: mole_fractions is a list, when molecules is not")
         if region_names is not None and isinstance(region_names, list):
             raise ValueError("Illegal combination of arguments: region_names is a list, when molecules is not")
+
+    if n_atoms is not None and n_molecules is not None and not one_n_molecules_missing:
+        raise ValueError(
+            "Illegal combination of arguments: n_atoms and n_molecules are mutually exclusive, "
+            f"unless exactly one of the n_molecules is None. got: {n_atoms=}, {n_molecules=}"
+        )
+    if n_atoms is not None and one_n_molecules_missing:
+        # n_molecules guaranteed to be list, molecules guaranteed to be list
+        assert isinstance(n_molecules, list)
+        current_n_atoms = sum(len(mol) * coeff for mol, coeff in zip(molecules, n_molecules) if coeff is not None)
+        none_idx = n_molecules.index(None)
+        n_molecules = n_molecules.copy()  # do not modify the list passed in by the user
+        n_molecules[none_idx] = int(np.round(n_atoms - current_n_atoms) / len(molecules[none_idx]))
+        # non-negative values in n_molecules are asserted further down
+        # we have fixed the n_molecules list to have only integers, can pretend it was always the case
+        one_n_molecules_missing = False
+
     if box_bounds is not None and (
         not isinstance(box_bounds, list) or len(box_bounds) != 6 or any(x is None for x in box_bounds)
     ):
