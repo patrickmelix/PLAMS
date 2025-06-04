@@ -5,7 +5,7 @@
 
 import sys
 import multiprocessing
-from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init, JobAnalysis, run_directory
+from scm.plams import JobRunner, config, from_smiles, Settings, AMSJob, init, JobAnalysis, jobs_in_directory
 import numpy as np
 
 # this line is not required in AMS2025+
@@ -50,7 +50,7 @@ results = {}
 jobs = []
 for bas in basis:
     for name, molecule in molecules.items():
-        with run_directory(name):
+        with jobs_in_directory(name):
             settings = common_settings.copy()
             settings.input.adf.Basis.Type = bas
             job = AMSJob(name=f"{name}_{bas}", molecule=molecule, settings=settings)
