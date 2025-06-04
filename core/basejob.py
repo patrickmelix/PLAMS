@@ -344,15 +344,15 @@ class Job(ABC):
         """Log the status of this instance on a chosen log *level*. The message is uppercased to clearly stand out among other log entries."""
         log("JOB {} {}".format(self._full_name(), self.status.upper()), level)
 
-    def _full_name(self, rundir: Optional[Union[str, os.PathLike]] = None) -> str:
+    def _full_name(self, rel_dir: Optional[Union[str, os.PathLike]] = None) -> str:
         """
-        Get the full name of the job, which will be of the form: ``<rundir>/<parent.name>/<name>``
+        Get the full name of the job, which will be of the form: ``<rel_dir>/<parent.name>/<name>``
         """
         path = Path(self.name)
         if self.parent:
-            path = self.parent._full_name(rundir) / path
-        elif rundir:
-            path = rundir / path
+            path = self.parent._full_name(rel_dir) / path
+        elif rel_dir:
+            path = rel_dir / path
         return str(path.as_posix())
 
 

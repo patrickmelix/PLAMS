@@ -16,7 +16,7 @@ from scm.plams.core.basejob import SingleJob, MultiJob
 from scm.plams.core.errors import PlamsError, FileError, ResultsError
 from scm.plams.core.jobrunner import JobRunner
 from scm.plams.core.jobmanager import JobManager
-from scm.plams.core.functions import add_to_instance, run_directory
+from scm.plams.core.functions import add_to_instance, jobs_in_directory
 from scm.plams.core.enums import JobStatus
 
 LogEntry = namedtuple("LogEntry", ["method", "args", "kwargs", "start", "end"])
@@ -360,11 +360,11 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
 
         # When run jobs in subdir
         jobs = []
-        with run_directory("results"):
+        with jobs_in_directory("results"):
             for outer in ["A", "B", "C"]:
-                with run_directory(outer):
+                with jobs_in_directory(outer):
                     for inner1 in ["X", "Y", "Z"]:
-                        with run_directory(inner1):
+                        with jobs_in_directory(inner1):
                             for inner2 in range(2):
                                 job = DummySingleJob(name=f"{outer}_{inner1}_{inner2}")
                                 job.run(runner)
@@ -712,9 +712,9 @@ class TestMultiJob:
 
         # When run multi jobs in subdir
         outer_multi_jobs = []
-        with run_directory("results"):
+        with jobs_in_directory("results"):
             for mj in ["A", "B", "C"]:
-                with run_directory(mj):
+                with jobs_in_directory(mj):
                     jobs = [[DummySingleJob(name=f"dummy_{i}_{j}") for i in range(3)] for j in range(3)]
                     inner_multi_jobs = [MultiJob(children=js, name=f"multi_inner_{i}") for i, js in enumerate(jobs)]
                     multi_job = MultiJob(children=inner_multi_jobs, name=f"multi_outer_{mj}")

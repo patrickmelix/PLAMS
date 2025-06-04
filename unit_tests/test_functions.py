@@ -20,8 +20,8 @@ from scm.plams.core.functions import (
     log,
     get_config,
     config_context,
-    run_directory,
-    _get_rundir,
+    jobs_in_directory,
+    _get_dir_for_jobs,
 )
 from scm.plams.core.settings import Settings
 from scm.plams.core.errors import MissingOptionalPackageError
@@ -920,41 +920,41 @@ class TestRunDirectory:
     def test_run_directory_sets_rundir_for_context(self, config):
         workdir = Path(config.default_jobmanager.workdir)
 
-        assert _get_rundir() is None
+        assert _get_dir_for_jobs() is None
 
-        with run_directory("foo") as outer:
-            assert _get_rundir() == Path("foo")
+        with jobs_in_directory("foo") as outer:
+            assert _get_dir_for_jobs() == Path("foo")
             assert outer == workdir / "foo"
 
-            with run_directory("bar") as inner1:
-                assert _get_rundir() == Path("foo/bar")
+            with jobs_in_directory("bar") as inner1:
+                assert _get_dir_for_jobs() == Path("foo/bar")
                 assert inner1 == workdir / "foo" / "bar"
 
-            with run_directory("fizz/buzz") as inner2:
-                assert _get_rundir() == Path("foo/fizz/buzz")
+            with jobs_in_directory("fizz/buzz") as inner2:
+                assert _get_dir_for_jobs() == Path("foo/fizz/buzz")
                 assert inner2 == workdir / "foo" / "fizz" / "buzz"
 
-            with run_directory("../bar/fizz/buzz") as inner2:
-                assert _get_rundir() == Path("foo/../bar/fizz/buzz")
+            with jobs_in_directory("../bar/fizz/buzz") as inner2:
+                assert _get_dir_for_jobs() == Path("foo/../bar/fizz/buzz")
                 assert inner2 == workdir / "bar" / "fizz" / "buzz"
 
-        with run_directory(Path("bar")) as outer:
+        with jobs_in_directory(Path("bar")) as outer:
 
-            with run_directory(Path("fizz/buzz")) as inner:
-                assert _get_rundir() == Path("bar/fizz/buzz")
+            with jobs_in_directory(Path("fizz/buzz")) as inner:
+                assert _get_dir_for_jobs() == Path("bar/fizz/buzz")
                 assert inner == workdir / "bar" / "fizz" / "buzz"
 
-            assert _get_rundir() == Path("bar")
+            assert _get_dir_for_jobs() == Path("bar")
             assert outer == workdir / "bar"
 
-        assert _get_rundir() is None
+        assert _get_dir_for_jobs() is None
 
     def test_use_subdir_with_context_aware_thread(self):
         errors = []
 
         def verify_subdir(expected):
             try:
-                assert _get_rundir() == expected
+                assert _get_dir_for_jobs() == expected
             except Exception as e:
                 errors.append(e)
 
@@ -963,11 +963,11 @@ class TestRunDirectory:
             t.start()
             t.join()
 
-        with run_directory("foo"):
+        with jobs_in_directory("foo"):
             in_thread(lambda: verify_subdir(Path("foo")))
-            with run_directory("bar"):
+            with jobs_in_directory("bar"):
                 in_thread(lambda: verify_subdir(Path("foo/bar")))
-        assert _get_rundir() is None
+        assert _get_dir_for_jobs() is None
 
         if errors:
             raise errors[0]

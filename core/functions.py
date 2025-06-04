@@ -93,7 +93,7 @@ __all__ = [
     "config_context",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
-    "run_directory",
+    "jobs_in_directory",
 ]
 
 # ===========================================================================
@@ -634,27 +634,33 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
 
 # ===========================================================================
 
-_rundir: ContextVar[Optional[Path]] = ContextVar("_rundir", default=None)
+_dir_for_jobs: ContextVar[Optional[Path]] = ContextVar("_dir_for_jobs", default=None)
 
 
 @contextmanager
-def run_directory(path: Union[str, os.PathLike]) -> Generator[Path, None, None]:
+def jobs_in_directory(path: Union[str, os.PathLike]) -> Generator[Path, None, None]:
     """
-    Enter a context which uses the given run directory within the :attr:`~scm.plams.core.jobmanager.JobManager.workdir` for new Jobs.
+    Enter a context which uses a directory with the given path when running new Jobs.
+    The provided path is always relative to the :attr:`~scm.plams.core.jobmanager.JobManager.workdir`.
 
-    A |Job| run within this context will have its input and results files stored within the job directory in this run directory.
-    Note that for a |MultiJob|, this will apply to the job directory of the top-most parent |MultiJob|.
+    A |Job| run within this context will have its input and results files stored within the job directory in this directory.
 
-    The run directory is not created until a job is run in that context.
+    Note that:
+        * For a |MultiJob|, this will apply to the job directory of the top-most parent |MultiJob|
+        * The directory is not created until a job is run in this context
+        * Heriarchies of directories can be created by nesting a context within another
+        * The absolute path of the directory is returned on entering the context, which assumes the default |JobManager| is used. If another job manager is used within the context, the actual directory will be relative to its ``workdir``.
 
     .. code:: python
-         >>> with run_directory("GeometryOptimization"):
-         >>>     with run_directory("DFTB"):
+         >>> with jobs_in_directory("GeometryOptimization") as go_dir:
+         >>>     with jobs_in_directory("DFTB"):
          >>>        job1.run()
-         >>>     with run_directory("ML/M3GNet"):
+         >>>     with jobs_in_directory("ML/M3GNet"):
          >>>        job2.run()
+         >>>     print(go_dir)
          >>>     print(job1.path)
          >>>     print(job2.path)
+            path/plams_workdir/GeometryOptimization
             path/plams_workdir/GeometryOptimization/DFTB/job1
             path/plams_workdir/GeometryOptimization/ML/M3GNet/job2
 
@@ -663,23 +669,24 @@ def run_directory(path: Union[str, os.PathLike]) -> Generator[Path, None, None]:
         To copy over the parent thread context to the new thread, instead use :class:`~scm.plams.core.threading_utils.ContextAwareThread`
 
     :param path: path of the run directory relative to the :attr:`~scm.plams.core.jobmanager.JobManager.workdir`
-    :returns: absolute path of the run directory, assuming the default |JobManager| is used
+    :returns: absolute path of the directory, assuming the default |JobManager| is used
     """
-    current_rundir = _get_rundir()
-    rundir = Path(path)
-    if current_rundir:
-        rundir = current_rundir / rundir
-    token = _rundir.set(rundir)
+    current_dir = _get_dir_for_jobs()
+    rel_dir = Path(path)
+    if current_dir:
+        rel_dir = current_dir / rel_dir
+    token = _dir_for_jobs.set(rel_dir)
     try:
-        yield get_config().default_jobmanager.current_rundir
+        yield get_config().default_jobmanager.current_dir_for_jobs
     finally:
-        _rundir.reset(token)
+        _dir_for_jobs.reset(token)
 
 
-def _get_rundir() -> Optional[Path]:
+def _get_dir_for_jobs() -> Optional[Path]:
     """
-    Gets the current run directory, if set. This is assumed to be relative the ``workdir`` of the |JobManager|.
+    Gets the current directory which jobs will be run in, if set.
+    This is assumed to be relative the ``workdir`` of the |JobManager|.
 
-    :return: relative path of current run directory, or ``None`` if not set
+    :return: relative path of current directory in which to run jobs, or ``None`` if not set
     """
-    return _rundir.get()
+    return _dir_for_jobs.get()

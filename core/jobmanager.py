@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Optional, List, Dict
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, PlamsError
-from scm.plams.core.functions import get_logger, log, config, _get_rundir
+from scm.plams.core.functions import get_logger, log, config, _get_dir_for_jobs
 from scm.plams.core.logging import Logger
 from scm.plams.core.formatters import JobCSVFormatter
 
@@ -95,7 +95,7 @@ class JobManager:
         """
         Absolute path to the |JobManager| working directory.
 
-        This is the top-level directory which contains all subdirectories and job directories.
+        This is the top-level directory which contains subdirectories and job directories.
         """
         # Create the working directory only when first required
         # Avoids creating working directory only for e.g. load_job
@@ -106,15 +106,15 @@ class JobManager:
         return str(self._workdir.resolve())
 
     @property
-    def current_rundir(self) -> Path:
+    def current_dir_for_jobs(self) -> Path:
         """
-        Absolute path to the current run directory.
+        Absolute path to the current directory where new jobs will be run.
 
         This is the directory which will directly contain the job directories for any newly run jobs.
         It is located within the ``workdir``.
         """
-        rundir = _get_rundir()
-        path = self._workdir / rundir if rundir else self._workdir
+        rel_dir = _get_dir_for_jobs()
+        path = self._workdir / rel_dir if rel_dir else self._workdir
         return path.resolve()
 
     @property
@@ -214,23 +214,23 @@ class JobManager:
             log("Registering job {}".format(job.name), 7)
             job.jobmanager = self
 
-            # get current run directory and create it if required
-            # run directory should be used unless job is within a multi-job (as then the parent job directory should be used)
-            rundir = self.current_rundir
-            rel_rundir: Optional[Path] = rundir.relative_to(self.workdir)
-            rel_rundir = rel_rundir if rel_rundir != Path(".") else None
-            if rel_rundir and not job.parent:
-                os.makedirs(rundir, exist_ok=True)
+            # get current directory for jobs and create it if required
+            # this directory should be used unless job is within a multi-job (as then the parent job directory should be used)
+            dir_for_jobs = self.current_dir_for_jobs
+            rel_dir_for_jobs: Optional[Path] = dir_for_jobs.relative_to(self.workdir)
+            rel_dir_for_jobs = rel_dir_for_jobs if rel_dir_for_jobs != Path(".") else None
+            if rel_dir_for_jobs and not job.parent:
+                os.makedirs(dir_for_jobs, exist_ok=True)
 
             # If the name ends with the counting suffix, e.g. ".002", remove it.
             # The suffix is just not part of a legitimate job name and users will have to live with it potentially changing.
-            orgfname = job._full_name(rel_rundir)
+            orgfname = job._full_name(rel_dir_for_jobs)
             job.name = re.sub(r"(\.\d{%i})+$" % (self.settings.counter_len), "", job.name)
-            fname = job._full_name(rel_rundir)
+            fname = job._full_name(rel_dir_for_jobs)
             if fname in self.names:
                 self.names[fname] += 1
                 job.name += "." + str(self.names[fname]).zfill(self.settings.counter_len)
-                fname = job._full_name(rel_rundir)
+                fname = job._full_name(rel_dir_for_jobs)
             else:
                 self.names[fname] = 1
             if fname != orgfname:
@@ -240,7 +240,7 @@ class JobManager:
                 if job.parent:
                     job.path = opj(job.parent.path, job.name)
                 else:
-                    job.path = opj(rundir, job.name)
+                    job.path = opj(dir_for_jobs, job.name)
             os.mkdir(job.path)
 
             self.jobs.append(job)
