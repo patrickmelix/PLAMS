@@ -9,13 +9,14 @@ from io import StringIO
 import csv
 from functools import wraps
 import time
+from pathlib import Path
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob, MultiJob
 from scm.plams.core.errors import PlamsError, FileError, ResultsError
 from scm.plams.core.jobrunner import JobRunner
 from scm.plams.core.jobmanager import JobManager
-from scm.plams.core.functions import add_to_instance
+from scm.plams.core.functions import add_to_instance, jobs_in_directory
 from scm.plams.core.enums import JobStatus
 
 LogEntry = namedtuple("LogEntry", ["method", "args", "kwargs", "start", "end"])
@@ -353,6 +354,29 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         assert "RuntimeError" in job1.get_errormsg()
         assert job2.get_errormsg() is None
 
+    def test_run_multiple_independent_jobs_with_use_subdir_in_parallel(self, config):
+        # Given parallel job runner
+        runner = JobRunner(parallel=True, maxjobs=4)
+
+        # When run jobs in subdir
+        jobs = []
+        with jobs_in_directory("results"):
+            for outer in ["A", "B", "C"]:
+                with jobs_in_directory(outer):
+                    for inner1 in ["X", "Y", "Z"]:
+                        with jobs_in_directory(inner1):
+                            for inner2 in range(2):
+                                job = DummySingleJob(name=f"{outer}_{inner1}_{inner2}")
+                                job.run(runner)
+                                jobs.append(job)
+
+        # Then jobs are located in the correct subdirectory
+        assert len(jobs) == 18
+        assert all(j.ok() for j in jobs)
+        for j in jobs:
+            o, i1, i2 = j.name.split("_")
+            assert Path(j.path) == Path(config.default_jobmanager.workdir, "results", o, i1, j.name)
+
     def test_ok_waits_on_results_and_checks_status(self):
         # Given job and a copy
         job1 = DummySingleJob(wait=0.1)
@@ -503,6 +527,14 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
                     re.DOTALL,
                 )
         logger.close()
+
+    def test_full_name(self):
+        job = DummySingleJob(name="dummy_job")
+        job.run()
+
+        assert job.ok()
+        assert job._full_name() == "dummy_job"
+        assert job._full_name("some/rundir") == "some/rundir/dummy_job"
 
 
 class TestMultiJob:
@@ -673,3 +705,54 @@ class TestMultiJob:
             JobStatus.CRASHED,
             JobStatus.SUCCESSFUL,
         ]
+
+    def test_run_multijobs_with_use_subdir_in_parallel(self, config):
+        # Given parallel job runner
+        runner = JobRunner(parallel=True, maxjobs=4)
+
+        # When run multi jobs in subdir
+        outer_multi_jobs = []
+        with jobs_in_directory("results"):
+            for mj in ["A", "B", "C"]:
+                with jobs_in_directory(mj):
+                    jobs = [[DummySingleJob(name=f"dummy_{i}_{j}") for i in range(3)] for j in range(3)]
+                    inner_multi_jobs = [MultiJob(children=js, name=f"multi_inner_{i}") for i, js in enumerate(jobs)]
+                    multi_job = MultiJob(children=inner_multi_jobs, name=f"multi_outer_{mj}")
+                    multi_job.run(runner=runner)
+                    outer_multi_jobs.append(multi_job)
+
+        # Then top-level multi-jobs are located in the correct subdirectory
+        workdir = config.default_jobmanager.workdir
+        for mj_outer in outer_multi_jobs:
+            assert mj_outer.ok()
+
+            outer = mj_outer.name.split("_")[-1]
+            assert Path(mj_outer.path) == Path(workdir, "results", outer, mj_outer.name)
+
+            for mj_inner in mj_outer.children:
+                assert mj_inner.ok()
+                assert Path(mj_inner.path) == Path(
+                    workdir,
+                    "results",
+                    outer,
+                    mj_outer.name,
+                    mj_inner.name,
+                )
+
+                for j in mj_inner.children:
+                    assert j.ok()
+                    assert Path(j.path) == Path(workdir, "results", outer, mj_outer.name, mj_inner.name, j.name)
+
+    def test_full_name(self):
+        job = DummySingleJob(name="dummy_job")
+        inner_multi_job = MultiJob(children=[job], name="multi_inner_job")
+        multi_job = MultiJob(children=[inner_multi_job], name="multi_outer")
+        multi_job.run()
+
+        assert multi_job.ok()
+        assert multi_job._full_name() == "multi_outer"
+        assert multi_job._full_name("some/rundir") == "some/rundir/multi_outer"
+        assert inner_multi_job._full_name() == "multi_outer/multi_inner_job"
+        assert inner_multi_job._full_name("some/rundir") == "some/rundir/multi_outer/multi_inner_job"
+        assert job._full_name() == "multi_outer/multi_inner_job/dummy_job"
+        assert job._full_name("some/rundir") == "some/rundir/multi_outer/multi_inner_job/dummy_job"

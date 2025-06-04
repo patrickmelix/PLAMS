@@ -3,12 +3,13 @@ import re
 import shutil
 import threading
 from os.path import join as opj
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional, List, Dict
 
 from scm.plams.core.basejob import MultiJob
 from scm.plams.core.enums import JobStatus
 from scm.plams.core.errors import FileError, PlamsError
-from scm.plams.core.functions import get_logger, log, config
+from scm.plams.core.functions import get_logger, log, config, _get_dir_for_jobs
 from scm.plams.core.logging import Logger
 from scm.plams.core.formatters import JobCSVFormatter
 
@@ -83,16 +84,18 @@ class JobManager:
                 self.foldername = basename + "." + str(n).zfill(3)
                 n += 1
 
-        self._workdir = opj(self.path, self.foldername)
+        self._workdir = Path(self.path, self.foldername)
         self.logfile = os.environ["SCM_LOGFILE"] if ("SCM_LOGFILE" in os.environ) else opj(self._workdir, "logfile")
         self.input = opj(self._workdir, "input")
-        self._create_workdir = not (use_existing_folder and os.path.exists(self._workdir))
+        self._create_workdir = not (use_existing_folder and self._workdir.exists())
         self._job_logger = job_logger
 
     @property
     def workdir(self) -> str:
         """
-        Absolute path to the working directory
+        Absolute path to the |JobManager| working directory.
+
+        This is the top-level directory which contains subdirectories and job directories.
         """
         # Create the working directory only when first required
         # Avoids creating working directory only for e.g. load_job
@@ -100,7 +103,19 @@ class JobManager:
             if self._create_workdir:
                 os.mkdir(self._workdir)
                 self._create_workdir = False
-        return self._workdir
+        return str(self._workdir.resolve())
+
+    @property
+    def current_dir_for_jobs(self) -> Path:
+        """
+        Absolute path to the current directory where new jobs will be run.
+
+        This is the directory which will directly contain the job directories for any newly run jobs.
+        It is located within the ``workdir``.
+        """
+        rel_dir = _get_dir_for_jobs()
+        path = self._workdir / rel_dir if rel_dir else self._workdir
+        return path.resolve()
 
     @property
     def job_logger(self) -> Logger:
@@ -199,15 +214,23 @@ class JobManager:
             log("Registering job {}".format(job.name), 7)
             job.jobmanager = self
 
+            # get current directory for jobs and create it if required
+            # this directory should be used unless job is within a multi-job (as then the parent job directory should be used)
+            dir_for_jobs = self.current_dir_for_jobs
+            rel_dir_for_jobs: Optional[Path] = dir_for_jobs.relative_to(self.workdir)
+            rel_dir_for_jobs = rel_dir_for_jobs if rel_dir_for_jobs != Path(".") else None
+            if rel_dir_for_jobs and not job.parent:
+                os.makedirs(dir_for_jobs, exist_ok=True)
+
             # If the name ends with the counting suffix, e.g. ".002", remove it.
             # The suffix is just not part of a legitimate job name and users will have to live with it potentially changing.
-            orgfname = job._full_name()
+            orgfname = job._full_name(rel_dir_for_jobs)
             job.name = re.sub(r"(\.\d{%i})+$" % (self.settings.counter_len), "", job.name)
-            fname = job._full_name()
+            fname = job._full_name(rel_dir_for_jobs)
             if fname in self.names:
                 self.names[fname] += 1
                 job.name += "." + str(self.names[fname]).zfill(self.settings.counter_len)
-                fname = job._full_name()
+                fname = job._full_name(rel_dir_for_jobs)
             else:
                 self.names[fname] = 1
             if fname != orgfname:
@@ -217,7 +240,7 @@ class JobManager:
                 if job.parent:
                     job.path = opj(job.parent.path, job.name)
                 else:
-                    job.path = opj(self.workdir, job.name)
+                    job.path = opj(dir_for_jobs, job.name)
             os.mkdir(job.path)
 
             self.jobs.append(job)
