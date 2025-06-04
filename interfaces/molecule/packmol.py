@@ -588,7 +588,10 @@ def packmol(
         current_n_atoms = sum(len(mol) * coeff for mol, coeff in zip(molecules, n_molecules) if coeff is not None)
         none_idx = n_molecules.index(None)
         n_molecules = n_molecules.copy()  # do not modify the list passed in by the user
-        n_molecules[none_idx] = int(np.round(n_atoms - current_n_atoms) / len(molecules[none_idx]))
+        if len(molecules[none_idx]) == 0:
+            n_molecules[none_idx] = 0
+        else:
+            n_molecules[none_idx] = int(np.round(n_atoms - current_n_atoms) / len(molecules[none_idx]))
         # non-negative values in n_molecules are asserted further down
         # we have fixed the n_molecules list to have only integers, can pretend it was always the case
         one_n_molecules_missing = False
