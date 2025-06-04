@@ -320,7 +320,7 @@ This feature can be used if exactly **one** of the elements of the ``n_molecules
 
    if AMS2026:
        print(
-           "NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solute molecules"
+           "NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solvent molecules"
        )
        out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], density=1.029, box_bounds=[0, 0, 0, 19, 19, 19])
        printsummary(out)
@@ -329,7 +329,7 @@ This feature can be used if exactly **one** of the elements of the ``n_molecules
 
 ::
 
-   NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solute molecules
+   NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solvent molecules
    670 atoms, density = 1.030 g/cm^3, box = 19.000, 19.000, 19.000, formula = Cl5H440Na5O220
 
 .. figure:: PackMol_files/PackMol_27_1.png

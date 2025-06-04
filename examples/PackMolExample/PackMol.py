@@ -190,7 +190,7 @@ chloride = from_smiles("[Cl-]")
 
 if AMS2026:
     print(
-        "NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solute molecules"
+        "NaCl solution from approximate density (in g/cm^3) and box bounds, and auto-determined number of solvent molecules"
     )
     out = packmol([sodium, chloride, water], n_molecules=[5, 5, None], density=1.029, box_bounds=[0, 0, 0, 19, 19, 19])
     printsummary(out)
