@@ -364,16 +364,22 @@ def _guess_molecular_volume(molecule: Union[Molecule, "ChemicalSystem"]) -> floa
     This volume is calculated using a very approximate method and is NOT meant to be accurate.
     """
     sum_atomic_volumes = 0
+    metallic_elements = {k: PeriodicTable.get_metallic(k) for k in set([a.symbol for a in molecule])}
     for at in molecule:
         radius = PeriodicTable.get_radius(at.symbol)
-        if PeriodicTable.get_metallic(at.symbol):
+        if metallic_elements[at.symbol]:
             radius *= 0.6
         sum_atomic_volumes += (4 / 3) * np.pi * radius**3  # ang^3
 
     # Note this really is a rough estimation based on very little
     # if you come up with a better quick estimation go ahead and change it
-    bond_volume_correction = 0.16 * (len(molecule.bonds) / len(molecule.atoms) if molecule.atoms else 1)
+    bond_volume_correction = 0.16 * (
+        len(molecule.bonds) / len(molecule.atoms) if (molecule.bonds and molecule.atoms) else 1
+    )
     estimated_volume = 2.2 * sum_atomic_volumes / bond_volume_correction
+
+    if all(metallic_elements.values()) and not any(el in metallic_elements.keys() for el in ["Si", "Sb", "Ge", "Po"]):
+        estimated_volume /= 2
 
     return estimated_volume
 
