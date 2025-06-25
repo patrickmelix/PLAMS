@@ -119,7 +119,7 @@ class ADFFragmentResults(Results):
             beta = self.job.full.results.readrkf("NOCV", "NOCV_eigenvalues_beta", file="adf")
             tpl = (
                 [float(x) for x in alpha],
-                [float(x) for x in beta] #  make mypy happy by ensuring return is tuple of list of floats
+                [float(x) for x in beta],  #  make mypy happy by ensuring return is tuple of list of floats
             )
             return tpl
         else:
@@ -178,7 +178,7 @@ class ADFFragmentResults(Results):
             )
         else:
             raise KeyError("NOCV orbital interaction not found in rkf file")
-        energies: List[float] | Tuple[List[float], List[float]] #  make mypy happy
+        energies: List[float] | Tuple[List[float], List[float]]  #  make mypy happy
         if isinstance(oi, tuple):
             energies = (_calc_energies(tpl[0]), _calc_energies(tpl[1]))
         elif isinstance(oi, list):
@@ -198,8 +198,8 @@ class ADFFragmentJob(MultiJob):
         fragment1_opt: Optional[Molecule] = None,
         fragment2_opt: Optional[Molecule] = None,
         full_settings: Optional[Settings] = None,
-        frag1_settings: Optional[Settings]  = None,
-        frag2_settings: Optional[Settings]  = None,
+        frag1_settings: Optional[Settings] = None,
+        frag2_settings: Optional[Settings] = None,
         **kwargs,
     ):
         """Create an ADFFragmentJob with the given fragments.

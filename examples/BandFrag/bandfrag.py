@@ -17,11 +17,11 @@ adsorbate = mol.copy()
 del adsorbate[[i for i in range(len(symbols)) if symbols[i] == "Au"]]
 
 # optional: load the optimized molecules
-#from ase import io
-#surface_opt = io.read("surface_opt.xyz")
-#adsorbate_opt = io.read("adsorbate_opt.xyz")
-#assert len(surface_opt) == len(surface)
-#assert len(adsorbate_opt) == len(adsorbate)
+# from ase import io
+# surface_opt = io.read("surface_opt.xyz")
+# adsorbate_opt = io.read("adsorbate_opt.xyz")
+# assert len(surface_opt) == len(surface)
+# assert len(adsorbate_opt) == len(adsorbate)
 
 # settings for job
 base_settings = Settings()
@@ -44,8 +44,8 @@ eda_job = BANDFragmentJob(
     fragment2=fromASE(adsorbate),
     settings=base_settings,
     full_settings=eda_settings,
-#    fragment1_opt=fromASE(surface_opt),
-#    fragment2_opt=fromASE(adsorbate_opt),
+    #    fragment1_opt=fromASE(surface_opt),
+    #    fragment2_opt=fromASE(adsorbate_opt),
 )
 
 results = eda_job.run()
