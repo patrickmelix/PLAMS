@@ -23,10 +23,7 @@ class ADFFragmentResults(Results):
         Overwriting the method of |MultiJob| because it only checks if the job
         finished, not how it finished.
         """
-        for job in self.job.children:
-            if not job.check():
-                return False
-        return True
+        return all(job.check() for job in self.job.children)
 
     def get_properties(self):
         """Redirect to |AMSResults| of the full calculation."""
@@ -196,13 +193,13 @@ class ADFFragmentJob(MultiJob):
 
     def __init__(
         self,
-        fragment1: Molecule = None,
-        fragment2: Molecule = None,
-        fragment1_opt: Molecule = None,
-        fragment2_opt: Molecule = None,
-        full_settings: Settings = None,
-        frag1_settings: Settings = None,
-        frag2_settings: Settings = None,
+        fragment1: Optional[Molecule] = None,
+        fragment2: Optional[Molecule] = None,
+        fragment1_opt: Optional[Molecule] = None,
+        fragment2_opt: Optional[Molecule] = None,
+        full_settings: Optional[Settings] = None,
+        frag1_settings: Optional[Settings]  = None,
+        frag2_settings: Optional[Settings]  = None,
         **kwargs,
     ):
         """Create an ADFFragmentJob with the given fragments.

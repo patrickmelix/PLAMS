@@ -3,7 +3,7 @@
 .. _adf-fragment-recipe:
 
 ADF fragment job
---------------------
+================
 .. currentmodule:: scm.plams.recipes.adffragment
 
 In this module a dedicated job type for ADF fragment analysis is defined.
@@ -19,8 +19,7 @@ The dedicated |Results| subclass for ``ADFFragmentJob`` does not provide too muc
 It simply redirects the usual |AMSResults| methods to the results of the full system calculation.
 
 
-Example
-~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. literalinclude:: ../../../../recipes/adffragment.py
 
 .. include:: ADFFrag.common_header.rst
@@ -29,7 +28,7 @@ Example
 
 
 API
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 .. autoclass:: ADFFragmentJob()
 .. autoclass:: ADFFragmentResults()
