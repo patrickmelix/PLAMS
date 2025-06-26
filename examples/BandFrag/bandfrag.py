@@ -3,9 +3,10 @@ from scm.plams import fromASE
 from scm.plams.recipes.bandfragment import BANDFragmentJob
 
 # build the surface
+from ase import Atoms
 from ase.build import fcc111, add_adsorbate
 
-mol = fcc111("Au", size=(2, 2, 3))
+mol = fcc111("Au", size=(4, 4, 3))
 add_adsorbate(mol, "H", 1.5, "ontop")
 mol.center(vacuum=10.0, axis=2)
 
@@ -26,12 +27,12 @@ del adsorbate[[i for i in range(len(symbols)) if symbols[i] == "Au"]]
 # settings for job
 base_settings = Settings()
 base_settings.input.ams.task = "SinglePoint"
-base_settings.input.band.basis.type = "TZP"
-base_settings.input.band.basis.core = "Medium"
+base_settings.input.band.basis.type = "SZ"
+base_settings.input.band.basis.core = "Large"
 base_settings.input.band.dos.calcdos = "No"
-base_settings.input.band.kspace.regular.numberofpoints = "5 5"
-base_settings.input.band.beckegrid.quality = "Good"
-base_settings.input.band.zlmfit.quality = "Good"
+base_settings.input.band.kspace.regular.numberofpoints = "3 3"
+base_settings.input.band.beckegrid.quality = "Basic"
+base_settings.input.band.zlmfit.quality = "Basic"
 base_settings.input.band.usesymmetry = False
 base_settings.input.band.xc.gga = "PBE"
 base_settings.input.band.xc.dispersion = "Grimme4"
