@@ -18,10 +18,16 @@ from scm.plams.core.functions import (
     add_to_class,
     add_to_instance,
     log,
+    get_config,
+    config_context,
+    jobs_in_directory,
+    _get_dir_for_jobs,
 )
 from scm.plams.core.settings import Settings
 from scm.plams.core.errors import MissingOptionalPackageError
 from scm.plams.unit_tests.test_helpers import assert_config_as_expected, get_mock_open_function, temp_file_path
+from scm.plams.core.jobmanager import JobManager
+from scm.plams.core.threading_utils import ContextAwareThread
 
 
 class TestInitAndFinish:
@@ -387,6 +393,8 @@ config.default_jobrunner = GridRunner(grid=grid_config, sleepstep=30)
 
     @pytest.mark.parametrize("explicit_finish", [True, False])
     def test_finish_does_not_clean_uninitialised_default_jobmanager(self, explicit_finish, config):
+        from scm.plams.core.threading_utils import LazyWrapper
+
         # When call _finish or finish but without initialising the lazy default jobmanager
         if explicit_finish:
             finish()
@@ -394,7 +402,9 @@ config.default_jobrunner = GridRunner(grid=grid_config, sleepstep=30)
             _finish()
 
         # Then the default job manager is still uninitialised and so not cleaned
-        assert config["default_jobmanager"] is None
+        jm = config["default_jobmanager"]
+        assert isinstance(jm, LazyWrapper)
+        assert not jm.initialized
 
     @pytest.mark.parametrize("explicit_init", [True, False])
     def test_init_then_finish_as_expected(self, explicit_init, config, mock_jobmanager):
@@ -690,3 +700,274 @@ log with level 3
             pattern = r"log with level \d"
 
         assert all([re.fullmatch(pattern, line) is not None for line in lines])
+
+
+class TestConfig:
+
+    def test_get_config_retrieves_global_config_when_no_context_var(self, config):
+        # Given no context
+        # When get config
+        cfg = get_config()
+
+        # Then config is equal to the global config
+        assert config is cfg
+        assert cfg.daemon_threads
+        assert cfg.saferun.repeat == 10
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert not cfg._check_initialized("default_jobmanager")
+        assert not cfg._check_initialized("default_jobrunner")
+
+        # And changes in one are reflected in the other
+        config.daemon_threads = False
+        _ = config.default_jobrunner
+        cfg.saferun.repeat = 5
+        _ = cfg.default_jobmanager
+
+        assert config is cfg
+        assert not cfg.daemon_threads
+        assert cfg.saferun.repeat == 5
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert cfg._check_initialized("default_jobmanager")
+        assert cfg._check_initialized("default_jobrunner")
+
+    def test_get_config_retrieves_values_from_context_var_when_available(self, config):
+        from scm.plams.core.functions import _config
+
+        # Given context
+        token = _config.set(config.copy())
+
+        # When get config
+        cfg = get_config()
+
+        # Then config is not equal to the global config
+        assert config is not cfg
+        assert cfg.daemon_threads
+        assert cfg.saferun.repeat == 10
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert not cfg._check_initialized("default_jobmanager")
+        assert not cfg._check_initialized("default_jobrunner")
+
+        # And configs are shallow copies
+        config.daemon_threads = False
+        _ = config.default_jobrunner
+        cfg.saferun.repeat = 5
+        _ = cfg.default_jobmanager
+
+        assert config is not cfg
+        assert not config.daemon_threads
+        assert cfg.daemon_threads
+        assert config.saferun.repeat == 10
+        assert cfg.saferun.repeat == 5
+        assert cfg.job.runscript.shebang == "#!/bin/sh"
+        assert cfg._check_initialized("default_jobmanager")
+        assert cfg._check_initialized("default_jobrunner")
+
+        _config.reset(token)
+
+    def test_config_context_applies_context_specific_changes(self, config):
+        mock_jm = MagicMock(spec=JobManager)
+
+        # Given config context
+        with config_context() as cfg:
+            # When change values
+            c = get_config()
+            cfg.saferun.repeat = 20
+            cfg.not_in_global = True
+            cfg.also_not.in_global = True
+            cfg.default_jobmanager = mock_jm
+            _ = cfg.default_jobrunner
+
+            # Then reflected in context
+            assert c is cfg
+            assert cfg.daemon_threads
+            assert cfg.saferun.repeat == 20
+            assert cfg.not_in_global
+            assert cfg.also_not.in_global
+            assert cfg.default_jobmanager == mock_jm
+
+        # And not reflected outside context (aside from lazy shallow-copied objects as required)
+        c = get_config()
+        assert c is config
+        assert config.daemon_threads
+        assert config.saferun.repeat == 10
+        assert not config.not_in_global
+        assert not config.also_not.in_global
+        assert config.default_jobmanager != mock_jm
+        assert config._check_initialized("default_jobrunner")
+
+    def test_nested_config_context_applies_context_specific_changes(self, config):
+        # Verify config in context is as expected
+        def assert_context_config(expected_in_context, expected_level, expected_name, expected_thread):
+            cfg = get_config()
+            assert cfg.in_context == expected_in_context
+            assert cfg.context.level == expected_level
+            assert cfg.context.name == expected_name
+            assert cfg.thread == expected_thread
+            assert cfg.job == config.job
+            assert cfg.log == config.log
+
+        # Apply some updates to the global context
+        config.context.level = 0
+        config.context.name = "global"
+        config.thread = "main"
+
+        # Given nested contexts
+        with config_context() as cfg_outer:
+            # When modify outer context config
+            cfg_outer.in_context = True
+            cfg_outer.context.level = 1
+            cfg_outer.context.name = "outer"
+            cfg_outer.outer = True
+
+            with config_context() as cfg_inner:
+                # When modify inner context config
+                cfg_inner.context.level = 2
+                cfg_inner.context.name = "inner"
+                cfg_inner.outer = False
+                cfg_inner.inner = True
+
+                # Then changes only reflected within inner context
+                assert_context_config(True, 2, "inner", "main")
+                assert not cfg_inner.outer
+                assert cfg_inner.inner
+
+            # Then changes only reflected within outer context
+            assert_context_config(True, 1, "outer", "main")
+            assert cfg_outer.outer
+            assert "inner" not in cfg_outer
+
+        # Then no changes reflected in global config
+        assert_context_config(Settings(), 0, "global", "main")
+        assert "outer" not in config
+        assert "inner" not in config
+
+    def test_config_context_with_threading(self, config):
+        # Apply some updates to the global context
+        config.context.name = "global"
+        config.thread = "main"
+
+        errors = []
+
+        def in_context(func, name=None, thread=None):
+            # Run function in new context
+            with config_context() as cfg:
+                if name:
+                    cfg.context.name = name
+                if thread:
+                    cfg.thread = thread
+                func()
+
+        def in_thread(target, context_aware=False):
+            # Run function in new (context aware) thread
+            t = threading.Thread(target=target) if not context_aware else ContextAwareThread(target=target)
+            t.start()
+            t.join()
+
+        def verify_config(expected_name, expected_thread):
+            try:
+                cfg = get_config()
+                assert cfg.context.name == expected_name
+                assert cfg.thread == expected_thread
+            except Exception as e:
+                errors.append(e)
+
+        # Given context
+        # When spawn new thread
+        # Then global config is used
+        in_context(lambda: in_thread(lambda: verify_config("global", "main")), name="context")
+
+        # Given context
+        # When spawn new context aware thread
+        # Then context config is used
+        in_context(lambda: in_thread(verify_config("context", "main"), context_aware=True), name="context")
+
+        # Given thread
+        # When create new context
+        # Then context config is used
+        in_thread(lambda: in_context(lambda: verify_config("context", "thread"), name="context", thread="thread"))
+
+        # Given context aware thread
+        # When create new context
+        # Then context config is used
+        in_thread(
+            lambda: in_context(lambda: verify_config("context", "ca thread"), name="context", thread="ca thread"),
+            context_aware=True,
+        )
+
+        # Given nested contexts
+        # When run in nested context aware threads
+        # Then context config is updated
+        in_context(
+            lambda: in_thread(
+                lambda: in_context(
+                    lambda: in_thread(
+                        lambda: in_context(lambda: verify_config("inner", "t2"), thread="t2"), context_aware=True
+                    ),
+                    name="inner",
+                    thread="t1",
+                ),
+                context_aware=True,
+            ),
+            name="outer",
+        )
+
+        if errors:
+            raise errors[0]
+
+
+class TestRunDirectory:
+
+    def test_run_directory_sets_rundir_for_context(self, config):
+        workdir = Path(config.default_jobmanager.workdir)
+
+        assert _get_dir_for_jobs() is None
+
+        with jobs_in_directory("foo") as outer:
+            assert _get_dir_for_jobs() == Path("foo")
+            assert outer == workdir / "foo"
+
+            with jobs_in_directory("bar") as inner1:
+                assert _get_dir_for_jobs() == Path("foo/bar")
+                assert inner1 == workdir / "foo" / "bar"
+
+            with jobs_in_directory("fizz/buzz") as inner2:
+                assert _get_dir_for_jobs() == Path("foo/fizz/buzz")
+                assert inner2 == workdir / "foo" / "fizz" / "buzz"
+
+            with jobs_in_directory("../bar/fizz/buzz") as inner2:
+                assert _get_dir_for_jobs() == Path("foo/../bar/fizz/buzz")
+                assert inner2 == workdir / "bar" / "fizz" / "buzz"
+
+        with jobs_in_directory(Path("bar")) as outer:
+
+            with jobs_in_directory(Path("fizz/buzz")) as inner:
+                assert _get_dir_for_jobs() == Path("bar/fizz/buzz")
+                assert inner == workdir / "bar" / "fizz" / "buzz"
+
+            assert _get_dir_for_jobs() == Path("bar")
+            assert outer == workdir / "bar"
+
+        assert _get_dir_for_jobs() is None
+
+    def test_use_subdir_with_context_aware_thread(self):
+        errors = []
+
+        def verify_subdir(expected):
+            try:
+                assert _get_dir_for_jobs() == expected
+            except Exception as e:
+                errors.append(e)
+
+        def in_thread(target):
+            t = ContextAwareThread(target=target)
+            t.start()
+            t.join()
+
+        with jobs_in_directory("foo"):
+            in_thread(lambda: verify_subdir(Path("foo")))
+            with jobs_in_directory("bar"):
+                in_thread(lambda: verify_subdir(Path("foo/bar")))
+        assert _get_dir_for_jobs() is None
+
+        if errors:
+            raise errors[0]

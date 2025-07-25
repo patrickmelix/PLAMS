@@ -109,22 +109,24 @@ ja = JobAnalysis(jobs=jobs[:10], paths=[j.path for j in jobs[10:-2]])
 
 # Jobs can also be added or removed after initialization.
 
-ja.add_job(jobs[-2]).load_job(jobs[-1].path).display_table()
+ja = ja.add_job(jobs[-2]).load_job(jobs[-1].path)
+ja.display_table()
 
 
 # ### Adding and Removing Fields
 
-# A range of common standard fields can be added with the `add_standard_field(s)` methods.
-# Custom fields can also be added with the `add_field` method, by defining a field key, value accessor and optional arguments like display name and value formatting.
+# A range of common standard fields can be added with the `add_standard_field(s)` methods. In addition, fields deriving from the job settings can be added with the `add_settings_input_fields` method, and fields from the output rkfs with the `add_rkf_field` method. Custom fields can also be added with the `add_field` method, by defining a field key, value accessor and optional arguments like display name and value formatting.
+#
 # Fields can be removed by calling `remove_field` with the corresponding field key.
 
-(
+ja = (
     ja.remove_field("Path")
     .add_standard_fields(["Formula", "Smiles", "CPUTime", "SysTime"])
+    .add_rkf_field("General", "engine")
     .add_settings_input_fields()
     .add_field("Energy", lambda j: j.results.get_energy(unit="kJ/mol"), display_name="Energy [kJ/mol]", fmt=".2f")
-    .display_table(max_rows=5)
 )
+ja.display_table(max_rows=5)
 
 
 # In addition to the fluent syntax, both dictionary and dot syntaxes are also supported for adding and removing fields.
@@ -147,8 +149,7 @@ ja.display_table(max_rows=5, max_col_width=30)
 # For example, to inspect the difference between failed and successful jobs, jobs can be filtered down and irrelevant fields removed.
 
 ja_neb = (
-    ja.copy()
-    .filter_jobs(lambda data: data["InputAmsTask"] == "NEB")
+    ja.filter_jobs(lambda data: data["InputAmsTask"] == "NEB")
     .remove_field("AtomCoords")
     .remove_uniform_fields(ignore_empty=True)
 )
@@ -160,9 +161,8 @@ ja_neb.display_table()
 # For this, it can be useful to utilize the `expand` functionality to convert job(s) to multiple rows.
 # During this process, fields selected for expansion will have their values extracted into individual rows, whilst other fields have their values duplicated.
 
-ja_adf = (
-    ja.copy()
-    .filter_jobs(
+ja_adf_expanded = (
+    ja.filter_jobs(
         lambda data: data["InputAmsTask"] == "GeometryOptimization"
         and data["InputAdfBasisType"] is not None
         and data["Smiles"] == "O"
@@ -173,24 +173,24 @@ ja_adf = (
     .remove_uniform_fields()
 )
 
-ja_adf.display_table()
+ja_adf_expanded.display_table()
 
 
 # For more nested values, the depth of expansion can also be selected to further flatten the data.
 
-(
-    ja_adf.add_field("Coord", lambda j: [("x", "y", "z") for _ in j.results.get_main_molecule()], expansion_depth=2)
-    .expand_field("AtomCoords", depth=2)
-    .display_table()
-)
+ja_adf_expanded2 = ja_adf_expanded.add_field(
+    "Coord", lambda j: [("x", "y", "z") for _ in j.results.get_main_molecule()], expansion_depth=2
+).expand_field("AtomCoords", depth=2)
+
+ja_adf_expanded2.display_table()
 
 
 # Expansion can be undone with the corresponding `collapse` method.
 #
 # Fields can be also further filtered, modified or reordered to customize the analysis.
 
-(
-    ja_adf.collapse_field("AtomCoords")
+ja_adf = (
+    ja_adf_expanded2.collapse_field("AtomCoords")
     .collapse_field("Coord")
     .filter_fields(lambda vals: all([not isinstance(v, list) for v in vals]))  # remove arrays
     .remove_field("Name")
@@ -198,8 +198,8 @@ ja_adf.display_table()
     .format_field("Charge", ".4f")
     .rename_field("InputAdfBasisType", "Basis")
     .reorder_fields(["AtomType", "Charge", "Energy"])
-    .display_table()
 )
+ja_adf.display_table()
 
 
 # ### Extracting Analysis Data
@@ -247,6 +247,6 @@ except ImportError:
 #
 # For example, the `get_timeline` and `display_timeline` methods show pictorially when jobs started, how long they took to run and what their status is.
 #
-# This can be useful for visualising the dependencies of jobs. Here you can see that the first 8 jobs started running in parallel, due to the `maxthreads` constraint, and the remaining jobs waited before starting. Also that the penultimate job failed.
+# This can be useful for visualizing the dependencies of jobs. Here you can see that the first 8 jobs started running in parallel, due to the `maxthreads` constraint, and the remaining jobs waited before starting. Also that the penultimate job failed.
 
 ja.display_timeline(fmt="rst")

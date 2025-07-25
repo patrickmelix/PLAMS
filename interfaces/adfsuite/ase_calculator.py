@@ -6,7 +6,7 @@ from copy import deepcopy
 from typing import Dict, Optional
 import numpy as np
 
-from scm.plams.core.functions import config
+from scm.plams.core.functions import get_config
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.amsworker import AMSWorker
@@ -235,7 +235,7 @@ class AMSCalculator(Calculator):
         if self.atoms is None:
             raise ValueError("No atoms object was set.")
 
-        if not config.init:
+        if not get_config().init:
             raise RuntimeError("Before AMSCalculator can calculate results you need to call plams.init()")
 
         molecule = fromASE(self.atoms, set_charge=True)

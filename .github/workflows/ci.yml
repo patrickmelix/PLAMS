@@ -101,7 +101,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ".[docs]"
+          pip install ".[docs]" snowballstemmer==2.2.0  # See: https://github.com/sphinx-doc/sphinx/issues/13533
 
       - name: Build Sphinx Docs
         working-directory: doc

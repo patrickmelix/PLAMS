@@ -12,6 +12,29 @@ This changelog is effective from the 2025 releases.
 ## [Unreleased]
 * New `BANDFragment` and updated `ADFFragment` recepis for automatic EDA calculations.
 
+### Added
+* `AMSAnalysisJobs` now have Pisa support, accept multiple AMSJobs as input, and no longer overwrite user supplied input settings.
+* `context_config` and `get_context` methods to allow context-based override of global `config` settings
+* `input_to_settings` method to convert AMS text input to a settings object
+* `get_system_blocks_as_molecules_from_input` method to extract molecules from AMS text input
+* `JobAnalysis.add_rkf_field` method to simplify adding values from an rkf to the analysis
+* `JobAnalysis.get_settings_field_key` and `JobAnalysis.get_rkf_field_key` methods to simplify getting the correct keys for analysis fields
+* `jobs_in_directory` context manager which allows jobs to be run in a subdirectory of the job manager working directory
+
+### Changed
+* `JobAnalysis` returns an updated copy on modification instead of performing the operation in-place
+* `packmol` can accept a single `None` value for `n_molecules` if two of `n_atoms`, `density` and `box_bounds` are specified. The missing value is then auto-calculated.
+
+### Fixed
+* Method to guess density in `packmol_around` changed to resolve large underestimations in molecular volumes
+
+## 2025.103
+
+### Fixed
+* `SingleJob.load`, `JobManager.load_job` and `load` can load jobs from a `.dill` file from PLAMS<2025
+
+## 2025.102
+
 ## 2025.101
 
 ### Added
@@ -19,6 +42,7 @@ This changelog is effective from the 2025 releases.
 * `AMSJob` can accept an AMS `ChemicalSystem` instead of a PLAMS `Molecule` as an input system
 * Specific `ConfigSettings` and related settings classes with explicitly defined fields
 * Support for work functions: `AMSResults.get_work_function_results` and `plot_work_function`
+* Support for plotting phonons with `plot_phonons_band_structure`, `plot_phonons_dos` and `plot_phonons_thermodynamic_properties`
 * New `packmol_around` function for packing in non-orthorhombic boxes.
 * New `plot_grid_molecules` function for plotting with rdkit multiple molecules.
 * `Molecule.delete_atoms` method to delete multiple atoms with partial success 

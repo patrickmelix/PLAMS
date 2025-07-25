@@ -1,6 +1,6 @@
 import numpy as np
 
-from scm.plams.core.functions import config, delete_job, finish, init
+from scm.plams.core.functions import get_config, delete_job, finish, init
 from scm.plams.core.settings import Settings
 from scm.plams.interfaces.adfsuite.ams import AMSJob
 from scm.plams.interfaces.adfsuite.amsworker import AMSWorker
@@ -271,7 +271,7 @@ def refine_lattice(
 
 
 def _ensure_init():
-    if config.init:
+    if get_config().init:
         called_plams_init = False
     else:
         s = Settings()

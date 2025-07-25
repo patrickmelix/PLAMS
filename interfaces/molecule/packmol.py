@@ -79,8 +79,12 @@ class PackMolStructure:
         """
         self.molecule = molecule
         if fixed:
-            assert n_molecules is None or n_molecules == 1
-            assert density is None
+            if n_molecules is not None and n_molecules != 1:
+                raise ValueError(
+                    f"For a fixed PackMol structure, n_molecules must be 1 if specified, but was {n_molecules}"
+                )
+            if density is not None:
+                raise ValueError(f"For a fixed PackMol structure, density cannot be set, but was {density}")
             self.n_molecules = 1
             if molecule.lattice and len(molecule.lattice) == 3:
                 vecs = np.array(molecule.lattice)
@@ -89,30 +93,30 @@ class PackMolStructure:
                 minxyz = np.sum(vecs * negative_mask, axis=0)
                 maxxyz = np.sum(vecs * positive_mask, axis=0)
                 self.box_bounds = minxyz.tolist() + maxxyz.tolist()
-                # self.box_bounds = [
-                #     0.0,
-                #     0.0,
-                #     0.0,
-                #     molecule.lattice[0][0],
-                #     molecule.lattice[1][1],
-                #     molecule.lattice[2][2],
-                # ]
             else:
                 self.box_bounds = None
             self.fixed = True
             self.sphere = False
         else:
+            # Check there are exactly two of box_bounds, density and n_molecules/n_atoms
+            constraint_count = (
+                int(box_bounds is not None)
+                + int(density is not None)
+                + int((n_molecules is not None or n_atoms is not None))
+            )
+            if constraint_count != 2:
+                raise ValueError(
+                    f"""For a PackMol structure, exactly two of box_bounds, density and n_molecules/n_atoms must be set. 
+                But was:
+                    {box_bounds=:}
+                    {density=:}
+                    {n_molecules=:} / {n_atoms=:}"""
+                )
+
             if box_bounds and density:
-                if n_molecules or n_atoms:
-                    raise ValueError("Cannot set all n_molecules or n_atoms together with (box_bounds AND density)")
                 n_molecules = self._get_n_molecules_from_density_and_box_bounds(self.molecule, box_bounds, density)
-            assert n_molecules is not None or n_atoms is not None
-            if n_molecules is None:
-                assert n_atoms is not None
-                self.n_molecules = self._get_n_molecules(self.molecule, n_atoms)
-            else:
-                self.n_molecules = n_molecules
-            assert box_bounds or density
+
+            self.n_molecules = n_molecules if n_molecules is not None else self._get_n_molecules(self.molecule, n_atoms)
             self.box_bounds = box_bounds or self._get_box_bounds(self.molecule, self.n_molecules, density)
             self.fixed = False
             self.sphere = sphere
@@ -148,31 +152,30 @@ class PackMolStructure:
         if self.n_molecules == 0 and not self.fixed:
             return ""
         if self.fixed:
-            ret = f"""
-            structure {fname}
-            number 1
-            fixed 0. 0. 0. 0. 0. 0.
-            avoid_overlap yes
-            end structure
-            """
+            ret = f"""\
+structure {fname}
+  number 1
+  fixed 0. 0. 0. 0. 0. 0.
+  avoid_overlap yes
+end structure
+"""
         elif self.sphere:
             vol = self.get_volume()
             radius = np.cbrt(3 * vol / (4 * np.pi))
-            ret = f"""
-            structure {fname}
-              number {self.n_molecules}
-              inside sphere 0. 0. 0. {radius}
-            end structure
-            """
+            ret = f"""\
+structure {fname}
+  number {self.n_molecules}
+  inside sphere 0. 0. 0. {radius}
+end structure
+"""
         else:
             box_string = f"{self.box_bounds[0]+tolerance/2} {self.box_bounds[1]+tolerance/2} {self.box_bounds[2]+tolerance/2} {self.box_bounds[3]-tolerance/2} {self.box_bounds[4]-tolerance/2} {self.box_bounds[5]-tolerance/2}"
-            ret = f"""
-            structure {fname}
-              number {self.n_molecules}
-              inside box {box_string}
-            end structure
-
-        """
+            ret = f"""\
+structure {fname}
+  number {self.n_molecules}
+  inside box {box_string}
+end structure
+"""
         return ret
 
 
@@ -331,8 +334,9 @@ def sum_of_atomic_volumes(molecule: Molecule) -> float:
     return (4 / 3) * np.pi * sum(at.radius**3 for at in molecule)
 
 
-def guess_density(molecules: Sequence[Molecule], coeffs: Sequence[Union[int, float]]) -> float:
-    """Guess a density for a liquid of the given molecules and stoichiometric coefficients.
+def guess_density(molecules: Sequence[Union[Molecule, "ChemicalSystem"]], coeffs: Sequence[Union[int, float]]) -> float:
+    """
+    Guess a density for a liquid of the given molecules and stoichiometric coefficients.
 
     This density is most of the time lower than the experimental density and is NOT meant
     to be accurate. Always equilibrate the density with NPT MD after creating a box with a
@@ -343,28 +347,41 @@ def guess_density(molecules: Sequence[Molecule], coeffs: Sequence[Union[int, flo
     if len(molecules) != len(coeffs):
         raise ValueError(f"Incompatible lengths: {len(molecules)=}, {len(coeffs)=}")
 
-    bond_volume_decrease_factor, estimated_volume_multiplier = 0.15, 18
     tot_estimated_volume = 0
     sum_atomic_masses = 0
     for mol, coeff in zip(molecules, coeffs):
-        sum_atomic_volumes = 0
-        estimated_volume = 0
-        bond_volume_decrease = 0
+        tot_estimated_volume += coeff * _guess_molecular_volume(mol)
         for at in mol:
-            radius = PeriodicTable.get_radius(at.symbol)
-            if PeriodicTable.get_metallic(at.symbol):
-                radius *= 0.5
-            bond_volume_decrease += (
-                coeff * bond_volume_decrease_factor * min(len(at.bonds), 0.3) ** 0.3 * (4 / 3) * np.pi * radius**3
-            )
-            sum_atomic_volumes += coeff * (4 / 3) * np.pi * radius**3  # ang^3
             sum_atomic_masses += coeff * PeriodicTable.get_mass(at.symbol)
 
-        estimated_volume += sum_atomic_volumes - bond_volume_decrease
-        estimated_volume *= estimated_volume_multiplier + 10 / max(4, len(mol))
-        tot_estimated_volume += estimated_volume
-
     return sum_atomic_masses * Units.conversion_ratio("amu", "g") / (tot_estimated_volume * 1e-24)
+
+
+def _guess_molecular_volume(molecule: Union[Molecule, "ChemicalSystem"]) -> float:
+    """
+    Guess the molecular volume for the given molecule in ang^3.
+
+    This volume is calculated using a very approximate method and is NOT meant to be accurate.
+    """
+    sum_atomic_volumes = 0
+    metallic_elements = {k: PeriodicTable.get_metallic(k) for k in set([a.symbol for a in molecule])}
+    for at in molecule:
+        radius = PeriodicTable.get_radius(at.symbol)
+        if metallic_elements[at.symbol]:
+            radius *= 0.6
+        sum_atomic_volumes += (4 / 3) * np.pi * radius**3  # ang^3
+
+    # Note this really is a rough estimation based on very little
+    # if you come up with a better quick estimation go ahead and change it
+    bond_volume_correction = 0.16 * (
+        len(molecule.bonds) / len(molecule.atoms) if (molecule.bonds and molecule.atoms) else 1
+    )
+    estimated_volume = 2.2 * sum_atomic_volumes / bond_volume_correction
+
+    if all(metallic_elements.values()) and not any(el in metallic_elements.keys() for el in ["Si", "Sb", "Ge", "Po"]):
+        estimated_volume /= 2
+
+    return estimated_volume
 
 
 @overload
@@ -374,7 +391,7 @@ def packmol(
     density: Optional[float] = ...,
     n_atoms: Optional[int] = ...,
     box_bounds: Optional[List[float]] = ...,
-    n_molecules: Union[List[int], int, None] = ...,
+    n_molecules: Optional[Union[List[Optional[int]], int]] = ...,
     sphere: bool = ...,
     fix_first: bool = ...,
     keep_bonds: bool = ...,
@@ -395,7 +412,7 @@ def packmol(
     density: Optional[float] = ...,
     n_atoms: Optional[int] = ...,
     box_bounds: Optional[List[float]] = ...,
-    n_molecules: Union[List[int], int, None] = ...,
+    n_molecules: Optional[Union[List[Optional[int]], int]] = ...,
     sphere: bool = ...,
     fix_first: bool = ...,
     keep_bonds: bool = ...,
@@ -415,7 +432,7 @@ def packmol(
     density: Optional[float] = None,
     n_atoms: Optional[int] = None,
     box_bounds: Optional[List[float]] = None,
-    n_molecules: Union[List[int], int, None] = None,
+    n_molecules: Optional[Union[List[Optional[int]], int]] = None,
     sphere: bool = False,
     fix_first: bool = False,
     keep_bonds: bool = True,
@@ -449,8 +466,8 @@ def packmol(
     box_bounds: list of float (length 6)
         The box in which to pack the molecules. The box is orthorhombic and should be specified as [xmin, ymin, zmin, xmax, ymax, zmax]. The minimum values should all be set to 0, i.e. set box_bounds=[0., 0., 0., xmax, ymax, zmax]. If not specified, a cubic box of appropriate dimensions will be used.
 
-    n_molecules : int or list of int
-        The (exact) number of molecules for each component (in the same order as ``molecules``). Cannot be combined with ``mole_fractions``.
+    n_molecules : int, or list of int, or list of int with exactly one value of None
+        The (exact) number of molecules for each component (in the same order as ``molecules``). Cannot be combined with ``mole_fractions``. Exactly one value may be given as None, in which case a suitable number will be determined.
 
     sphere: bool
         Whether the molecules should be packed in a sphere. The radius is determined by getting the volume from the box bounds!
@@ -502,6 +519,8 @@ def packmol(
 
     * ``n_molecules``, ``box_bounds``: Create a mixture with the given number of molecules inside the given box
 
+    * ``n_molecules=[1, None]``, ``box_bounds=[0, 0, 0, 10, 10, 10]``, ``density=1.0``: Fill the box with 1 solute and an automatically determined number of solvent molecules to match the given total density. To specify only the solvent density, see ``packmol_around``.
+
     Example:
 
     .. code-block:: python
@@ -520,14 +539,23 @@ def packmol(
     # Let's try to check that the specified combination makes sense ...
     if n_atoms is None and n_molecules is None and density is None:
         raise ValueError("Illegal combination of arguments: must specify either n_atoms, n_molecules or density")
-    if n_atoms is not None and n_molecules is not None:
-        raise ValueError("Illegal combination of arguments: n_atoms and n_molecules are mutually exclusive")
     if n_atoms is not None and box_bounds is not None and density is not None:
         raise ValueError("Illegal combination of arguments: n_atoms, box_bounds and density specified at the same time")
-    if n_molecules is not None and box_bounds is not None and density is not None:
+    # Detect the special case when 1 molecule is not specified e.g. the solvent for a few specified solute molecules
+    one_n_molecules_missing = isinstance(n_molecules, list) and len([n for n in n_molecules if n is None]) == 1
+    if n_molecules is not None and not one_n_molecules_missing and box_bounds is not None and density is not None:
         raise ValueError(
-            "Illegal combination of arguments: n_molecules, box_bounds and density specified at the same time"
+            "Illegal combination of arguments: n_molecules, box_bounds and density specified at the same time. This is not permitted unless one of n_molecules is None."
         )
+    if one_n_molecules_missing:
+        constraint_count = sum(int(x is not None) for x in (box_bounds, density, n_atoms))
+        if constraint_count != 2:
+            raise ValueError(
+                "Illegal combination of arguments: the n_molecules list can contain a None value only "
+                "if exactly two of box_bounds, density, and n_atoms are specified. "
+                f"Got: {n_molecules=}, {n_atoms=}, {box_bounds=}, {density=}"
+            )
+
     if mole_fractions is not None and n_molecules is not None:
         raise ValueError("Illegal combination of arguments: mole_fractions and n_molecules are mutually exclusive")
     if fix_first:
@@ -541,11 +569,15 @@ def packmol(
                 raise ValueError("Illegal combination of arguments: molecules is a list, but n_molecules is not")
             if len(n_molecules) != len(molecules):
                 raise ValueError("Illegal combination of arguments: len(n_molecules) != len(molecules)")
+            if len([n for n in n_molecules if n is None]) > 1:
+                raise ValueError("Illegal combination of arguments: multiple values of n_molecules are None")
         if mole_fractions is not None:
             if not isinstance(mole_fractions, list):
                 raise ValueError("Illegal combination of arguments: molecules is a list, but mole_fractions is not")
             if len(mole_fractions) != len(molecules):
                 raise ValueError("Illegal combination of arguments: len(mole_fractions) != len(molecules)")
+            if len([x for x in mole_fractions if x is None]) > 0:
+                raise ValueError("Illegal combination of arguments: one or more values of mole_fractions is None")
         if region_names is not None:
             if not isinstance(region_names, list):
                 raise ValueError("Illegal combination of arguments: molecules is a list, but region_names is not")
@@ -559,23 +591,54 @@ def packmol(
         if region_names is not None and isinstance(region_names, list):
             raise ValueError("Illegal combination of arguments: region_names is a list, when molecules is not")
 
+    if n_atoms is not None and n_molecules is not None and not one_n_molecules_missing:
+        raise ValueError(
+            "Illegal combination of arguments: n_atoms and n_molecules are mutually exclusive, "
+            f"unless exactly one of the n_molecules is None. got: {n_atoms=}, {n_molecules=}"
+        )
+    if n_atoms is not None and one_n_molecules_missing:
+        # n_molecules guaranteed to be list, molecules guaranteed to be list
+        assert isinstance(n_molecules, list)
+        current_n_atoms = sum(len(mol) * coeff for mol, coeff in zip(molecules, n_molecules) if coeff is not None)
+        none_idx = n_molecules.index(None)
+        n_molecules = n_molecules.copy()  # do not modify the list passed in by the user
+        if len(molecules[none_idx]) == 0:
+            n_molecules[none_idx] = 0
+        else:
+            n_molecules[none_idx] = int(np.round(n_atoms - current_n_atoms) / len(molecules[none_idx]))
+        # non-negative values in n_molecules are asserted further down
+        # we have fixed the n_molecules list to have only integers, can pretend it was always the case
+        one_n_molecules_missing = False
+
+    if box_bounds is not None and (
+        not isinstance(box_bounds, list) or len(box_bounds) != 6 or any(x is None for x in box_bounds)
+    ):
+        raise ValueError(
+            f"box_bounds must be a list of the form [xmin, ymin, zmin, xmax, ymax, zmax], but was {box_bounds}"
+        )
+
     if _return_only_details:
         return_details = True
 
     molecules = tolist(molecules)
-    if mole_fractions is None:
-        mole_fractions = [1.0 / len(molecules)] * len(molecules)
 
     if n_molecules:
         n_molecules = tolist(n_molecules)
-        sum_n_molecules = np.sum(n_molecules)
+
+        if any(x < 0 for x in n_molecules if x is not None):
+            raise ValueError(f"All n_molecules must be >= 0. n_molecules specified: {n_molecules}")
+
+        sum_n_molecules = np.sum([x if x is not None else 1 for x in n_molecules])
         if np.isclose(sum_n_molecules, 0):
             raise ValueError(
                 f"The sum of n_molecules is {sum_n_molecules}, which is very close to 0. "
                 f"Specify larger numbers. n_molecules specified: {n_molecules}"
             )
-        if any(x < 0 for x in n_molecules):
-            raise ValueError(f"All n_molecules must be >= 0. " f"n_molecules specified: {n_molecules}")
+
+    if mole_fractions is None:
+        mole_fractions = [1.0 / len(molecules)] * len(molecules)
+    if any(x < 0 for x in mole_fractions):
+        raise ValueError(f"All mole fractions must be >= 0. Mole fractions specified: {mole_fractions}")
 
     xs = np.array(mole_fractions)
     sum_xs = np.sum(xs)
@@ -584,15 +647,13 @@ def packmol(
             f"The sum of mole fractions is {sum_xs}, which is very close to 0. "
             f"Specify larger numbers. Mole fractions specified: {xs}"
         )
-    if np.any(xs < 0):
-        raise ValueError(f"All mole fractions must be >= 0. " f"Mole fractions specified: {mole_fractions}")
 
     atoms_per_mol = np.array([len(a) for a in molecules])
     masses = np.array([m.get_mass(unit="g") for m in molecules])
 
     coeffs = None
 
-    if n_molecules:
+    if n_molecules and not one_n_molecules_missing:
         coeffs = np.int_(n_molecules)
     elif n_atoms:
         coeff_0 = n_atoms / np.dot(xs, atoms_per_mol)
@@ -608,14 +669,27 @@ def packmol(
         volume_ang3 = volume_cm3 * 1e24
         side_length = volume_ang3 ** (1 / 3.0)
         box_bounds = [0.0, 0.0, 0.0, side_length, side_length, side_length]
-    elif box_bounds and density and not n_molecules:
+    elif box_bounds and density:
         volume_cm3 = (
             (box_bounds[3] - box_bounds[0]) * (box_bounds[4] - box_bounds[1]) * (box_bounds[5] - box_bounds[2]) * 1e-24
         )
         mass_g = volume_cm3 * density
-        coeffs = mass_g / np.dot(xs, masses)
-        coeffs = xs * coeffs
-        coeffs = np.int_(np.round(coeffs))
+
+        if not n_molecules:
+            coeffs = np.int_(np.round(xs * mass_g / np.dot(xs, masses)))
+        elif one_n_molecules_missing:
+            if len(n_molecules) == 1:
+                coeffs = np.int_(np.round(mass_g / masses))
+            else:
+                n_mols = np.array([n if n is not None else np.nan for n in n_molecules])
+                missing = np.isnan(n_mols)
+                n_mols[missing] = (mass_g - np.dot(n_mols[~missing], masses[~missing])) / masses[missing]
+                coeffs = np.int_(np.round(n_mols))
+                if any(c < 0 for c in coeffs):
+                    raise ValueError(
+                        "Illegal combination of arguments: calculated value for missing n_molecules value is negative. Increase the density or box_bounds, or alternatively reduce the value of other n_molecules."
+                    )
+                n_molecules = coeffs.tolist()
 
     if coeffs is None:
         raise ValueError(
@@ -812,7 +886,7 @@ def _run_uff_md(
 
     Raises: PackmolError if something goes worng.
     """
-    from scm.plams import config
+    from scm.plams.core.functions import config_context
 
     thermostatted_region = "PACKMOL_thermostatted"
     md_ucs = ucs.copy()
@@ -847,13 +921,12 @@ def _run_uff_md(
         s.input.ams.MolecularDynamics.Deformation.StopStep = (nsteps * 3) // 4
         s.input.ams.MolecularDynamics.Deformation.TargetLattice._1 = target_lattice_str
 
-    previous_config = config.copy()
-    try:
-        config.job.pickle = False
-        config.log.stdout = 0
+    with config_context() as cfg:
+        cfg.job.pickle = False
+        cfg.log.stdout = 0
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            job_manager = JobManager(config.jobmanager, path=tmp_dir)
+            job_manager = JobManager(cfg.jobmanager, path=tmp_dir)
             job = AMSJob(settings=s, molecule=md_ucs, name="shakemd")
             job.run(jobmanager=job_manager)
 
@@ -867,10 +940,6 @@ def _run_uff_md(
             my_packed = job.results.get_main_system()
             my_packed.remove_region("PACKMOL_thermostatted")
             job_manager._clean()
-
-    finally:
-        config.job.pickle = previous_config.job.pickle
-        config.log.stdout = previous_config.log.stdout
 
     return my_packed
 
@@ -948,10 +1017,8 @@ def packmol_around(
 
     # step 2, get remaining volume
     def get_details_for_remaining_volume(original_ucs, molecules, **kwargs):
-        sum_r3 = np.sum(np.fromiter((at.element.radius**3 for at in original_ucs), dtype=np.float32))
-        current_atomic_volume = (4 / 3) * np.pi * sum_r3
-        current_atomic_volume /= 0.74  # use packing efficiency in ccp as example to take up more volume
-        remaining_volume = original_volume - current_atomic_volume
+        current_estimated_volume = _guess_molecular_volume(original_ucs)
+        remaining_volume = original_volume - current_estimated_volume
         # temporary value to call the original packmol with
         temp_L = np.cbrt(remaining_volume)
         box_bounds_for_remaining_volume = [0.0, 0.0, 0.0, temp_L, temp_L, temp_L]
@@ -965,7 +1032,7 @@ def packmol_around(
             **kwargs,
         )
 
-        details["current_atomic_volume"] = current_atomic_volume
+        details["current_atomic_volume"] = current_estimated_volume
         return details
 
     molecules = tolist(molecules)

@@ -9,13 +9,14 @@ from io import StringIO
 import csv
 from functools import wraps
 import time
+from pathlib import Path
 
 from scm.plams.core.settings import Settings
 from scm.plams.core.basejob import SingleJob, MultiJob
 from scm.plams.core.errors import PlamsError, FileError, ResultsError
 from scm.plams.core.jobrunner import JobRunner
 from scm.plams.core.jobmanager import JobManager
-from scm.plams.core.functions import add_to_instance
+from scm.plams.core.functions import add_to_instance, jobs_in_directory
 from scm.plams.core.enums import JobStatus
 
 LogEntry = namedtuple("LogEntry", ["method", "args", "kwargs", "start", "end"])
@@ -244,29 +245,28 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
     )
     def test_hash_respects_mode(self, mode, expected, config):
         # Given jobs with different inputs and/or runscripts
-        with patch("scm.plams.core.basejob.config", config):
-            config.jobmanager.hashing = mode
-            s = Settings()
-            s.runscript.shebang = "#!/bin/sh"
-            job1 = DummySingleJob(settings=s)
-            job2 = DummySingleJob(inp=job1.input.replace("input", "inputx"), settings=s)
-            job3 = DummySingleJob(inp=job1.input, cmd="echo 'foo' && sed 's/input/output/g'", settings=s)
-            jobs = [job1, job2, job3]
+        config.jobmanager.hashing = mode
+        s = Settings()
+        s.runscript.shebang = "#!/bin/sh"
+        job1 = DummySingleJob(settings=s)
+        job2 = DummySingleJob(inp=job1.input.replace("input", "inputx"), settings=s)
+        job3 = DummySingleJob(inp=job1.input, cmd="echo 'foo' && sed 's/input/output/g'", settings=s)
+        jobs = [job1, job2, job3]
 
-            # When call hash with different modes
-            # Then hashes match as expected
-            if expected is None:
-                with pytest.raises(PlamsError):
-                    job1.hash()
-            else:
-                hashes = [
-                    (i + 1, j + 1, job_i.hash(), job_j.hash())
-                    for i, job_i in enumerate(jobs)
-                    for j, job_j in enumerate(jobs)
-                    if j >= i
-                ]
-                matches = {(i, j): None if h_i is None and h_j is None else h_i == h_j for i, j, h_i, h_j in hashes}
-                assert matches == expected
+        # When call hash with different modes
+        # Then hashes match as expected
+        if expected is None:
+            with pytest.raises(PlamsError):
+                job1.hash()
+        else:
+            hashes = [
+                (i + 1, j + 1, job_i.hash(), job_j.hash())
+                for i, job_i in enumerate(jobs)
+                for j, job_j in enumerate(jobs)
+                if j >= i
+            ]
+            matches = {(i, j): None if h_i is None and h_j is None else h_i == h_j for i, j, h_i, h_j in hashes}
+            assert matches == expected
 
     def test_run_multiple_independent_jobs_in_parallel(self):
         # Given parallel job runner
@@ -354,6 +354,29 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         assert "RuntimeError" in job1.get_errormsg()
         assert job2.get_errormsg() is None
 
+    def test_run_multiple_independent_jobs_with_use_subdir_in_parallel(self, config):
+        # Given parallel job runner
+        runner = JobRunner(parallel=True, maxjobs=4)
+
+        # When run jobs in subdir
+        jobs = []
+        with jobs_in_directory("results"):
+            for outer in ["A", "B", "C"]:
+                with jobs_in_directory(outer):
+                    for inner1 in ["X", "Y", "Z"]:
+                        with jobs_in_directory(inner1):
+                            for inner2 in range(2):
+                                job = DummySingleJob(name=f"{outer}_{inner1}_{inner2}")
+                                job.run(runner)
+                                jobs.append(job)
+
+        # Then jobs are located in the correct subdirectory
+        assert len(jobs) == 18
+        assert all(j.ok() for j in jobs)
+        for j in jobs:
+            o, i1, i2 = j.name.split("_")
+            assert Path(j.path) == Path(config.default_jobmanager.workdir, "results", o, i1, j.name)
+
     def test_ok_waits_on_results_and_checks_status(self):
         # Given job and a copy
         job1 = DummySingleJob(wait=0.1)
@@ -397,6 +420,30 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
         assert job1.path == job2.path
         assert job1.settings == job2.settings
         assert job1._filenames == job2._filenames
+
+    def test_load_legacy_job_succeeds(self):
+        # Given job run before additional properties were added
+        job1 = DummySingleJob()
+        job1.run()
+        job1.results.wait()
+        status = job1.status
+        delattr(job1, "_status")
+        delattr(job1, "_status_log")
+        job1.__dict__["status"] = status
+        job1.pickle()
+
+        # When call load
+        job2 = DummySingleJob.load(job1.path)
+
+        # Then job loaded successfully
+        assert job1.name == job2.name
+        assert job1.id == job2.id
+        assert job1.path == job2.path
+        assert job1.settings == job2.settings
+        assert job1._filenames == job2._filenames
+        assert job2.status == "successful"
+        assert job2.status_log == []
+        assert job2.get_errormsg() is None
 
     def test_job_summaries_logged(self, config):
         job1 = DummySingleJob()
@@ -457,7 +504,8 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
     def test_job_errors_logged_to_stdout(self, config):
         from scm.plams.core.logging import get_logger
 
-        logger = get_logger(f"plams-{uuid.uuid4()}")
+        logger_name = f"plams-{uuid.uuid4()}"
+        logger = get_logger(logger_name)
 
         with patch("scm.plams.core.functions._logger", logger):
             with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
@@ -478,6 +526,15 @@ sleep 0.0 && sed 's/input/output/g' plamsjob.in
                     stdout,
                     re.DOTALL,
                 )
+        logger.close()
+
+    def test_full_name(self):
+        job = DummySingleJob(name="dummy_job")
+        job.run()
+
+        assert job.ok()
+        assert job._full_name() == "dummy_job"
+        assert job._full_name("some/rundir") == "some/rundir/dummy_job"
 
 
 class TestMultiJob:
@@ -491,13 +548,12 @@ class TestMultiJob:
         runner = JobRunner(parallel=True, maxjobs=3)
         config.sleepstep = 0.1
 
-        with patch("scm.plams.core.basejob.config", config):
-            # Given 3 jobs which are independent
-            jobs = [DummySingleJob() for _ in range(3)]
-            multi_job = MultiJob(children=jobs)
+        # Given 3 jobs which are independent
+        jobs = [DummySingleJob() for _ in range(3)]
+        multi_job = MultiJob(children=jobs)
 
-            # When run multi-job
-            multi_job.run(jobrunner=runner).wait()
+        # When run multi-job
+        multi_job.run(jobrunner=runner).wait()
 
         # Then multi-job ran ok
         assert multi_job.check()
@@ -509,149 +565,194 @@ class TestMultiJob:
         runner = JobRunner(parallel=True, maxjobs=3)
         config.sleepstep = 0.1
 
-        with patch("scm.plams.core.basejob.config", config):
-            # Given 3 jobs which are independent, one of which fails
-            jobs = [DummySingleJob(), DummySingleJob(cmd="not_a_cmd"), DummySingleJob()]
-            multi_job = MultiJob(children=jobs)
+        # Given 3 jobs which are independent, one of which fails
+        jobs = [DummySingleJob(), DummySingleJob(cmd="not_a_cmd"), DummySingleJob()]
+        multi_job = MultiJob(children=jobs)
 
-            # When run multi-job
-            multi_job.run(jobrunner=runner).wait()
+        # When run multi-job
+        multi_job.run(jobrunner=runner).wait()
 
-            # Then multi-job fails
-            assert not multi_job.check()
-            assert not multi_job.ok()
-            assert multi_job.status == JobStatus.FAILED
-            assert [j.status for j in jobs] == [JobStatus.SUCCESSFUL, JobStatus.CRASHED, JobStatus.SUCCESSFUL]
+        # Then multi-job fails
+        assert not multi_job.check()
+        assert not multi_job.ok()
+        assert multi_job.status == JobStatus.FAILED
+        assert [j.status for j in jobs] == [JobStatus.SUCCESSFUL, JobStatus.CRASHED, JobStatus.SUCCESSFUL]
 
     def test_run_multiple_dependent_single_jobs_all_succeed(self, config):
         runner = JobRunner(parallel=True, maxjobs=3)
         config.sleepstep = 0.1
 
-        with patch("scm.plams.core.basejob.config", config):
-            # Given 3 jobs which are dependent
-            jobs = [DummySingleJob() for _ in range(3)]
+        # Given 3 jobs which are dependent
+        jobs = [DummySingleJob() for _ in range(3)]
 
-            @add_to_instance(jobs[1])
-            def prerun(s):
-                jobs[0].results.wait()
+        @add_to_instance(jobs[1])
+        def prerun(s):
+            jobs[0].results.wait()
 
-            @add_to_instance(jobs[2])
-            def postrun(s):
-                jobs[1].results.wait()
+        @add_to_instance(jobs[2])
+        def postrun(s):
+            jobs[1].results.wait()
 
-            multi_job = MultiJob(children=jobs)
+        multi_job = MultiJob(children=jobs)
 
-            # When run multi-job
-            multi_job.run(jobrunner=runner).wait()
+        # When run multi-job
+        multi_job.run(jobrunner=runner).wait()
 
-            # Then multi-job ran ok
-            assert multi_job.check()
-            assert multi_job.ok()
-            assert multi_job.status == JobStatus.SUCCESSFUL
-            assert all([j.status == JobStatus.SUCCESSFUL for j in jobs])
+        # Then multi-job ran ok
+        assert multi_job.check()
+        assert multi_job.ok()
+        assert multi_job.status == JobStatus.SUCCESSFUL
+        assert all([j.status == JobStatus.SUCCESSFUL for j in jobs])
 
     def test_run_multiple_independent_single_jobs_error_in_prerun_or_postrun(self, config):
         runner = JobRunner(parallel=True, maxjobs=3)
         config.sleepstep = 0.1
 
-        with patch("scm.plams.core.basejob.config", config):
-            # Given 3 jobs which are dependent
-            jobs = [DummySingleJob() for _ in range(3)]
+        # Given 3 jobs which are dependent
+        jobs = [DummySingleJob() for _ in range(3)]
 
-            @add_to_instance(jobs[1])
-            def prerun(s):
-                raise RuntimeError("something went wrong")
+        @add_to_instance(jobs[1])
+        def prerun(s):
+            raise RuntimeError("something went wrong")
 
-            @add_to_instance(jobs[2])
-            def postrun(s):
-                raise RuntimeError("something went wrong")
+        @add_to_instance(jobs[2])
+        def postrun(s):
+            raise RuntimeError("something went wrong")
 
-            multi_job = MultiJob(children=jobs)
+        multi_job = MultiJob(children=jobs)
 
-            # When run multi-job
-            multi_job.run(jobrunner=runner).wait()
+        # When run multi-job
+        multi_job.run(jobrunner=runner).wait()
 
-            # Then multi-job failed
-            assert not multi_job.check()
-            assert not multi_job.ok()
-            assert multi_job.status == JobStatus.FAILED
-            assert [j.status for j in jobs] == [JobStatus.SUCCESSFUL, JobStatus.FAILED, JobStatus.FAILED]
+        # Then multi-job failed
+        assert not multi_job.check()
+        assert not multi_job.ok()
+        assert multi_job.status == JobStatus.FAILED
+        assert [j.status for j in jobs] == [JobStatus.SUCCESSFUL, JobStatus.FAILED, JobStatus.FAILED]
 
     def test_run_multiple_independent_multijobs_all_succeed(self, config):
         runner = JobRunner(parallel=True, maxjobs=3)
         config.sleepstep = 0.1
 
-        with patch("scm.plams.core.basejob.config", config):
-            # Given multi-job with multiple multi-jobs
-            jobs = [[DummySingleJob() for _ in range(3)] for _ in range(3)]
-            multi_jobs = [MultiJob(children=js) for js in jobs]
-            multi_job = MultiJob(children=multi_jobs)
+        # Given multi-job with multiple multi-jobs
+        jobs = [[DummySingleJob() for _ in range(3)] for _ in range(3)]
+        multi_jobs = [MultiJob(children=js) for js in jobs]
+        multi_job = MultiJob(children=multi_jobs)
 
-            # When run top level job
-            multi_job.run(runner=runner).wait()
+        # When run top level job
+        multi_job.run(runner=runner).wait()
 
-            # Then multi-job ran ok
-            assert multi_job.check()
-            assert multi_job.ok()
-            assert multi_job.status == JobStatus.SUCCESSFUL
-            assert all([mj.status == JobStatus.SUCCESSFUL for mj in multi_jobs])
-            assert all([j.status == JobStatus.SUCCESSFUL for js in jobs for j in js])
+        # Then multi-job ran ok
+        assert multi_job.check()
+        assert multi_job.ok()
+        assert multi_job.status == JobStatus.SUCCESSFUL
+        assert all([mj.status == JobStatus.SUCCESSFUL for mj in multi_jobs])
+        assert all([j.status == JobStatus.SUCCESSFUL for js in jobs for j in js])
 
     def test_run_multiple_dependent_multijobs_all_succeed(self, config):
         runner = JobRunner(parallel=True, maxjobs=5)
         config.sleepstep = 0.1
 
-        with patch("scm.plams.core.basejob.config", config):
-            # Given multi-job with multiple dependent multi-jobs
-            jobs = [[DummySingleJob() for _ in range(3)] for _ in range(3)]
-            multi_jobs = [MultiJob(children=js) for js in jobs]
-            multi_job = MultiJob(children=multi_jobs)
+        # Given multi-job with multiple dependent multi-jobs
+        jobs = [[DummySingleJob() for _ in range(3)] for _ in range(3)]
+        multi_jobs = [MultiJob(children=js) for js in jobs]
+        multi_job = MultiJob(children=multi_jobs)
 
-            @add_to_instance(jobs[1][0])
-            def prerun(s):
-                jobs[0][0].results.wait()
+        @add_to_instance(jobs[1][0])
+        def prerun(s):
+            jobs[0][0].results.wait()
 
-            @add_to_instance(multi_jobs[1])
-            def postrun(s):
-                multi_jobs[0].results.wait()
+        @add_to_instance(multi_jobs[1])
+        def postrun(s):
+            multi_jobs[0].results.wait()
 
-            # When run top level job
-            multi_job.run(runner=runner).wait()
+        # When run top level job
+        multi_job.run(runner=runner).wait()
 
-            # Then multi-job ran ok
-            assert multi_job.check()
-            assert multi_job.ok()
-            assert multi_job.status == JobStatus.SUCCESSFUL
-            assert all([mj.status == JobStatus.SUCCESSFUL for mj in multi_jobs])
-            assert all([j.status == JobStatus.SUCCESSFUL for js in jobs for j in js])
+        # Then multi-job ran ok
+        assert multi_job.check()
+        assert multi_job.ok()
+        assert multi_job.status == JobStatus.SUCCESSFUL
+        assert all([mj.status == JobStatus.SUCCESSFUL for mj in multi_jobs])
+        assert all([j.status == JobStatus.SUCCESSFUL for js in jobs for j in js])
 
     def test_run_multiple_dependent_multijobs_one_fails(self, config):
         runner = JobRunner(parallel=True, maxjobs=5)
         config.sleepstep = 0.1
 
-        with patch("scm.plams.core.basejob.config", config):
-            # Given multi-job with multiple dependent multi-jobs and one which fails
-            jobs = [[DummySingleJob() for _ in range(3)] for _ in range(3)]
-            jobs[1][1].command = "not a cmd"
-            multi_jobs = [MultiJob(children=js) for js in jobs]
-            multi_job = MultiJob(children=multi_jobs)
+        # Given multi-job with multiple dependent multi-jobs and one which fails
+        jobs = [[DummySingleJob() for _ in range(3)] for _ in range(3)]
+        jobs[1][1].command = "not a cmd"
+        multi_jobs = [MultiJob(children=js) for js in jobs]
+        multi_job = MultiJob(children=multi_jobs)
 
-            # When run top level job
-            multi_job.run(runner=runner).wait()
+        # When run top level job
+        multi_job.run(runner=runner).wait()
 
-            # Then overall multi-job failed
-            assert not multi_job.check()
-            assert not multi_job.ok()
-            assert multi_job.status == JobStatus.FAILED
-            assert [mj.status for mj in multi_jobs] == [
-                JobStatus.SUCCESSFUL,
-                JobStatus.FAILED,
-                JobStatus.SUCCESSFUL,
-            ]
-            assert all([j.status == JobStatus.SUCCESSFUL for j in jobs[0]])
-            assert all([j.status == JobStatus.SUCCESSFUL for j in jobs[2]])
-            assert [j.status for j in jobs[1]] == [
-                JobStatus.SUCCESSFUL,
-                JobStatus.CRASHED,
-                JobStatus.SUCCESSFUL,
-            ]
+        # Then overall multi-job failed
+        assert not multi_job.check()
+        assert not multi_job.ok()
+        assert multi_job.status == JobStatus.FAILED
+        assert [mj.status for mj in multi_jobs] == [
+            JobStatus.SUCCESSFUL,
+            JobStatus.FAILED,
+            JobStatus.SUCCESSFUL,
+        ]
+        assert all([j.status == JobStatus.SUCCESSFUL for j in jobs[0]])
+        assert all([j.status == JobStatus.SUCCESSFUL for j in jobs[2]])
+        assert [j.status for j in jobs[1]] == [
+            JobStatus.SUCCESSFUL,
+            JobStatus.CRASHED,
+            JobStatus.SUCCESSFUL,
+        ]
+
+    def test_run_multijobs_with_use_subdir_in_parallel(self, config):
+        # Given parallel job runner
+        runner = JobRunner(parallel=True, maxjobs=4)
+
+        # When run multi jobs in subdir
+        outer_multi_jobs = []
+        with jobs_in_directory("results"):
+            for mj in ["A", "B", "C"]:
+                with jobs_in_directory(mj):
+                    jobs = [[DummySingleJob(name=f"dummy_{i}_{j}") for i in range(3)] for j in range(3)]
+                    inner_multi_jobs = [MultiJob(children=js, name=f"multi_inner_{i}") for i, js in enumerate(jobs)]
+                    multi_job = MultiJob(children=inner_multi_jobs, name=f"multi_outer_{mj}")
+                    multi_job.run(runner=runner)
+                    outer_multi_jobs.append(multi_job)
+
+        # Then top-level multi-jobs are located in the correct subdirectory
+        workdir = config.default_jobmanager.workdir
+        for mj_outer in outer_multi_jobs:
+            assert mj_outer.ok()
+
+            outer = mj_outer.name.split("_")[-1]
+            assert Path(mj_outer.path) == Path(workdir, "results", outer, mj_outer.name)
+
+            for mj_inner in mj_outer.children:
+                assert mj_inner.ok()
+                assert Path(mj_inner.path) == Path(
+                    workdir,
+                    "results",
+                    outer,
+                    mj_outer.name,
+                    mj_inner.name,
+                )
+
+                for j in mj_inner.children:
+                    assert j.ok()
+                    assert Path(j.path) == Path(workdir, "results", outer, mj_outer.name, mj_inner.name, j.name)
+
+    def test_full_name(self):
+        job = DummySingleJob(name="dummy_job")
+        inner_multi_job = MultiJob(children=[job], name="multi_inner_job")
+        multi_job = MultiJob(children=[inner_multi_job], name="multi_outer")
+        multi_job.run()
+
+        assert multi_job.ok()
+        assert multi_job._full_name() == "multi_outer"
+        assert multi_job._full_name("some/rundir") == "some/rundir/multi_outer"
+        assert inner_multi_job._full_name() == "multi_outer/multi_inner_job"
+        assert inner_multi_job._full_name("some/rundir") == "some/rundir/multi_outer/multi_inner_job"
+        assert job._full_name() == "multi_outer/multi_inner_job/dummy_job"
+        assert job._full_name("some/rundir") == "some/rundir/multi_outer/multi_inner_job/dummy_job"

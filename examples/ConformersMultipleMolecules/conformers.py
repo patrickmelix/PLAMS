@@ -90,7 +90,7 @@ plot_conformers(job)
 # You can also open the conformers in AMSmovie to browse all conformers 1000+ conformers:
 
 
-# Finally in AMS2025, you can also inspect the conformer data using the JobAnalysis tool.
+# Finally in AMS2025+, you can also inspect the conformer data using the JobAnalysis tool.
 
 try:
     from scm.plams import JobAnalysis

@@ -41,8 +41,8 @@ dependencies = [
 
 [project.optional-dependencies]
 chem = [
+    "ase>=3.18",
     "rdkit>=2017",
-    "ase>=3.18"
 ]
 
 ams = [
@@ -65,7 +65,8 @@ docs = [
     "sphinx>=6.2.1,<8.2",
     "sphinx_copybutton>=0.5.2",
     "sphinx_design>=0.5.0",
-    "ipython>=7.22.0"
+    "ipython>=7.22.0",
+    "nbconvert>=6.4.5"
 ]
 
 examples = [
@@ -91,9 +92,14 @@ Changelog = "https://github.com/SCM-NV/PLAMS/blob/trunk/CHANGELOG.md"
 requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
+[project.scripts]
+scm-plams = "scm.plams.scripts.plams:main"
+
 [tool.setuptools]
-script-files = ["scripts/plams"]
 package-dir = { "scm.plams" = "." }
 
 [tool.setuptools.dynamic]
 version = {attr = "version.__version__"}
+
+[tool.scm]
+copy-to-target = [".flake8", "examples/**/*", "unit_tests/**/*"]

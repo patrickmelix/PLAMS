@@ -136,7 +136,7 @@ You can also open the conformers in AMSmovie to browse all conformers 1000+ conf
 
    !amsmovie {rkf}
 
-Finally in AMS2025, you can also inspect the conformer data using the JobAnalysis tool.
+Finally in AMS2025+, you can also inspect the conformer data using the JobAnalysis tool.
 
 .. code:: ipython3
 

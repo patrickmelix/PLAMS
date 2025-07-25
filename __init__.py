@@ -15,6 +15,9 @@ from scm.plams.core.functions import (
     add_to_class,
     add_to_instance,
     config,
+    get_config,
+    config_context,
+    jobs_in_directory,
     delete_job,
     finish,
     init,
@@ -56,6 +59,7 @@ from scm.plams.interfaces.adfsuite.forcefieldparams import (
     ForceFieldPatch,
     forcefield_params_from_kf,
 )
+from scm.plams.interfaces.adfsuite.inputparser import get_system_blocks_as_molecules_from_input, input_to_settings
 from scm.plams.interfaces.adfsuite.quickjobs import (
     preoptimize,
     refine_density,
@@ -196,6 +200,9 @@ __all__ = [
     "add_to_class",
     "add_to_instance",
     "config",
+    "get_config",
+    "config_context",
+    "jobs_in_directory",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
     "JobManager",
@@ -245,6 +252,8 @@ __all__ = [
     "MissingOptionalPackageError",
     "ForceFieldPatch",
     "forcefield_params_from_kf",
+    "get_system_blocks_as_molecules_from_input",
+    "input_to_settings",
     "AMSWorker",
     "AMSWorkerResults",
     "AMSWorkerError",

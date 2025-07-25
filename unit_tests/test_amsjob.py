@@ -138,9 +138,8 @@ AMS_JOBNAME="plamsjob" AMS_RESULTSDIR=. $AMSBIN/ams --input="plamsjob.in" < /dev
         job = AMSJob(molecule=job_input.molecule, settings=job_input.settings)
 
         # When get the runscript
-        with patch("scm.plams.interfaces.adfsuite.ams.config", config):
-            config.slurm = None  # Remove any specific settings when running under slurm
-            runscript = job.get_runscript()
+        config.slurm = None  # Remove any specific settings when running under slurm
+        runscript = job.get_runscript()
 
         # Then runscript with additional lines returned
         assert (
@@ -1684,9 +1683,7 @@ class TestAMSJobRun:
         # Patch the config and the stdout
         from scm.plams.core.logging import get_logger
 
-        with patch("scm.plams.interfaces.adfsuite.ams.config", config), patch(
-            "sys.stdout", new_callable=StringIO
-        ) as mock_stdout:
+        with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
             logger = get_logger("test_run_with_watch_forwards_ams_logs_to_stdout")
             with patch("scm.plams.core.functions._logger", logger):
                 config.log.date = False

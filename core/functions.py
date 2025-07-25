@@ -7,10 +7,13 @@ import threading
 import types
 from os.path import dirname, expandvars, isdir, isfile
 from os.path import join as opj
-from typing import Dict, Iterable, Optional, TYPE_CHECKING
+from pathlib import Path
+from typing import Dict, Iterable, Optional, Generator, Union, TYPE_CHECKING
 import atexit
 from importlib.util import find_spec
 import functools
+from contextvars import ContextVar
+from contextlib import contextmanager
 
 from scm.plams.core.logging import get_logger
 from scm.plams.core.errors import FileError, MissingOptionalPackageError
@@ -21,6 +24,59 @@ from scm.plams.core.enums import JobStatus
 if TYPE_CHECKING:
     from scm.plams.core.jobmanager import JobManager
     from scm.plams.core.basejob import Job
+
+# N.B. configuration used to be controlled solely through the global variable 'config'
+# but this has been refactored to allow config to be scoped to a specific context, through use of a context manager 'config_context'.
+# For backwards compatibility, config must always refer to the global top-level context object,
+# and 'get_context' should be used whenever the context-specific config is required.
+config = ConfigSettings()
+_config: ContextVar[ConfigSettings] = ContextVar("_config")
+
+
+@contextmanager
+def config_context() -> Generator[ConfigSettings, None, None]:
+    """
+    Enter a context with a |config| specific only to the current context.
+
+    The global |config| will be copied into a new |ConfigSettings|, which can then be modified independently of the global instance.
+
+    The |config| for this context can be retrieved using the function :func:`get_config`.
+
+     .. note::
+        Starting a new thread creates a new context, so the context configuration will not automatically be used in the new thread.
+        To copy over the parent thread context to the new thread, instead use :class:`~scm.plams.core.threading_utils.ContextAwareThread`
+
+     .. code:: python
+         >>> with config_context() as cfg:
+         >>>     cfg.log.stdout = 0
+         >>>     print(f"Stdout logging inside context disabled: {get_config().log.stdout == 0}")
+         >>> print(f"Stdout logging outside context disabled: {get_config().log.stdout == 0}")
+             Stdout logging inside context disabled: True
+             Stdout logging outside context disabled: False
+
+    :return: copy of the global |config| instance in a new |ConfigSettings|
+    """
+    cfg: ConfigSettings = get_config().copy()
+    token = _config.set(cfg)
+    try:
+        yield cfg
+    finally:
+        _config.reset(token)
+
+
+def get_config() -> ConfigSettings:
+    """
+    Get the |ConfigSettings| for the current code context.
+
+    This will be the configuration used within a :func:`config_context` context, or otherwise the global |config|.
+
+    :return: |ConfigSettings| that should be used in the current code context
+    """
+    try:
+        return _config.get()
+    except LookupError:
+        return config
+
 
 __all__ = [
     "init",
@@ -33,13 +89,13 @@ __all__ = [
     "add_to_instance",
     "requires_optional_package",
     "config",
+    "get_config",
+    "config_context",
     "read_molecules",
     "read_all_molecules_in_xyz_file",
+    "jobs_in_directory",
 ]
 
-# Initialise config with default values for standard settings
-# An initial call to '_init' and a final call to '_finish' are made later in this module
-config = ConfigSettings()
 # ===========================================================================
 
 _logger = get_logger("plams")
@@ -55,9 +111,10 @@ def log(message: str, level: int = 0) -> None:
     Date and/or time can be added based on ``config.log.date`` and ``config.log.time``.
     All logging activity is thread safe.
     """
-    if config.init and "log" in config:
-        logfile = config.default_jobmanager.logfile if config["default_jobmanager"] is not None else None
-        _logger.configure(config.log.stdout, config.log.file, logfile, config.log.date, config.log.time)
+    cfg = get_config()
+    if cfg.init and cfg._check_initialized("log"):
+        logfile = cfg.default_jobmanager.logfile if cfg._check_initialized("default_jobmanager") else None
+        _logger.configure(cfg.log.stdout, cfg.log.file, logfile, cfg.log.date, cfg.log.time)
     else:
         # By default write to stdout with level 3
         _logger.configure(3)
@@ -84,9 +141,9 @@ def _init() -> None:
 
     _load_defaults_file()
 
-    config.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
-
-    config.init = True
+    cfg = get_config()
+    cfg.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
+    cfg.init = True
 
 
 def _load_defaults_file() -> Optional[str]:
@@ -106,7 +163,8 @@ def _load_defaults_file() -> Optional[str]:
     else:
         defaults = opj(dirname(dirname(__file__)), "plams_defaults")
     if isfile(defaults):
-        with open(defaults, "r") as f:
+        with open(defaults) as f:
+            config = get_config()  # noqa: F841
             exec(compile(f.read(), defaults, "exec"))
         return defaults
     else:
@@ -204,23 +262,23 @@ def init(
     :param config_settings: |Settings| to update config with - these will overwrite any existing items
     :param quiet: do not log header with information about the PLAMS environment
     """
-
-    if config.init and config._explicit_init:
+    cfg = get_config()
+    if cfg.init and cfg._explicit_init:
         return
 
     # Build the config settings via:
     # * (Re)Initialise config with default values
     # * Update with any values from a PLAMS defaults file
     # * Update with any settings passed to the method
-    config.update(ConfigSettings())
+    cfg.update(ConfigSettings())
     defaults_file = _load_defaults_file()
-    config.update(config_settings or {})
+    cfg.update(config_settings or {})
 
     from scm.plams.core.jobmanager import JobManager
 
-    config.default_jobmanager = JobManager(config.jobmanager, path, folder, use_existing_folder)
+    cfg.default_jobmanager = JobManager(cfg.jobmanager, path, folder, use_existing_folder)
 
-    config.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
+    cfg.slurm = _init_slurm() if "SLURM_JOB_ID" in os.environ else None
 
     if not quiet:
         log("Running PLAMS located in {}".format(dirname(dirname(__file__))), 5)
@@ -228,10 +286,10 @@ def init(
         if defaults_file is not None:
             log("PLAMS defaults were loaded from {}".format(defaults_file), 5)
         log("PLAMS environment initialized", 5)
-        log("PLAMS working folder: {}".format(config.default_jobmanager.workdir), 1)
+        log("PLAMS working folder: {}".format(cfg.default_jobmanager.workdir), 1)
 
-    config.init = True
-    config._explicit_init = True
+    cfg.init = True
+    cfg._explicit_init = True
 
 
 # ===========================================================================
@@ -241,8 +299,8 @@ def _finish():
     """
     Internal clean up of the PLAMS environment, which will be called at the end of the script.
     """
-
-    if not config.init:
+    cfg = get_config()
+    if not cfg.init:
         return
 
     for thread in threading.enumerate():
@@ -251,14 +309,14 @@ def _finish():
 
     # Only clean the default lazy job manager if it has been initialised
     # as otherwise accessing it will create an empty workdir
-    if config["default_jobmanager"] is not None:
-        config.default_jobmanager._clean()
+    if cfg._check_initialized("default_jobmanager"):
+        cfg.default_jobmanager._clean()
 
-        if config.erase_workdir is True:
+        if cfg.erase_workdir is True:
             from scm.plams.core.logging import LogManager
 
             # Close all loggers which have files in the directory to be erased
-            workdir = os.path.abspath(config.default_jobmanager.workdir)
+            workdir = os.path.abspath(cfg.default_jobmanager.workdir)
             for logger in LogManager._loggers.values():
                 if (logfile := logger.logfile) is not None:
                     try:
@@ -267,9 +325,9 @@ def _finish():
                     except ValueError:
                         pass
 
-            shutil.rmtree(config.default_jobmanager.workdir)
+            shutil.rmtree(cfg.default_jobmanager.workdir)
 
-    config.init = False
+    cfg.init = False
 
 
 def finish(otherJM: Optional[Iterable["JobManager"]] = None):
@@ -285,7 +343,7 @@ def finish(otherJM: Optional[Iterable["JobManager"]] = None):
 
     :param otherJM: additional job managers used in a workflow to be cleaned
     """
-    if not config.init:
+    if not get_config().init:
         return
 
     _finish()
@@ -308,7 +366,7 @@ atexit.register(_logger.close)
 
 def load(filename):
     """Load previously saved job from ``.dill`` file. This is just a shortcut for |load_job| method of the default |JobManager| ``config.default_jobmanager``."""
-    return config.default_jobmanager.load_job(filename)
+    return get_config().default_jobmanager.load_job(filename)
 
 
 # ===========================================================================
@@ -327,7 +385,7 @@ def load_all(path, jobmanager=None):
 
     Returned value is a dictionary containing all loaded jobs as values and absolute paths to ``.dill`` files as keys.
     """
-    jm = jobmanager or config.default_jobmanager
+    jm = jobmanager or get_config().default_jobmanager
     loaded_jobs = {}
     for foldername in filter(lambda x: isdir(opj(path, x)), os.listdir(path)):
         maybedill = opj(path, foldername, foldername + ".dill")
@@ -572,3 +630,63 @@ def parse_heredoc(bash_input: str, heredoc_delimit: str = "eor") -> str:
     # Grab heredoced block and parse it
     _, ret = bash_input[i:j].split("\n", maxsplit=1)
     return ret
+
+
+# ===========================================================================
+
+_dir_for_jobs: ContextVar[Optional[Path]] = ContextVar("_dir_for_jobs", default=None)
+
+
+@contextmanager
+def jobs_in_directory(path: Union[str, os.PathLike]) -> Generator[Path, None, None]:
+    """
+    Enter a context which uses a directory with the given path when running new Jobs.
+    The provided path is always relative to the :attr:`~scm.plams.core.jobmanager.JobManager.workdir`.
+
+    A |Job| run within this context will have its input and results files stored within the job directory in this directory.
+
+    Note that:
+        * For a |MultiJob|, this will apply to the job directory of the top-most parent |MultiJob|
+        * The directory is not created until a job is run in this context
+        * Heriarchies of directories can be created by nesting a context within another
+        * The absolute path of the directory is returned on entering the context, which assumes the default |JobManager| is used. If another job manager is used within the context, the actual directory will be relative to its ``workdir``.
+
+    .. code:: python
+         >>> with jobs_in_directory("GeometryOptimization") as go_dir:
+         >>>     with jobs_in_directory("DFTB"):
+         >>>        job1.run()
+         >>>     with jobs_in_directory("ML/M3GNet"):
+         >>>        job2.run()
+         >>>     print(go_dir)
+         >>>     print(job1.path)
+         >>>     print(job2.path)
+            path/plams_workdir/GeometryOptimization
+            path/plams_workdir/GeometryOptimization/DFTB/job1
+            path/plams_workdir/GeometryOptimization/ML/M3GNet/job2
+
+    .. note::
+        Starting a new thread creates a new context, so the context configuration will not automatically be used in the new thread.
+        To copy over the parent thread context to the new thread, instead use :class:`~scm.plams.core.threading_utils.ContextAwareThread`
+
+    :param path: path of the run directory relative to the :attr:`~scm.plams.core.jobmanager.JobManager.workdir`
+    :returns: absolute path of the directory, assuming the default |JobManager| is used
+    """
+    current_dir = _get_dir_for_jobs()
+    rel_dir = Path(path)
+    if current_dir:
+        rel_dir = current_dir / rel_dir
+    token = _dir_for_jobs.set(rel_dir)
+    try:
+        yield get_config().default_jobmanager.current_dir_for_jobs
+    finally:
+        _dir_for_jobs.reset(token)
+
+
+def _get_dir_for_jobs() -> Optional[Path]:
+    """
+    Gets the current directory which jobs will be run in, if set.
+    This is assumed to be relative the ``workdir`` of the |JobManager|.
+
+    :return: relative path of current directory in which to run jobs, or ``None`` if not set
+    """
+    return _dir_for_jobs.get()

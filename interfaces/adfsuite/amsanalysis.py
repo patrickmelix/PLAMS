@@ -3,11 +3,19 @@ from typing import Dict, Union, Optional
 
 from scm.plams.core.errors import FileError, PlamsError
 from scm.plams.interfaces.adfsuite.scmjob import SCMJob, SCMResults
+from scm.plams.interfaces.adfsuite.inputparser import input_to_settings
 from scm.plams.core.settings import Settings
 from scm.plams.mol.molecule import Molecule
 from scm.plams.core.functions import log
 
 __all__ = ["AMSAnalysisJob", "AMSAnalysisResults", "convert_to_unicode"]
+
+try:
+    from scm.pisa.block import DriverBlock
+
+    _has_scm_pisa = True
+except ImportError:
+    _has_scm_pisa = False
 
 
 class AMSAnalysisPlot:
@@ -181,7 +189,10 @@ class AMSAnalysisResults(SCMResults):
         """
         Get the AMSAnalysisPlot object for a specific section of the plot KFFile
         """
-        task = self.job.settings.input.Task
+        if isinstance(self.job.settings.input, Settings):
+            task = self.job.settings.input.Task
+        else:
+            task = self.job.settings.input.Task.val
         if section == "":
             section = task
 
@@ -238,9 +249,7 @@ class AMSAnalysisResults(SCMResults):
         """
         user_input = self._kf.read("General", "user input")
         try:
-            from scm.libbase import InputParser
-
-            inp = InputParser().to_settings("analysis", user_input)
+            inp = input_to_settings(user_input, program="analysis")
         except:
             log(
                 "Failed to recreate input settings from {}".format(
@@ -288,14 +297,19 @@ class AMSAnalysisJob(SCMJob):
 
         systems = AMSJob._serialize_molecule(self)
         if len(systems) > 0:
-            self.settings.input.system = systems
+            if _has_scm_pisa and isinstance(self.settings.input, DriverBlock):
+                self.settings.system = systems
+            else:
+                self.settings.input.system = systems
 
     def _remove_mol(self):
         """
         Remove the molecule from the system block again
         """
-        if "system" in self.settings.input:
+        if hasattr(self.settings.input, "system"):
             del self.settings.input.system
+        elif "system" in self.settings:
+            del self.settings.system
 
     @staticmethod
     def _atom_suffix(atom):
