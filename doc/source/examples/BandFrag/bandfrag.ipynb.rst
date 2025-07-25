@@ -104,6 +104,8 @@ For efficiency in this example, we use a minimal basis and reduced computational
 Print Results
 ~~~~~~~~~~~~~
 
+Finally, we extract the results of the energy decomposition:
+
 .. code:: ipython3
 
    results = eda_job.results
