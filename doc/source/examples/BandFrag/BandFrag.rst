@@ -1,8 +1,7 @@
 .. _band-fragment-recipe:
 
 BAND fragment job
---------------------
-
+=================
 .. currentmodule:: scm.plams.recipes.bandfragment
 
 In this module a dedicated job type for Energy Decomposition Analysis in BAND is defined.
@@ -20,17 +19,16 @@ It simply redirects the usual |AMSResults| methods to the results of the full sy
 
 A derived subclass |NOCVBandFragmentJob| is also provided. It can be usefull for generating NOCV plots after the PEDA-NOCV calculation.
 
-The source code of the whole module with both abovementioned classes:
+.. literalinclude:: ../../../../recipes/bandfragment.py
+
+.. include:: BandFrag.common_header.rst
+.. include:: bandfrag.ipynb.rst
+.. include:: BandFrag.common_footer.rst
+
 
 API
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 .. autoclass:: BANDFragmentJob()
 .. autoclass:: BANDFragmentResults()
 .. autoclass:: NOCVBandFragmentJob()
-
-
-Example
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-A basic example using `ASE to build a surface slab <https://wiki.fysik.dtu.dk/ase/ase/build/surface.html>`_ and perform a BAND fragment calculation: :download:`bandfrag_test.py <../../../../examples/BandFrag/bandfrag.py>`

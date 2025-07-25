@@ -1,30 +1,48 @@
-from scm.plams import Settings
-from scm.plams import fromASE
+#!/usr/bin/env amspython
+# coding: utf-8
+
+# ## Initialization
+
+from scm.plams import Settings, fromASE, plot_molecule
 from scm.plams.recipes.bandfragment import BANDFragmentJob
 
 # build the surface
 from ase import Atoms
 from ase.build import fcc111, add_adsorbate
 
-mol = fcc111("Au", size=(4, 4, 3))
+
+# ## Build Surface & Fragments
+
+# We first build a gold surface and add the hydrogen adsorbate.
+
+mol = fcc111("Au", size=(2, 2, 3))
 add_adsorbate(mol, "H", 1.5, "ontop")
 mol.center(vacuum=10.0, axis=2)
+plot_molecule(mol)
 
-# separate the fragments
+
+# The system is then split into two fragments based on the species.
+
 surface = mol.copy()
 symbols = surface.get_chemical_symbols()
 del surface[[i for i in range(len(symbols)) if symbols[i] != "Au"]]
 adsorbate = mol.copy()
 del adsorbate[[i for i in range(len(symbols)) if symbols[i] == "Au"]]
 
-# optional: load the optimized molecules
+
+# If available, optimized fragments can also be loaded.
+
 # from ase import io
 # surface_opt = io.read("surface_opt.xyz")
 # adsorbate_opt = io.read("adsorbate_opt.xyz")
 # assert len(surface_opt) == len(surface)
 # assert len(adsorbate_opt) == len(adsorbate)
 
-# settings for job
+
+# ## Set Up & Run Job
+
+# For efficiency in this example, we use a minimal basis and reduced computational details to run the job.
+
 base_settings = Settings()
 base_settings.input.ams.task = "SinglePoint"
 base_settings.input.band.basis.type = "SZ"
@@ -33,7 +51,7 @@ base_settings.input.band.dos.calcdos = "No"
 base_settings.input.band.kspace.regular.numberofpoints = "3 3"
 base_settings.input.band.beckegrid.quality = "Basic"
 base_settings.input.band.zlmfit.quality = "Basic"
-base_settings.input.band.usesymmetry = False
+base_settings.input.band.usesymmetry = "No"
 base_settings.input.band.xc.gga = "PBE"
 base_settings.input.band.xc.dispersion = "Grimme4"
 
@@ -49,7 +67,13 @@ eda_job = BANDFragmentJob(
     #    fragment2_opt=fromASE(adsorbate_opt),
 )
 
-results = eda_job.run()
+
+eda_job.run()
+
+
+# ## Print Results
+
+results = eda_job.results
 eda_res = eda_job.results.get_energy_decomposition()
 print("{:<20} {:>10}".format("Term", "Energy [kJ/mol]"))
 for key, value in eda_res.items():
