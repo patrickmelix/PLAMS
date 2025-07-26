@@ -10,6 +10,7 @@ For example, 2024.101 is the major release of 2024, and 2024.102 is the first bu
 This changelog is effective from the 2025 releases.
 
 ## [Unreleased]
+* New `BANDFragment` and updated `ADFFragment` recepis for automatic EDA calculations.
 
 ### Added
 * `AMSAnalysisJobs` now have Pisa support, accept multiple AMSJobs as input, and no longer overwrite user supplied input settings.
